@@ -1,202 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Panel, Metric } from '../components/UI';
-import { PerformanceChart } from '../components/Charts';
+import { AveragePerformanceChart } from '../components/Charts';
 import { achievements, add, scrollCls } from '../lib/logUtils';
-
-function sortEvents(events) {
-  return [...events].sort((a, b) => {
-    if (String(a.date) !== String(b.date)) {
-      return String(a.date).localeCompare(String(b.date));
-    }
-
-    if (Number(a.sec) !== Number(b.sec)) {
-      return Number(a.sec) - Number(b.sec);
-    }
-
-    return Number(a.i || 0) - Number(b.i || 0);
-  });
-}
-
-function buildStreakMap(events) {
-  const current = {};
-  const best = {};
-
-  sortEvents(events).forEach((event) => {
-    if (event.type === 'kill') {
-      current[event.killer] = (current[event.killer] || 0) + 1;
-      best[event.killer] = Math.max(best[event.killer] || 0, current[event.killer]);
-    } else if (event.type === 'death') {
-      current[event.victim] = 0;
-    }
-  });
-
-  return best;
-}
-
-function buildFeedMap(events, seconds = 10) {
-  const grouped = {};
-  const output = {};
-
-  sortEvents(events)
-    .filter((event) => event.type === 'kill')
-    .forEach((event) => {
-      grouped[event.killer] ||= [];
-      grouped[event.killer].push(event);
-    });
-
-  Object.entries(grouped).forEach(([playerName, list]) => {
-    let left = 0;
-    let best = 0;
-
-    for (let right = 0; right < list.length; right += 1) {
-      while (list[right].sec - list[left].sec > seconds) {
-        left += 1;
-      }
-
-      best = Math.max(best, right - left + 1);
-    }
-
-    output[playerName] = best;
-  });
-
-  return output;
-}
-
-function getPlayerBestStreak(events, playerName) {
-  let current = 0;
-  let best = 0;
-
-  sortEvents(events).forEach((event) => {
-    if (event.type === 'kill' && event.killer === playerName) {
-      current += 1;
-      best = Math.max(best, current);
-    }
-
-    if (event.type === 'death' && event.victim === playerName) {
-      current = 0;
-    }
-  });
-
-  return best;
-}
-
-function getPlayerBestFeed(events, playerName, seconds = 10) {
-  const kills = sortEvents(events).filter(
-    (event) => event.type === 'kill' && event.killer === playerName,
-  );
-
-  let left = 0;
-  let best = 0;
-
-  for (let right = 0; right < kills.length; right += 1) {
-    while (kills[right].sec - kills[left].sec > seconds) {
-      left += 1;
-    }
-
-    best = Math.max(best, right - left + 1);
-  }
-
-  return best;
-}
-
-function tieAwareRank(rows, key, desc = true) {
-  const sorted = [...rows].sort((a, b) => {
-    const av = Number(a[key]) || 0;
-    const bv = Number(b[key]) || 0;
-    return desc ? bv - av : av - bv;
-  });
-
-  const ranks = {};
-  let lastValue;
-  let currentRank = 0;
-
-  sorted.forEach((row, index) => {
-    const value = Number(row[key]) || 0;
-
-    if (index === 0 || value !== lastValue) {
-      currentRank = index + 1;
-    }
-
-    ranks[row.name] = currentRank;
-    lastValue = value;
-  });
-
-  return ranks;
-}
-
-function getMatchBasedAverageRank(events, playerName) {
-  const warMap = {};
-
-  events.forEach((event) => {
-    warMap[event.id] ||= [];
-    warMap[event.id].push(event);
-  });
-
-  const scores = [];
-
-  Object.values(warMap).forEach((warEvents) => {
-    const participated = warEvents.some(
-      (event) => event.killer === playerName || event.victim === playerName,
-    );
-
-    if (!participated) return;
-
-    const kills = {};
-    const deaths = {};
-
-    warEvents.forEach((event) => {
-      if (event.type === 'kill') add(kills, event.killer);
-      if (event.type === 'death') add(deaths, event.victim);
-    });
-
-    const streakMap = buildStreakMap(warEvents);
-    const feedMap = buildFeedMap(warEvents);
-
-    const rows = Array.from(new Set([...Object.keys(kills), ...Object.keys(deaths)])).map(
-      (name) => {
-        const playerKills = kills[name] || 0;
-        const playerDeaths = deaths[name] || 0;
-
-        return {
-          name,
-          kills: playerKills,
-          deaths: playerDeaths,
-          kdNumber: playerDeaths
-            ? Number((playerKills / playerDeaths).toFixed(2))
-            : Number(playerKills.toFixed(2)),
-          streak: streakMap[name] || 0,
-          feed: feedMap[name] || 0,
-        };
-      },
-    );
-
-    if (!rows.some((row) => row.name === playerName)) return;
-
-    const ranks = {
-      kills: tieAwareRank(rows, 'kills', true),
-      deaths: tieAwareRank(rows, 'deaths', false),
-      kd: tieAwareRank(rows, 'kdNumber', true),
-      streak: tieAwareRank(rows, 'streak', true),
-      feed: tieAwareRank(rows, 'feed', true),
-    };
-
-    const avg =
-      (ranks.kills[playerName] +
-        ranks.deaths[playerName] +
-        ranks.kd[playerName] +
-        ranks.streak[playerName] +
-        ranks.feed[playerName]) /
-      5;
-
-    scores.push(avg);
-  });
-
-  if (!scores.length) return '0.00';
-
-  return (
-    scores.reduce((sum, value) => sum + value, 0) / scores.length
-  ).toFixed(2);
-}
 
 function PlayerSelect({ players, value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -204,7 +9,7 @@ function PlayerSelect({ players, value, onChange }) {
 
   const selected = players.find((player) => player.name === value);
 
-  const filtered = players.filter((player) =>
+  const list = players.filter((player) =>
     `${player.name} ${player.family || ''}`.toLowerCase().includes(query.toLowerCase()),
   );
 
@@ -212,7 +17,7 @@ function PlayerSelect({ players, value, onChange }) {
     <div className="relative mb-4 max-w-xl">
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => setOpen((state) => !state)}
         className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left shadow-lg backdrop-blur-xl transition hover:border-blue-300/50 hover:bg-white/10"
       >
         <div className="min-w-0">
@@ -224,7 +29,9 @@ function PlayerSelect({ players, value, onChange }) {
           </p>
         </div>
 
-        <span className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}>
+        <span
+          className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}
+        >
           ⌄
         </span>
       </button>
@@ -240,7 +47,7 @@ function PlayerSelect({ players, value, onChange }) {
           />
 
           <div className={`max-h-64 overflow-y-auto pr-1 ${scrollCls}`}>
-            {!filtered.length ? (
+            {!list.length ? (
               <p className="px-3 py-4 text-sm text-slate-500">No players found.</p>
             ) : (
               <>
@@ -258,7 +65,7 @@ function PlayerSelect({ players, value, onChange }) {
                   Select player
                 </button>
 
-                {filtered.map((player) => (
+                {list.map((player) => (
                   <button
                     type="button"
                     key={player.name}
@@ -285,128 +92,136 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
-function MiniBarList({ title, items, valueKey, accent = 'blue' }) {
+function MiniRankList({ title, items, valueKey, tone = 'blue' }) {
   const rows = items.slice(0, 5);
   const max = Math.max(1, ...rows.map((item) => Number(item[valueKey]) || 0));
 
-  const barClass =
-    accent === 'pink'
-      ? 'from-pink-500 to-fuchsia-300'
-      : accent === 'orange'
-        ? 'from-orange-500 to-amber-300'
-        : 'from-blue-500 to-cyan-300';
+  const fillClass =
+    tone === 'pink'
+      ? 'bg-gradient-to-r from-fuchsia-500 to-pink-300'
+      : 'bg-gradient-to-r from-blue-500 to-cyan-300';
 
   return (
-    <div>
-      <h4 className="mb-3 text-lg font-black">{title}</h4>
+    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/45 p-4">
+      <h4 className="mb-4 text-xl font-black">{title}</h4>
 
       {!rows.length ? (
         <p className="text-sm text-slate-500">No data yet.</p>
       ) : (
-        <div className="space-y-3">
-          {rows.map((item, index) => {
-            const value = Number(item[valueKey]) || 0;
+        rows.map((item, index) => {
+          const value = Number(item[valueKey]) || 0;
 
-            return (
-              <div
-                key={`${title}-${item.name}-${index}`}
-                className="grid grid-cols-[34px_1fr_40px] items-center gap-3 text-sm"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black">
-                  {index + 1}
-                </span>
+          return (
+            <div
+              key={`${title}-${item.name}`}
+              className="mb-4 grid grid-cols-[34px_1fr_42px] items-center gap-3 text-sm last:mb-0"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black text-slate-100">
+                {index + 1}
+              </span>
 
-                <div className="min-w-0">
-                  <p className="mb-2 truncate font-bold">{item.name}</p>
-                  <div className="h-2.5 rounded-full bg-slate-800">
-                    <div
-                      className={`h-2.5 rounded-full bg-gradient-to-r ${barClass}`}
-                      style={{
-                        width: `${Math.max(6, Math.round((value / max) * 100))}%`,
-                      }}
-                    />
-                  </div>
+              <div className="min-w-0">
+                <p className="mb-2 truncate font-bold">{item.name}</p>
+                <div className="h-2.5 rounded-full bg-slate-800">
+                  <div
+                    className={`h-2.5 rounded-full ${fillClass}`}
+                    style={{
+                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
+                    }}
+                  />
                 </div>
-
-                <b className="text-right">{value}</b>
               </div>
-            );
-          })}
-        </div>
+
+              <b className="text-right text-slate-100">{value}</b>
+            </div>
+          );
+        })
       )}
     </div>
   );
 }
 
-function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
-  return (
-    <Panel>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <MiniBarList
-          title="Favourite Targets"
-          items={favouriteTargets}
-          valueKey="kills"
-          accent="blue"
-        />
-
-        <MiniBarList
-          title="Nemesis"
-          items={nemesisTargets}
-          valueKey="kills"
-          accent="pink"
-        />
-      </div>
-    </Panel>
-  );
+function formatAvgPair(avgKills, avgDeaths) {
+  return `${avgKills.toFixed(2)} / ${avgDeaths.toFixed(2)}`;
 }
 
-function EnemyGuildsPanel({ guilds }) {
+function EnemyGuildTable({ rows }) {
   return (
     <Panel>
       <div className="mb-4">
-        <h3 className="text-xl font-black">Enemy Guilds</h3>
+        <h3 className="text-2xl font-black">Enemy Guilds</h3>
         <p className="text-sm text-slate-400">
-          Sorted by average K/D against the selected player
+          Premium matchup view against the selected player
         </p>
       </div>
 
-      {!guilds.length ? (
-        <p className="text-slate-500">No enemy guild data yet.</p>
+      {!rows.length ? (
+        <p className="text-slate-500">No enemy guild interactions found.</p>
       ) : (
-        <div className={`max-h-[520px] overflow-y-auto pr-1 ${scrollCls}`}>
-          <div className="mb-2 grid grid-cols-[1.5fr_repeat(5,minmax(0,0.7fr))] gap-2 px-3 text-[11px] font-black uppercase tracking-wider text-slate-500">
-            <div>Guild</div>
-            <div className="text-center">K</div>
-            <div className="text-center">D</div>
-            <div className="text-center">Avg K</div>
-            <div className="text-center">Avg D</div>
-            <div className="text-center">K/D</div>
-          </div>
+        <div className={`max-h-[560px] overflow-y-auto pr-2 ${scrollCls}`}>
+          <div className="space-y-3">
+            <div className="sticky top-0 z-10 grid grid-cols-[minmax(180px,1.5fr)_90px_70px_70px_160px] gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 backdrop-blur">
+              <div>Guild</div>
+              <div className="text-center">Wars</div>
+              <div className="text-center">K</div>
+              <div className="text-center">D</div>
+              <div className="text-center">Average K / D</div>
+            </div>
 
-          <div className="space-y-2">
-            {guilds.map((guild) => (
-              <div
-                key={guild.name}
-                className="grid grid-cols-[1.5fr_repeat(5,minmax(0,0.7fr))] items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-bold">{guild.name}</p>
-                  <p className="text-[11px] text-slate-500">{guild.wars} wars</p>
-                </div>
+            {rows.map((guild, index) => {
+              const positive = guild.avgKills >= guild.avgDeaths;
 
-                <div className="text-center font-black text-blue-300">{guild.kills}</div>
-                <div className="text-center font-black text-pink-300">{guild.deaths}</div>
-                <div className="text-center font-black text-cyan-300">{guild.avgKills}</div>
-                <div className="text-center font-black text-fuchsia-300">{guild.avgDeaths}</div>
+              return (
                 <div
-                  className={`text-center font-black ${
-                    guild.kd >= 1 ? 'text-emerald-300' : 'text-rose-300'
-                  }`}
+                  key={guild.name}
+                  className="grid grid-cols-[minmax(180px,1.5fr)_90px_70px_70px_160px] items-center gap-3 rounded-3xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-4 py-4 shadow-[0_10px_28px_rgba(0,0,0,.22)] transition hover:border-slate-700 hover:shadow-[0_12px_30px_rgba(0,0,0,.34)]"
                 >
-                  {guild.kd.toFixed(2)}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs font-black text-slate-300">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-lg font-black text-slate-100">
+                          {guild.name}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Sorted by average K / D ratio
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="inline-flex min-w-[56px] items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm font-black text-slate-100">
+                      {guild.wars}
+                    </div>
+                  </div>
+
+                  <div className="text-center text-lg font-black text-cyan-300">
+                    {guild.kills}
+                  </div>
+
+                  <div className="text-center text-lg font-black text-pink-300">
+                    {guild.deaths}
+                  </div>
+
+                  <div className="text-center">
+                    <div
+                      className={`inline-flex min-w-[128px] items-center justify-center rounded-2xl border px-3 py-2 text-sm font-black shadow-inner ${
+                        positive
+                          ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
+                          : 'border-rose-400/25 bg-rose-500/10 text-rose-300'
+                      }`}
+                    >
+                      <span className="text-cyan-300">{guild.avgKills.toFixed(2)}</span>
+                      <span className="mx-1.5 text-slate-500">/</span>
+                      <span className="text-pink-300">{guild.avgDeaths.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -414,68 +229,86 @@ function EnemyGuildsPanel({ guilds }) {
   );
 }
 
-function PlayerStreakFeed({ streakItems, feedItems }) {
-  return (
-    <Panel>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <div>
-          <h4 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-400">
-            Killstreak
-          </h4>
+function buildPlacementRanks(rows, valueKey, direction = 'desc') {
+  const sorted = [...rows].sort((a, b) => {
+    const av = Number(a[valueKey]) || 0;
+    const bv = Number(b[valueKey]) || 0;
 
-          {!streakItems.length ? (
-            <p className="text-sm text-slate-500">No killstreak data yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {streakItems.map((item, index) => (
-                <div
-                  key={`streak-${item.id}-${index}`}
-                  className="grid grid-cols-[30px_1fr_46px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
-                >
-                  <span className="text-slate-500">{index + 1}</span>
+    if (av === bv) {
+      return a.name.localeCompare(b.name);
+    }
 
-                  <div className="min-w-0">
-                    <b className="block truncate">{item.date}</b>
-                    <p className="truncate text-[10px] text-slate-500">{item.war}</p>
-                  </div>
+    return direction === 'desc' ? bv - av : av - bv;
+  });
 
-                  <b className="text-right text-emerald-300">{item.value}</b>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+  const rankMap = {};
+  let lastValue = null;
+  let lastRank = 0;
 
-        <div>
-          <h4 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-400">
-            Killfeed
-          </h4>
+  sorted.forEach((row, index) => {
+    const value = Number(row[valueKey]) || 0;
 
-          {!feedItems.length ? (
-            <p className="text-sm text-slate-500">No killfeed data yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {feedItems.map((item, index) => (
-                <div
-                  key={`feed-${item.id}-${index}`}
-                  className="grid grid-cols-[30px_1fr_46px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
-                >
-                  <span className="text-slate-500">{index + 1}</span>
+    if (index === 0 || value !== lastValue) {
+      lastRank = index + 1;
+      lastValue = value;
+    }
 
-                  <div className="min-w-0">
-                    <b className="block truncate">{item.date}</b>
-                    <p className="truncate text-[10px] text-slate-500">{item.war}</p>
-                  </div>
+    rankMap[row.name] = lastRank;
+  });
 
-                  <b className="text-right text-orange-300">{item.value}</b>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </Panel>
-  );
+  return rankMap;
+}
+
+function buildAverageRankForPlayer(playerName, events) {
+  const warIds = [...new Set(events.map((event) => String(event.id)))];
+  const ranks = [];
+
+  warIds.forEach((warId) => {
+    const warEvents = events.filter((event) => String(event.id) === warId);
+    const map = {};
+
+    warEvents.forEach((event) => {
+      if (!map[event.killer]) {
+        map[event.killer] = { name: event.killer, kills: 0, deaths: 0 };
+      }
+
+      if (!map[event.victim]) {
+        map[event.victim] = { name: event.victim, kills: 0, deaths: 0 };
+      }
+
+      if (event.killer) {
+        map[event.killer].kills += event.killer === event.victim ? 0 : 1;
+      }
+
+      if (event.victim) {
+        map[event.victim].deaths += 1;
+      }
+    });
+
+    const players = Object.values(map).map((row) => ({
+      ...row,
+      kd: row.deaths ? row.kills / row.deaths : row.kills,
+    }));
+
+    if (!players.find((row) => row.name === playerName)) {
+      return;
+    }
+
+    const killsRank = buildPlacementRanks(players, 'kills', 'desc');
+    const deathsRank = buildPlacementRanks(players, 'deaths', 'asc');
+    const kdRank = buildPlacementRanks(players, 'kd', 'desc');
+
+    const averageForWar =
+      (killsRank[playerName] + deathsRank[playerName] + kdRank[playerName]) / 3;
+
+    ranks.push(averageForWar);
+  });
+
+  if (!ranks.length) {
+    return 0;
+  }
+
+  return Number((ranks.reduce((sum, value) => sum + value, 0) / ranks.length).toFixed(2));
 }
 
 export default function PlayerStats({ stats }) {
@@ -487,37 +320,37 @@ export default function PlayerStats({ stats }) {
     const victims = {};
     const killedBy = {};
     const days = {};
-    const warMap = {};
     const enemyGuilds = {};
-    const participatedWars = new Set();
+    const involvedWarIds = new Set();
 
     stats.ev.forEach((event) => {
-      warMap[event.id] ||= [];
-      warMap[event.id].push(event);
-
       const involved = event.killer === player || event.victim === player;
 
       if (!involved) return;
 
-      participatedWars.add(event.id);
+      involvedWarIds.add(String(event.id));
 
-      days[event.date] ||= {
-        time: event.date,
-        kills: 0,
-        deaths: 0,
-        wars: new Set(),
-      };
+      if (!days[event.date]) {
+        days[event.date] = {
+          time: event.date,
+          kills: 0,
+          deaths: 0,
+          wars: new Set(),
+        };
+      }
 
-      days[event.date].wars.add(event.id);
+      days[event.date].wars.add(String(event.id));
 
-      enemyGuilds[event.guild] ||= {
-        name: event.guild,
-        kills: 0,
-        deaths: 0,
-        wars: new Set(),
-      };
+      if (!enemyGuilds[event.guild]) {
+        enemyGuilds[event.guild] = {
+          name: event.guild,
+          kills: 0,
+          deaths: 0,
+          wars: new Set(),
+        };
+      }
 
-      enemyGuilds[event.guild].wars.add(event.id);
+      enemyGuilds[event.guild].wars.add(String(event.id));
 
       if (event.killer === player) {
         add(victims, event.victim);
@@ -541,94 +374,42 @@ export default function PlayerStats({ stats }) {
 
     const orderedDays = Object.values(days).sort((a, b) => a.time.localeCompare(b.time));
 
-    const performanceLine = orderedDays.map((day) => {
+    const averageLine = orderedDays.map((day) => {
       const fights = Math.max(1, day.wars.size);
       const avgKills = Number((day.kills / fights).toFixed(2));
       const avgDeaths = Number((day.deaths / fights).toFixed(2));
-      const avgKd = Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2));
 
       return {
         time: day.time,
         kills: day.kills,
         deaths: day.deaths,
-        avgKills,
-        avgDeaths,
-        avgKd,
+        avgKd: Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2)),
       };
     });
 
-    const guildRows = Object.values(enemyGuilds)
+    const enemyGuildRows = Object.values(enemyGuilds)
       .map((guild) => {
         const wars = Math.max(1, guild.wars.size);
         const avgKills = Number((guild.kills / wars).toFixed(2));
         const avgDeaths = Number((guild.deaths / wars).toFixed(2));
-        const kd = Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2));
+        const avgRatio = Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2));
 
         return {
-          name: guild.name,
-          kills: guild.kills,
-          deaths: guild.deaths,
+          ...guild,
           wars,
           avgKills,
           avgDeaths,
-          kd,
+          avgRatio,
+          avgPair: formatAvgPair(avgKills, avgDeaths),
         };
       })
       .sort(
         (a, b) =>
-          b.kd - a.kd ||
+          b.avgRatio - a.avgRatio ||
           b.avgKills - a.avgKills ||
           a.avgDeaths - b.avgDeaths ||
           a.name.localeCompare(b.name),
       );
-
-    const streakItems = Object.entries(warMap)
-      .map(([id, events]) => {
-        const participated = events.some(
-          (event) => event.killer === player || event.victim === player,
-        );
-
-        if (!participated) return null;
-
-        return {
-          id,
-          value: getPlayerBestStreak(events, player),
-          date: events[0]?.date || '-',
-          war: events[0]?.war || 'Battle log',
-        };
-      })
-      .filter((item) => item && item.value > 0)
-      .sort(
-        (a, b) =>
-          b.value - a.value ||
-          String(b.date).localeCompare(String(a.date)) ||
-          String(a.war).localeCompare(String(b.war)),
-      )
-      .slice(0, 10);
-
-    const feedItems = Object.entries(warMap)
-      .map(([id, events]) => {
-        const participated = events.some(
-          (event) => event.killer === player || event.victim === player,
-        );
-
-        if (!participated) return null;
-
-        return {
-          id,
-          value: getPlayerBestFeed(events, player),
-          date: events[0]?.date || '-',
-          war: events[0]?.war || 'Battle log',
-        };
-      })
-      .filter((item) => item && item.value > 0)
-      .sort(
-        (a, b) =>
-          b.value - a.value ||
-          String(b.date).localeCompare(String(a.date)) ||
-          String(a.war).localeCompare(String(b.war)),
-      )
-      .slice(0, 10);
 
     const achievementRows = achievements.map((achievement) => {
       const value =
@@ -650,21 +431,21 @@ export default function PlayerStats({ stats }) {
       };
     });
 
+    const playerEvents = stats.ev.filter(
+      (event) => event.killer === player || event.victim === player,
+    );
+
+    const averageRank = buildAverageRankForPlayer(player, playerEvents);
+
     return {
       ...playerRow,
-      wars: participatedWars.size,
-      averageRank: getMatchBasedAverageRank(stats.ev, player),
-      performanceLine,
-      favouriteTargets: Object.entries(victims)
-        .map(([name, kills]) => ({ name, kills }))
-        .sort((a, b) => b.kills - a.kills),
-      nemesisTargets: Object.entries(killedBy)
-        .map(([name, kills]) => ({ name, kills }))
-        .sort((a, b) => b.kills - a.kills),
-      guildRows,
-      streakItems,
-      feedItems,
+      victims,
+      killedBy,
+      averageLine,
+      enemyGuildRows,
       achievements: achievementRows,
+      wars: involvedWarIds.size,
+      averageRank,
     };
   }, [player, stats]);
 
@@ -676,12 +457,12 @@ export default function PlayerStats({ stats }) {
 
       {selectedStats && (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-5">
             <Metric
               icon="⚔"
               label="Kills"
               value={selectedStats.kills}
-              sub="All time"
+              sub={player}
               className="border-blue-400/25 from-blue-500/20 text-blue-300"
             />
 
@@ -689,7 +470,7 @@ export default function PlayerStats({ stats }) {
               icon="☠"
               label="Deaths"
               value={selectedStats.deaths}
-              sub="All time"
+              sub="Total deaths"
               className="border-pink-400/25 from-pink-500/20 text-pink-300"
             />
 
@@ -697,7 +478,7 @@ export default function PlayerStats({ stats }) {
               icon="✦"
               label="K/D"
               value={selectedStats.kd}
-              sub="All time"
+              sub="Overall ratio"
               className="border-violet-400/25 from-violet-500/20 text-violet-300"
             />
 
@@ -705,72 +486,88 @@ export default function PlayerStats({ stats }) {
               icon="⚑"
               label="Wars"
               value={selectedStats.wars}
-              sub="Participated"
-              className="border-cyan-400/25 from-cyan-500/20 text-cyan-300"
+              sub="Wars participated"
+              className="border-amber-400/25 from-amber-500/20 text-amber-300"
             />
 
             <Metric
               icon="♛"
               label="Average Rank"
-              value={selectedStats.averageRank}
-              sub="Average from wars played"
-              className="border-amber-400/25 from-amber-500/20 text-amber-300"
+              value={selectedStats.averageRank || '0.00'}
+              sub="Only wars played by this player"
+              className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
             />
           </div>
 
-          <PerformanceChart data={selectedStats.performanceLine} />
+          <AveragePerformanceChart data={selectedStats.averageLine} title="Performance" />
 
-          <div className="grid gap-4 xl:grid-cols-[1.05fr_.95fr]">
-            <EnemyGuildsPanel guilds={selectedStats.guildRows} />
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+            <EnemyGuildTable rows={selectedStats.enemyGuildRows} />
 
-            <TargetsAndNemesisPanel
-              favouriteTargets={selectedStats.favouriteTargets}
-              nemesisTargets={selectedStats.nemesisTargets}
-            />
+            <Panel>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <MiniRankList
+                  title="Favourite Targets"
+                  items={Object.entries(selectedStats.victims)
+                    .map(([name, kills]) => ({ name, kills }))
+                    .sort((a, b) => b.kills - a.kills)}
+                  valueKey="kills"
+                  tone="blue"
+                />
+
+                <MiniRankList
+                  title="Nemesis"
+                  items={Object.entries(selectedStats.killedBy)
+                    .map(([name, kills]) => ({ name, kills }))
+                    .sort((a, b) => b.kills - a.kills)}
+                  valueKey="kills"
+                  tone="pink"
+                />
+              </div>
+            </Panel>
           </div>
 
-          <PlayerStreakFeed
-            streakItems={selectedStats.streakItems}
-            feedItems={selectedStats.feedItems}
-          />
+          <div className="mt-4">
+            <Panel>
+              <h3 className="mb-4 text-xl font-black">✦ Achievements</h3>
 
-          <Panel>
-            <h3 className="mb-4 text-xl font-black">✦ Achievements</h3>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {selectedStats.achievements.map((achievement) => (
+                  <div
+                    key={achievement.title}
+                    className={`rounded-xl border p-3 ${
+                      achievement.done
+                        ? 'border-emerald-400 bg-emerald-500/10'
+                        : 'border-slate-800 bg-slate-950/40'
+                    }`}
+                  >
+                    <p className="font-bold">
+                      {achievement.done ? '✅' : '🔒'} {achievement.title}
+                    </p>
 
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              {selectedStats.achievements.map((achievement) => (
-                <div
-                  key={achievement.title}
-                  className={`rounded-xl border p-3 ${
-                    achievement.done
-                      ? 'border-emerald-400 bg-emerald-500/10'
-                      : 'border-slate-800 bg-slate-950/40'
-                  }`}
-                >
-                  <p className="font-bold">
-                    {achievement.done ? '✅' : '🔒'} {achievement.title}
-                  </p>
+                    <div className="mt-2 h-2 rounded-full bg-slate-800">
+                      <div
+                        className={`h-2 rounded-full ${
+                          achievement.done ? 'bg-emerald-400' : 'bg-blue-500'
+                        }`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (achievement.value / achievement.goal) * 100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
 
-                  <div className="mt-2 h-2 rounded-full bg-slate-800">
-                    <div
-                      className={`h-2 rounded-full ${
-                        achievement.done ? 'bg-emerald-400' : 'bg-blue-500'
-                      }`}
-                      style={{
-                        width:
-                          Math.min(100, (achievement.value / achievement.goal) * 100) + '%',
-                      }}
-                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      {Number(achievement.value).toFixed(achievement.goal <= 10 ? 2 : 0)} /{' '}
+                      {achievement.goal}
+                    </p>
                   </div>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    {Number(achievement.value).toFixed(achievement.goal <= 10 ? 2 : 0)} /{' '}
-                    {achievement.goal}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Panel>
+                ))}
+              </div>
+            </Panel>
+          </div>
         </>
       )}
     </Panel>
