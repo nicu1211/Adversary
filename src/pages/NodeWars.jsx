@@ -28,7 +28,9 @@ export default function NodeWars({
               kills: ourDeaths,
               deaths: ourKills,
               total: totalInteractions,
-              kd: ourKills ? (ourDeaths / ourKills).toFixed(2) : ourDeaths.toFixed(2),
+              kd: ourKills
+                ? (ourDeaths / ourKills).toFixed(2)
+                : ourDeaths.toFixed(2),
             };
           })
           .sort((a, b) => b.total - a.total || b.kills - a.kills)
@@ -44,24 +46,31 @@ export default function NodeWars({
           topEnemies,
         };
       })
-      .filter(
-        (row) =>
-          !query.trim() ||
-          row.topEnemies.some((guild) =>
-            guild.name.toLowerCase().includes(query.toLowerCase()),
-          ),
-      )
+      .filter((row) => {
+        const cleanQuery = query.trim().toLowerCase();
+
+        if (!cleanQuery) return true;
+
+        return row.topEnemies.some((guild) =>
+          guild.name.toLowerCase().includes(cleanQuery),
+        );
+      })
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [logs, query]);
+
+  const visibleIds = rows.map((row) => String(row.id));
 
   const selectedRealWars = selectedWars.filter(
     (id) => id !== 'all' && id !== 'current',
   );
 
-  const allLogsSelected =
-    logs.length > 0 &&
-    (selectedWars.includes('all') ||
-      logs.every((log) => selectedWars.includes(String(log.id))));
+  const allDisplayedLogsSelected =
+    visibleIds.length > 0 &&
+    visibleIds.every((id) => selectedRealWars.includes(id));
+
+  const selectedVisibleCount = visibleIds.filter((id) =>
+    selectedRealWars.includes(id),
+  ).length;
 
   function openWar(row) {
     setWarning('');
@@ -80,33 +89,33 @@ export default function NodeWars({
 
     setSelectedWars(
       event.target.checked
-        ? [...selectedWars.filter((x) => x !== 'all' && x !== 'current'), id]
-        : selectedWars.filter((x) => x !== id),
+        ? [...new Set([...selectedRealWars, id])]
+        : selectedRealWars.filter((x) => x !== id),
     );
   }
 
-  function selectAllLogs() {
+  function selectDisplayedLogs() {
     setWarning('');
 
-    if (!logs.length) {
+    if (!visibleIds.length) {
       setSelectedDays(['all']);
       setSelectedWars([]);
-      setWarning('No saved node wars found.');
+      setWarning('No saved node wars found for this search.');
       return;
     }
 
-    if (allLogsSelected) {
+    if (allDisplayedLogsSelected) {
       setSelectedDays(['all']);
       setSelectedWars([]);
       return;
     }
 
     setSelectedDays(['all']);
-    setSelectedWars(['all']);
+    setSelectedWars(visibleIds);
   }
 
   function openSelectedOverview() {
-    if (!selectedWars.includes('all') && selectedRealWars.length === 0) {
+    if (selectedRealWars.length === 0) {
       setWarning('No node war selected. Select at least one war first.');
       return;
     }
@@ -121,20 +130,26 @@ export default function NodeWars({
       <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h2 className="text-2xl font-black">Node Wars</h2>
+
           <p className="text-sm text-slate-400">
-            Saved match history · select multiple node wars for analysis in Overview
+            Saved match history · select multiple node wars for analysis in
+            Overview
           </p>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
-            onClick={selectAllLogs}
+            type="button"
+            onClick={selectDisplayedLogs}
             className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-200 hover:bg-blue-500/20"
           >
-            {allLogsSelected ? 'Clear selection' : 'Select all logs'}
+            {allDisplayedLogsSelected
+              ? 'Clear selection'
+              : 'Select displayed logs'}
           </button>
 
           <button
+            type="button"
             onClick={openSelectedOverview}
             className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20"
           >
@@ -143,7 +158,10 @@ export default function NodeWars({
 
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setWarning('');
+            }}
             placeholder="Search enemies..."
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition placeholder:text-slate-500 focus:border-blue-400 focus:bg-slate-900 sm:w-72"
           />
@@ -155,6 +173,24 @@ export default function NodeWars({
           {warning}
         </div>
       )}
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+        <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+          Displayed logs:{' '}
+          <b className="text-slate-100">{rows.length}</b>
+        </span>
+
+        <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+          Selected displayed:{' '}
+          <b className="text-blue-300">{selectedVisibleCount}</b>
+        </span>
+
+        {query.trim() && (
+          <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-cyan-200">
+            Filter active: {query.trim()}
+          </span>
+        )}
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-800">
         <div className="max-h-[720px] overflow-auto [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80 [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
@@ -176,14 +212,13 @@ export default function NodeWars({
               {!rows.length ? (
                 <tr>
                   <td colSpan="8" className="py-8 text-center text-slate-500">
-                    No saved node wars yet. Add logs from Raw Log.
+                    No saved node wars found for this search.
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => {
-                  const checked =
-                    selectedWars.includes('all') ||
-                    selectedWars.includes(String(row.id));
+                  const id = String(row.id);
+                  const checked = selectedRealWars.includes(id);
 
                   return (
                     <tr
@@ -237,10 +272,14 @@ export default function NodeWars({
                         </div>
                       </td>
 
-                      <td className="py-4 text-center font-black">{row.players}</td>
+                      <td className="py-4 text-center font-black">
+                        {row.players}
+                      </td>
+
                       <td className="py-4 text-center font-black text-blue-300">
                         {row.kills}
                       </td>
+
                       <td className="py-4 text-center font-black text-pink-300">
                         {row.deaths}
                       </td>
