@@ -187,13 +187,19 @@ export function PerformanceChart({ data }) {
           >
             <defs>
               <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.95} />
-                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.68} />
+                <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.96} />
+                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.7} />
               </linearGradient>
 
               <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.95} />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.68} />
+                <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.96} />
+                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.7} />
+              </linearGradient>
+
+              <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#34d399" stopOpacity={0.28} />
+                <stop offset="60%" stopColor="#34d399" stopOpacity={0.12} />
+                <stop offset="100%" stopColor="#34d399" stopOpacity={0.02} />
               </linearGradient>
             </defs>
 
@@ -243,23 +249,35 @@ export function PerformanceChart({ data }) {
               activeBar={false}
             />
 
+            <Area
+              yAxisId="right"
+              type="monotone"
+              dataKey="avgKd"
+              name=""
+              stroke="none"
+              fill="url(#avgKdFill)"
+              legendType="none"
+              activeDot={false}
+              isAnimationActive
+            />
+
             <RechartsLine
               yAxisId="right"
               type="monotone"
               dataKey="avgKd"
               name="Avg K/D"
               stroke="#34d399"
-              strokeWidth={4}
+              strokeWidth={2.5}
               dot={{
                 r: 4,
                 fill: '#34d399',
-                stroke: '#86efac',
-                strokeWidth: 2,
+                stroke: '#a7f3d0',
+                strokeWidth: 1.5,
               }}
               activeDot={{
                 r: 5,
                 fill: '#34d399',
-                stroke: '#86efac',
+                stroke: '#d1fae5',
                 strokeWidth: 2,
               }}
             />
