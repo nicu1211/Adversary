@@ -95,6 +95,28 @@ function SummaryChip({ label, value, colorClass }) {
   );
 }
 
+function PerformanceTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
+  const map = Object.fromEntries(
+    payload.map((item) => [item.dataKey, item.value]),
+  );
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+      <p className="mb-2 text-sm font-black text-white">{label}</p>
+
+      <div className="space-y-1.5 text-sm">
+        <p className="font-bold text-cyan-300">Kills : {map.kills ?? 0}</p>
+        <p className="font-bold text-pink-300">Deaths : {map.deaths ?? 0}</p>
+        <p className="font-bold text-emerald-300">
+          Avg K/D : {map.avgKd ?? 0}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function PerformanceChart({ data }) {
   const summary = useMemo(() => {
     if (!data?.length) {
@@ -130,7 +152,7 @@ export function PerformanceChart({ data }) {
         <div>
           <h2 className="text-2xl font-black">Performance</h2>
           <p className="text-sm text-slate-400">
-            Daily kills/deaths with average kills, average deaths and average K/D
+            Daily performance with kills, deaths and average K/D
           </p>
         </div>
 
@@ -157,8 +179,20 @@ export function PerformanceChart({ data }) {
 
       <div className="h-[320px] sm:h-[360px]">
         <ResponsiveContainer>
-          <ComposedChart data={data}>
-            <CartesianGrid stroke="rgba(148,163,184,.14)" />
+          <ComposedChart data={data} barCategoryGap={18}>
+            <defs>
+              <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.65} />
+              </linearGradient>
+
+              <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.65} />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
 
             <XAxis
               dataKey="time"
@@ -181,47 +215,25 @@ export function PerformanceChart({ data }) {
               allowDecimals
             />
 
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip content={<PerformanceTooltip />} />
             <Legend />
 
             <Bar
               yAxisId="left"
               dataKey="kills"
               name="Kills"
-              radius={[8, 8, 0, 0]}
-              fill="#60a5fa"
-              fillOpacity={0.55}
+              fill="url(#perfBarKills)"
+              radius={[10, 10, 0, 0]}
+              maxBarSize={26}
             />
 
             <Bar
               yAxisId="left"
               dataKey="deaths"
               name="Deaths"
-              radius={[8, 8, 0, 0]}
-              fill="#f472b6"
-              fillOpacity={0.55}
-            />
-
-            <ChartLine
-              yAxisId="left"
-              type="monotone"
-              dataKey="avgKills"
-              name="Avg Kills"
-              stroke="#22d3ee"
-              strokeWidth={4}
-              dot={{ r: 4, strokeWidth: 2, fill: '#22d3ee' }}
-              activeDot={{ r: 7 }}
-            />
-
-            <ChartLine
-              yAxisId="left"
-              type="monotone"
-              dataKey="avgDeaths"
-              name="Avg Deaths"
-              stroke="#fb7185"
-              strokeWidth={4}
-              dot={{ r: 4, strokeWidth: 2, fill: '#fb7185' }}
-              activeDot={{ r: 7 }}
+              fill="url(#perfBarDeaths)"
+              radius={[10, 10, 0, 0]}
+              maxBarSize={26}
             />
 
             <ChartLine
@@ -231,8 +243,18 @@ export function PerformanceChart({ data }) {
               name="Avg K/D"
               stroke="#34d399"
               strokeWidth={4}
-              dot={{ r: 4, strokeWidth: 2, fill: '#34d399' }}
-              activeDot={{ r: 7 }}
+              dot={{
+                r: 5,
+                strokeWidth: 2,
+                fill: '#34d399',
+                stroke: '#d1fae5',
+              }}
+              activeDot={{
+                r: 7,
+                strokeWidth: 2,
+                fill: '#34d399',
+                stroke: '#ffffff',
+              }}
             />
           </ComposedChart>
         </ResponsiveContainer>
