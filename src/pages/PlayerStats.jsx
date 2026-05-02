@@ -162,7 +162,9 @@ function PlayerSelect({ players, value, onChange }) {
   const selected = players.find((player) => player.name === value);
 
   const list = players.filter((player) =>
-    `${player.name} ${player.family || ''}`.toLowerCase().includes(query.toLowerCase()),
+    `${player.name} ${player.family || ''}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
 
   return (
@@ -176,12 +178,15 @@ function PlayerSelect({ players, value, onChange }) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
+
           <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
         </div>
 
-        <span className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}>
+        <span
+          className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}
+        >
           ⌄
         </span>
       </button>
@@ -198,7 +203,9 @@ function PlayerSelect({ players, value, onChange }) {
 
           <div className={`max-h-64 overflow-y-auto pr-1 ${scrollCls}`}>
             {!list.length ? (
-              <p className="px-3 py-4 text-sm text-slate-500">No players found.</p>
+              <p className="px-3 py-4 text-sm text-slate-500">
+                No players found.
+              </p>
             ) : (
               <>
                 <button
@@ -208,7 +215,9 @@ function PlayerSelect({ players, value, onChange }) {
                     setQuery('');
                   }}
                   className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${
-                    !value ? 'bg-blue-500/20 text-blue-100' : 'text-slate-300 hover:bg-white/5'
+                    !value
+                      ? 'bg-blue-500/20 text-blue-100'
+                      : 'text-slate-300 hover:bg-white/5'
                   }`}
                 >
                   Select player
@@ -240,9 +249,18 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
-function RankList({ title, items, valueKey }) {
-  const rows = items.slice(0, 5);
+function RankList({ title, items, valueKey, limit = 5, accent = 'blue' }) {
+  const rows = items.slice(0, limit);
   const max = Math.max(1, ...rows.map((item) => Number(item[valueKey]) || 0));
+
+  const barClass =
+    accent === 'pink'
+      ? 'from-pink-500 to-fuchsia-300'
+      : accent === 'orange'
+        ? 'from-orange-500 to-amber-300'
+        : accent === 'emerald'
+          ? 'from-emerald-500 to-cyan-300'
+          : 'from-blue-500 to-cyan-300';
 
   return (
     <Panel>
@@ -256,7 +274,7 @@ function RankList({ title, items, valueKey }) {
 
           return (
             <div
-              key={item.name}
+              key={`${title}-${item.name}-${index}`}
               className="mb-4 grid grid-cols-[34px_1fr_55px] items-center gap-3 text-sm"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black">
@@ -265,9 +283,10 @@ function RankList({ title, items, valueKey }) {
 
               <div className="min-w-0">
                 <p className="mb-2 truncate font-bold">{item.name}</p>
+
                 <div className="h-2.5 rounded-full bg-slate-800">
                   <div
-                    className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
+                    className={`h-2.5 rounded-full bg-gradient-to-r ${barClass}`}
                     style={{
                       width: `${Math.max(6, Math.round((value / max) * 100))}%`,
                     }}
@@ -284,8 +303,83 @@ function RankList({ title, items, valueKey }) {
   );
 }
 
+function TopStreakFeed({ streakItems, feedItems }) {
+  return (
+    <Panel cls="h-full">
+      <h3 className="mb-4 text-xl font-black">🔥 Top 10 Killstreak / Killfeed</h3>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div>
+          <h4 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-400">
+            Killstreak
+          </h4>
+
+          {!streakItems.length ? (
+            <p className="text-sm text-slate-500">No data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {streakItems.map((item, index) => (
+                <div
+                  key={`streak-${item.name}`}
+                  className="grid grid-cols-[30px_1fr_46px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
+                >
+                  <span className="text-slate-500">{index + 1}</span>
+                  <b className="truncate">{item.name}</b>
+                  <b className="text-right text-emerald-300">{item.value}</b>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h4 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-400">
+            Killfeed
+          </h4>
+
+          {!feedItems.length ? (
+            <p className="text-sm text-slate-500">No data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {feedItems.map((item, index) => (
+                <div
+                  key={`feed-${item.name}`}
+                  className="grid grid-cols-[30px_1fr_46px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
+                >
+                  <span className="text-slate-500">{index + 1}</span>
+                  <b className="truncate">{item.name}</b>
+                  <b className="text-right text-orange-300">{item.value}</b>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 export default function PlayerStats({ stats }) {
   const [player, setPlayer] = useState('');
+
+  const topStreakFeed = useMemo(() => {
+    const streakItems = Object.entries(stats.st || {})
+      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
+      .slice(0, 10);
+
+    const feedItems = Object.entries(stats.fd || {})
+      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
+      .slice(0, 10);
+
+    return {
+      streakItems,
+      feedItems,
+    };
+  }, [stats]);
 
   const selectedStats = useMemo(() => {
     if (!player) return null;
@@ -327,7 +421,9 @@ export default function PlayerStats({ stats }) {
         kd: '0.00',
       };
 
-    const orderedDays = Object.values(days).sort((a, b) => a.time.localeCompare(b.time));
+    const orderedDays = Object.values(days).sort((a, b) =>
+      a.time.localeCompare(b.time),
+    );
 
     const performanceLine = orderedDays.map((day) => {
       const fights = Math.max(1, day.wars.size);
@@ -379,7 +475,11 @@ export default function PlayerStats({ stats }) {
     <Panel>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
-      <PlayerSelect players={stats.players} value={player} onChange={setPlayer} />
+      <PlayerSelect
+        players={stats.players}
+        value={player}
+        onChange={setPlayer}
+      />
 
       {selectedStats && (
         <>
@@ -427,21 +527,30 @@ export default function PlayerStats({ stats }) {
 
           <PerformanceChart data={selectedStats.performanceLine} />
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <RankList
-              title="Favourite Targets"
-              items={Object.entries(selectedStats.victims)
-                .map(([name, kills]) => ({ name, kills }))
-                .sort((a, b) => b.kills - a.kills)}
-              valueKey="kills"
-            />
+          <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
+            <div className="space-y-4">
+              <RankList
+                title="Favourite Targets"
+                items={Object.entries(selectedStats.victims)
+                  .map(([name, kills]) => ({ name, kills }))
+                  .sort((a, b) => b.kills - a.kills)}
+                valueKey="kills"
+                accent="blue"
+              />
 
-            <RankList
-              title="Killed By"
-              items={Object.entries(selectedStats.killedBy)
-                .map(([name, kills]) => ({ name, kills }))
-                .sort((a, b) => b.kills - a.kills)}
-              valueKey="kills"
+              <RankList
+                title="Nemesis"
+                items={Object.entries(selectedStats.killedBy)
+                  .map(([name, kills]) => ({ name, kills }))
+                  .sort((a, b) => b.kills - a.kills)}
+                valueKey="kills"
+                accent="pink"
+              />
+            </div>
+
+            <TopStreakFeed
+              streakItems={topStreakFeed.streakItems}
+              feedItems={topStreakFeed.feedItems}
             />
           </div>
 
@@ -469,14 +578,19 @@ export default function PlayerStats({ stats }) {
                       }`}
                       style={{
                         width:
-                          Math.min(100, (achievement.value / achievement.goal) * 100) + '%',
+                          Math.min(
+                            100,
+                            (achievement.value / achievement.goal) * 100,
+                          ) + '%',
                       }}
                     />
                   </div>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    {Number(achievement.value).toFixed(achievement.goal <= 10 ? 2 : 0)} /{' '}
-                    {achievement.goal}
+                    {Number(achievement.value).toFixed(
+                      achievement.goal <= 10 ? 2 : 0,
+                    )}{' '}
+                    / {achievement.goal}
                   </p>
                 </div>
               ))}
