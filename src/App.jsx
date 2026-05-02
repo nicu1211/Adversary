@@ -90,6 +90,18 @@ export default function App() {
 
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
+  // Player Stats trebuie să fie all time, din toate logurile salvate.
+  const allTimeStats = useMemo(
+    () =>
+      calculateStats(
+        logs.map((log) => ({
+          ...log,
+          date: dateOf(log),
+        })),
+      ),
+    [logs],
+  );
+
   const label = current
     ? 'Current log'
     : all
@@ -216,6 +228,15 @@ export default function App() {
     );
   }
 
+  function openOverview() {
+    if (selectedDays.includes('current')) {
+      setSelectedDays(['all']);
+      setSelectedWars(['all']);
+    }
+
+    setPage('overview');
+  }
+
   function SubTabs() {
     return (
       <div className="flex gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-2">
@@ -231,14 +252,7 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => {
-            if (selectedDays.includes('current')) {
-              setSelectedDays(['all']);
-              setSelectedWars(['all']);
-            }
-
-            setPage('overview');
-          }}
+          onClick={openOverview}
           className={`rounded-xl px-4 py-2 text-sm font-bold ${
             page === 'overview'
               ? 'border border-blue-400 bg-blue-500/20 text-white'
@@ -332,7 +346,9 @@ export default function App() {
             </>
           )}
 
-          {page === 'players' && <PlayerStats stats={stats} />}
+          {page === 'players' && (
+            <PlayerStats stats={allTimeStats} />
+          )}
 
           {page === 'raw' && (
             <RawLog
