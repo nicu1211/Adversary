@@ -349,14 +349,18 @@ function EnemyGuildTable({ rows }) {
   );
 }
 
-function getBestKillstreakForWar(events, playerName) {
-  const sorted = [...events].sort((a, b) => {
+function getWarEventsSorted(events) {
+  return [...events].sort((a, b) => {
     if (Number(a.sec) !== Number(b.sec)) {
       return Number(a.sec) - Number(b.sec);
     }
 
     return Number(a.i || 0) - Number(b.i || 0);
   });
+}
+
+function getBestKillstreakForWar(events, playerName) {
+  const sorted = getWarEventsSorted(events);
 
   let current = 0;
   let best = 0;
@@ -425,18 +429,7 @@ function buildTieAwareRank(rows, key, desc = true) {
 }
 
 function buildKillsRankLikeBestOverall(rows, events) {
-  const sortedEvents = [...events].sort((a, b) => {
-    if (String(a.date) !== String(b.date)) {
-      return String(a.date).localeCompare(String(b.date));
-    }
-
-    if (Number(a.sec) !== Number(b.sec)) {
-      return Number(a.sec) - Number(b.sec);
-    }
-
-    return Number(a.i || 0) - Number(b.i || 0);
-  });
-
+  const sortedEvents = getWarEventsSorted(events);
   const byName = Object.fromEntries(rows.map((row) => [row.name, row]));
   const runningKills = {};
   const reached = {};
@@ -449,10 +442,9 @@ function buildKillsRankLikeBestOverall(rows, events) {
       const finalKills = byName[event.killer]?.kills || 0;
 
       if (finalKills && runningKills[event.killer] === finalKills) {
-        reached[event.killer] = `${event.date} ${String(event.sec).padStart(
-          5,
-          '0',
-        )} ${String(event.i || 0).padStart(5, '0')}`;
+        reached[event.killer] = `${String(event.sec).padStart(5, '0')} ${String(
+          event.i || 0,
+        ).padStart(5, '0')}`;
       }
     });
 
@@ -470,6 +462,38 @@ function buildKillsRankLikeBestOverall(rows, events) {
   );
 }
 
+function getOurPlayerRowsForWar(warEvents) {
+  const kills = {};
+  const deaths = {};
+  const names = new Set();
+
+  warEvents.forEach((event) => {
+    if (event.type === 'kill') {
+      names.add(event.killer);
+      add(kills, event.killer);
+    }
+
+    if (event.type === 'death') {
+      names.add(event.victim);
+      add(deaths, event.victim);
+    }
+  });
+
+  return [...names].map((name) => {
+    const k = kills[name] || 0;
+    const d = deaths[name] || 0;
+
+    return {
+      name,
+      kills: k,
+      deaths: d,
+      kdNumber: d ? Number((k / d).toFixed(2)) : Number(k.toFixed(2)),
+      streak: getBestKillstreakForWar(warEvents, name),
+      feed: getBestKillfeedForWar(warEvents, name),
+    };
+  });
+}
+
 function buildAverageRankFromPlayedWars(events, playerName) {
   const warMap = {};
 
@@ -482,44 +506,11 @@ function buildAverageRankFromPlayedWars(events, playerName) {
   const playedWarAverages = [];
 
   Object.values(warMap).forEach((warEvents) => {
-    const participated = warEvents.some(
-      (event) => event.killer === playerName || event.victim === playerName,
-    );
+    const rows = getOurPlayerRowsForWar(warEvents);
 
-    if (!participated) return;
-
-    const kills = {};
-    const deaths = {};
-    const playerNames = new Set();
-
-    warEvents.forEach((event) => {
-      playerNames.add(event.killer);
-      playerNames.add(event.victim);
-
-      if (event.type === 'kill') {
-        add(kills, event.killer);
-      }
-
-      if (event.type === 'death') {
-        add(deaths, event.victim);
-      }
-    });
-
-    const rows = [...playerNames].map((name) => {
-      const k = kills[name] || 0;
-      const d = deaths[name] || 0;
-
-      return {
-        name,
-        kills: k,
-        deaths: d,
-        kdNumber: d ? Number((k / d).toFixed(2)) : Number(k.toFixed(2)),
-        streak: getBestKillstreakForWar(warEvents, name),
-        feed: getBestKillfeedForWar(warEvents, name),
-      };
-    });
-
-    if (!rows.some((row) => row.name === playerName)) return;
+    if (!rows.some((row) => row.name === playerName)) {
+      return;
+    }
 
     const ranks = {
       kills: buildKillsRankLikeBestOverall(rows, warEvents),
@@ -724,11 +715,11 @@ export default function PlayerStats({ stats }) {
 
     const streakItems = Object.entries(warMap)
       .map(([warId, events]) => {
-        const participated = events.some(
-          (event) => event.killer === player || event.victim === player,
-        );
+        const rows = getOurPlayerRowsForWar(events);
 
-        if (!participated) return null;
+        if (!rows.some((row) => row.name === player)) {
+          return null;
+        }
 
         return {
           id: warId,
@@ -748,11 +739,11 @@ export default function PlayerStats({ stats }) {
 
     const feedItems = Object.entries(warMap)
       .map(([warId, events]) => {
-        const participated = events.some(
-          (event) => event.killer === player || event.victim === player,
-        );
+        const rows = getOurPlayerRowsForWar(events);
 
-        if (!participated) return null;
+        if (!rows.some((row) => row.name === player)) {
+          return null;
+        }
 
         return {
           id: warId,
