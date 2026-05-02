@@ -57,6 +57,43 @@ function buildFeedMap(events, seconds = 10) {
   return best;
 }
 
+function getPlayerBestStreak(events, playerName) {
+  let current = 0;
+  let best = 0;
+
+  sortEvents(events).forEach((event) => {
+    if (event.type === 'kill' && event.killer === playerName) {
+      current += 1;
+      best = Math.max(best, current);
+    }
+
+    if (event.type === 'death' && event.victim === playerName) {
+      current = 0;
+    }
+  });
+
+  return best;
+}
+
+function getPlayerBestFeed(events, playerName, seconds = 10) {
+  const kills = sortEvents(events).filter(
+    (event) => event.type === 'kill' && event.killer === playerName,
+  );
+
+  let left = 0;
+  let best = 0;
+
+  for (let right = 0; right < kills.length; right += 1) {
+    while (kills[right].sec - kills[left].sec > seconds) {
+      left += 1;
+    }
+
+    best = Math.max(best, right - left + 1);
+  }
+
+  return best;
+}
+
 function tieAwareRank(rows, key, desc = true) {
   const sorted = [...rows].sort((a, b) => {
     const aValue = Number(a[key]) || 0;
@@ -303,11 +340,9 @@ function RankList({ title, items, valueKey, limit = 5, accent = 'blue' }) {
   );
 }
 
-function TopStreakFeed({ streakItems, feedItems }) {
+function PlayerStreakFeed({ streakItems, feedItems }) {
   return (
     <Panel cls="h-full">
-      <h3 className="mb-4 text-xl font-black">🔥 Top 10 Killstreak / Killfeed</h3>
-
       <div className="grid gap-4 xl:grid-cols-2">
         <div>
           <h4 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-400">
@@ -315,16 +350,23 @@ function TopStreakFeed({ streakItems, feedItems }) {
           </h4>
 
           {!streakItems.length ? (
-            <p className="text-sm text-slate-500">No data yet.</p>
+            <p className="text-sm text-slate-500">No killstreak data yet.</p>
           ) : (
             <div className="space-y-2">
               {streakItems.map((item, index) => (
                 <div
-                  key={`streak-${item.name}`}
+                  key={`streak-${item.id}-${index}`}
                   className="grid grid-cols-[30px_1fr_46px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
                 >
                   <span className="text-slate-500">{index + 1}</span>
-                  <b className="truncate">{item.name}</b>
+
+                  <div className="min-w-0">
+                    <b className="block truncate">{item.date}</b>
+                    <p className="truncate text-[10px] text-slate-500">
+                      {item.war}
+                    </p>
+                  </div>
+
                   <b className="text-right text-emerald-300">{item.value}</b>
                 </div>
               ))}
@@ -338,16 +380,23 @@ function TopStreakFeed({ streakItems, feedItems }) {
           </h4>
 
           {!feedItems.length ? (
-            <p className="text-sm text-slate-500">No data yet.</p>
+            <p className="text-sm text-slate-500">No killfeed data yet.</p>
           ) : (
             <div className="space-y-2">
               {feedItems.map((item, index) => (
                 <div
-                  key={`feed-${item.name}`}
+                  key={`feed-${item.id}-${index}`}
                   className="grid grid-cols-[30px_1fr_46px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
                 >
                   <span className="text-slate-500">{index + 1}</span>
-                  <b className="truncate">{item.name}</b>
+
+                  <div className="min-w-0">
+                    <b className="block truncate">{item.date}</b>
+                    <p className="truncate text-[10px] text-slate-500">
+                      {item.war}
+                    </p>
+                  </div>
+
                   <b className="text-right text-orange-300">{item.value}</b>
                 </div>
               ))}
@@ -362,25 +411,6 @@ function TopStreakFeed({ streakItems, feedItems }) {
 export default function PlayerStats({ stats }) {
   const [player, setPlayer] = useState('');
 
-  const topStreakFeed = useMemo(() => {
-    const streakItems = Object.entries(stats.st || {})
-      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
-      .slice(0, 10);
-
-    const feedItems = Object.entries(stats.fd || {})
-      .map(([name, value]) => ({ name, value: Number(value) || 0 }))
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
-      .slice(0, 10);
-
-    return {
-      streakItems,
-      feedItems,
-    };
-  }, [stats]);
-
   const selectedStats = useMemo(() => {
     if (!player) return null;
 
@@ -388,8 +418,12 @@ export default function PlayerStats({ stats }) {
     const killedBy = {};
     const days = {};
     const participatedWars = new Set();
+    const warMap = {};
 
     stats.ev.forEach((event) => {
+      warMap[event.id] ||= [];
+      warMap[event.id].push(event);
+
       if (event.killer === player || event.victim === player) {
         participatedWars.add(event.id);
 
@@ -440,6 +474,54 @@ export default function PlayerStats({ stats }) {
       };
     });
 
+    const streakItems = Object.entries(warMap)
+      .map(([id, events]) => {
+        const participated = events.some(
+          (event) => event.killer === player || event.victim === player,
+        );
+
+        if (!participated) return null;
+
+        return {
+          id,
+          value: getPlayerBestStreak(events, player),
+          date: events[0]?.date || '-',
+          war: events[0]?.war || 'Battle log',
+        };
+      })
+      .filter((item) => item && item.value > 0)
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          String(b.date).localeCompare(String(a.date)) ||
+          String(a.war).localeCompare(String(b.war)),
+      )
+      .slice(0, 10);
+
+    const feedItems = Object.entries(warMap)
+      .map(([id, events]) => {
+        const participated = events.some(
+          (event) => event.killer === player || event.victim === player,
+        );
+
+        if (!participated) return null;
+
+        return {
+          id,
+          value: getPlayerBestFeed(events, player),
+          date: events[0]?.date || '-',
+          war: events[0]?.war || 'Battle log',
+        };
+      })
+      .filter((item) => item && item.value > 0)
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          String(b.date).localeCompare(String(a.date)) ||
+          String(a.war).localeCompare(String(b.war)),
+      )
+      .slice(0, 10);
+
     const achievementRows = achievements.map((achievement) => {
       const value =
         achievement[2] === 'k'
@@ -467,6 +549,8 @@ export default function PlayerStats({ stats }) {
       victims,
       killedBy,
       performanceLine,
+      streakItems,
+      feedItems,
       achievements: achievementRows,
     };
   }, [player, stats]);
@@ -548,9 +632,9 @@ export default function PlayerStats({ stats }) {
               />
             </div>
 
-            <TopStreakFeed
-              streakItems={topStreakFeed.streakItems}
-              feedItems={topStreakFeed.feedItems}
+            <PlayerStreakFeed
+              streakItems={selectedStats.streakItems}
+              feedItems={selectedStats.feedItems}
             />
           </div>
 
