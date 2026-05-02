@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Panel, Metric } from '../components/UI';
-import { KillDeathChart, AveragePerformanceChart } from '../components/Charts';
+import { AveragePerformanceChart } from '../components/Charts';
 import { achievements, add, scrollCls } from '../lib/logUtils';
 
 function rankMap(rows, key, desc = true) {
@@ -245,12 +245,6 @@ export default function PlayerStats({ stats }) {
       a.time.localeCompare(b.time),
     );
 
-    const dailyLine = orderedDays.map((day) => ({
-      time: day.time,
-      kills: day.kills,
-      deaths: day.deaths,
-    }));
-
     const averageLine = orderedDays.map((day) => {
       const fights = Math.max(1, day.wars.size);
       const avgKills = Number((day.kills / fights).toFixed(2));
@@ -289,7 +283,6 @@ export default function PlayerStats({ stats }) {
       averageRank: averageRanks[player] || '-',
       victims,
       killedBy,
-      dailyLine,
       averageLine,
       achievements: achievementRows,
     };
@@ -340,11 +333,6 @@ export default function PlayerStats({ stats }) {
               className="border-amber-400/25 from-amber-500/20 text-amber-300"
             />
           </div>
-
-          <KillDeathChart
-            data={selectedStats.dailyLine}
-            title="Player Daily Kill/Death Timeline"
-          />
 
           <AveragePerformanceChart data={selectedStats.averageLine} />
 
