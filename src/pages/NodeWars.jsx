@@ -198,7 +198,7 @@ export default function NodeWars({
             <thead className="sticky top-0 z-10 bg-slate-950 text-xs uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="w-[170px] py-4 pl-4 text-left">Time ↕</th>
-                <th className="w-[170px] py-4 text-left">Alliance</th>
+                <th className="w-[170px] py-4 text-left">Guild</th>
                 <th className="py-4 text-left">Top 5 enemies</th>
                 <th className="w-[110px] py-4 text-center">Players ↕</th>
                 <th className="w-[100px] py-4 text-center">Kills ↕</th>
