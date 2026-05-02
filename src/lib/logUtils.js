@@ -3,11 +3,6 @@ const NL = String.fromCharCode(10);
 export const LOG_KEY = 'bdo_logs_v10';
 export const MEMBER_KEY = 'bdo_members_v10';
 
-export const HIDDEN_LEGACY_DATES = new Set([
-  '2026-04-19',
-  '2026-04-26',
-]);
-
 export const achievements = [
   ['100 Kills', 100, 'k'],
   ['500 Kills', 500, 'k'],
@@ -36,6 +31,7 @@ export function monthId(d) {
 
 export function monthLabel(m) {
   const [year, month] = m.split('-').map(Number);
+
   return new Date(year, month - 1, 1).toLocaleString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -52,9 +48,9 @@ export function monthDays(m) {
   const first = new Date(year, month - 1, 1);
   const start = new Date(year, month - 1, 1 - first.getDay());
 
-  return Array.from({ length: 42 }, (_, i) => {
+  return Array.from({ length: 42 }, (_, index) => {
     const d = new Date(start);
-    d.setDate(start.getDate() + i);
+    d.setDate(start.getDate() + index);
 
     return {
       iso: iso(d),
@@ -92,7 +88,7 @@ export function minuteLabel(seconds) {
 export function cleanLog(text) {
   return String(text || '')
     .split(NL)
-    .map((x) => x.trim())
+    .map((line) => line.trim())
     .filter(Boolean)
     .join(NL);
 }
@@ -114,6 +110,7 @@ export function dateOf(log) {
     log?.warDate ||
     log?.war_date ||
     log?.createdAt?.slice?.(0, 10) ||
+    log?.created_at?.slice?.(0, 10) ||
     today()
   );
 }
@@ -135,12 +132,7 @@ export function normalizeLog(log) {
     apiId,
     _src: log,
     name: log.name ?? log.title ?? log.date ?? log.warDate ?? 'Battle log',
-    date:
-      log.date ??
-      log.warDate ??
-      log.war_date ??
-      log.createdAt?.slice?.(0, 10) ??
-      today(),
+    date: dateOf(log),
     raw:
       log.raw ??
       log.rawLog ??
@@ -165,14 +157,7 @@ export function normalizeLogs(data) {
 
   return arr
     .map(normalizeLog)
-    .filter((x) => x.raw)
-    .filter(
-      (x) =>
-        !(
-          HIDDEN_LEGACY_DATES.has(dateOf(x)) &&
-          (x.name === dateOf(x) || !x.apiId)
-        ),
-    );
+    .filter((log) => log.raw);
 }
 
 export function normalizeMembers(data) {
@@ -279,6 +264,7 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
     list.sort((a, b) => a.sec - b.sec);
 
     const name = key.split('@@')[0];
+
     let left = 0;
     let bestStart = 0;
     let bestEnd = 0;
@@ -306,7 +292,7 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
           war: bestList[0].war,
           date: bestList[0].date,
           id: bestList[0].id,
-          victims: bestList.map((x) => x.victim),
+          victims: bestList.map((event) => event.victim),
         });
       }
     } else {
@@ -321,7 +307,7 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
 
 export function calculateStats(items) {
   const events = items
-    .flatMap((x) => parseLog(x.raw, x.name, x.date, x.id))
+    .flatMap((log) => parseLog(log.raw, log.name, log.date, log.id))
     .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec);
 
   if (!events.length) {
@@ -362,8 +348,8 @@ export function calculateStats(items) {
     minutes[minute][event.type === 'kill' ? 'kills' : 'deaths'] += 1;
   });
 
-  const first = Math.min(...events.map((x) => x.sec));
-  const last = Math.max(...events.map((x) => x.sec));
+  const first = Math.min(...events.map((event) => event.sec));
+  const last = Math.max(...events.map((event) => event.sec));
   const line = [];
 
   for (
@@ -371,10 +357,18 @@ export function calculateStats(items) {
     t <= Math.floor(last / 60) * 60;
     t += 60
   ) {
-    line.push(minutes[minuteLabel(t)] || { time: minuteLabel(t), kills: 0, deaths: 0 });
+    line.push(
+      minutes[minuteLabel(t)] || {
+        time: minuteLabel(t),
+        kills: 0,
+        deaths: 0,
+      },
+    );
   }
 
-  const players = [...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)])]
+  const players = [
+    ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
+  ]
     .map((name) => {
       const kills = playerKills[name] || 0;
       const deaths = playerDeaths[name] || 0;
@@ -389,22 +383,22 @@ export function calculateStats(items) {
     })
     .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
 
-  const guilds = [...new Set([...Object.keys(guildKills), ...Object.keys(guildDeaths)])].map(
-    (name) => {
-      const kills = guildKills[name] || 0;
-      const deaths = guildDeaths[name] || 0;
+  const guilds = [
+    ...new Set([...Object.keys(guildKills), ...Object.keys(guildDeaths)]),
+  ].map((name) => {
+    const kills = guildKills[name] || 0;
+    const deaths = guildDeaths[name] || 0;
 
-      return {
-        name,
-        kills,
-        deaths,
-        kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
-      };
-    },
-  );
+    return {
+      name,
+      kills,
+      deaths,
+      kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+    };
+  });
 
-  const kills = events.filter((x) => x.type === 'kill').length;
-  const deaths = events.filter((x) => x.type === 'death').length;
+  const kills = events.filter((event) => event.type === 'kill').length;
+  const deaths = events.filter((event) => event.type === 'death').length;
 
   return {
     ev: events,
