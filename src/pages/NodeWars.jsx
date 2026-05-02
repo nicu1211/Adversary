@@ -10,6 +10,7 @@ export default function NodeWars({
   selectedWars,
 }) {
   const [query, setQuery] = useState('');
+  const [warning, setWarning] = useState('');
 
   const rows = useMemo(() => {
     return logs
@@ -53,11 +54,17 @@ export default function NodeWars({
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [logs, query]);
 
-  const allVisibleSelected =
-    rows.length > 0 &&
-    rows.every((row) => selectedWars.includes(String(row.id)));
+  const selectedRealWars = selectedWars.filter(
+    (id) => id !== 'all' && id !== 'current',
+  );
+
+  const allLogsSelected =
+    logs.length > 0 &&
+    (selectedWars.includes('all') ||
+      logs.every((log) => selectedWars.includes(String(log.id))));
 
   function openWar(row) {
+    setWarning('');
     setSelectedDays([row.date]);
     setSelectedWars([String(row.id)]);
     setPage('overview');
@@ -68,7 +75,9 @@ export default function NodeWars({
 
     const id = String(row.id);
 
+    setWarning('');
     setSelectedDays(['all']);
+
     setSelectedWars(
       event.target.checked
         ? [...selectedWars.filter((x) => x !== 'all' && x !== 'current'), id]
@@ -76,29 +85,40 @@ export default function NodeWars({
     );
   }
 
-  function toggleAllVisible() {
-    setSelectedDays(['all']);
+  function selectAllLogs() {
+    setWarning('');
 
-    if (allVisibleSelected) {
+    if (!logs.length) {
+      setSelectedDays(['all']);
+      setSelectedWars([]);
+      setWarning('No saved node wars found.');
+      return;
+    }
+
+    if (allLogsSelected) {
+      setSelectedDays(['all']);
       setSelectedWars([]);
       return;
     }
 
-    setSelectedWars(rows.map((row) => String(row.id)));
+    setSelectedDays(['all']);
+    setSelectedWars(['all']);
   }
 
   function openSelectedOverview() {
-    if (!selectedWars.length) {
-      setSelectedDays(['all']);
-      setSelectedWars(['all']);
+    if (!selectedWars.includes('all') && selectedRealWars.length === 0) {
+      setWarning('No node war selected. Select at least one war first.');
+      return;
     }
 
+    setWarning('');
+    setSelectedDays(['all']);
     setPage('overview');
   }
 
   return (
     <Panel>
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h2 className="text-2xl font-black">Node Wars</h2>
           <p className="text-sm text-slate-400">
@@ -108,10 +128,10 @@ export default function NodeWars({
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
-            onClick={toggleAllVisible}
+            onClick={selectAllLogs}
             className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-200 hover:bg-blue-500/20"
           >
-            {allVisibleSelected ? 'Clear selection' : 'Select all logs'}
+            {allLogsSelected ? 'Clear selection' : 'Select all logs'}
           </button>
 
           <button
@@ -130,19 +150,25 @@ export default function NodeWars({
         </div>
       </div>
 
+      {warning && (
+        <div className="mb-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
+          {warning}
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-slate-800">
         <div className="max-h-[720px] overflow-auto [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80 [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
-          <table className="w-full min-w-[980px] text-sm">
+          <table className="w-full min-w-[1180px] text-sm">
             <thead className="sticky top-0 z-10 bg-slate-950 text-xs uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="py-4 pl-4 text-left">Time ↕</th>
-                <th className="py-4 text-left">Alliance</th>
+                <th className="w-[170px] py-4 pl-4 text-left">Time ↕</th>
+                <th className="w-[170px] py-4 text-left">Alliance</th>
                 <th className="py-4 text-left">Top 5 enemies</th>
-                <th className="py-4 text-center">Players ↕</th>
-                <th className="py-4 text-center">Kills ↕</th>
-                <th className="py-4 text-center">Deaths ↕</th>
-                <th className="py-4 text-center">KD ↕</th>
-                <th className="py-4 pr-4 text-center">Select</th>
+                <th className="w-[110px] py-4 text-center">Players ↕</th>
+                <th className="w-[100px] py-4 text-center">Kills ↕</th>
+                <th className="w-[110px] py-4 text-center">Deaths ↕</th>
+                <th className="w-[90px] py-4 text-center">KD ↕</th>
+                <th className="w-[90px] py-4 pr-4 text-center">Select</th>
               </tr>
             </thead>
 
@@ -154,73 +180,93 @@ export default function NodeWars({
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => openWar(row)}
-                    className="cursor-pointer border-t border-slate-800 bg-slate-950/30 transition hover:bg-slate-900/60"
-                  >
-                    <td className="py-4 pl-4 font-black text-slate-200">
-                      {new Date(row.date).toLocaleDateString('en-GB', {
-                        weekday: 'short',
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })}
-                    </td>
+                rows.map((row) => {
+                  const checked =
+                    selectedWars.includes('all') ||
+                    selectedWars.includes(String(row.id));
 
-                    <td className="py-4">
-                      <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold">
-                        Adversary{' '}
-                        <b className={Number(row.kd) >= 1 ? 'text-emerald-300' : 'text-rose-300'}>
-                          {row.kd}
-                        </b>
-                      </span>
-                    </td>
-
-                    <td className="py-4">
-                      <div className="flex max-w-[460px] flex-wrap gap-1.5">
-                        {row.topEnemies.map((guild) => (
-                          <span
-                            key={guild.name}
-                            className="rounded-full border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold"
-                          >
-                            {guild.name}{' '}
-                            <b
-                              className={
-                                Number(guild.kd) >= 1 ? 'text-emerald-300' : 'text-rose-300'
-                              }
-                            >
-                              {guild.kd}
-                            </b>
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    <td className="py-4 text-center font-black">{row.players}</td>
-                    <td className="py-4 text-center font-black text-blue-300">{row.kills}</td>
-                    <td className="py-4 text-center font-black text-pink-300">{row.deaths}</td>
-
-                    <td
-                      className={`py-4 text-center font-black ${
-                        Number(row.kd) >= 1 ? 'text-emerald-300' : 'text-rose-300'
-                      }`}
+                  return (
+                    <tr
+                      key={row.id}
+                      onClick={() => openWar(row)}
+                      className="cursor-pointer border-t border-slate-800 bg-slate-950/30 transition hover:bg-slate-900/60"
                     >
-                      {row.kd}
-                    </td>
+                      <td className="py-4 pl-4 font-black text-slate-200">
+                        {new Date(row.date).toLocaleDateString('en-GB', {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })}
+                      </td>
 
-                    <td className="py-4 pr-4 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedWars.includes(String(row.id))}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => toggleWar(event, row)}
-                        className="h-5 w-5 cursor-pointer accent-blue-500"
-                      />
-                    </td>
-                  </tr>
-                ))
+                      <td className="py-4">
+                        <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold">
+                          Adversary{' '}
+                          <b
+                            className={
+                              Number(row.kd) >= 1
+                                ? 'text-emerald-300'
+                                : 'text-rose-300'
+                            }
+                          >
+                            {row.kd}
+                          </b>
+                        </span>
+                      </td>
+
+                      <td className="py-4">
+                        <div className="flex max-w-[620px] flex-nowrap gap-1.5 overflow-hidden whitespace-nowrap">
+                          {row.topEnemies.map((guild) => (
+                            <span
+                              key={guild.name}
+                              className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-bold"
+                            >
+                              {guild.name}{' '}
+                              <b
+                                className={
+                                  Number(guild.kd) >= 1
+                                    ? 'text-emerald-300'
+                                    : 'text-rose-300'
+                                }
+                              >
+                                {guild.kd}
+                              </b>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+
+                      <td className="py-4 text-center font-black">{row.players}</td>
+                      <td className="py-4 text-center font-black text-blue-300">
+                        {row.kills}
+                      </td>
+                      <td className="py-4 text-center font-black text-pink-300">
+                        {row.deaths}
+                      </td>
+
+                      <td
+                        className={`py-4 text-center font-black ${
+                          Number(row.kd) >= 1
+                            ? 'text-emerald-300'
+                            : 'text-rose-300'
+                        }`}
+                      >
+                        {row.kd}
+                      </td>
+
+                      <td className="py-4 pr-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => toggleWar(event, row)}
+                          className="h-5 w-5 cursor-pointer accent-blue-500"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
