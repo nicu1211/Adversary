@@ -3,6 +3,60 @@ import { Panel, Metric } from '../components/UI';
 import { KillDeathChart, AveragePerformanceChart } from '../components/Charts';
 import { achievements, add, scrollCls } from '../lib/logUtils';
 
+function rankMap(rows, key, desc = true) {
+  const sorted = [...rows].sort((a, b) =>
+    desc ? Number(b[key]) - Number(a[key]) : Number(a[key]) - Number(b[key]),
+  );
+
+  const output = {};
+  let lastValue;
+  let rank = 0;
+
+  sorted.forEach((player, index) => {
+    const value = Number(player[key]) || 0;
+
+    if (index === 0 || value !== lastValue) {
+      rank = index + 1;
+    }
+
+    output[player.name] = rank;
+    lastValue = value;
+  });
+
+  return output;
+}
+
+function getAverageRanks(players, streaks, feeds) {
+  const rows = players.map((player) => ({
+    ...player,
+    kdNumber: Number(player.kd) || 0,
+    streak: streaks[player.name] || 0,
+    feed: feeds[player.name] || 0,
+  }));
+
+  const ranks = {
+    kills: rankMap(rows, 'kills', true),
+    deaths: rankMap(rows, 'deaths', false),
+    kd: rankMap(rows, 'kdNumber', true),
+    streak: rankMap(rows, 'streak', true),
+    feed: rankMap(rows, 'feed', true),
+  };
+
+  return Object.fromEntries(
+    rows.map((player) => [
+      player.name,
+      (
+        (ranks.kills[player.name] +
+          ranks.deaths[player.name] +
+          ranks.kd[player.name] +
+          ranks.streak[player.name] +
+          ranks.feed[player.name]) /
+        5
+      ).toFixed(2),
+    ]),
+  );
+}
+
 function PlayerSelect({ players, value, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -10,7 +64,9 @@ function PlayerSelect({ players, value, onChange }) {
   const selected = players.find((player) => player.name === value);
 
   const list = players.filter((player) =>
-    `${player.name} ${player.family || ''}`.toLowerCase().includes(query.toLowerCase()),
+    `${player.name} ${player.family || ''}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
 
   return (
@@ -24,12 +80,15 @@ function PlayerSelect({ players, value, onChange }) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
+
           <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
         </div>
 
-        <span className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}>
+        <span
+          className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}
+        >
           ⌄
         </span>
       </button>
@@ -46,7 +105,9 @@ function PlayerSelect({ players, value, onChange }) {
 
           <div className={`max-h-64 overflow-y-auto pr-1 ${scrollCls}`}>
             {!list.length ? (
-              <p className="px-3 py-4 text-sm text-slate-500">No players found.</p>
+              <p className="px-3 py-4 text-sm text-slate-500">
+                No players found.
+              </p>
             ) : (
               <>
                 <button
@@ -115,6 +176,7 @@ function RankList({ title, items, valueKey }) {
 
               <div className="min-w-0">
                 <p className="mb-2 truncate font-bold">{item.name}</p>
+
                 <div className="h-2.5 rounded-full bg-slate-800">
                   <div
                     className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
@@ -136,6 +198,11 @@ function RankList({ title, items, valueKey }) {
 
 export default function PlayerStats({ stats }) {
   const [player, setPlayer] = useState('');
+
+  const averageRanks = useMemo(
+    () => getAverageRanks(stats.players, stats.st, stats.fd),
+    [stats],
+  );
 
   const selectedStats = useMemo(() => {
     if (!player) return null;
@@ -219,13 +286,14 @@ export default function PlayerStats({ stats }) {
 
     return {
       ...playerRow,
+      averageRank: averageRanks[player] || '-',
       victims,
       killedBy,
       dailyLine,
       averageLine,
       achievements: achievementRows,
     };
-  }, [player, stats]);
+  }, [player, stats, averageRanks]);
 
   return (
     <Panel>
@@ -239,12 +307,12 @@ export default function PlayerStats({ stats }) {
 
       {selectedStats && (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Metric
               icon="⚔"
               label="Kills"
               value={selectedStats.kills}
-              sub={player}
+              sub="All time"
               className="border-blue-400/25 from-blue-500/20 text-blue-300"
             />
 
@@ -252,7 +320,7 @@ export default function PlayerStats({ stats }) {
               icon="☠"
               label="Deaths"
               value={selectedStats.deaths}
-              sub="Deaths"
+              sub="All time"
               className="border-pink-400/25 from-pink-500/20 text-pink-300"
             />
 
@@ -260,8 +328,16 @@ export default function PlayerStats({ stats }) {
               icon="✦"
               label="K/D"
               value={selectedStats.kd}
-              sub="Ratio"
+              sub="All time"
               className="border-violet-400/25 from-violet-500/20 text-violet-300"
+            />
+
+            <Metric
+              icon="♛"
+              label="Average Rank"
+              value={selectedStats.averageRank}
+              sub="Kills · Deaths · K/D · Streak · Feed"
+              className="border-amber-400/25 from-amber-500/20 text-amber-300"
             />
           </div>
 
