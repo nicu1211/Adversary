@@ -64,9 +64,7 @@ function PlayerSelect({ players, value, onChange }) {
   const selected = players.find((player) => player.name === value);
 
   const list = players.filter((player) =>
-    `${player.name} ${player.family || ''}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+    `${player.name} ${player.family || ''}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   return (
@@ -80,15 +78,12 @@ function PlayerSelect({ players, value, onChange }) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
-
           <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
         </div>
 
-        <span
-          className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}
-        >
+        <span className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}>
           ⌄
         </span>
       </button>
@@ -105,9 +100,7 @@ function PlayerSelect({ players, value, onChange }) {
 
           <div className={`max-h-64 overflow-y-auto pr-1 ${scrollCls}`}>
             {!list.length ? (
-              <p className="px-3 py-4 text-sm text-slate-500">
-                No players found.
-              </p>
+              <p className="px-3 py-4 text-sm text-slate-500">No players found.</p>
             ) : (
               <>
                 <button
@@ -117,9 +110,7 @@ function PlayerSelect({ players, value, onChange }) {
                     setQuery('');
                   }}
                   className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${
-                    !value
-                      ? 'bg-blue-500/20 text-blue-100'
-                      : 'text-slate-300 hover:bg-white/5'
+                    !value ? 'bg-blue-500/20 text-blue-100' : 'text-slate-300 hover:bg-white/5'
                   }`}
                 >
                   Select player
@@ -176,7 +167,6 @@ function RankList({ title, items, valueKey }) {
 
               <div className="min-w-0">
                 <p className="mb-2 truncate font-bold">{item.name}</p>
-
                 <div className="h-2.5 rounded-full bg-slate-800">
                   <div
                     className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
@@ -244,9 +234,7 @@ export default function PlayerStats({ stats }) {
         kd: '0.00',
       };
 
-    const orderedDays = Object.values(days).sort((a, b) =>
-      a.time.localeCompare(b.time),
-    );
+    const orderedDays = Object.values(days).sort((a, b) => a.time.localeCompare(b.time));
 
     const performanceLine = orderedDays.map((day) => {
       const fights = Math.max(1, day.wars.size);
@@ -298,11 +286,7 @@ export default function PlayerStats({ stats }) {
     <Panel>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
-      <PlayerSelect
-        players={stats.players}
-        value={player}
-        onChange={setPlayer}
-      />
+      <PlayerSelect players={stats.players} value={player} onChange={setPlayer} />
 
       {selectedStats && (
         <>
@@ -392,19 +376,14 @@ export default function PlayerStats({ stats }) {
                       }`}
                       style={{
                         width:
-                          Math.min(
-                            100,
-                            (achievement.value / achievement.goal) * 100,
-                          ) + '%',
+                          Math.min(100, (achievement.value / achievement.goal) * 100) + '%',
                       }}
                     />
                   </div>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    {Number(achievement.value).toFixed(
-                      achievement.goal <= 10 ? 2 : 0,
-                    )}{' '}
-                    / {achievement.goal}
+                    {Number(achievement.value).toFixed(achievement.goal <= 10 ? 2 : 0)} /{' '}
+                    {achievement.goal}
                   </p>
                 </div>
               ))}
