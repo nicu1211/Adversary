@@ -5,8 +5,14 @@ import { achievements, add, scrollCls } from '../lib/logUtils';
 
 function sortEvents(events) {
   return [...events].sort((a, b) => {
-    if (a.date !== b.date) return String(a.date).localeCompare(String(b.date));
-    if (a.sec !== b.sec) return Number(a.sec) - Number(b.sec);
+    if (String(a.date) !== String(b.date)) {
+      return String(a.date).localeCompare(String(b.date));
+    }
+
+    if (Number(a.sec) !== Number(b.sec)) {
+      return Number(a.sec) - Number(b.sec);
+    }
+
     return Number(a.i || 0) - Number(b.i || 0);
   });
 }
@@ -19,7 +25,7 @@ function buildStreakMap(events) {
     if (event.type === 'kill') {
       current[event.killer] = (current[event.killer] || 0) + 1;
       best[event.killer] = Math.max(best[event.killer] || 0, current[event.killer]);
-    } else {
+    } else if (event.type === 'death') {
       current[event.victim] = 0;
     }
   });
@@ -28,33 +34,32 @@ function buildStreakMap(events) {
 }
 
 function buildFeedMap(events, seconds = 10) {
-  const byPlayer = {};
+  const grouped = {};
+  const output = {};
 
   sortEvents(events)
     .filter((event) => event.type === 'kill')
     .forEach((event) => {
-      byPlayer[event.killer] ||= [];
-      byPlayer[event.killer].push(event);
+      grouped[event.killer] ||= [];
+      grouped[event.killer].push(event);
     });
 
-  const best = {};
-
-  Object.entries(byPlayer).forEach(([playerName, list]) => {
+  Object.entries(grouped).forEach(([playerName, list]) => {
     let left = 0;
-    let maxCount = 0;
+    let best = 0;
 
     for (let right = 0; right < list.length; right += 1) {
       while (list[right].sec - list[left].sec > seconds) {
         left += 1;
       }
 
-      maxCount = Math.max(maxCount, right - left + 1);
+      best = Math.max(best, right - left + 1);
     }
 
-    best[playerName] = maxCount;
+    output[playerName] = best;
   });
 
-  return best;
+  return output;
 }
 
 function getPlayerBestStreak(events, playerName) {
@@ -96,12 +101,12 @@ function getPlayerBestFeed(events, playerName, seconds = 10) {
 
 function tieAwareRank(rows, key, desc = true) {
   const sorted = [...rows].sort((a, b) => {
-    const aValue = Number(a[key]) || 0;
-    const bValue = Number(b[key]) || 0;
-    return desc ? bValue - aValue : aValue - bValue;
+    const av = Number(a[key]) || 0;
+    const bv = Number(b[key]) || 0;
+    return desc ? bv - av : av - bv;
   });
 
-  const output = {};
+  const ranks = {};
   let lastValue;
   let currentRank = 0;
 
@@ -112,11 +117,11 @@ function tieAwareRank(rows, key, desc = true) {
       currentRank = index + 1;
     }
 
-    output[row.name] = currentRank;
+    ranks[row.name] = currentRank;
     lastValue = value;
   });
 
-  return output;
+  return ranks;
 }
 
 function getMatchBasedAverageRank(events, playerName) {
@@ -127,14 +132,14 @@ function getMatchBasedAverageRank(events, playerName) {
     warMap[event.id].push(event);
   });
 
-  const warScores = [];
+  const scores = [];
 
   Object.values(warMap).forEach((warEvents) => {
-    const playerParticipated = warEvents.some(
+    const participated = warEvents.some(
       (event) => event.killer === playerName || event.victim === playerName,
     );
 
-    if (!playerParticipated) return;
+    if (!participated) return;
 
     const kills = {};
     const deaths = {};
@@ -147,23 +152,23 @@ function getMatchBasedAverageRank(events, playerName) {
     const streakMap = buildStreakMap(warEvents);
     const feedMap = buildFeedMap(warEvents);
 
-    const rows = Array.from(
-      new Set([...Object.keys(kills), ...Object.keys(deaths)]),
-    ).map((name) => {
-      const playerKills = kills[name] || 0;
-      const playerDeaths = deaths[name] || 0;
+    const rows = Array.from(new Set([...Object.keys(kills), ...Object.keys(deaths)])).map(
+      (name) => {
+        const playerKills = kills[name] || 0;
+        const playerDeaths = deaths[name] || 0;
 
-      return {
-        name,
-        kills: playerKills,
-        deaths: playerDeaths,
-        kdNumber: playerDeaths
-          ? Number((playerKills / playerDeaths).toFixed(2))
-          : Number(playerKills.toFixed(2)),
-        streak: streakMap[name] || 0,
-        feed: feedMap[name] || 0,
-      };
-    });
+        return {
+          name,
+          kills: playerKills,
+          deaths: playerDeaths,
+          kdNumber: playerDeaths
+            ? Number((playerKills / playerDeaths).toFixed(2))
+            : Number(playerKills.toFixed(2)),
+          streak: streakMap[name] || 0,
+          feed: feedMap[name] || 0,
+        };
+      },
+    );
 
     if (!rows.some((row) => row.name === playerName)) return;
 
@@ -175,7 +180,7 @@ function getMatchBasedAverageRank(events, playerName) {
       feed: tieAwareRank(rows, 'feed', true),
     };
 
-    const averageRank =
+    const avg =
       (ranks.kills[playerName] +
         ranks.deaths[playerName] +
         ranks.kd[playerName] +
@@ -183,13 +188,14 @@ function getMatchBasedAverageRank(events, playerName) {
         ranks.feed[playerName]) /
       5;
 
-    warScores.push(averageRank);
+    scores.push(avg);
   });
 
-  if (!warScores.length) return '0.00';
+  if (!scores.length) return '0.00';
 
-  const total = warScores.reduce((sum, value) => sum + value, 0);
-  return (total / warScores.length).toFixed(2);
+  return (
+    scores.reduce((sum, value) => sum + value, 0) / scores.length
+  ).toFixed(2);
 }
 
 function PlayerSelect({ players, value, onChange }) {
@@ -198,32 +204,27 @@ function PlayerSelect({ players, value, onChange }) {
 
   const selected = players.find((player) => player.name === value);
 
-  const list = players.filter((player) =>
-    `${player.name} ${player.family || ''}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+  const filtered = players.filter((player) =>
+    `${player.name} ${player.family || ''}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   return (
     <div className="relative mb-4 max-w-xl">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen((prev) => !prev)}
         className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left shadow-lg backdrop-blur-xl transition hover:border-blue-300/50 hover:bg-white/10"
       >
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
-
           <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
         </div>
 
-        <span
-          className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}
-        >
+        <span className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}>
           ⌄
         </span>
       </button>
@@ -239,29 +240,27 @@ function PlayerSelect({ players, value, onChange }) {
           />
 
           <div className={`max-h-64 overflow-y-auto pr-1 ${scrollCls}`}>
-            {!list.length ? (
-              <p className="px-3 py-4 text-sm text-slate-500">
-                No players found.
-              </p>
+            {!filtered.length ? (
+              <p className="px-3 py-4 text-sm text-slate-500">No players found.</p>
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={() => {
                     onChange('');
                     setOpen(false);
                     setQuery('');
                   }}
                   className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${
-                    !value
-                      ? 'bg-blue-500/20 text-blue-100'
-                      : 'text-slate-300 hover:bg-white/5'
+                    !value ? 'bg-blue-500/20 text-blue-100' : 'text-slate-300 hover:bg-white/5'
                   }`}
                 >
                   Select player
                 </button>
 
-                {list.map((player) => (
+                {filtered.map((player) => (
                   <button
+                    type="button"
                     key={player.name}
                     onClick={() => {
                       onChange(player.name);
@@ -286,8 +285,8 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
-function RankList({ title, items, valueKey, limit = 5, accent = 'blue' }) {
-  const rows = items.slice(0, limit);
+function MiniBarList({ title, items, valueKey, accent = 'blue' }) {
+  const rows = items.slice(0, 5);
   const max = Math.max(1, ...rows.map((item) => Number(item[valueKey]) || 0));
 
   const barClass =
@@ -295,46 +294,121 @@ function RankList({ title, items, valueKey, limit = 5, accent = 'blue' }) {
       ? 'from-pink-500 to-fuchsia-300'
       : accent === 'orange'
         ? 'from-orange-500 to-amber-300'
-        : accent === 'emerald'
-          ? 'from-emerald-500 to-cyan-300'
-          : 'from-blue-500 to-cyan-300';
+        : 'from-blue-500 to-cyan-300';
 
   return (
-    <Panel>
-      <h3 className="mb-4 text-xl font-black">{title}</h3>
+    <div>
+      <h4 className="mb-3 text-lg font-black">{title}</h4>
 
       {!rows.length ? (
-        <p className="text-slate-500">No data yet.</p>
+        <p className="text-sm text-slate-500">No data yet.</p>
       ) : (
-        rows.map((item, index) => {
-          const value = Number(item[valueKey]) || 0;
+        <div className="space-y-3">
+          {rows.map((item, index) => {
+            const value = Number(item[valueKey]) || 0;
 
-          return (
-            <div
-              key={`${title}-${item.name}-${index}`}
-              className="mb-4 grid grid-cols-[34px_1fr_55px] items-center gap-3 text-sm"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black">
-                {index + 1}
-              </span>
+            return (
+              <div
+                key={`${title}-${item.name}-${index}`}
+                className="grid grid-cols-[34px_1fr_40px] items-center gap-3 text-sm"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black">
+                  {index + 1}
+                </span>
 
-              <div className="min-w-0">
-                <p className="mb-2 truncate font-bold">{item.name}</p>
+                <div className="min-w-0">
+                  <p className="mb-2 truncate font-bold">{item.name}</p>
+                  <div className="h-2.5 rounded-full bg-slate-800">
+                    <div
+                      className={`h-2.5 rounded-full bg-gradient-to-r ${barClass}`}
+                      style={{
+                        width: `${Math.max(6, Math.round((value / max) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
 
-                <div className="h-2.5 rounded-full bg-slate-800">
-                  <div
-                    className={`h-2.5 rounded-full bg-gradient-to-r ${barClass}`}
-                    style={{
-                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
-                    }}
-                  />
+                <b className="text-right">{value}</b>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
+  return (
+    <Panel>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <MiniBarList
+          title="Favourite Targets"
+          items={favouriteTargets}
+          valueKey="kills"
+          accent="blue"
+        />
+
+        <MiniBarList
+          title="Nemesis"
+          items={nemesisTargets}
+          valueKey="kills"
+          accent="pink"
+        />
+      </div>
+    </Panel>
+  );
+}
+
+function EnemyGuildsPanel({ guilds }) {
+  return (
+    <Panel>
+      <div className="mb-4">
+        <h3 className="text-xl font-black">Enemy Guilds</h3>
+        <p className="text-sm text-slate-400">
+          Sorted by average K/D against the selected player
+        </p>
+      </div>
+
+      {!guilds.length ? (
+        <p className="text-slate-500">No enemy guild data yet.</p>
+      ) : (
+        <div className={`max-h-[520px] overflow-y-auto pr-1 ${scrollCls}`}>
+          <div className="mb-2 grid grid-cols-[1.5fr_repeat(5,minmax(0,0.7fr))] gap-2 px-3 text-[11px] font-black uppercase tracking-wider text-slate-500">
+            <div>Guild</div>
+            <div className="text-center">K</div>
+            <div className="text-center">D</div>
+            <div className="text-center">Avg K</div>
+            <div className="text-center">Avg D</div>
+            <div className="text-center">K/D</div>
+          </div>
+
+          <div className="space-y-2">
+            {guilds.map((guild) => (
+              <div
+                key={guild.name}
+                className="grid grid-cols-[1.5fr_repeat(5,minmax(0,0.7fr))] items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-bold">{guild.name}</p>
+                  <p className="text-[11px] text-slate-500">{guild.wars} wars</p>
+                </div>
+
+                <div className="text-center font-black text-blue-300">{guild.kills}</div>
+                <div className="text-center font-black text-pink-300">{guild.deaths}</div>
+                <div className="text-center font-black text-cyan-300">{guild.avgKills}</div>
+                <div className="text-center font-black text-fuchsia-300">{guild.avgDeaths}</div>
+                <div
+                  className={`text-center font-black ${
+                    guild.kd >= 1 ? 'text-emerald-300' : 'text-rose-300'
+                  }`}
+                >
+                  {guild.kd.toFixed(2)}
                 </div>
               </div>
-
-              <b className="text-right">{value}</b>
-            </div>
-          );
-        })
+            ))}
+          </div>
+        </div>
       )}
     </Panel>
   );
@@ -342,7 +416,7 @@ function RankList({ title, items, valueKey, limit = 5, accent = 'blue' }) {
 
 function PlayerStreakFeed({ streakItems, feedItems }) {
   return (
-    <Panel cls="h-full">
+    <Panel>
       <div className="grid gap-4 xl:grid-cols-2">
         <div>
           <h4 className="mb-3 text-sm font-black uppercase tracking-wider text-slate-400">
@@ -362,9 +436,7 @@ function PlayerStreakFeed({ streakItems, feedItems }) {
 
                   <div className="min-w-0">
                     <b className="block truncate">{item.date}</b>
-                    <p className="truncate text-[10px] text-slate-500">
-                      {item.war}
-                    </p>
+                    <p className="truncate text-[10px] text-slate-500">{item.war}</p>
                   </div>
 
                   <b className="text-right text-emerald-300">{item.value}</b>
@@ -392,9 +464,7 @@ function PlayerStreakFeed({ streakItems, feedItems }) {
 
                   <div className="min-w-0">
                     <b className="block truncate">{item.date}</b>
-                    <p className="truncate text-[10px] text-slate-500">
-                      {item.war}
-                    </p>
+                    <p className="truncate text-[10px] text-slate-500">{item.war}</p>
                   </div>
 
                   <b className="text-right text-orange-300">{item.value}</b>
@@ -417,34 +487,48 @@ export default function PlayerStats({ stats }) {
     const victims = {};
     const killedBy = {};
     const days = {};
-    const participatedWars = new Set();
     const warMap = {};
+    const enemyGuilds = {};
+    const participatedWars = new Set();
 
     stats.ev.forEach((event) => {
       warMap[event.id] ||= [];
       warMap[event.id].push(event);
 
-      if (event.killer === player || event.victim === player) {
-        participatedWars.add(event.id);
+      const involved = event.killer === player || event.victim === player;
 
-        days[event.date] ||= {
-          time: event.date,
-          kills: 0,
-          deaths: 0,
-          wars: new Set(),
-        };
+      if (!involved) return;
 
-        days[event.date].wars.add(event.id);
-      }
+      participatedWars.add(event.id);
+
+      days[event.date] ||= {
+        time: event.date,
+        kills: 0,
+        deaths: 0,
+        wars: new Set(),
+      };
+
+      days[event.date].wars.add(event.id);
+
+      enemyGuilds[event.guild] ||= {
+        name: event.guild,
+        kills: 0,
+        deaths: 0,
+        wars: new Set(),
+      };
+
+      enemyGuilds[event.guild].wars.add(event.id);
 
       if (event.killer === player) {
         add(victims, event.victim);
         days[event.date].kills += 1;
+        enemyGuilds[event.guild].kills += 1;
       }
 
       if (event.victim === player) {
         add(killedBy, event.killer);
         days[event.date].deaths += 1;
+        enemyGuilds[event.guild].deaths += 1;
       }
     });
 
@@ -455,14 +539,13 @@ export default function PlayerStats({ stats }) {
         kd: '0.00',
       };
 
-    const orderedDays = Object.values(days).sort((a, b) =>
-      a.time.localeCompare(b.time),
-    );
+    const orderedDays = Object.values(days).sort((a, b) => a.time.localeCompare(b.time));
 
     const performanceLine = orderedDays.map((day) => {
       const fights = Math.max(1, day.wars.size);
       const avgKills = Number((day.kills / fights).toFixed(2));
       const avgDeaths = Number((day.deaths / fights).toFixed(2));
+      const avgKd = Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2));
 
       return {
         time: day.time,
@@ -470,9 +553,34 @@ export default function PlayerStats({ stats }) {
         deaths: day.deaths,
         avgKills,
         avgDeaths,
-        avgKd: Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2)),
+        avgKd,
       };
     });
+
+    const guildRows = Object.values(enemyGuilds)
+      .map((guild) => {
+        const wars = Math.max(1, guild.wars.size);
+        const avgKills = Number((guild.kills / wars).toFixed(2));
+        const avgDeaths = Number((guild.deaths / wars).toFixed(2));
+        const kd = Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2));
+
+        return {
+          name: guild.name,
+          kills: guild.kills,
+          deaths: guild.deaths,
+          wars,
+          avgKills,
+          avgDeaths,
+          kd,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.kd - a.kd ||
+          b.avgKills - a.avgKills ||
+          a.avgDeaths - b.avgDeaths ||
+          a.name.localeCompare(b.name),
+      );
 
     const streakItems = Object.entries(warMap)
       .map(([id, events]) => {
@@ -546,9 +654,14 @@ export default function PlayerStats({ stats }) {
       ...playerRow,
       wars: participatedWars.size,
       averageRank: getMatchBasedAverageRank(stats.ev, player),
-      victims,
-      killedBy,
       performanceLine,
+      favouriteTargets: Object.entries(victims)
+        .map(([name, kills]) => ({ name, kills }))
+        .sort((a, b) => b.kills - a.kills),
+      nemesisTargets: Object.entries(killedBy)
+        .map(([name, kills]) => ({ name, kills }))
+        .sort((a, b) => b.kills - a.kills),
+      guildRows,
       streakItems,
       feedItems,
       achievements: achievementRows,
@@ -559,11 +672,7 @@ export default function PlayerStats({ stats }) {
     <Panel>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
-      <PlayerSelect
-        players={stats.players}
-        value={player}
-        onChange={setPlayer}
-      />
+      <PlayerSelect players={stats.players} value={player} onChange={setPlayer} />
 
       {selectedStats && (
         <>
@@ -611,32 +720,19 @@ export default function PlayerStats({ stats }) {
 
           <PerformanceChart data={selectedStats.performanceLine} />
 
-          <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
-            <div className="space-y-4">
-              <RankList
-                title="Favourite Targets"
-                items={Object.entries(selectedStats.victims)
-                  .map(([name, kills]) => ({ name, kills }))
-                  .sort((a, b) => b.kills - a.kills)}
-                valueKey="kills"
-                accent="blue"
-              />
+          <div className="grid gap-4 xl:grid-cols-[1.05fr_.95fr]">
+            <EnemyGuildsPanel guilds={selectedStats.guildRows} />
 
-              <RankList
-                title="Nemesis"
-                items={Object.entries(selectedStats.killedBy)
-                  .map(([name, kills]) => ({ name, kills }))
-                  .sort((a, b) => b.kills - a.kills)}
-                valueKey="kills"
-                accent="pink"
-              />
-            </div>
-
-            <PlayerStreakFeed
-              streakItems={selectedStats.streakItems}
-              feedItems={selectedStats.feedItems}
+            <TargetsAndNemesisPanel
+              favouriteTargets={selectedStats.favouriteTargets}
+              nemesisTargets={selectedStats.nemesisTargets}
             />
           </div>
+
+          <PlayerStreakFeed
+            streakItems={selectedStats.streakItems}
+            feedItems={selectedStats.feedItems}
+          />
 
           <Panel>
             <h3 className="mb-4 text-xl font-black">✦ Achievements</h3>
@@ -662,19 +758,14 @@ export default function PlayerStats({ stats }) {
                       }`}
                       style={{
                         width:
-                          Math.min(
-                            100,
-                            (achievement.value / achievement.goal) * 100,
-                          ) + '%',
+                          Math.min(100, (achievement.value / achievement.goal) * 100) + '%',
                       }}
                     />
                   </div>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    {Number(achievement.value).toFixed(
-                      achievement.goal <= 10 ? 2 : 0,
-                    )}{' '}
-                    / {achievement.goal}
+                    {Number(achievement.value).toFixed(achievement.goal <= 10 ? 2 : 0)} /{' '}
+                    {achievement.goal}
                   </p>
                 </div>
               ))}
