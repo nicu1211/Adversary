@@ -349,94 +349,118 @@ function EnemyGuildTable({ rows }) {
   );
 }
 
-function buildPlacementRanks(rows, valueKey, direction = 'desc') {
+function getFirstReachMap(events, playersByName) {
+  const sortedEvents = [...events].sort((a, b) => {
+    if (String(a.date) !== String(b.date)) {
+      return String(a.date).localeCompare(String(b.date));
+    }
+
+    if (Number(a.sec) !== Number(b.sec)) {
+      return Number(a.sec) - Number(b.sec);
+    }
+
+    return Number(a.i || 0) - Number(b.i || 0);
+  });
+
+  const run = {};
+  const reach = {};
+
+  sortedEvents
+    .filter((event) => event.type === 'kill')
+    .forEach((event) => {
+      run[event.killer] = (run[event.killer] || 0) + 1;
+
+      const finalKills = playersByName[event.killer]?.kills || 0;
+
+      if (finalKills && run[event.killer] === finalKills) {
+        reach[event.killer] = `${event.date} ${String(event.sec).padStart(5, '0')} ${String(event.i || 0).padStart(5, '0')}`;
+      }
+    });
+
+  return reach;
+}
+
+function buildTieAwareRank(rows, key, desc = true) {
   const sorted = [...rows].sort((a, b) => {
-    const av = Number(a[valueKey]) || 0;
-    const bv = Number(b[valueKey]) || 0;
+    const av = Number(a[key]) || 0;
+    const bv = Number(b[key]) || 0;
 
     if (av === bv) {
       return a.name.localeCompare(b.name);
     }
 
-    return direction === 'desc' ? bv - av : av - bv;
+    return desc ? bv - av : av - bv;
   });
 
-  const rankMap = {};
-  let lastValue = null;
-  let lastRank = 0;
+  const output = {};
+  let lastValue;
+  let rankNumber = 0;
 
   sorted.forEach((row, index) => {
-    const value = Number(row[valueKey]) || 0;
+    const value = Number(row[key]) || 0;
 
     if (index === 0 || value !== lastValue) {
-      lastRank = index + 1;
-      lastValue = value;
+      rankNumber = index + 1;
     }
 
-    rankMap[row.name] = lastRank;
+    output[row.name] = rankNumber;
+    lastValue = value;
   });
 
-  return rankMap;
+  return output;
 }
 
-function buildAverageRankForPlayer(playerName, allEvents) {
-  const warIds = [...new Set(allEvents.map((event) => String(event.id)))];
-  const ranks = [];
+function buildKillsRankLikeBestOverall(rows, events, playersByName) {
+  const reach = getFirstReachMap(events, playersByName);
 
-  warIds.forEach((warId) => {
-    const warEvents = allEvents.filter((event) => String(event.id) === warId);
+  return Object.fromEntries(
+    [...rows]
+      .sort(
+        (a, b) =>
+          b.kills - a.kills ||
+          (reach[a.name] || '9999').localeCompare(reach[b.name] || '9999') ||
+          a.name.localeCompare(b.name),
+      )
+      .map((player, index) => [player.name, index + 1]),
+  );
+}
 
-    const participated = warEvents.some(
-      (event) => event.killer === playerName || event.victim === playerName,
-    );
+function buildBestOverallAverageRanks(stats) {
+  const playersByName = Object.fromEntries(
+    stats.players.map((player) => [player.name, player]),
+  );
 
-    if (!participated) return;
+  const rows = stats.players.map((player) => ({
+    ...player,
+    kdNumber: Number(player.kd) || 0,
+    streak: stats.st?.[player.name] || 0,
+    feed: stats.fd?.[player.name] || 0,
+  }));
 
-    const map = {};
+  if (!rows.length) return {};
 
-    warEvents.forEach((event) => {
-      if (!map[event.killer]) {
-        map[event.killer] = { name: event.killer, kills: 0, deaths: 0 };
-      }
+  const ranks = {
+    kills: buildKillsRankLikeBestOverall(rows, stats.ev, playersByName),
+    deaths: buildTieAwareRank(rows, 'deaths', false),
+    kd: buildTieAwareRank(rows, 'kdNumber', true),
+    streak: buildTieAwareRank(rows, 'streak', true),
+    feed: buildTieAwareRank(rows, 'feed', true),
+  };
 
-      if (!map[event.victim]) {
-        map[event.victim] = { name: event.victim, kills: 0, deaths: 0 };
-      }
-
-      if (event.killer) {
-        map[event.killer].kills += event.killer === event.victim ? 0 : 1;
-      }
-
-      if (event.victim) {
-        map[event.victim].deaths += 1;
-      }
-    });
-
-    const players = Object.values(map).map((row) => ({
-      ...row,
-      kd: row.deaths ? row.kills / row.deaths : row.kills,
-    }));
-
-    if (!players.find((row) => row.name === playerName)) {
-      return;
-    }
-
-    const killsRank = buildPlacementRanks(players, 'kills', 'desc');
-    const deathsRank = buildPlacementRanks(players, 'deaths', 'asc');
-    const kdRank = buildPlacementRanks(players, 'kd', 'desc');
-
-    const averageForWar =
-      (killsRank[playerName] + deathsRank[playerName] + kdRank[playerName]) / 3;
-
-    ranks.push(averageForWar);
-  });
-
-  if (!ranks.length) {
-    return 0;
-  }
-
-  return Number(
-    (ranks.reduce((sum, value) => sum + value, 0) / ranks.length).toFixed(2),
+  return Object.fromEntries(
+    rows.map((player) => [
+      player.name,
+      Number(
+        (
+          (ranks.kills[player.name] +
+            ranks.deaths[player.name] +
+            ranks.kd[player.name] +
+            ranks.streak[player.name] +
+            ranks.feed[player.name]) /
+          5
+        ).toFixed(2),
+      ),
+    ]),
   );
 }
 
@@ -552,6 +576,11 @@ function StreakFeedPanel({ streakItems, feedItems }) {
 export default function PlayerStats({ stats }) {
   const [player, setPlayer] = useState('');
 
+  const bestOverallRanks = useMemo(
+    () => buildBestOverallAverageRanks(stats),
+    [stats],
+  );
+
   const selectedStats = useMemo(() => {
     if (!player) return null;
 
@@ -658,8 +687,6 @@ export default function PlayerStats({ stats }) {
           a.name.localeCompare(b.name),
       );
 
-    const averageRank = buildAverageRankForPlayer(player, stats.ev);
-
     const streakItems = Object.entries(warMap)
       .map(([warId, events]) => {
         const participated = events.some(
@@ -715,11 +742,11 @@ export default function PlayerStats({ stats }) {
       averageLine,
       enemyGuildRows,
       wars: involvedWarIds.size,
-      averageRank,
+      averageRank: bestOverallRanks[player] || 0,
       streakItems,
       feedItems,
     };
-  }, [player, stats]);
+  }, [player, stats, bestOverallRanks]);
 
   return (
     <Panel>
@@ -769,8 +796,8 @@ export default function PlayerStats({ stats }) {
             <Metric
               icon="♛"
               label="Average Rank"
-              value={selectedStats.averageRank || '0.00'}
-              sub="Only wars played by this player"
+              value={Number(selectedStats.averageRank || 0).toFixed(2)}
+              sub="Same as Best Overall"
               className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
             />
           </div>
