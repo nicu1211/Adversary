@@ -129,16 +129,22 @@ export default function App() {
     if (duplicate) {
       setSelectedDays([dateOf(duplicate)]);
       setSelectedWars([String(duplicate.id)]);
-      setMessage('Duplicate log detected');
+      setMessage('Duplicate log detected locally');
       return;
     }
 
+    const uniqueId = `${date}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
     try {
       const response = await apiWrite('/api/logs', 'POST', {
-        name,
+        id: uniqueId,
+        name: name || date,
         date,
         raw,
         hash: logHash,
+        createdAt: new Date().toISOString(),
       });
 
       const item = normalizeLog(response);
@@ -154,7 +160,7 @@ export default function App() {
       const text = String(error.message || error);
 
       const item = {
-        id: String(Date.now()),
+        id: uniqueId,
         apiId: null,
         name: name || date,
         date,
@@ -172,11 +178,13 @@ export default function App() {
       setSelectedWars([String(item.id)]);
 
       setMessage(
-        text.includes('UnsupportedHttpVerb') ||
-          text.includes('404') ||
-          text.includes('ResourceNotFound')
-          ? `API save endpoint is not available: ${text}. Log saved locally in this browser only.`
-          : `Database save failed: ${text}. Log saved locally in this browser only.`,
+        text.includes('Duplicate log')
+          ? `Database refused save: ${text}. Log saved locally only. Backend probably blocks duplicate date/hash.`
+          : text.includes('UnsupportedHttpVerb') ||
+              text.includes('404') ||
+              text.includes('ResourceNotFound')
+            ? `API save endpoint is not available: ${text}. Log saved locally only.`
+            : `Database save failed: ${text}. Log saved locally only.`,
       );
     }
   }
