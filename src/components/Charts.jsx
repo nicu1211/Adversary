@@ -181,25 +181,25 @@ export function PerformanceChart({ data }) {
         <ResponsiveContainer>
           <ComposedChart
             data={data}
-            barCategoryGap="10%"
-            barGap={0}
+            barCategoryGap="28%"
+            barGap={-8}
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
               <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.96} />
-                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.7} />
+                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.72} />
               </linearGradient>
 
               <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.96} />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.7} />
+                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.72} />
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#34d399" stopOpacity={0.28} />
-                <stop offset="60%" stopColor="#34d399" stopOpacity={0.12} />
-                <stop offset="100%" stopColor="#34d399" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="#34d399" stopOpacity={0.18} />
+                <stop offset="55%" stopColor="#34d399" stopOpacity={0.07} />
+                <stop offset="100%" stopColor="#34d399" stopOpacity={0.01} />
               </linearGradient>
             </defs>
 
@@ -235,7 +235,7 @@ export function PerformanceChart({ data }) {
               name="Kills"
               fill="url(#perfBarKills)"
               radius={[10, 10, 0, 0]}
-              maxBarSize={30}
+              maxBarSize={28}
               activeBar={false}
             />
 
@@ -245,7 +245,7 @@ export function PerformanceChart({ data }) {
               name="Deaths"
               fill="url(#perfBarDeaths)"
               radius={[10, 10, 0, 0]}
-              maxBarSize={30}
+              maxBarSize={28}
               activeBar={false}
             />
 
@@ -267,18 +267,18 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name="Avg K/D"
               stroke="#34d399"
-              strokeWidth={2.5}
+              strokeWidth={1.6}
               dot={{
-                r: 4,
+                r: 2.8,
                 fill: '#34d399',
                 stroke: '#a7f3d0',
-                strokeWidth: 1.5,
+                strokeWidth: 1.2,
               }}
               activeDot={{
-                r: 5,
+                r: 4,
                 fill: '#34d399',
                 stroke: '#d1fae5',
-                strokeWidth: 2,
+                strokeWidth: 1.5,
               }}
             />
           </ComposedChart>
