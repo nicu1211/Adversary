@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Panel, Metric } from '../components/UI';
-import { AveragePerformanceChart } from '../components/Charts';
+import { PerformanceChart } from '../components/Charts';
 import { achievements, add, scrollCls } from '../lib/logUtils';
 
 function rankMap(rows, key, desc = true) {
@@ -210,9 +210,12 @@ export default function PlayerStats({ stats }) {
     const victims = {};
     const killedBy = {};
     const days = {};
+    const participatedWars = new Set();
 
     stats.ev.forEach((event) => {
       if (event.killer === player || event.victim === player) {
+        participatedWars.add(event.id);
+
         days[event.date] ||= {
           time: event.date,
           kills: 0,
@@ -245,13 +248,15 @@ export default function PlayerStats({ stats }) {
       a.time.localeCompare(b.time),
     );
 
-    const averageLine = orderedDays.map((day) => {
+    const performanceLine = orderedDays.map((day) => {
       const fights = Math.max(1, day.wars.size);
       const avgKills = Number((day.kills / fights).toFixed(2));
       const avgDeaths = Number((day.deaths / fights).toFixed(2));
 
       return {
         time: day.time,
+        kills: day.kills,
+        deaths: day.deaths,
         avgKills,
         avgDeaths,
         avgKd: Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2)),
@@ -280,10 +285,11 @@ export default function PlayerStats({ stats }) {
 
     return {
       ...playerRow,
+      wars: participatedWars.size,
       averageRank: averageRanks[player] || '-',
       victims,
       killedBy,
-      averageLine,
+      performanceLine,
       achievements: achievementRows,
     };
   }, [player, stats, averageRanks]);
@@ -300,7 +306,7 @@ export default function PlayerStats({ stats }) {
 
       {selectedStats && (
         <>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <Metric
               icon="⚔"
               label="Kills"
@@ -326,6 +332,14 @@ export default function PlayerStats({ stats }) {
             />
 
             <Metric
+              icon="⚑"
+              label="Wars"
+              value={selectedStats.wars}
+              sub="Participated"
+              className="border-cyan-400/25 from-cyan-500/20 text-cyan-300"
+            />
+
+            <Metric
               icon="♛"
               label="Average Rank"
               value={selectedStats.averageRank}
@@ -334,7 +348,7 @@ export default function PlayerStats({ stats }) {
             />
           </div>
 
-          <AveragePerformanceChart data={selectedStats.averageLine} />
+          <PerformanceChart data={selectedStats.performanceLine} />
 
           <div className="grid gap-4 md:grid-cols-2">
             <RankList
