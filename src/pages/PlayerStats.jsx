@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Panel, Metric } from '../components/UI';
 import { AveragePerformanceChart } from '../components/Charts';
-import { achievements, add, scrollCls } from '../lib/logUtils';
+import { add, scrollCls } from '../lib/logUtils';
 
 function PlayerSelect({ players, value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -379,12 +379,19 @@ function buildPlacementRanks(rows, valueKey, direction = 'desc') {
   return rankMap;
 }
 
-function buildAverageRankForPlayer(playerName, events) {
-  const warIds = [...new Set(events.map((event) => String(event.id)))];
+function buildAverageRankForPlayer(playerName, allEvents) {
+  const warIds = [...new Set(allEvents.map((event) => String(event.id)))];
   const ranks = [];
 
   warIds.forEach((warId) => {
-    const warEvents = events.filter((event) => String(event.id) === warId);
+    const warEvents = allEvents.filter((event) => String(event.id) === warId);
+
+    const participated = warEvents.some(
+      (event) => event.killer === playerName || event.victim === playerName,
+    );
+
+    if (!participated) return;
+
     const map = {};
 
     warEvents.forEach((event) => {
@@ -620,6 +627,8 @@ export default function PlayerStats({ stats }) {
         time: day.time,
         kills: day.kills,
         deaths: day.deaths,
+        avgKills,
+        avgDeaths,
         avgKd: Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2)),
       };
     });
@@ -649,11 +658,7 @@ export default function PlayerStats({ stats }) {
           a.name.localeCompare(b.name),
       );
 
-    const playerEvents = stats.ev.filter(
-      (event) => event.killer === player || event.victim === player,
-    );
-
-    const averageRank = buildAverageRankForPlayer(player, playerEvents);
+    const averageRank = buildAverageRankForPlayer(player, stats.ev);
 
     const streakItems = Object.entries(warMap)
       .map(([warId, events]) => {
