@@ -90,7 +90,6 @@ export default function App() {
 
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
-  // Player Stats trebuie să fie all time, din toate logurile salvate.
   const allTimeStats = useMemo(
     () =>
       calculateStats(
@@ -119,10 +118,12 @@ export default function App() {
       return;
     }
 
-    const hash = hashLog(raw);
+    const logHash = hashLog(raw);
 
     const duplicate = logs.find(
-      (log) => log.hash === hash || cleanLog(log.raw) === cleanLog(raw),
+      (log) =>
+        log.hash === logHash ||
+        cleanLog(log.raw) === cleanLog(raw),
     );
 
     if (duplicate) {
@@ -133,14 +134,14 @@ export default function App() {
     }
 
     try {
-      const item = normalizeLog(
-        await apiWrite('/api/logs', 'POST', {
-          name,
-          date,
-          raw,
-          hash,
-        }),
-      );
+      const response = await apiWrite('/api/logs', 'POST', {
+        name,
+        date,
+        raw,
+        hash: logHash,
+      });
+
+      const item = normalizeLog(response);
 
       const next = [item, ...logs];
 
@@ -158,7 +159,7 @@ export default function App() {
         name: name || date,
         date,
         raw,
-        hash,
+        hash: logHash,
         created: new Date().toISOString(),
         localOnly: true,
       };
@@ -174,8 +175,8 @@ export default function App() {
         text.includes('UnsupportedHttpVerb') ||
           text.includes('404') ||
           text.includes('ResourceNotFound')
-          ? 'API save endpoint is not available. Log saved locally in this browser only.'
-          : 'Database save failed. Log saved locally in this browser only.',
+          ? `API save endpoint is not available: ${text}. Log saved locally in this browser only.`
+          : `Database save failed: ${text}. Log saved locally in this browser only.`,
       );
     }
   }
