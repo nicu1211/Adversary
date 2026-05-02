@@ -9,7 +9,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Bar,
-  Line as ChartLine,
+  Line as RechartsLine,
   Legend,
 } from 'recharts';
 import { Panel } from './UI';
@@ -177,18 +177,23 @@ export function PerformanceChart({ data }) {
         </div>
       </div>
 
-      <div className="h-[320px] sm:h-[360px]">
+      <div className="h-[320px] sm:h-[360px] [&_*:focus]:outline-none">
         <ResponsiveContainer>
-          <ComposedChart data={data} barCategoryGap={18}>
+          <ComposedChart
+            data={data}
+            barCategoryGap="10%"
+            barGap={0}
+            margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
+          >
             <defs>
               <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.95} />
-                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.65} />
+                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.68} />
               </linearGradient>
 
               <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.95} />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.65} />
+                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.68} />
               </linearGradient>
             </defs>
 
@@ -215,7 +220,7 @@ export function PerformanceChart({ data }) {
               allowDecimals
             />
 
-            <Tooltip content={<PerformanceTooltip />} />
+            <Tooltip content={<PerformanceTooltip />} cursor={false} />
             <Legend />
 
             <Bar
@@ -224,7 +229,8 @@ export function PerformanceChart({ data }) {
               name="Kills"
               fill="url(#perfBarKills)"
               radius={[10, 10, 0, 0]}
-              maxBarSize={26}
+              maxBarSize={30}
+              activeBar={false}
             />
 
             <Bar
@@ -233,10 +239,11 @@ export function PerformanceChart({ data }) {
               name="Deaths"
               fill="url(#perfBarDeaths)"
               radius={[10, 10, 0, 0]}
-              maxBarSize={26}
+              maxBarSize={30}
+              activeBar={false}
             />
 
-            <ChartLine
+            <RechartsLine
               yAxisId="right"
               type="monotone"
               dataKey="avgKd"
@@ -244,16 +251,16 @@ export function PerformanceChart({ data }) {
               stroke="#34d399"
               strokeWidth={4}
               dot={{
-                r: 5,
-                strokeWidth: 2,
+                r: 4,
                 fill: '#34d399',
-                stroke: '#d1fae5',
+                stroke: '#86efac',
+                strokeWidth: 2,
               }}
               activeDot={{
-                r: 7,
-                strokeWidth: 2,
+                r: 5,
                 fill: '#34d399',
-                stroke: '#ffffff',
+                stroke: '#86efac',
+                strokeWidth: 2,
               }}
             />
           </ComposedChart>
