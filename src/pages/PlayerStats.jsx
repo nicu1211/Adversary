@@ -10,7 +10,9 @@ function PlayerSelect({ players, value, onChange }) {
   const selected = players.find((player) => player.name === value);
 
   const list = players.filter((player) =>
-    `${player.name} ${player.family || ''}`.toLowerCase().includes(query.toLowerCase()),
+    `${player.name} ${player.family || ''}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
 
   return (
@@ -24,6 +26,7 @@ function PlayerSelect({ players, value, onChange }) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
+
           <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
@@ -48,7 +51,9 @@ function PlayerSelect({ players, value, onChange }) {
 
           <div className={`max-h-64 overflow-y-auto pr-1 ${scrollCls}`}>
             {!list.length ? (
-              <p className="px-3 py-4 text-sm text-slate-500">No players found.</p>
+              <p className="px-3 py-4 text-sm text-slate-500">
+                No players found.
+              </p>
             ) : (
               <>
                 <button
@@ -59,7 +64,9 @@ function PlayerSelect({ players, value, onChange }) {
                     setQuery('');
                   }}
                   className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${
-                    !value ? 'bg-blue-500/20 text-blue-100' : 'text-slate-300 hover:bg-white/5'
+                    !value
+                      ? 'bg-blue-500/20 text-blue-100'
+                      : 'text-slate-300 hover:bg-white/5'
                   }`}
                 >
                   Select player
@@ -114,17 +121,18 @@ function MiniRankList({ title, items, valueKey, tone = 'blue' }) {
           return (
             <div
               key={`${title}-${item.name}`}
-              className="mb-4 grid grid-cols-[34px_1fr_42px] items-center gap-3 text-sm last:mb-0"
+              className="mb-3 grid grid-cols-[32px_1fr_38px] items-center gap-3 text-sm last:mb-0"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black text-slate-100">
                 {index + 1}
               </span>
 
               <div className="min-w-0">
-                <p className="mb-2 truncate font-bold">{item.name}</p>
-                <div className="h-2.5 rounded-full bg-slate-800">
+                <p className="mb-1.5 truncate font-bold">{item.name}</p>
+
+                <div className="h-2 rounded-full bg-slate-800">
                   <div
-                    className={`h-2.5 rounded-full ${fillClass}`}
+                    className={`h-2 rounded-full ${fillClass}`}
                     style={{
                       width: `${Math.max(6, Math.round((value / max) * 100))}%`,
                     }}
@@ -141,82 +149,194 @@ function MiniRankList({ title, items, valueKey, tone = 'blue' }) {
   );
 }
 
-function formatAvgPair(avgKills, avgDeaths) {
-  return `${avgKills.toFixed(2)} / ${avgDeaths.toFixed(2)}`;
+function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
+  return (
+    <Panel>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <MiniRankList
+          title="Favourite Targets"
+          items={favouriteTargets}
+          valueKey="kills"
+          tone="blue"
+        />
+
+        <MiniRankList
+          title="Nemesis"
+          items={nemesisTargets}
+          valueKey="kills"
+          tone="pink"
+        />
+      </div>
+    </Panel>
+  );
+}
+
+function SortButton({ id, label, sort, setSort, align = 'left' }) {
+  const active = sort.key === id;
+
+  function toggle() {
+    if (sort.key === id) {
+      setSort({
+        key: id,
+        dir: sort.dir === 'desc' ? 'asc' : 'desc',
+      });
+      return;
+    }
+
+    setSort({
+      key: id,
+      dir: id === 'guild' ? 'asc' : 'desc',
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={`w-full text-[11px] font-black uppercase tracking-[0.16em] transition hover:text-blue-300 ${
+        active ? 'text-blue-300' : 'text-slate-400'
+      } ${align === 'center' ? 'text-center' : 'text-left'}`}
+    >
+      {label} {active ? (sort.dir === 'desc' ? '↓' : '↑') : '↕'}
+    </button>
+  );
 }
 
 function EnemyGuildTable({ rows }) {
+  const [sort, setSort] = useState({
+    key: 'avgRatio',
+    dir: 'desc',
+  });
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let av = a[sort.key];
+      let bv = b[sort.key];
+
+      if (sort.key === 'guild') {
+        av = a.name.toLowerCase();
+        bv = b.name.toLowerCase();
+      }
+
+      if (typeof av === 'string') {
+        return sort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+
+      av = Number(av) || 0;
+      bv = Number(bv) || 0;
+
+      if (av === bv) {
+        return a.name.localeCompare(b.name);
+      }
+
+      return sort.dir === 'asc' ? av - bv : bv - av;
+    });
+  }, [rows, sort]);
+
   return (
     <Panel>
       <div className="mb-4">
         <h3 className="text-2xl font-black">Enemy Guilds</h3>
         <p className="text-sm text-slate-400">
-          Premium matchup view against the selected player
+          Matchups against the selected player
         </p>
       </div>
 
-      {!rows.length ? (
+      {!sortedRows.length ? (
         <p className="text-slate-500">No enemy guild interactions found.</p>
       ) : (
-        <div className={`max-h-[560px] overflow-y-auto pr-2 ${scrollCls}`}>
-          <div className="space-y-3">
-            <div className="sticky top-0 z-10 grid grid-cols-[minmax(180px,1.5fr)_90px_70px_70px_160px] gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400 backdrop-blur">
-              <div>Guild</div>
-              <div className="text-center">Wars</div>
-              <div className="text-center">K</div>
-              <div className="text-center">D</div>
-              <div className="text-center">Average K / D</div>
+        <div className={`max-h-[520px] overflow-y-auto pr-2 ${scrollCls}`}>
+          <div className="space-y-2">
+            <div className="sticky top-0 z-10 grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] gap-2 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur">
+              <SortButton
+                id="guild"
+                label="Guild"
+                sort={sort}
+                setSort={setSort}
+              />
+
+              <SortButton
+                id="wars"
+                label="Wars"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
+
+              <SortButton
+                id="kills"
+                label="K"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
+
+              <SortButton
+                id="deaths"
+                label="D"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
+
+              <SortButton
+                id="avgRatio"
+                label="Average K / D"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
             </div>
 
-            {rows.map((guild, index) => {
+            {sortedRows.map((guild, index) => {
               const positive = guild.avgKills >= guild.avgDeaths;
 
               return (
                 <div
                   key={guild.name}
-                  className="grid grid-cols-[minmax(180px,1.5fr)_90px_70px_70px_160px] items-center gap-3 rounded-3xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-4 py-4 shadow-[0_10px_28px_rgba(0,0,0,.22)] transition hover:border-slate-700 hover:shadow-[0_12px_30px_rgba(0,0,0,.34)]"
+                  className="grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] items-center gap-2 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_8px_22px_rgba(0,0,0,.20)] transition hover:border-slate-700 hover:shadow-[0_10px_26px_rgba(0,0,0,.30)]"
                 >
                   <div className="min-w-0">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs font-black text-slate-300">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[11px] font-black text-slate-300">
                         {index + 1}
                       </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-lg font-black text-slate-100">
-                          {guild.name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Sorted by average K / D ratio
-                        </p>
-                      </div>
+
+                      <p className="truncate text-sm font-black text-slate-100">
+                        {guild.name}
+                      </p>
                     </div>
                   </div>
 
                   <div className="text-center">
-                    <div className="inline-flex min-w-[56px] items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm font-black text-slate-100">
+                    <div className="inline-flex min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-slate-900/70 px-2 py-1 text-xs font-black text-slate-100">
                       {guild.wars}
                     </div>
                   </div>
 
-                  <div className="text-center text-lg font-black text-cyan-300">
+                  <div className="text-center text-sm font-black text-cyan-300">
                     {guild.kills}
                   </div>
 
-                  <div className="text-center text-lg font-black text-pink-300">
+                  <div className="text-center text-sm font-black text-pink-300">
                     {guild.deaths}
                   </div>
 
                   <div className="text-center">
                     <div
-                      className={`inline-flex min-w-[128px] items-center justify-center rounded-2xl border px-3 py-2 text-sm font-black shadow-inner ${
+                      className={`inline-flex min-w-[112px] items-center justify-center rounded-xl border px-2.5 py-1.5 text-xs font-black shadow-inner ${
                         positive
                           ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
                           : 'border-rose-400/25 bg-rose-500/10 text-rose-300'
                       }`}
                     >
-                      <span className="text-cyan-300">{guild.avgKills.toFixed(2)}</span>
+                      <span className="text-cyan-300">
+                        {guild.avgKills.toFixed(2)}
+                      </span>
                       <span className="mx-1.5 text-slate-500">/</span>
-                      <span className="text-pink-300">{guild.avgDeaths.toFixed(2)}</span>
+                      <span className="text-pink-300">
+                        {guild.avgDeaths.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -308,7 +428,118 @@ function buildAverageRankForPlayer(playerName, events) {
     return 0;
   }
 
-  return Number((ranks.reduce((sum, value) => sum + value, 0) / ranks.length).toFixed(2));
+  return Number(
+    (ranks.reduce((sum, value) => sum + value, 0) / ranks.length).toFixed(2),
+  );
+}
+
+function getBestKillstreakForWar(events, playerName) {
+  const sorted = [...events].sort((a, b) => {
+    if (Number(a.sec) !== Number(b.sec)) {
+      return Number(a.sec) - Number(b.sec);
+    }
+
+    return Number(a.i || 0) - Number(b.i || 0);
+  });
+
+  let current = 0;
+  let best = 0;
+
+  sorted.forEach((event) => {
+    if (event.type === 'kill' && event.killer === playerName) {
+      current += 1;
+      best = Math.max(best, current);
+    }
+
+    if (event.type === 'death' && event.victim === playerName) {
+      current = 0;
+    }
+  });
+
+  return best;
+}
+
+function getBestKillfeedForWar(events, playerName, seconds = 10) {
+  const kills = events
+    .filter((event) => event.type === 'kill' && event.killer === playerName)
+    .sort((a, b) => Number(a.sec) - Number(b.sec));
+
+  let left = 0;
+  let best = 0;
+
+  for (let right = 0; right < kills.length; right += 1) {
+    while (kills[right].sec - kills[left].sec > seconds) {
+      left += 1;
+    }
+
+    best = Math.max(best, right - left + 1);
+  }
+
+  return best;
+}
+
+function StreakFeedPanel({ streakItems, feedItems }) {
+  return (
+    <Panel>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div>
+          <h3 className="mb-4 text-xl font-black">Killstreak</h3>
+
+          {!streakItems.length ? (
+            <p className="text-sm text-slate-500">No killstreak data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {streakItems.map((item, index) => (
+                <div
+                  key={`streak-${item.id}-${index}`}
+                  className="grid grid-cols-[32px_1fr_48px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
+                >
+                  <span className="text-slate-500">{index + 1}</span>
+
+                  <div className="min-w-0">
+                    <b className="block truncate">{item.date}</b>
+                    <p className="truncate text-[10px] text-slate-500">
+                      {item.war}
+                    </p>
+                  </div>
+
+                  <b className="text-right text-emerald-300">{item.value}</b>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h3 className="mb-4 text-xl font-black">Killfeed</h3>
+
+          {!feedItems.length ? (
+            <p className="text-sm text-slate-500">No killfeed data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {feedItems.map((item, index) => (
+                <div
+                  key={`feed-${item.id}-${index}`}
+                  className="grid grid-cols-[32px_1fr_48px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
+                >
+                  <span className="text-slate-500">{index + 1}</span>
+
+                  <div className="min-w-0">
+                    <b className="block truncate">{item.date}</b>
+                    <p className="truncate text-[10px] text-slate-500">
+                      {item.war}
+                    </p>
+                  </div>
+
+                  <b className="text-right text-orange-300">{item.value}</b>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
 }
 
 export default function PlayerStats({ stats }) {
@@ -322,8 +553,12 @@ export default function PlayerStats({ stats }) {
     const days = {};
     const enemyGuilds = {};
     const involvedWarIds = new Set();
+    const warMap = {};
 
     stats.ev.forEach((event) => {
+      warMap[String(event.id)] ||= [];
+      warMap[String(event.id)].push(event);
+
       const involved = event.killer === player || event.victim === player;
 
       if (!involved) return;
@@ -372,7 +607,9 @@ export default function PlayerStats({ stats }) {
         kd: '0.00',
       };
 
-    const orderedDays = Object.values(days).sort((a, b) => a.time.localeCompare(b.time));
+    const orderedDays = Object.values(days).sort((a, b) =>
+      a.time.localeCompare(b.time),
+    );
 
     const averageLine = orderedDays.map((day) => {
       const fights = Math.max(1, day.wars.size);
@@ -392,7 +629,9 @@ export default function PlayerStats({ stats }) {
         const wars = Math.max(1, guild.wars.size);
         const avgKills = Number((guild.kills / wars).toFixed(2));
         const avgDeaths = Number((guild.deaths / wars).toFixed(2));
-        const avgRatio = Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2));
+        const avgRatio = Number(
+          (avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2),
+        );
 
         return {
           ...guild,
@@ -400,7 +639,6 @@ export default function PlayerStats({ stats }) {
           avgKills,
           avgDeaths,
           avgRatio,
-          avgPair: formatAvgPair(avgKills, avgDeaths),
         };
       })
       .sort(
@@ -411,31 +649,59 @@ export default function PlayerStats({ stats }) {
           a.name.localeCompare(b.name),
       );
 
-    const achievementRows = achievements.map((achievement) => {
-      const value =
-        achievement[2] === 'k'
-          ? playerRow.kills
-          : achievement[2] === 'kd'
-            ? Number(playerRow.kd)
-            : achievement[2] === 's'
-              ? stats.st[player] || 0
-              : achievement[2] === 'f'
-                ? stats.fd[player] || 0
-                : 0;
-
-      return {
-        title: achievement[0],
-        goal: achievement[1],
-        value,
-        done: value >= achievement[1],
-      };
-    });
-
     const playerEvents = stats.ev.filter(
       (event) => event.killer === player || event.victim === player,
     );
 
     const averageRank = buildAverageRankForPlayer(player, playerEvents);
+
+    const streakItems = Object.entries(warMap)
+      .map(([warId, events]) => {
+        const participated = events.some(
+          (event) => event.killer === player || event.victim === player,
+        );
+
+        if (!participated) return null;
+
+        return {
+          id: warId,
+          date: events[0]?.date || '-',
+          war: events[0]?.war || 'Battle log',
+          value: getBestKillstreakForWar(events, player),
+        };
+      })
+      .filter((item) => item && item.value > 0)
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          String(b.date).localeCompare(String(a.date)) ||
+          String(a.war).localeCompare(String(b.war)),
+      )
+      .slice(0, 10);
+
+    const feedItems = Object.entries(warMap)
+      .map(([warId, events]) => {
+        const participated = events.some(
+          (event) => event.killer === player || event.victim === player,
+        );
+
+        if (!participated) return null;
+
+        return {
+          id: warId,
+          date: events[0]?.date || '-',
+          war: events[0]?.war || 'Battle log',
+          value: getBestKillfeedForWar(events, player),
+        };
+      })
+      .filter((item) => item && item.value > 0)
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          String(b.date).localeCompare(String(a.date)) ||
+          String(a.war).localeCompare(String(b.war)),
+      )
+      .slice(0, 10);
 
     return {
       ...playerRow,
@@ -443,9 +709,10 @@ export default function PlayerStats({ stats }) {
       killedBy,
       averageLine,
       enemyGuildRows,
-      achievements: achievementRows,
       wars: involvedWarIds.size,
       averageRank,
+      streakItems,
+      feedItems,
     };
   }, [player, stats]);
 
@@ -453,7 +720,11 @@ export default function PlayerStats({ stats }) {
     <Panel>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
-      <PlayerSelect players={stats.players} value={player} onChange={setPlayer} />
+      <PlayerSelect
+        players={stats.players}
+        value={player}
+        onChange={setPlayer}
+      />
 
       {selectedStats && (
         <>
@@ -499,74 +770,29 @@ export default function PlayerStats({ stats }) {
             />
           </div>
 
-          <AveragePerformanceChart data={selectedStats.averageLine} title="Performance" />
+          <AveragePerformanceChart
+            data={selectedStats.averageLine}
+            title="Performance"
+          />
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr]">
             <EnemyGuildTable rows={selectedStats.enemyGuildRows} />
 
-            <Panel>
-              <div className="grid gap-4 xl:grid-cols-2">
-                <MiniRankList
-                  title="Favourite Targets"
-                  items={Object.entries(selectedStats.victims)
-                    .map(([name, kills]) => ({ name, kills }))
-                    .sort((a, b) => b.kills - a.kills)}
-                  valueKey="kills"
-                  tone="blue"
-                />
-
-                <MiniRankList
-                  title="Nemesis"
-                  items={Object.entries(selectedStats.killedBy)
-                    .map(([name, kills]) => ({ name, kills }))
-                    .sort((a, b) => b.kills - a.kills)}
-                  valueKey="kills"
-                  tone="pink"
-                />
-              </div>
-            </Panel>
+            <TargetsAndNemesisPanel
+              favouriteTargets={Object.entries(selectedStats.victims)
+                .map(([name, kills]) => ({ name, kills }))
+                .sort((a, b) => b.kills - a.kills)}
+              nemesisTargets={Object.entries(selectedStats.killedBy)
+                .map(([name, kills]) => ({ name, kills }))
+                .sort((a, b) => b.kills - a.kills)}
+            />
           </div>
 
           <div className="mt-4">
-            <Panel>
-              <h3 className="mb-4 text-xl font-black">✦ Achievements</h3>
-
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                {selectedStats.achievements.map((achievement) => (
-                  <div
-                    key={achievement.title}
-                    className={`rounded-xl border p-3 ${
-                      achievement.done
-                        ? 'border-emerald-400 bg-emerald-500/10'
-                        : 'border-slate-800 bg-slate-950/40'
-                    }`}
-                  >
-                    <p className="font-bold">
-                      {achievement.done ? '✅' : '🔒'} {achievement.title}
-                    </p>
-
-                    <div className="mt-2 h-2 rounded-full bg-slate-800">
-                      <div
-                        className={`h-2 rounded-full ${
-                          achievement.done ? 'bg-emerald-400' : 'bg-blue-500'
-                        }`}
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (achievement.value / achievement.goal) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {Number(achievement.value).toFixed(achievement.goal <= 10 ? 2 : 0)} /{' '}
-                      {achievement.goal}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Panel>
+            <StreakFeedPanel
+              streakItems={selectedStats.streakItems}
+              feedItems={selectedStats.feedItems}
+            />
           </div>
         </>
       )}
