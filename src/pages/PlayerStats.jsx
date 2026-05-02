@@ -26,7 +26,6 @@ function PlayerSelect({ players, value, onChange }) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
-
           <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
@@ -237,9 +236,6 @@ function EnemyGuildTable({ rows }) {
     <Panel>
       <div className="mb-4">
         <h3 className="text-2xl font-black">Enemy Guilds</h3>
-        <p className="text-sm text-slate-400">
-          Matchups against the selected player
-        </p>
       </div>
 
       {!sortedRows.length ? (
@@ -540,65 +536,118 @@ function buildAverageRankFromPlayedWars(events, playerName) {
   return finalAverage.toFixed(2);
 }
 
+function PremiumStatList({ title, items, accent = 'emerald' }) {
+  const accentMap = {
+    emerald: {
+      badge:
+        'border-emerald-400/25 bg-emerald-500/10 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,.12)]',
+      line: 'from-emerald-400 via-teal-300 to-cyan-300',
+      rank: 'text-emerald-300',
+      soft: 'bg-emerald-500/10 text-emerald-200',
+    },
+    amber: {
+      badge:
+        'border-amber-400/25 bg-amber-500/10 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,.12)]',
+      line: 'from-amber-300 via-orange-300 to-yellow-200',
+      rank: 'text-amber-300',
+      soft: 'bg-amber-500/10 text-amber-200',
+    },
+  };
+
+  const styles = accentMap[accent] || accentMap.emerald;
+  const max = Math.max(1, ...items.map((item) => Number(item.value) || 0));
+
+  return (
+    <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,.86),rgba(2,6,23,.96))] p-4 shadow-[0_18px_50px_rgba(0,0,0,.30)] backdrop-blur-xl">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-black tracking-tight text-white">
+            {title}
+          </h3>
+          <p className="mt-1 text-xs font-medium text-slate-400">
+            Best results from this selected player only
+          </p>
+        </div>
+
+        <div className={`rounded-2xl border px-3 py-2 text-xs font-black ${styles.badge}`}>
+          Top {Math.min(10, items.length || 10)}
+        </div>
+      </div>
+
+      {!items.length ? (
+        <p className="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-6 text-sm text-slate-500">
+          No data yet.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item, index) => {
+            const width = Math.max(
+              10,
+              Math.round(((Number(item.value) || 0) / max) * 100),
+            );
+
+            return (
+              <div
+                key={`${title}-${item.id}-${index}`}
+                className="group rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.04)] transition hover:border-white/15 hover:bg-white/[0.05]"
+              >
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-slate-900/80 text-sm font-black text-slate-200">
+                      {index + 1}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-base font-black text-white">
+                          {item.date}
+                        </p>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${styles.soft}`}>
+                          {title}
+                        </span>
+                      </div>
+
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                        {item.war || 'Battle log'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className={`shrink-0 text-right text-2xl font-black ${styles.rank}`}>
+                    {item.value}
+                  </div>
+                </div>
+
+                <div className="h-2 overflow-hidden rounded-full bg-slate-800/90">
+                  <div
+                    className={`h-2 rounded-full bg-gradient-to-r ${styles.line} shadow-[0_0_20px_rgba(255,255,255,.10)]`}
+                    style={{ width: `${width}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StreakFeedPanel({ streakItems, feedItems }) {
   return (
     <Panel>
       <div className="grid gap-4 xl:grid-cols-2">
-        <div>
-          <h3 className="mb-4 text-xl font-black">Killstreak</h3>
+        <PremiumStatList
+          title="Killstreak"
+          items={streakItems}
+          accent="emerald"
+        />
 
-          {!streakItems.length ? (
-            <p className="text-sm text-slate-500">No killstreak data yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {streakItems.map((item, index) => (
-                <div
-                  key={`streak-${item.id}-${index}`}
-                  className="grid grid-cols-[32px_1fr_48px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
-                >
-                  <span className="text-slate-500">{index + 1}</span>
-
-                  <div className="min-w-0">
-                    <b className="block truncate">{item.date}</b>
-                    <p className="truncate text-[10px] text-slate-500">
-                      {item.war}
-                    </p>
-                  </div>
-
-                  <b className="text-right text-emerald-300">{item.value}</b>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <h3 className="mb-4 text-xl font-black">Killfeed</h3>
-
-          {!feedItems.length ? (
-            <p className="text-sm text-slate-500">No killfeed data yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {feedItems.map((item, index) => (
-                <div
-                  key={`feed-${item.id}-${index}`}
-                  className="grid grid-cols-[32px_1fr_48px] items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm"
-                >
-                  <span className="text-slate-500">{index + 1}</span>
-
-                  <div className="min-w-0">
-                    <b className="block truncate">{item.date}</b>
-                    <p className="truncate text-[10px] text-slate-500">
-                      {item.war}
-                    </p>
-                  </div>
-
-                  <b className="text-right text-orange-300">{item.value}</b>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <PremiumStatList
+          title="Killfeed"
+          items={feedItems}
+          accent="amber"
+        />
       </div>
     </Panel>
   );
@@ -823,7 +872,7 @@ export default function PlayerStats({ stats }) {
               icon="♛"
               label="Average Rank"
               value={selectedStats.averageRank || '0.00'}
-              sub="Average from played wars"
+              sub=""
               className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
             />
           </div>
