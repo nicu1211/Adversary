@@ -26,6 +26,7 @@ function PlayerSelect({ players, value, onChange }) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
+
           <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
@@ -80,7 +81,7 @@ function PlayerSelect({ players, value, onChange }) {
                       setOpen(false);
                       setQuery('');
                     }}
-                    className={`mb-1 flex w-full px-3 py-2 text-left text-sm rounded-xl ${
+                    className={`mb-1 flex w-full rounded-xl px-3 py-2 text-left text-sm ${
                       value === player.name
                         ? 'bg-blue-500/25 text-blue-100'
                         : 'text-slate-300 hover:bg-white/5'
@@ -543,72 +544,54 @@ function PremiumStatList({ title, items, accent = 'emerald' }) {
 
   const theme = isFeed
     ? {
-        icon: '▦',
-        title: 'Killfeed Overview',
-        subtitle: 'Best kill bursts from selected player',
+        title: 'Killfeed',
         label: 'KILLFEED',
         valueColor: 'text-amber-300',
-        iconColor: 'text-amber-300',
         border: 'border-amber-300/20',
         bar: 'from-amber-300 via-orange-400 to-yellow-200',
         bg: 'from-amber-500/10 via-slate-950/75 to-slate-950',
-        glow: 'shadow-[0_0_24px_rgba(245,158,11,.24)]',
+        glow: 'shadow-[0_0_18px_rgba(245,158,11,.20)]',
         dot: 'bg-amber-300',
       }
     : {
-        icon: '▥',
-        title: 'Killstreak Overview',
-        subtitle: 'Best streak records from selected player',
+        title: 'Killstreak',
         label: 'KILLSTREAK',
         valueColor: 'text-cyan-300',
-        iconColor: 'text-cyan-300',
         border: 'border-cyan-300/20',
         bar: 'from-cyan-300 via-sky-400 to-blue-500',
         bg: 'from-cyan-500/10 via-slate-950/75 to-slate-950',
-        glow: 'shadow-[0_0_24px_rgba(34,211,238,.24)]',
+        glow: 'shadow-[0_0_18px_rgba(34,211,238,.20)]',
         dot: 'bg-cyan-300',
       };
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[28px] border ${theme.border} bg-gradient-to-br ${theme.bg} p-5 shadow-[0_24px_80px_rgba(0,0,0,.42)] backdrop-blur-2xl`}
+      className={`relative overflow-hidden rounded-[24px] border ${theme.border} bg-gradient-to-br ${theme.bg} p-4 shadow-[0_18px_55px_rgba(0,0,0,.35)] backdrop-blur-2xl`}
     >
       <div className="pointer-events-none absolute inset-0 opacity-80">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute -left-24 bottom-0 h-44 w-44 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/5 blur-3xl" />
+        <div className="absolute -left-20 bottom-0 h-36 w-36 rounded-full bg-cyan-500/10 blur-3xl" />
       </div>
 
-      <div className="relative mb-5 flex items-center justify-between gap-4 border-b border-white/10 pb-5">
-        <div className="flex min-w-0 items-center gap-4">
-          <div
-            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border ${theme.border} bg-white/[0.04] text-2xl ${theme.iconColor} ${theme.glow}`}
-          >
-            {theme.icon}
-          </div>
-
-          <div className="min-w-0">
-            <h3 className="tracking-[0.22em] text-sm font-black uppercase text-slate-100">
-              {theme.title}
-            </h3>
-            <p className="mt-1 text-sm text-slate-400">{theme.subtitle}</p>
-          </div>
-        </div>
+      <div className="relative mb-3 flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 className="text-xl font-black tracking-tight text-white">
+          {theme.title}
+        </h3>
 
         <div
-          className={`hidden rounded-2xl border ${theme.border} bg-slate-950/60 px-3 py-2 text-xs font-black ${theme.valueColor} sm:block`}
+          className={`rounded-xl border ${theme.border} bg-slate-950/60 px-2.5 py-1 text-[11px] font-black ${theme.valueColor}`}
         >
           Top {items.length}
         </div>
       </div>
 
       {!items.length ? (
-        <p className="relative rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-6 text-sm text-slate-500">
+        <p className="relative rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-5 text-sm text-slate-500">
           No data yet.
         </p>
       ) : (
-        <div className="relative">
+        <div className="relative space-y-2">
           {items.map((item, index) => {
             const value = Number(item.value) || 0;
             const width = Math.max(7, Math.round((value / max) * 100));
@@ -616,90 +599,71 @@ function PremiumStatList({ title, items, accent = 'emerald' }) {
             return (
               <div
                 key={`${title}-${item.id}-${index}`}
-                className="group grid grid-cols-[72px_1fr_58px] items-center gap-4 border-b border-white/8 py-4 last:border-b-0"
+                className="group rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,.04)] transition hover:border-white/15 hover:bg-white/[0.05]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="text-4xl font-light tracking-tight text-white drop-shadow-[0_0_12px_rgba(255,255,255,.22)]">
+                <div className="mb-2 grid grid-cols-[42px_1fr_42px] items-center gap-3">
+                  <div className="text-2xl font-light tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,255,255,.18)]">
                     {value}
                   </div>
-                </div>
 
-                <div className="min-w-0">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-black text-slate-100">
                         {item.date}
                       </p>
-                      <p className="truncate text-[11px] text-slate-500">
-                        {item.war || 'Battle log'}
-                      </p>
+
+                      <span
+                        className={`hidden rounded-full border ${theme.border} bg-white/[0.04] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${theme.valueColor} sm:inline-flex`}
+                      >
+                        {theme.label}
+                      </span>
                     </div>
 
-                    <span
-                      className={`hidden rounded-full border ${theme.border} bg-white/[0.04] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${theme.valueColor} sm:inline-flex`}
-                    >
-                      {theme.label}
-                    </span>
+                    <p className="truncate text-[10px] text-slate-500">
+                      {item.war || 'Battle log'}
+                    </p>
                   </div>
 
-                  <div className="relative h-4 overflow-hidden rounded-md border border-white/10 bg-slate-950/70 shadow-inner">
-                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] bg-[length:18px_100%] opacity-20" />
-
-                    <div
-                      className={`relative h-full rounded-md bg-gradient-to-r ${theme.bar} ${theme.glow} transition-all duration-500`}
-                      style={{ width: `${width}%` }}
-                    >
-                      <div className="absolute inset-0 bg-white/20 opacity-20" />
-                      <div className="absolute right-0 top-0 h-full w-8 bg-white/35 blur-md" />
-                    </div>
+                  <div className="text-right text-[11px] font-black text-slate-500">
+                    #{index + 1}
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end justify-center">
-                  <div className="text-xs font-black text-slate-500">
-                    #{index + 1}
-                  </div>
+                <div className="relative h-3 overflow-hidden rounded-md border border-white/10 bg-slate-950/70 shadow-inner">
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] bg-[length:16px_100%] opacity-20" />
+
                   <div
-                    className={`mt-2 h-2 w-2 rounded-full ${theme.dot} shadow-[0_0_16px_currentColor]`}
-                  />
+                    className={`relative h-full rounded-md bg-gradient-to-r ${theme.bar} ${theme.glow} transition-all duration-500`}
+                    style={{ width: `${width}%` }}
+                  >
+                    <div className="absolute inset-0 bg-white/20 opacity-20" />
+                    <div className="absolute right-0 top-0 h-full w-6 bg-white/35 blur-md" />
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       )}
-
-      <div className="relative mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <span
-            className={`h-3 w-3 rounded-full ${theme.dot} shadow-[0_0_18px_currentColor]`}
-          />
-          <span>Player performance record</span>
-        </div>
-
-        <span>Updated from logs</span>
-      </div>
     </div>
   );
 }
 
 function StreakFeedPanel({ streakItems, feedItems }) {
   return (
-    <Panel>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <PremiumStatList
-          title="Killstreak"
-          items={streakItems}
-          accent="emerald"
-        />
+    <div className="grid gap-4">
+      <PremiumStatList
+        title="Killstreak"
+        items={streakItems}
+        accent="emerald"
+      />
 
-        <PremiumStatList
-          title="Killfeed"
-          items={feedItems}
-          accent="amber"
-        />
-      </div>
-    </Panel>
+      <PremiumStatList
+        title="Killfeed"
+        items={feedItems}
+        accent="amber"
+      />
+    </div>
   );
 }
 
@@ -932,20 +896,20 @@ export default function PlayerStats({ stats }) {
             title="Performance"
           />
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr]">
-            <EnemyGuildTable rows={selectedStats.enemyGuildRows} />
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
+            <div className="grid gap-4">
+              <EnemyGuildTable rows={selectedStats.enemyGuildRows} />
 
-            <TargetsAndNemesisPanel
-              favouriteTargets={Object.entries(selectedStats.victims)
-                .map(([name, kills]) => ({ name, kills }))
-                .sort((a, b) => b.kills - a.kills)}
-              nemesisTargets={Object.entries(selectedStats.killedBy)
-                .map(([name, kills]) => ({ name, kills }))
-                .sort((a, b) => b.kills - a.kills)}
-            />
-          </div>
+              <TargetsAndNemesisPanel
+                favouriteTargets={Object.entries(selectedStats.victims)
+                  .map(([name, kills]) => ({ name, kills }))
+                  .sort((a, b) => b.kills - a.kills)}
+                nemesisTargets={Object.entries(selectedStats.killedBy)
+                  .map(([name, kills]) => ({ name, kills }))
+                  .sort((a, b) => b.kills - a.kills)}
+              />
+            </div>
 
-          <div className="mt-4">
             <StreakFeedPanel
               streakItems={selectedStats.streakItems}
               feedItems={selectedStats.feedItems}
