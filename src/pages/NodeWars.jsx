@@ -53,6 +53,10 @@ export default function NodeWars({
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [logs, query]);
 
+  const allVisibleSelected =
+    rows.length > 0 &&
+    rows.every((row) => selectedWars.includes(String(row.id)));
+
   function openWar(row) {
     setSelectedDays([row.date]);
     setSelectedWars([String(row.id)]);
@@ -72,6 +76,26 @@ export default function NodeWars({
     );
   }
 
+  function toggleAllVisible() {
+    setSelectedDays(['all']);
+
+    if (allVisibleSelected) {
+      setSelectedWars([]);
+      return;
+    }
+
+    setSelectedWars(rows.map((row) => String(row.id)));
+  }
+
+  function openSelectedOverview() {
+    if (!selectedWars.length) {
+      setSelectedDays(['all']);
+      setSelectedWars(['all']);
+    }
+
+    setPage('overview');
+  }
+
   return (
     <Panel>
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -82,12 +106,28 @@ export default function NodeWars({
           </p>
         </div>
 
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search enemies..."
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition placeholder:text-slate-500 focus:border-blue-400 focus:bg-slate-900 md:w-72"
-        />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            onClick={toggleAllVisible}
+            className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-200 hover:bg-blue-500/20"
+          >
+            {allVisibleSelected ? 'Clear selection' : 'Select all logs'}
+          </button>
+
+          <button
+            onClick={openSelectedOverview}
+            className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20"
+          >
+            Open overview
+          </button>
+
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search enemies..."
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none transition placeholder:text-slate-500 focus:border-blue-400 focus:bg-slate-900 sm:w-72"
+          />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-800">
