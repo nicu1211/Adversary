@@ -1,218 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Bar,
-  Line,
-} from 'recharts';
 import { Panel, Metric } from '../components/UI';
+import { AveragePerformanceChart } from '../components/Charts';
 import { add, scrollCls } from '../lib/logUtils';
 
-function toNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function orderEvents(events = []) {
-  return [...events].sort((a, b) => {
-    if (a.date !== b.date) return String(a.date).localeCompare(String(b.date));
-    if ((a.sec || 0) !== (b.sec || 0)) return (a.sec || 0) - (b.sec || 0);
-    return (a.i || 0) - (b.i || 0);
-  });
-}
-
-function groupByWar(events = []) {
-  const map = {};
-
-  orderEvents(events).forEach((event) => {
-    const key = String(event.id ?? `${event.date}-${event.war || 'war'}`);
-    if (!map[key]) {
-      map[key] = {
-        id: key,
-        date: event.date,
-        war: event.war || 'Node War',
-        events: [],
-      };
-    }
-    map[key].events.push(event);
-  });
-
-  return Object.values(map).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-}
-
-function getPlayerKillfeed(events, playerName, windowSeconds = 10) {
-  const kills = orderEvents(events).filter(
-    (event) => event.type === 'kill' && event.killer === playerName,
-  );
-
-  if (!kills.length) return 0;
-
-  let left = 0;
-  let best = 0;
-
-  for (let right = 0; right < kills.length; right += 1) {
-    while ((kills[right].sec || 0) - (kills[left].sec || 0) > windowSeconds) left += 1;
-    best = Math.max(best, right - left + 1);
-  }
-
-  return best;
-}
-
-function getPlayerKillstreak(events, playerName) {
-  let current = 0;
-  let best = 0;
-
-  orderEvents(events).forEach((event) => {
-    if (event.type === 'kill' && event.killer === playerName) {
-      current += 1;
-      best = Math.max(best, current);
-    }
-
-    if (event.type === 'death' && event.victim === playerName) {
-      current = 0;
-    }
-  });
-
-  return best;
-}
-
-function buildRanks(rows, compareFn, rankKeyFn) {
-  const sorted = [...rows].sort(compareFn);
-  const ranks = {};
-  let previousKey = null;
-  let currentRank = 0;
-
-  sorted.forEach((row, index) => {
-    const key = rankKeyFn(row);
-    if (index === 0 || key !== previousKey) currentRank = index + 1;
-    ranks[row.name] = currentRank;
-    previousKey = key;
-  });
-
-  return ranks;
-}
-
-function buildWarRows(events) {
-  const sorted = orderEvents(events);
-  const kills = {};
-  const deaths = {};
-  const players = new Set();
-  const finalKills = {};
-  const progressKills = {};
-  const reachKillsAt = {};
-
-  sorted.forEach((event) => {
-    players.add(event.killer);
-    players.add(event.victim);
-
-    if (event.type === 'kill') {
-      add(kills, event.killer);
-      add(finalKills, event.killer);
-    }
-
-    if (event.type === 'death') {
-      add(deaths, event.victim);
-    }
-  });
-
-  sorted.forEach((event) => {
-    if (event.type !== 'kill') return;
-
-    progressKills[event.killer] = (progressKills[event.killer] || 0) + 1;
-
-    if (
-      progressKills[event.killer] === finalKills[event.killer] &&
-      reachKillsAt[event.killer] == null
-    ) {
-      reachKillsAt[event.killer] = `${String(event.date)}-${String(event.sec).padStart(
-        5,
-        '0',
-      )}-${String(event.i || 0).padStart(5, '0')}`;
-    }
-  });
-
-  const rows = [...players]
-    .filter(Boolean)
-    .map((name) => {
-      const playerKills = kills[name] || 0;
-      const playerDeaths = deaths[name] || 0;
-      const kdValue = playerDeaths ? playerKills / playerDeaths : playerKills;
-
-      return {
-        name,
-        kills: playerKills,
-        deaths: playerDeaths,
-        kd: playerDeaths ? (playerKills / playerDeaths).toFixed(2) : playerKills.toFixed(2),
-        kdNumber: kdValue,
-        streak: getPlayerKillstreak(sorted, name),
-        feed: getPlayerKillfeed(sorted, name),
-        reachKillsAt: reachKillsAt[name] || '9999-99999-99999',
-      };
-    });
-
-  const rankKills = buildRanks(
-    rows,
-    (a, b) =>
-      b.kills - a.kills ||
-      a.reachKillsAt.localeCompare(b.reachKillsAt) ||
-      a.name.localeCompare(b.name),
-    (row) => `${row.kills}|${row.reachKillsAt}`,
-  );
-
-  const rankDeaths = buildRanks(
-    rows,
-    (a, b) => a.deaths - b.deaths || a.name.localeCompare(b.name),
-    (row) => `${row.deaths}`,
-  );
-
-  const rankKd = buildRanks(
-    rows,
-    (a, b) =>
-      b.kdNumber - a.kdNumber || b.kills - a.kills || a.name.localeCompare(b.name),
-    (row) => `${row.kdNumber.toFixed(6)}`,
-  );
-
-  const rankStreak = buildRanks(
-    rows,
-    (a, b) => b.streak - a.streak || b.kills - a.kills || a.name.localeCompare(b.name),
-    (row) => `${row.streak}`,
-  );
-
-  const rankFeed = buildRanks(
-    rows,
-    (a, b) => b.feed - a.feed || b.kills - a.kills || a.name.localeCompare(b.name),
-    (row) => `${row.feed}`,
-  );
-
-  return rows.map((row) => ({
-    ...row,
-    avgRank:
-      (rankKills[row.name] +
-        rankDeaths[row.name] +
-        rankKd[row.name] +
-        rankStreak[row.name] +
-        rankFeed[row.name]) /
-      5,
-  }));
-}
-
-function formatShortDate(value) {
-  if (!value) return '-';
-  return String(value);
-}
-
-function GlassPlayerSelect({ players, value, onChange }) {
+function PlayerSelect({ players, value, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   const selected = players.find((player) => player.name === value);
 
-  const filtered = players.filter((player) =>
-    `${player.name} ${player.family || ''}`.toLowerCase().includes(query.toLowerCase()),
+  const list = players.filter((player) =>
+    `${player.name} ${player.family || ''}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
 
   return (
@@ -220,28 +20,26 @@ function GlassPlayerSelect({ players, value, onChange }) {
       <button
         type="button"
         onClick={() => setOpen((state) => !state)}
-        className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-300/40 hover:bg-white/10"
+        className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left shadow-lg backdrop-blur-xl transition hover:border-blue-300/50 hover:bg-white/10"
       >
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
-            Selected Player
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Selected player
           </p>
-          <p className="truncate text-sm font-black text-white">
+          <p className="truncate text-sm font-black">
             {selected ? selected.name : 'Select player'}
           </p>
         </div>
 
         <span
-          className={`ml-3 shrink-0 text-slate-400 transition ${
-            open ? 'rotate-180' : ''
-          }`}
+          className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}
         >
           ⌄
         </span>
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 z-50 mt-2 rounded-2xl border border-white/10 bg-slate-950/90 p-2 shadow-2xl backdrop-blur-2xl">
+        <div className="absolute left-0 right-0 z-50 mt-2 rounded-2xl border border-white/10 bg-slate-950/90 p-2 shadow-2xl backdrop-blur-xl">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -251,8 +49,10 @@ function GlassPlayerSelect({ players, value, onChange }) {
           />
 
           <div className={`max-h-64 overflow-y-auto pr-1 ${scrollCls}`}>
-            {!filtered.length ? (
-              <p className="px-3 py-4 text-sm text-slate-500">No players found.</p>
+            {!list.length ? (
+              <p className="px-3 py-4 text-sm text-slate-500">
+                No players found.
+              </p>
             ) : (
               <>
                 <button
@@ -271,22 +71,22 @@ function GlassPlayerSelect({ players, value, onChange }) {
                   Select player
                 </button>
 
-                {filtered.map((player) => (
+                {list.map((player) => (
                   <button
-                    key={player.name}
                     type="button"
+                    key={player.name}
                     onClick={() => {
                       onChange(player.name);
                       setOpen(false);
                       setQuery('');
                     }}
-                    className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${
+                    className={`mb-1 flex w-full rounded-xl px-3 py-2 text-left text-sm ${
                       value === player.name
                         ? 'bg-blue-500/25 text-blue-100'
                         : 'text-slate-300 hover:bg-white/5'
                     }`}
                   >
-                    <span className="truncate">{player.name}</span>
+                    <span className="truncate font-bold">{player.name}</span>
                   </button>
                 ))}
               </>
@@ -298,267 +98,137 @@ function GlassPlayerSelect({ players, value, onChange }) {
   );
 }
 
-function PerformanceTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null;
+function MiniRankList({ title, items, valueKey, tone = 'blue' }) {
+  const rows = items.slice(0, 5);
+  const max = Math.max(1, ...rows.map((item) => Number(item[valueKey]) || 0));
 
-  const data = payload.reduce((accumulator, item) => {
-    accumulator[item.dataKey] = item.value;
-    return accumulator;
-  }, {});
+  const fillClass =
+    tone === 'pink'
+      ? 'bg-gradient-to-r from-fuchsia-500 to-pink-300'
+      : 'bg-gradient-to-r from-blue-500 to-cyan-300';
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
-      <p className="mb-2 text-sm font-black text-white">{label}</p>
-      <div className="space-y-1 text-sm">
-        <p className="font-bold text-cyan-300">Kills: {data.kills ?? 0}</p>
-        <p className="font-bold text-pink-300">Deaths: {data.deaths ?? 0}</p>
-        <p className="font-bold text-emerald-300">Avg K/D: {data.avgKd ?? 0}</p>
-      </div>
+    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/45 p-4">
+      <h4 className="mb-4 text-xl font-black">{title}</h4>
+
+      {!rows.length ? (
+        <p className="text-sm text-slate-500">No data yet.</p>
+      ) : (
+        rows.map((item, index) => {
+          const value = Number(item[valueKey]) || 0;
+
+          return (
+            <div
+              key={`${title}-${item.name}`}
+              className="mb-3 grid grid-cols-[32px_1fr_38px] items-center gap-3 text-sm last:mb-0"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black text-slate-100">
+                {index + 1}
+              </span>
+
+              <div className="min-w-0">
+                <p className="mb-1.5 truncate font-bold">{item.name}</p>
+
+                <div className="h-2 rounded-full bg-slate-800">
+                  <div
+                    className={`h-2 rounded-full ${fillClass}`}
+                    style={{
+                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <b className="text-right text-slate-100">{value}</b>
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
 
-function PerformanceChart({ data, averages }) {
+function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
   return (
     <Panel>
-      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h3 className="text-3xl font-black leading-none">Performance</h3>
-          <p className="mt-2 text-sm text-slate-400">
-            Daily performance with kills, deaths and average K/D
-          </p>
-        </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <MiniRankList
+          title="Favourite Targets"
+          items={favouriteTargets}
+          valueKey="kills"
+          tone="blue"
+        />
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-xl">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-              Average Kills
-            </p>
-            <p className="mt-1 text-2xl font-black text-cyan-300">
-              {averages.avgKills.toFixed(2)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-xl">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-              Average Deaths
-            </p>
-            <p className="mt-1 text-2xl font-black text-pink-300">
-              {averages.avgDeaths.toFixed(2)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-xl">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-              Average K/D
-            </p>
-            <p className="mt-1 text-2xl font-black text-emerald-300">
-              {averages.avgKd.toFixed(2)}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="h-[360px] rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-3">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={data}
-            barCategoryGap="10%"
-            barGap={-18}
-            margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
-          >
-            <CartesianGrid stroke="rgba(148,163,184,.10)" vertical={false} />
-            <XAxis
-              dataKey="time"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: 'rgba(148,163,184,.18)' }}
-            />
-            <YAxis
-              yAxisId="left"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: 'rgba(148,163,184,.18)' }}
-              allowDecimals={false}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={{ fill: '#94a3b8', fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: 'rgba(148,163,184,.18)' }}
-            />
-            <Tooltip
-              content={<PerformanceTooltip />}
-              cursor={{ fill: 'rgba(255,255,255,0.02)' }}
-              wrapperStyle={{ outline: 'none' }}
-            />
-
-            <Bar
-              yAxisId="left"
-              dataKey="kills"
-              name="Kills"
-              radius={[10, 10, 0, 0]}
-              fill="url(#killsGradient)"
-              maxBarSize={24}
-            />
-            <Bar
-              yAxisId="left"
-              dataKey="deaths"
-              name="Deaths"
-              radius={[10, 10, 0, 0]}
-              fill="url(#deathsGradient)"
-              maxBarSize={24}
-            />
-            <Line
-              yAxisId="right"
-              dataKey="avgKd"
-              name="Avg K/D"
-              type="monotone"
-              stroke="#35e0b1"
-              strokeWidth={2}
-              dot={{ r: 4, strokeWidth: 2, fill: '#35e0b1' }}
-              activeDot={{ r: 5, strokeWidth: 2, fill: '#35e0b1' }}
-              fill="rgba(53,224,177,0.18)"
-            />
-
-            <defs>
-              <linearGradient id="killsGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#83e8ff" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#56b8ff" stopOpacity="0.55" />
-              </linearGradient>
-              <linearGradient id="deathsGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffb6ee" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#ff5ec7" stopOpacity="0.55" />
-              </linearGradient>
-            </defs>
-          </ComposedChart>
-        </ResponsiveContainer>
+        <MiniRankList
+          title="Nemesis"
+          items={nemesisTargets}
+          valueKey="kills"
+          tone="pink"
+        />
       </div>
     </Panel>
   );
 }
 
-function SplitTargetsPanel({ victims, killedBy }) {
-  const favouriteTargets = Object.entries(victims)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+function SortButton({ id, label, sort, setSort, align = 'left' }) {
+  const active = sort.key === id;
 
-  const nemesis = Object.entries(killedBy)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+  function toggle() {
+    if (sort.key === id) {
+      setSort({
+        key: id,
+        dir: sort.dir === 'desc' ? 'asc' : 'desc',
+      });
+      return;
+    }
 
-  const maxTargets = Math.max(1, ...favouriteTargets.map((item) => item.value));
-  const maxNemesis = Math.max(1, ...nemesis.map((item) => item.value));
+    setSort({
+      key: id,
+      dir: id === 'guild' ? 'asc' : 'desc',
+    });
+  }
 
-  return (
-    <Panel>
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div>
-          <h3 className="mb-4 text-2xl font-black">Favourite Targets</h3>
-
-          {!favouriteTargets.length ? (
-            <p className="text-slate-500">No targets yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {favouriteTargets.map((item, index) => (
-                <div key={item.name} className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-700/80 text-sm font-black text-white">
-                    {index + 1}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="truncate text-lg font-black">{item.name}</p>
-                      <p className="shrink-0 text-lg font-black text-white">{item.value}</p>
-                    </div>
-
-                    <div className="h-3 rounded-full bg-slate-800/90">
-                      <div
-                        className="h-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
-                        style={{ width: `${Math.max(8, (item.value / maxTargets) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <h3 className="mb-4 text-2xl font-black">Nemesis</h3>
-
-          {!nemesis.length ? (
-            <p className="text-slate-500">No nemesis yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {nemesis.map((item, index) => (
-                <div key={item.name} className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-700/80 text-sm font-black text-white">
-                    {index + 1}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="truncate text-lg font-black">{item.name}</p>
-                      <p className="shrink-0 text-lg font-black text-white">{item.value}</p>
-                    </div>
-
-                    <div className="h-3 rounded-full bg-slate-800/90">
-                      <div
-                        className="h-3 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-300"
-                        style={{ width: `${Math.max(8, (item.value / maxNemesis) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
-function SortHead({ label, active, direction, onClick, align = 'text-left' }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-1 font-bold uppercase tracking-wide text-slate-400 transition hover:text-blue-300 ${align}`}
+      onClick={toggle}
+      className={`w-full text-[11px] font-black uppercase tracking-[0.16em] transition hover:text-blue-300 ${
+        active ? 'text-blue-300' : 'text-slate-400'
+      } ${align === 'center' ? 'text-center' : 'text-left'}`}
     >
-      <span>{label}</span>
-      <span className="text-[10px]">{active ? (direction === 'asc' ? '▲' : '▼') : '↕'}</span>
+      {label} {active ? (sort.dir === 'desc' ? '↓' : '↑') : '↕'}
     </button>
   );
 }
 
-function EnemyGuildsTable({ rows }) {
-  const [sort, setSort] = useState({ key: 'avgKd', dir: 'desc' });
-
-  const setSortKey = (key) => {
-    setSort((state) => ({
-      key,
-      dir: state.key === key && state.dir === 'desc' ? 'asc' : 'desc',
-    }));
-  };
+function EnemyGuildTable({ rows }) {
+  const [sort, setSort] = useState({
+    key: 'avgRatio',
+    dir: 'desc',
+  });
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
-      let result = 0;
+      let av = a[sort.key];
+      let bv = b[sort.key];
 
-      if (sort.key === 'name') result = a.name.localeCompare(b.name);
-      if (sort.key === 'wars') result = a.wars - b.wars;
-      if (sort.key === 'kills') result = a.kills - b.kills;
-      if (sort.key === 'deaths') result = a.deaths - b.deaths;
-      if (sort.key === 'avgKd') result = a.avgKd - b.avgKd;
+      if (sort.key === 'guild') {
+        av = a.name.toLowerCase();
+        bv = b.name.toLowerCase();
+      }
 
-      if (result === 0) result = a.name.localeCompare(b.name);
-      return sort.dir === 'asc' ? result : -result;
+      if (typeof av === 'string') {
+        return sort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+
+      av = Number(av) || 0;
+      bv = Number(bv) || 0;
+
+      if (av === bv) {
+        return a.name.localeCompare(b.name);
+      }
+
+      return sort.dir === 'asc' ? av - bv : bv - av;
     });
   }, [rows, sort]);
 
@@ -569,87 +239,105 @@ function EnemyGuildsTable({ rows }) {
       </div>
 
       {!sortedRows.length ? (
-        <p className="text-slate-500">No enemy guild data for this player.</p>
+        <p className="text-slate-500">No enemy guild interactions found.</p>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-          <div className={`max-h-[460px] overflow-y-auto ${scrollCls}`}>
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-xl">
-                <tr className="border-b border-white/10">
-                  <th className="px-4 py-3 text-left">
-                    <SortHead
-                      label="Guild"
-                      active={sort.key === 'name'}
-                      direction={sort.dir}
-                      onClick={() => setSortKey('name')}
-                    />
-                  </th>
-                  <th className="px-3 py-3 text-center">
-                    <SortHead
-                      label="Wars"
-                      active={sort.key === 'wars'}
-                      direction={sort.dir}
-                      onClick={() => setSortKey('wars')}
-                      align="justify-center"
-                    />
-                  </th>
-                  <th className="px-3 py-3 text-center">
-                    <SortHead
-                      label="K"
-                      active={sort.key === 'kills'}
-                      direction={sort.dir}
-                      onClick={() => setSortKey('kills')}
-                      align="justify-center"
-                    />
-                  </th>
-                  <th className="px-3 py-3 text-center">
-                    <SortHead
-                      label="D"
-                      active={sort.key === 'deaths'}
-                      direction={sort.dir}
-                      onClick={() => setSortKey('deaths')}
-                      align="justify-center"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-center">
-                    <SortHead
-                      label="Avg K/D"
-                      active={sort.key === 'avgKd'}
-                      direction={sort.dir}
-                      onClick={() => setSortKey('avgKd')}
-                      align="justify-center"
-                    />
-                  </th>
-                </tr>
-              </thead>
+        <div className={`max-h-[520px] overflow-y-auto pr-2 ${scrollCls}`}>
+          <div className="space-y-2">
+            <div className="sticky top-0 z-10 grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] gap-2 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur">
+              <SortButton
+                id="guild"
+                label="Guild"
+                sort={sort}
+                setSort={setSort}
+              />
 
-              <tbody>
-                {sortedRows.map((row) => (
-                  <tr
-                    key={row.name}
-                    className="border-b border-white/5 bg-transparent transition hover:bg-white/[0.03]"
-                  >
-                    <td className="px-4 py-3">
-                      <p className="font-black text-white">{row.name}</p>
-                    </td>
-                    <td className="px-3 py-3 text-center font-bold text-slate-300">
-                      {row.wars}
-                    </td>
-                    <td className="px-3 py-3 text-center font-black text-cyan-300">
-                      {row.kills}
-                    </td>
-                    <td className="px-3 py-3 text-center font-black text-pink-300">
-                      {row.deaths}
-                    </td>
-                    <td className="px-4 py-3 text-center font-black">
-                      <span className="text-cyan-300">{row.avgKills.toFixed(2)}</span>
-                      <span className="mx-1 text-slate-500">/</span>
-                      <span className="text-pink-300">{row.avgDeaths.toFixed(2)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              <SortButton
+                id="wars"
+                label="Wars"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
+
+              <SortButton
+                id="kills"
+                label="K"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
+
+              <SortButton
+                id="deaths"
+                label="D"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
+
+              <SortButton
+                id="avgRatio"
+                label="Average K / D"
+                sort={sort}
+                setSort={setSort}
+                align="center"
+              />
+            </div>
+
+            {sortedRows.map((guild, index) => {
+              const positive = guild.avgKills >= guild.avgDeaths;
+
+              return (
+                <div
+                  key={guild.name}
+                  className="grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] items-center gap-2 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_8px_22px_rgba(0,0,0,.20)] transition hover:border-slate-700 hover:shadow-[0_10px_26px_rgba(0,0,0,.30)]"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[11px] font-black text-slate-300">
+                        {index + 1}
+                      </span>
+
+                      <p className="truncate text-sm font-black text-slate-100">
+                        {guild.name}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="inline-flex min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-slate-900/70 px-2 py-1 text-xs font-black text-slate-100">
+                      {guild.wars}
+                    </div>
+                  </div>
+
+                  <div className="text-center text-sm font-black text-cyan-300">
+                    {guild.kills}
+                  </div>
+
+                  <div className="text-center text-sm font-black text-pink-300">
+                    {guild.deaths}
+                  </div>
+
+                  <div className="text-center">
+                    <div
+                      className={`inline-flex min-w-[112px] items-center justify-center rounded-xl border px-2.5 py-1.5 text-xs font-black shadow-inner ${
+                        positive
+                          ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
+                          : 'border-rose-400/25 bg-rose-500/10 text-rose-300'
+                      }`}
+                    >
+                      <span className="text-cyan-300">
+                        {guild.avgKills.toFixed(2)}
+                      </span>
+                      <span className="mx-1.5 text-slate-500">/</span>
+                      <span className="text-pink-300">
+                        {guild.avgDeaths.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -657,276 +345,497 @@ function EnemyGuildsTable({ rows }) {
   );
 }
 
-function PremiumBarRows({ title, tag, rows, accent = 'cyan' }) {
-  const maxValue = Math.max(1, ...rows.map((item) => item.value || 0));
+function getWarEventsSorted(events) {
+  return [...events].sort((a, b) => {
+    if (Number(a.sec) !== Number(b.sec)) {
+      return Number(a.sec) - Number(b.sec);
+    }
 
-  const accentBar =
-    accent === 'gold'
-      ? 'from-amber-400 via-yellow-300 to-yellow-200'
-      : 'from-emerald-400 via-cyan-300 to-sky-300';
+    return Number(a.i || 0) - Number(b.i || 0);
+  });
+}
 
-  const tagStyle =
-    accent === 'gold'
-      ? 'border-amber-400/20 bg-amber-500/10 text-amber-300'
-      : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-300';
+function getBestKillstreakForWar(events, playerName) {
+  const sorted = getWarEventsSorted(events);
 
-  const valueStyle = accent === 'gold' ? 'text-amber-300' : 'text-emerald-300';
+  let current = 0;
+  let best = 0;
+
+  sorted.forEach((event) => {
+    if (event.type === 'kill' && event.killer === playerName) {
+      current += 1;
+      best = Math.max(best, current);
+    }
+
+    if (event.type === 'death' && event.victim === playerName) {
+      current = 0;
+    }
+  });
+
+  return best;
+}
+
+function getBestKillfeedForWar(events, playerName, seconds = 10) {
+  const kills = events
+    .filter((event) => event.type === 'kill' && event.killer === playerName)
+    .sort((a, b) => Number(a.sec) - Number(b.sec));
+
+  let left = 0;
+  let best = 0;
+
+  for (let right = 0; right < kills.length; right += 1) {
+    while (kills[right].sec - kills[left].sec > seconds) {
+      left += 1;
+    }
+
+    best = Math.max(best, right - left + 1);
+  }
+
+  return best;
+}
+
+function buildTieAwareRank(rows, key, desc = true) {
+  const sorted = [...rows].sort((a, b) => {
+    const av = Number(a[key]) || 0;
+    const bv = Number(b[key]) || 0;
+
+    if (av === bv) {
+      return a.name.localeCompare(b.name);
+    }
+
+    return desc ? bv - av : av - bv;
+  });
+
+  const output = {};
+  let lastValue;
+  let rankNumber = 0;
+
+  sorted.forEach((row, index) => {
+    const value = Number(row[key]) || 0;
+
+    if (index === 0 || value !== lastValue) {
+      rankNumber = index + 1;
+    }
+
+    output[row.name] = rankNumber;
+    lastValue = value;
+  });
+
+  return output;
+}
+
+function buildKillsRankLikeBestOverall(rows, events) {
+  const sortedEvents = getWarEventsSorted(events);
+  const byName = Object.fromEntries(rows.map((row) => [row.name, row]));
+  const runningKills = {};
+  const reached = {};
+
+  sortedEvents
+    .filter((event) => event.type === 'kill')
+    .forEach((event) => {
+      runningKills[event.killer] = (runningKills[event.killer] || 0) + 1;
+
+      const finalKills = byName[event.killer]?.kills || 0;
+
+      if (finalKills && runningKills[event.killer] === finalKills) {
+        reached[event.killer] = `${String(event.sec).padStart(5, '0')} ${String(
+          event.i || 0,
+        ).padStart(5, '0')}`;
+      }
+    });
+
+  return Object.fromEntries(
+    [...rows]
+      .sort(
+        (a, b) =>
+          b.kills - a.kills ||
+          (reached[a.name] || '999999').localeCompare(
+            reached[b.name] || '999999',
+          ) ||
+          a.name.localeCompare(b.name),
+      )
+      .map((row, index) => [row.name, index + 1]),
+  );
+}
+
+function getOurPlayerRowsForWar(warEvents) {
+  const kills = {};
+  const deaths = {};
+  const names = new Set();
+
+  warEvents.forEach((event) => {
+    if (event.type === 'kill') {
+      names.add(event.killer);
+      add(kills, event.killer);
+    }
+
+    if (event.type === 'death') {
+      names.add(event.victim);
+      add(deaths, event.victim);
+    }
+  });
+
+  return [...names].map((name) => {
+    const k = kills[name] || 0;
+    const d = deaths[name] || 0;
+
+    return {
+      name,
+      kills: k,
+      deaths: d,
+      kdNumber: d ? Number((k / d).toFixed(2)) : Number(k.toFixed(2)),
+      streak: getBestKillstreakForWar(warEvents, name),
+      feed: getBestKillfeedForWar(warEvents, name),
+    };
+  });
+}
+
+function buildAverageRankFromPlayedWars(events, playerName) {
+  const warMap = {};
+
+  events.forEach((event) => {
+    const id = String(event.id);
+    warMap[id] ||= [];
+    warMap[id].push(event);
+  });
+
+  const playedWarAverages = [];
+
+  Object.values(warMap).forEach((warEvents) => {
+    const rows = getOurPlayerRowsForWar(warEvents);
+
+    if (!rows.some((row) => row.name === playerName)) {
+      return;
+    }
+
+    const ranks = {
+      kills: buildKillsRankLikeBestOverall(rows, warEvents),
+      deaths: buildTieAwareRank(rows, 'deaths', false),
+      kd: buildTieAwareRank(rows, 'kdNumber', true),
+      streak: buildTieAwareRank(rows, 'streak', true),
+      feed: buildTieAwareRank(rows, 'feed', true),
+    };
+
+    const averageForThisWar =
+      (ranks.kills[playerName] +
+        ranks.deaths[playerName] +
+        ranks.kd[playerName] +
+        ranks.streak[playerName] +
+        ranks.feed[playerName]) /
+      5;
+
+    playedWarAverages.push(averageForThisWar);
+  });
+
+  if (!playedWarAverages.length) return '0.00';
+
+  const finalAverage =
+    playedWarAverages.reduce((sum, value) => sum + value, 0) /
+    playedWarAverages.length;
+
+  return finalAverage.toFixed(2);
+}
+
+function PremiumStatList({ title, items, accent = 'emerald' }) {
+  const accentMap = {
+    emerald: {
+      badge:
+        'border-emerald-400/25 bg-emerald-500/10 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,.12)]',
+      line: 'from-emerald-400 via-teal-300 to-cyan-300',
+      rank: 'text-emerald-300',
+      soft: 'bg-emerald-500/10 text-emerald-200',
+    },
+    amber: {
+      badge:
+        'border-amber-400/25 bg-amber-500/10 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,.12)]',
+      line: 'from-amber-300 via-orange-300 to-yellow-200',
+      rank: 'text-amber-300',
+      soft: 'bg-amber-500/10 text-amber-200',
+    },
+  };
+
+  const styles = accentMap[accent] || accentMap.emerald;
+  const max = Math.max(1, ...items.map((item) => Number(item.value) || 0));
 
   return (
-    <Panel>
-      <div className="mb-5 flex items-start justify-between gap-3">
+    <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,.86),rgba(2,6,23,.96))] p-4 shadow-[0_18px_50px_rgba(0,0,0,.30)] backdrop-blur-xl">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-3xl font-black leading-none">{title}</h3>
+          <h3 className="text-2xl font-black tracking-tight text-white">
+            {title}
+          </h3>
+          <p className="mt-1 text-xs font-medium text-slate-400">
+            Best results from this selected player only
+          </p>
         </div>
 
-        <span className={`rounded-full border px-3 py-1 text-xs font-black ${tagStyle}`}>
-          Top {rows.length}
-        </span>
+        <div className={`rounded-2xl border px-3 py-2 text-xs font-black ${styles.badge}`}>
+          Top {Math.min(10, items.length || 10)}
+        </div>
       </div>
 
-      {!rows.length ? (
-        <p className="text-slate-500">No data yet.</p>
+      {!items.length ? (
+        <p className="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-6 text-sm text-slate-500">
+          No data yet.
+        </p>
       ) : (
-        <div className="space-y-4">
-          {rows.map((item, index) => (
-            <div
-              key={`${item.label}-${item.subLabel}-${index}`}
-              className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] px-4 py-4 shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl"
-            >
-              <div className="mb-3 flex items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-sm font-black text-slate-300">
-                  {index + 1}
-                </div>
+        <div className="space-y-3">
+          {items.map((item, index) => {
+            const width = Math.max(
+              10,
+              Math.round(((Number(item.value) || 0) / max) * 100),
+            );
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-2xl font-black leading-none text-white">
-                      {item.label}
-                    </p>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${tagStyle}`}
-                    >
-                      {tag}
-                    </span>
+            return (
+              <div
+                key={`${title}-${item.id}-${index}`}
+                className="group rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.04)] transition hover:border-white/15 hover:bg-white/[0.05]"
+              >
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-slate-900/80 text-sm font-black text-slate-200">
+                      {index + 1}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-base font-black text-white">
+                          {item.date}
+                        </p>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${styles.soft}`}>
+                          {title}
+                        </span>
+                      </div>
+
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                        {item.war || 'Battle log'}
+                      </p>
+                    </div>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">{item.subLabel}</p>
+
+                  <div className={`shrink-0 text-right text-2xl font-black ${styles.rank}`}>
+                    {item.value}
+                  </div>
                 </div>
 
-                <div className={`shrink-0 text-4xl font-black leading-none ${valueStyle}`}>
-                  {item.value}
+                <div className="h-2 overflow-hidden rounded-full bg-slate-800/90">
+                  <div
+                    className={`h-2 rounded-full bg-gradient-to-r ${styles.line} shadow-[0_0_20px_rgba(255,255,255,.10)]`}
+                    style={{ width: `${width}%` }}
+                  />
                 </div>
               </div>
-
-              <div className="h-2.5 rounded-full bg-slate-800/90">
-                <div
-                  className={`h-2.5 rounded-full bg-gradient-to-r ${accentBar}`}
-                  style={{ width: `${Math.max(8, ((item.value || 0) / maxValue) * 100)}%` }}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+}
+
+function StreakFeedPanel({ streakItems, feedItems }) {
+  return (
+    <Panel>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <PremiumStatList
+          title="Killstreak"
+          items={streakItems}
+          accent="emerald"
+        />
+
+        <PremiumStatList
+          title="Killfeed"
+          items={feedItems}
+          accent="amber"
+        />
+      </div>
     </Panel>
   );
 }
 
-export default function PlayerStats({ stats, allTimeStats }) {
+export default function PlayerStats({ stats }) {
   const [player, setPlayer] = useState('');
 
-  const sourceStats = allTimeStats || stats;
-
   const selectedStats = useMemo(() => {
-    if (!player || !sourceStats?.ev?.length) return null;
+    if (!player) return null;
 
     const victims = {};
     const killedBy = {};
-    const guildMap = {};
-    const playedWarIds = new Set();
-    const dayMap = {};
-    const warGroups = groupByWar(sourceStats.ev);
+    const days = {};
+    const enemyGuilds = {};
+    const involvedWarIds = new Set();
+    const warMap = {};
 
-    sourceStats.ev.forEach((event) => {
+    stats.ev.forEach((event) => {
+      warMap[String(event.id)] ||= [];
+      warMap[String(event.id)].push(event);
+
       const involved = event.killer === player || event.victim === player;
+
       if (!involved) return;
 
-      const dayKey = String(event.date);
-      if (!dayMap[dayKey]) {
-        dayMap[dayKey] = {
-          time: dayKey,
+      involvedWarIds.add(String(event.id));
+
+      if (!days[event.date]) {
+        days[event.date] = {
+          time: event.date,
           kills: 0,
           deaths: 0,
           wars: new Set(),
         };
       }
 
-      dayMap[dayKey].wars.add(String(event.id ?? `${event.date}-${event.war || 'war'}`));
-      playedWarIds.add(String(event.id ?? `${event.date}-${event.war || 'war'}`));
+      days[event.date].wars.add(String(event.id));
+
+      if (!enemyGuilds[event.guild]) {
+        enemyGuilds[event.guild] = {
+          name: event.guild,
+          kills: 0,
+          deaths: 0,
+          wars: new Set(),
+        };
+      }
+
+      enemyGuilds[event.guild].wars.add(String(event.id));
 
       if (event.killer === player) {
         add(victims, event.victim);
-        dayMap[dayKey].kills += 1;
-
-        if (!guildMap[event.guild]) {
-          guildMap[event.guild] = {
-            name: event.guild,
-            kills: 0,
-            deaths: 0,
-            wars: new Set(),
-          };
-        }
-        guildMap[event.guild].kills += 1;
-        guildMap[event.guild].wars.add(String(event.id ?? `${event.date}-${event.war || 'war'}`));
+        days[event.date].kills += 1;
+        enemyGuilds[event.guild].kills += 1;
       }
 
       if (event.victim === player) {
         add(killedBy, event.killer);
-        dayMap[dayKey].deaths += 1;
-
-        if (!guildMap[event.guild]) {
-          guildMap[event.guild] = {
-            name: event.guild,
-            kills: 0,
-            deaths: 0,
-            wars: new Set(),
-          };
-        }
-        guildMap[event.guild].deaths += 1;
-        guildMap[event.guild].wars.add(String(event.id ?? `${event.date}-${event.war || 'war'}`));
+        days[event.date].deaths += 1;
+        enemyGuilds[event.guild].deaths += 1;
       }
     });
 
-    const playedWars = warGroups
-      .map((war) => {
-        const playerEvents = war.events.filter(
-          (event) => event.killer === player || event.victim === player,
-        );
-
-        if (!playerEvents.length) return null;
-
-        const kills = playerEvents.filter(
-          (event) => event.type === 'kill' && event.killer === player,
-        ).length;
-
-        const deaths = playerEvents.filter(
-          (event) => event.type === 'death' && event.victim === player,
-        ).length;
-
-        const warRows = buildWarRows(war.events);
-        const warRow = warRows.find((row) => row.name === player);
-
-        return {
-          id: war.id,
-          date: war.date,
-          war: war.war,
-          kills,
-          deaths,
-          kd: deaths ? kills / deaths : kills,
-          streak: getPlayerKillstreak(war.events, player),
-          feed: getPlayerKillfeed(war.events, player),
-          avgRank: warRow ? warRow.avgRank : 0,
-        };
-      })
-      .filter(Boolean);
-
     const playerRow =
-      sourceStats.players.find((item) => item.name === player) || {
+      stats.players.find((item) => item.name === player) || {
         kills: 0,
         deaths: 0,
         kd: '0.00',
       };
 
-    const orderedDays = Object.values(dayMap).sort((a, b) => a.time.localeCompare(b.time));
+    const orderedDays = Object.values(days).sort((a, b) =>
+      a.time.localeCompare(b.time),
+    );
 
-    const performanceData = orderedDays.map((day) => {
-      const warCount = Math.max(1, day.wars.size);
-      const avgKd = day.deaths ? day.kills / day.deaths : day.kills;
+    const averageLine = orderedDays.map((day) => {
+      const fights = Math.max(1, day.wars.size);
+      const avgKills = Number((day.kills / fights).toFixed(2));
+      const avgDeaths = Number((day.deaths / fights).toFixed(2));
 
       return {
         time: day.time,
         kills: day.kills,
         deaths: day.deaths,
-        avgKd: Number(avgKd.toFixed(2)),
-        warCount,
+        avgKills,
+        avgDeaths,
+        avgKd: Number((avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2)),
       };
     });
 
-    const totalKills = playedWars.reduce((sum, war) => sum + war.kills, 0);
-    const totalDeaths = playedWars.reduce((sum, war) => sum + war.deaths, 0);
-    const warCount = playedWars.length;
-
-    const averages = {
-      avgKills: warCount ? totalKills / warCount : 0,
-      avgDeaths: warCount ? totalDeaths / warCount : 0,
-      avgKd: totalDeaths ? totalKills / totalDeaths : totalKills,
-    };
-
-    const averageRank = playedWars.length
-      ? playedWars.reduce((sum, war) => sum + (war.avgRank || 0), 0) / playedWars.length
-      : 0;
-
-    const enemyGuildRows = Object.values(guildMap)
+    const enemyGuildRows = Object.values(enemyGuilds)
       .map((guild) => {
-        const wars = guild.wars.size || 1;
-        const avgKills = guild.kills / wars;
-        const avgDeaths = guild.deaths / wars;
-        const avgKd = avgDeaths ? avgKills / avgDeaths : avgKills;
+        const wars = Math.max(1, guild.wars.size);
+        const avgKills = Number((guild.kills / wars).toFixed(2));
+        const avgDeaths = Number((guild.deaths / wars).toFixed(2));
+        const avgRatio = Number(
+          (avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2),
+        );
 
         return {
-          name: guild.name,
+          ...guild,
           wars,
-          kills: guild.kills,
-          deaths: guild.deaths,
           avgKills,
           avgDeaths,
-          avgKd,
+          avgRatio,
         };
       })
-      .sort((a, b) => b.avgKd - a.avgKd || b.kills - a.kills);
+      .sort(
+        (a, b) =>
+          b.avgRatio - a.avgRatio ||
+          b.avgKills - a.avgKills ||
+          a.avgDeaths - b.avgDeaths ||
+          a.name.localeCompare(b.name),
+      );
 
-    const streakRows = [...playedWars]
-      .sort((a, b) => b.streak - a.streak || String(b.date).localeCompare(String(a.date)))
-      .slice(0, 6)
-      .map((war) => ({
-        label: formatShortDate(war.date),
-        subLabel: war.date,
-        value: war.streak,
-      }));
+    const streakItems = Object.entries(warMap)
+      .map(([warId, events]) => {
+        const rows = getOurPlayerRowsForWar(events);
 
-    const feedRows = [...playedWars]
-      .sort((a, b) => b.feed - a.feed || String(b.date).localeCompare(String(a.date)))
-      .slice(0, 6)
-      .map((war) => ({
-        label: formatShortDate(war.date),
-        subLabel: war.date,
-        value: war.feed,
-      }));
+        if (!rows.some((row) => row.name === player)) {
+          return null;
+        }
+
+        return {
+          id: warId,
+          date: events[0]?.date || '-',
+          war: events[0]?.war || 'Battle log',
+          value: getBestKillstreakForWar(events, player),
+        };
+      })
+      .filter((item) => item && item.value > 0)
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          String(b.date).localeCompare(String(a.date)) ||
+          String(a.war).localeCompare(String(b.war)),
+      )
+      .slice(0, 10);
+
+    const feedItems = Object.entries(warMap)
+      .map(([warId, events]) => {
+        const rows = getOurPlayerRowsForWar(events);
+
+        if (!rows.some((row) => row.name === player)) {
+          return null;
+        }
+
+        return {
+          id: warId,
+          date: events[0]?.date || '-',
+          war: events[0]?.war || 'Battle log',
+          value: getBestKillfeedForWar(events, player),
+        };
+      })
+      .filter((item) => item && item.value > 0)
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          String(b.date).localeCompare(String(a.date)) ||
+          String(a.war).localeCompare(String(b.war)),
+      )
+      .slice(0, 10);
 
     return {
       ...playerRow,
       victims,
       killedBy,
-      performanceData,
-      averages,
-      averageRank,
-      warCount,
+      averageLine,
       enemyGuildRows,
-      streakRows,
-      feedRows,
+      wars: involvedWarIds.size,
+      averageRank: buildAverageRankFromPlayedWars(stats.ev, player),
+      streakItems,
+      feedItems,
     };
-  }, [player, sourceStats]);
+  }, [player, stats]);
 
   return (
     <Panel>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
-      <GlassPlayerSelect players={sourceStats?.players || []} value={player} onChange={setPlayer} />
+      <PlayerSelect
+        players={stats.players}
+        value={player}
+        onChange={setPlayer}
+      />
 
-      {!selectedStats ? (
-        <p className="text-slate-500">Select a player to view all-time statistics.</p>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      {selectedStats && (
+        <>
+          <div className="grid gap-4 md:grid-cols-5">
             <Metric
               icon="⚔"
               label="Kills"
@@ -939,7 +848,7 @@ export default function PlayerStats({ stats, allTimeStats }) {
               icon="☠"
               label="Deaths"
               value={selectedStats.deaths}
-              sub="All-time"
+              sub="Total deaths"
               className="border-pink-400/25 from-pink-500/20 text-pink-300"
             />
 
@@ -947,56 +856,52 @@ export default function PlayerStats({ stats, allTimeStats }) {
               icon="✦"
               label="K/D"
               value={selectedStats.kd}
-              sub="All-time ratio"
+              sub="Overall ratio"
               className="border-violet-400/25 from-violet-500/20 text-violet-300"
             />
 
             <Metric
               icon="⚑"
-              label="Wars Played"
-              value={selectedStats.warCount}
-              sub="Wars with this player"
+              label="Wars"
+              value={selectedStats.wars}
+              sub="Wars participated"
               className="border-amber-400/25 from-amber-500/20 text-amber-300"
             />
 
             <Metric
               icon="♛"
               label="Average Rank"
-              value={selectedStats.averageRank.toFixed(2)}
+              value={selectedStats.averageRank || '0.00'}
               sub=""
               className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
             />
           </div>
 
-          <PerformanceChart
-            data={selectedStats.performanceData}
-            averages={selectedStats.averages}
+          <AveragePerformanceChart
+            data={selectedStats.averageLine}
+            title="Performance"
           />
 
-          <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
-            <EnemyGuildsTable rows={selectedStats.enemyGuildRows} />
-            <SplitTargetsPanel
-              victims={selectedStats.victims}
-              killedBy={selectedStats.killedBy}
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+            <EnemyGuildTable rows={selectedStats.enemyGuildRows} />
+
+            <TargetsAndNemesisPanel
+              favouriteTargets={Object.entries(selectedStats.victims)
+                .map(([name, kills]) => ({ name, kills }))
+                .sort((a, b) => b.kills - a.kills)}
+              nemesisTargets={Object.entries(selectedStats.killedBy)
+                .map(([name, kills]) => ({ name, kills }))
+                .sort((a, b) => b.kills - a.kills)}
             />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <PremiumBarRows
-              title="Killstreak"
-              tag="Killstreak"
-              rows={selectedStats.streakRows}
-              accent="cyan"
-            />
-
-            <PremiumBarRows
-              title="Killfeed"
-              tag="Killfeed"
-              rows={selectedStats.feedRows}
-              accent="gold"
+          <div className="mt-4">
+            <StreakFeedPanel
+              streakItems={selectedStats.streakItems}
+              feedItems={selectedStats.feedItems}
             />
           </div>
-        </div>
+        </>
       )}
     </Panel>
   );
