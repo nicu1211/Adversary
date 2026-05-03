@@ -222,7 +222,9 @@ export function KillDeathChart({
   const topGlowAreaKills = pointsKills.length
     ? `${linePathKills} L ${
         pointsKills[pointsKills.length - 1].x
-      } ${pad.top} L ${pointsKills[0].x} ${pad.top} Z`
+      } ${height - pad.bottom} L ${pointsKills[0].x} ${
+        height - pad.bottom
+      } Z`
     : '';
 
   const topGlowAreaDeaths = pointsDeaths.length
@@ -292,9 +294,9 @@ export function KillDeathChart({
             <linearGradient
               id={`${uid}-topGlow-kills`}
               x1="0"
-              y1="1"
+              y1="0"
               x2="0"
-              y2="0"
+              y2="1"
             >
               <stop offset="0%" stopColor="rgba(16,185,129,0.42)" />
               <stop offset="35%" stopColor="rgba(16,185,129,0.24)" />
