@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { Panel } from './UI';
 
 function toNumber(value) {
@@ -39,6 +39,16 @@ function buildSmoothPath(points) {
   return path;
 }
 
+function buildAreaPath(points, baselineY) {
+  if (!points.length) return '';
+
+  const linePath = buildSmoothPath(points);
+  const first = points[0];
+  const last = points[points.length - 1];
+
+  return `${linePath} L ${last.x} ${baselineY} L ${first.x} ${baselineY} Z`;
+}
+
 function getLabelStep(length) {
   if (length <= 8) return 1;
   if (length <= 14) return 2;
@@ -72,9 +82,11 @@ function normalizeTimelineData(data = []) {
 
 function formatTickValue(value) {
   const rounded = Math.round(value);
+
   if (rounded >= 1000) {
     return `${(rounded / 1000).toFixed(rounded >= 10000 ? 0 : 1)}k`;
   }
+
   return String(rounded);
 }
 
@@ -82,12 +94,12 @@ function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
       <div className="flex items-center gap-2">
-        <span className="h-[2px] w-7 rounded-full bg-gradient-to-r from-emerald-700 via-emerald-400 to-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.55)]" />
+        <span className="h-[2px] w-7 rounded-full bg-gradient-to-r from-emerald-700 via-emerald-400 to-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.65)]" />
         <span>Kills</span>
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="h-[2px] w-7 rounded-full bg-gradient-to-r from-rose-700 via-rose-400 to-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.55)]" />
+        <span className="h-[2px] w-7 rounded-full bg-gradient-to-r from-rose-700 via-rose-400 to-rose-200 shadow-[0_0_10px_rgba(244,63,94,0.65)]" />
         <span>Deaths</span>
       </div>
     </div>
@@ -99,6 +111,8 @@ function DualLineTimelineChart({
   title = '▧ Global Kill/Death Timeline',
 }) {
   const uid = useId();
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
   const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
 
   const width = 1000;
@@ -110,10 +124,11 @@ function DualLineTimelineChart({
 
     const innerW = width - pad.left - pad.right;
     const innerH = height - pad.top - pad.bottom;
+    const baselineY = height - pad.bottom;
 
     const allValues = rows.flatMap((row) => [row.kills, row.deaths]);
     const rawMax = Math.max(1, ...allValues);
-    const max = Math.max(1, rawMax * 1.08);
+    const max = Math.max(1, rawMax * 1.1);
 
     const pointsKills = rows.map((row, index) => {
       const x =
@@ -157,6 +172,8 @@ function DualLineTimelineChart({
 
     return {
       innerW,
+      innerH,
+      baselineY,
       pointsKills,
       pointsDeaths,
       ticks,
@@ -177,11 +194,27 @@ function DualLineTimelineChart({
     );
   }
 
-  const { innerW, pointsKills, pointsDeaths, ticks } = chart;
+  const { innerW, baselineY, pointsKills, pointsDeaths, ticks } = chart;
 
   const killPath = buildSmoothPath(pointsKills);
   const deathPath = buildSmoothPath(pointsDeaths);
+
+  const killAreaPath = buildAreaPath(pointsKills, baselineY);
+  const deathAreaPath = buildAreaPath(pointsDeaths, baselineY);
+
   const labelStep = getLabelStep(rows.length);
+
+  const hovered =
+    hoveredIndex == null
+      ? null
+      : {
+          index: hoveredIndex,
+          x: pointsKills[hoveredIndex].x,
+          y: Math.min(pointsKills[hoveredIndex].y, pointsDeaths[hoveredIndex].y),
+          label: rows[hoveredIndex].label,
+          kills: rows[hoveredIndex].kills,
+          deaths: rows[hoveredIndex].deaths,
+        };
 
   return (
     <Panel cls="overflow-hidden">
@@ -190,7 +223,25 @@ function DualLineTimelineChart({
         <Legend />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800/70 bg-transparent">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-transparent"
+        onMouseLeave={() => setHoveredIndex(null)}
+      >
+        {hovered && (
+          <div
+            className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
+            style={{
+              left: `${(hovered.x / width) * 100}%`,
+              top: `${(hovered.y / height) * 100}%`,
+              transform: 'translate(-50%, calc(-100% - 14px))',
+            }}
+          >
+            <p className="mb-1 font-bold text-slate-200">{hovered.label}</p>
+            <p className="text-emerald-300">Kills: {hovered.kills}</p>
+            <p className="text-rose-300">Deaths: {hovered.deaths}</p>
+          </div>
+        )}
+
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="block h-auto w-full"
@@ -210,14 +261,28 @@ function DualLineTimelineChart({
               <stop offset="100%" stopColor="#fecdd3" />
             </linearGradient>
 
+            <linearGradient id={`${uid}-killFill`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(16,185,129,0.34)" />
+              <stop offset="35%" stopColor="rgba(16,185,129,0.18)" />
+              <stop offset="72%" stopColor="rgba(16,185,129,0.07)" />
+              <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+            </linearGradient>
+
+            <linearGradient id={`${uid}-deathFill`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(244,63,94,0.30)" />
+              <stop offset="35%" stopColor="rgba(244,63,94,0.16)" />
+              <stop offset="72%" stopColor="rgba(244,63,94,0.06)" />
+              <stop offset="100%" stopColor="rgba(244,63,94,0)" />
+            </linearGradient>
+
             <filter
               id={`${uid}-killGlowBig`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              x="-80%"
+              y="-80%"
+              width="260%"
+              height="260%"
             >
-              <feGaussianBlur stdDeviation="9" result="blur1" />
+              <feGaussianBlur stdDeviation="12" result="blur1" />
               <feMerge>
                 <feMergeNode in="blur1" />
                 <feMergeNode in="SourceGraphic" />
@@ -226,12 +291,12 @@ function DualLineTimelineChart({
 
             <filter
               id={`${uid}-killGlowSoft`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              x="-80%"
+              y="-80%"
+              width="260%"
+              height="260%"
             >
-              <feGaussianBlur stdDeviation="4.5" result="blur2" />
+              <feGaussianBlur stdDeviation="6" result="blur2" />
               <feMerge>
                 <feMergeNode in="blur2" />
                 <feMergeNode in="SourceGraphic" />
@@ -240,12 +305,12 @@ function DualLineTimelineChart({
 
             <filter
               id={`${uid}-deathGlowBig`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              x="-80%"
+              y="-80%"
+              width="260%"
+              height="260%"
             >
-              <feGaussianBlur stdDeviation="9" result="blur3" />
+              <feGaussianBlur stdDeviation="12" result="blur3" />
               <feMerge>
                 <feMergeNode in="blur3" />
                 <feMergeNode in="SourceGraphic" />
@@ -254,12 +319,12 @@ function DualLineTimelineChart({
 
             <filter
               id={`${uid}-deathGlowSoft`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              x="-80%"
+              y="-80%"
+              width="260%"
+              height="260%"
             >
-              <feGaussianBlur stdDeviation="4.5" result="blur4" />
+              <feGaussianBlur stdDeviation="6" result="blur4" />
               <feMerge>
                 <feMergeNode in="blur4" />
                 <feMergeNode in="SourceGraphic" />
@@ -275,7 +340,7 @@ function DualLineTimelineChart({
                 y1={tick.y}
                 x2={width - pad.right}
                 y2={tick.y}
-                stroke="rgba(255,255,255,0.08)"
+                stroke="rgba(255,255,255,0.06)"
                 strokeWidth="1"
               />
               <text
@@ -283,7 +348,7 @@ function DualLineTimelineChart({
                 y={tick.y + 4}
                 textAnchor="end"
                 fontSize="10"
-                fill="rgba(255,255,255,0.20)"
+                fill="rgba(255,255,255,0.18)"
               >
                 {formatTickValue(tick.value)}
               </text>
@@ -309,7 +374,7 @@ function DualLineTimelineChart({
                   y1={pad.top}
                   x2={x}
                   y2={height - pad.bottom}
-                  stroke="rgba(255,255,255,0.05)"
+                  stroke="rgba(255,255,255,0.035)"
                   strokeWidth="1"
                   strokeDasharray="2 5"
                 />
@@ -320,7 +385,7 @@ function DualLineTimelineChart({
                     y={height - 9}
                     textAnchor="middle"
                     fontSize="10"
-                    fill="rgba(255,255,255,0.22)"
+                    fill="rgba(255,255,255,0.18)"
                   >
                     {String(row.label)}
                   </text>
@@ -329,15 +394,27 @@ function DualLineTimelineChart({
             );
           })}
 
+          {/* area fill kills */}
+          <path
+            d={killAreaPath}
+            fill={`url(#${uid}-killFill)`}
+          />
+
+          {/* area fill deaths */}
+          <path
+            d={deathAreaPath}
+            fill={`url(#${uid}-deathFill)`}
+          />
+
           {/* KILLS glow exterior mare */}
           <path
             d={killPath}
             fill="none"
             stroke={`url(#${uid}-killStroke)`}
-            strokeWidth="14"
+            strokeWidth="16"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.10"
+            opacity="0.16"
             filter={`url(#${uid}-killGlowBig)`}
           />
 
@@ -346,10 +423,10 @@ function DualLineTimelineChart({
             d={killPath}
             fill="none"
             stroke={`url(#${uid}-killStroke)`}
-            strokeWidth="7"
+            strokeWidth="8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.22"
+            opacity="0.28"
             filter={`url(#${uid}-killGlowSoft)`}
           />
 
@@ -358,10 +435,10 @@ function DualLineTimelineChart({
             d={deathPath}
             fill="none"
             stroke={`url(#${uid}-deathStroke)`}
-            strokeWidth="14"
+            strokeWidth="16"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.10"
+            opacity="0.16"
             filter={`url(#${uid}-deathGlowBig)`}
           />
 
@@ -370,112 +447,85 @@ function DualLineTimelineChart({
             d={deathPath}
             fill="none"
             stroke={`url(#${uid}-deathStroke)`}
-            strokeWidth="7"
+            strokeWidth="8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.22"
+            opacity="0.28"
             filter={`url(#${uid}-deathGlowSoft)`}
           />
 
-          {/* linia kills delicată */}
+          {/* linia kills */}
           <path
             d={killPath}
             fill="none"
             stroke={`url(#${uid}-killStroke)`}
-            strokeWidth="2.4"
+            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* linia deaths delicată */}
+          {/* linia deaths */}
           <path
             d={deathPath}
             fill="none"
             stroke={`url(#${uid}-deathStroke)`}
-            strokeWidth="2.4"
+            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* puncte kills */}
-          {pointsKills.map((point, index) => (
-            <g key={`kill-point-${index}`}>
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="5.5"
-                fill="rgba(16,185,129,0.10)"
-              />
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="2.2"
-                fill="#d1fae5"
-                stroke="#10b981"
-                strokeWidth="1.5"
-              />
-            </g>
-          ))}
-
-          {/* puncte deaths */}
-          {pointsDeaths.map((point, index) => (
-            <g key={`death-point-${index}`}>
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="5.5"
-                fill="rgba(244,63,94,0.10)"
-              />
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="2.2"
-                fill="#ffe4e6"
-                stroke="#ef4444"
-                strokeWidth="1.5"
-              />
-            </g>
-          ))}
-
-          {/* accent ultim punct kills */}
-          {pointsKills.length > 0 && (
-            <>
-              <circle
-                cx={pointsKills[pointsKills.length - 1].x}
-                cy={pointsKills[pointsKills.length - 1].y}
-                r="10"
-                fill="rgba(16,185,129,0.14)"
-              />
-              <circle
-                cx={pointsKills[pointsKills.length - 1].x}
-                cy={pointsKills[pointsKills.length - 1].y}
-                r="3.2"
-                fill="#d1fae5"
-                stroke="#10b981"
-                strokeWidth="1.8"
-              />
-            </>
+          {/* ghidaj hover */}
+          {hovered && (
+            <line
+              x1={hovered.x}
+              y1={pad.top}
+              x2={hovered.x}
+              y2={height - pad.bottom}
+              stroke="rgba(255,255,255,0.10)"
+              strokeWidth="1"
+              strokeDasharray="3 5"
+            />
           )}
 
-          {/* accent ultim punct deaths */}
-          {pointsDeaths.length > 0 && (
-            <>
-              <circle
-                cx={pointsDeaths[pointsDeaths.length - 1].x}
-                cy={pointsDeaths[pointsDeaths.length - 1].y}
-                r="10"
-                fill="rgba(244,63,94,0.14)"
+          {/* zone hover invizibile */}
+          {rows.map((row, index) => {
+            const currentX =
+              rows.length === 1
+                ? pad.left + innerW / 2
+                : pad.left + (index / (rows.length - 1)) * innerW;
+
+            const prevX =
+              index === 0
+                ? pad.left
+                : rows.length === 1
+                  ? pad.left
+                  : pad.left + ((index - 1) / (rows.length - 1)) * innerW;
+
+            const nextX =
+              index === rows.length - 1
+                ? width - pad.right
+                : rows.length === 1
+                  ? width - pad.right
+                  : pad.left + ((index + 1) / (rows.length - 1)) * innerW;
+
+            const startX = index === 0 ? pad.left : (prevX + currentX) / 2;
+            const endX =
+              index === rows.length - 1
+                ? width - pad.right
+                : (currentX + nextX) / 2;
+
+            return (
+              <rect
+                key={`hover-${index}`}
+                x={startX}
+                y={pad.top}
+                width={Math.max(12, endX - startX)}
+                height={height - pad.top - pad.bottom}
+                fill="transparent"
+                onMouseEnter={() => setHoveredIndex(index)}
               />
-              <circle
-                cx={pointsDeaths[pointsDeaths.length - 1].x}
-                cy={pointsDeaths[pointsDeaths.length - 1].y}
-                r="3.2"
-                fill="#ffe4e6"
-                stroke="#ef4444"
-                strokeWidth="1.8"
-              />
-            </>
-          )}
+            );
+          })}
         </svg>
       </div>
     </Panel>
