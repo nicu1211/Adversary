@@ -584,7 +584,7 @@ function PerformanceTooltip({ active, payload, label }) {
       <p className="mb-2 text-sm font-black text-white">{label}</p>
 
       <div className="space-y-1.5 text-sm">
-        <p className="font-bold text-cyan-300">Kills : {map.kills ?? 0}</p>
+        <p className="font-bold text-blue-300">Kills : {map.kills ?? 0}</p>
         <p className="font-bold text-pink-300">Deaths : {map.deaths ?? 0}</p>
         <p className="font-bold text-emerald-300">
           Avg K/D : {map.avgKd ?? 0}
@@ -637,7 +637,7 @@ export function PerformanceChart({ data }) {
           <SummaryChip
             label="Average Kills"
             value={summary.avgKills}
-            colorClass="text-cyan-300"
+            colorClass="text-blue-300"
           />
 
           <SummaryChip
@@ -663,18 +663,18 @@ export function PerformanceChart({ data }) {
           >
             <defs>
               <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.96} />
-                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.72} />
+                <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.98} />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.82} />
               </linearGradient>
 
               <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f9a8d4" stopOpacity={0.96} />
-                <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.78} />
+                <stop offset="0%" stopColor="#f9a8d4" stopOpacity={0.98} />
+                <stop offset="100%" stopColor="#ec4899" stopOpacity={0.82} />
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#34d399" stopOpacity={0.18} />
-                <stop offset="55%" stopColor="#34d399" stopOpacity={0.07} />
+                <stop offset="0%" stopColor="#34d399" stopOpacity={0.22} />
+                <stop offset="55%" stopColor="#34d399" stopOpacity={0.09} />
                 <stop offset="100%" stopColor="#34d399" stopOpacity={0.01} />
               </linearGradient>
             </defs>
@@ -741,7 +741,7 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name="Avg K/D"
               stroke="#34d399"
-              strokeWidth={1.6}
+              strokeWidth={1.8}
               dot={{
                 r: 2.8,
                 fill: '#34d399',
