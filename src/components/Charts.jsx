@@ -1,436 +1,291 @@
-import React, { useMemo, useId } from 'react';
+import React, { useMemo } from 'react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  ComposedChart,
+  Bar,
+  Line as RechartsLine,
+  Legend,
+} from 'recharts';
 import { Panel } from './UI';
 
-const CHART_HEIGHT = 230;
-const PAD = { top: 18, right: 14, bottom: 30, left: 42 };
+const tooltipStyle = {
+  background: '#0f172a',
+  border: '1px solid #334155',
+  borderRadius: 14,
+  color: '#fff',
+};
 
-function toNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
+const axisTick = {
+  fill: '#94a3b8',
+  fontSize: 11,
+};
 
-function pick(obj, keys, fallback = 0) {
-  for (const key of keys) {
-    if (obj && obj[key] != null) return obj[key];
-  }
-  return fallback;
-}
-
-function formatValue(value) {
-  const n = Number(value) || 0;
-  if (Math.abs(n) >= 1000) {
-    return `${n > 0 ? '+' : ''}${(n / 1000).toFixed(Math.abs(n) >= 10000 ? 0 : 1)}k`;
-  }
-  return `${n > 0 ? '+' : ''}${n}`;
-}
-
-function normalizeChartData(data = []) {
-  return data.map((item, index) => {
-    const kills = toNumber(pick(item, ['kills', 'kill', 'k', 'valueA', 'a'], 0));
-    const deaths = toNumber(pick(item, ['deaths', 'death', 'd', 'valueB', 'b'], 0));
-    const net = kills - deaths;
-
-    return {
-      raw: item,
-      label:
-        pick(item, ['label', 'time', 'minute', 'slot', 'name', 'x'], index + 1) ??
-        index + 1,
-      kills,
-      deaths,
-      net,
-    };
-  });
-}
-
-function getLabelStep(length) {
-  if (length <= 8) return 1;
-  if (length <= 14) return 2;
-  if (length <= 24) return 3;
-  if (length <= 36) return 4;
-  if (length <= 48) return 5;
-  return Math.ceil(length / 8);
-}
-
-function getChartGeometry(rows, width, height) {
-  const innerW = width - PAD.left - PAD.right;
-  const innerH = height - PAD.top - PAD.bottom;
-  const zeroY = PAD.top + innerH / 2;
-
-  const maxAbs = Math.max(1, ...rows.map((row) => Math.abs(row.net)));
-
-  const points = rows.map((row, index) => {
-    const x =
-      rows.length === 1
-        ? PAD.left + innerW / 2
-        : PAD.left + (index / (rows.length - 1)) * innerW;
-
-    const y = zeroY - (row.net / maxAbs) * (innerH / 2);
-
-    return {
-      x,
-      y,
-      label: row.label,
-      value: row.net,
-      kills: row.kills,
-      deaths: row.deaths,
-    };
-  });
-
-  const ticks = [
-    { value: maxAbs, y: PAD.top },
-    { value: Math.round(maxAbs / 2), y: PAD.top + innerH * 0.25 },
-    { value: 0, y: zeroY },
-    { value: -Math.round(maxAbs / 2), y: PAD.top + innerH * 0.75 },
-    { value: -maxAbs, y: PAD.top + innerH },
-  ];
-
-  return {
-    points,
-    ticks,
-    innerW,
-    innerH,
-    zeroY,
-    maxAbs,
-  };
-}
-
-function segmentAtZero(a, b, zeroY) {
-  if ((a.value >= 0 && b.value >= 0) || (a.value <= 0 && b.value <= 0)) {
-    return null;
-  }
-
-  const ratio = (0 - a.value) / (b.value - a.value);
-  const x = a.x + (b.x - a.x) * ratio;
-  const y = zeroY;
-
-  return { x, y, value: 0 };
-}
-
-function Legend() {
+export function KillDeathChart({ data, title }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
-      <div className="flex items-center gap-2">
-        <span className="h-2 w-7 rounded-full bg-gradient-to-r from-emerald-700 via-emerald-400 to-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.35)]" />
-        <span>Positive</span>
-      </div>
+    <Panel>
+      <h2 className="text-2xl font-black">{title}</h2>
 
-      <div className="flex items-center gap-2">
-        <span className="h-2 w-7 rounded-full bg-gradient-to-r from-rose-700 via-rose-400 to-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.35)]" />
-        <span>Negative</span>
+      <div className="h-[260px] sm:h-[300px]">
+        <ResponsiveContainer>
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="killFillMain" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.06} />
+              </linearGradient>
+
+              <linearGradient id="deathFillMain" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f472b6" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#f472b6" stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid stroke="rgba(148,163,184,.14)" />
+
+            <XAxis
+              dataKey="time"
+              tick={axisTick}
+              angle={-35}
+              textAnchor="end"
+              height={55}
+            />
+
+            <YAxis tick={axisTick} allowDecimals={false} />
+
+            <Tooltip contentStyle={tooltipStyle} />
+
+            <Area
+              type="monotone"
+              dataKey="kills"
+              name="Kills"
+              stroke="#60a5fa"
+              strokeWidth={3}
+              fill="url(#killFillMain)"
+            />
+
+            <Area
+              type="monotone"
+              dataKey="deaths"
+              name="Deaths"
+              stroke="#f472b6"
+              strokeWidth={3}
+              fill="url(#deathFillMain)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </Panel>
+  );
+}
+
+function SummaryChip({ label, value, colorClass }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 shadow-lg backdrop-blur-xl">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+      <p className={`text-sm font-black ${colorClass}`}>{value}</p>
+    </div>
+  );
+}
+
+function PerformanceTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
+  const map = Object.fromEntries(
+    payload.map((item) => [item.dataKey, item.value]),
+  );
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+      <p className="mb-2 text-sm font-black text-white">{label}</p>
+
+      <div className="space-y-1.5 text-sm">
+        <p className="font-bold text-cyan-300">Kills : {map.kills ?? 0}</p>
+        <p className="font-bold text-pink-300">Deaths : {map.deaths ?? 0}</p>
+        <p className="font-bold text-emerald-300">
+          Avg K/D : {map.avgKd ?? 0}
+        </p>
       </div>
     </div>
   );
 }
 
-function CompactNetChart({
-  data = [],
-  title = 'Battle Timeline',
-  subtitle = 'Net kills - deaths',
-}) {
-  const uid = useId();
-  const rows = useMemo(() => normalizeChartData(data), [data]);
-
-  const width = 1000;
-  const height = CHART_HEIGHT;
-
-  const { points, ticks, innerW, zeroY } = useMemo(
-    () => getChartGeometry(rows, width, height),
-    [rows],
-  );
-
-  const labelStep = getLabelStep(rows.length);
-
-  const segments = [];
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const a = points[i];
-    const b = points[i + 1];
-    const crossing = segmentAtZero(a, b, zeroY);
-
-    if (!crossing) {
-      segments.push({
-        from: a,
-        to: b,
-        positive: a.value >= 0 && b.value >= 0,
-      });
-    } else {
-      segments.push({
-        from: a,
-        to: crossing,
-        positive: a.value >= 0,
-      });
-      segments.push({
-        from: crossing,
-        to: b,
-        positive: b.value >= 0,
-      });
+export function PerformanceChart({ data }) {
+  const summary = useMemo(() => {
+    if (!data?.length) {
+      return {
+        avgKills: '0.00',
+        avgDeaths: '0.00',
+        avgKd: '0.00',
+      };
     }
-  }
 
-  const areaSegments = segments.map((segment, index) => ({
-    ...segment,
-    d: [
-      `M ${segment.from.x} ${zeroY}`,
-      `L ${segment.from.x} ${segment.from.y}`,
-      `L ${segment.to.x} ${segment.to.y}`,
-      `L ${segment.to.x} ${zeroY}`,
-      'Z',
-    ].join(' '),
-    key: `${index}-${segment.from.x}-${segment.to.x}`,
-  }));
+    const avgKills =
+      data.reduce((sum, item) => sum + (Number(item.avgKills) || 0), 0) /
+      data.length;
+
+    const avgDeaths =
+      data.reduce((sum, item) => sum + (Number(item.avgDeaths) || 0), 0) /
+      data.length;
+
+    const avgKd =
+      data.reduce((sum, item) => sum + (Number(item.avgKd) || 0), 0) /
+      data.length;
+
+    return {
+      avgKills: avgKills.toFixed(2),
+      avgDeaths: avgDeaths.toFixed(2),
+      avgKd: avgKd.toFixed(2),
+    };
+  }, [data]);
 
   return (
-    <Panel cls="overflow-hidden">
-      <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <Panel>
+      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <h3 className="text-lg font-black">{title}</h3>
-          <p className="text-[11px] text-slate-400">{subtitle}</p>
+          <h2 className="text-2xl font-black">Performance</h2>
+          <p className="text-sm text-slate-400">
+            Daily performance with kills, deaths and average K/D
+          </p>
         </div>
 
-        <Legend />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <SummaryChip
+            label="Average Kills"
+            value={summary.avgKills}
+            colorClass="text-cyan-300"
+          />
+
+          <SummaryChip
+            label="Average Deaths"
+            value={summary.avgDeaths}
+            colorClass="text-pink-300"
+          />
+
+          <SummaryChip
+            label="Average K/D"
+            value={summary.avgKd}
+            colorClass="text-emerald-300"
+          />
+        </div>
       </div>
 
-      {!rows.length ? (
-        <div className="flex h-[230px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/40 text-slate-500">
-          No chart data.
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(4,8,18,0.98),rgba(7,12,22,0.98))]">
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            className="block h-auto w-full"
-            role="img"
-            aria-label={title}
+      <div className="h-[320px] sm:h-[360px] [&_*:focus]:outline-none">
+        <ResponsiveContainer>
+          <ComposedChart
+            data={data}
+            barCategoryGap="28%"
+            barGap={-8}
+            margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
-              <linearGradient id={`${uid}-posStroke`} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#166534" />
-                <stop offset="50%" stopColor="#10b981" />
-                <stop offset="100%" stopColor="#86efac" />
+              <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.96} />
+                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.72} />
               </linearGradient>
 
-              <linearGradient id={`${uid}-negStroke`} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#7f1d1d" />
-                <stop offset="50%" stopColor="#ef4444" />
-                <stop offset="100%" stopColor="#fda4af" />
+              <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.96} />
+                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.72} />
               </linearGradient>
 
-              <linearGradient id={`${uid}-topGlow`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.08)" />
-                <stop offset="35%" stopColor="rgba(255,255,255,0.02)" />
-                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#34d399" stopOpacity={0.18} />
+                <stop offset="55%" stopColor="#34d399" stopOpacity={0.07} />
+                <stop offset="100%" stopColor="#34d399" stopOpacity={0.01} />
               </linearGradient>
-
-              <filter id={`${uid}-lineGlow`} x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
             </defs>
 
-            {/* top glow like screenshot */}
-            <rect
-              x="0"
-              y="0"
-              width={width}
-              height={70}
-              fill={`url(#${uid}-topGlow)`}
+            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
+
+            <XAxis
+              dataKey="time"
+              tick={axisTick}
+              angle={-35}
+              textAnchor="end"
+              height={55}
             />
 
-            {/* horizontal grid */}
-            {ticks.map((tick, index) => (
-              <g key={`tick-${index}`}>
-                <line
-                  x1={PAD.left}
-                  y1={tick.y}
-                  x2={width - PAD.right}
-                  y2={tick.y}
-                  stroke={tick.value === 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)'}
-                  strokeWidth={tick.value === 0 ? '1.3' : '1'}
-                />
-                <text
-                  x={PAD.left - 8}
-                  y={tick.y + 4}
-                  textAnchor="end"
-                  fontSize="11"
-                  fill="rgba(255,255,255,0.45)"
-                >
-                  {formatValue(tick.value)}
-                </text>
-              </g>
-            ))}
+            <YAxis
+              yAxisId="left"
+              tick={axisTick}
+              allowDecimals={false}
+            />
 
-            {/* vertical grid + compact labels */}
-            {rows.map((row, index) => {
-              const x =
-                rows.length === 1
-                  ? PAD.left + innerW / 2
-                  : PAD.left + (index / (rows.length - 1)) * innerW;
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={axisTick}
+              allowDecimals
+            />
 
-              const showLabel =
-                index === 0 ||
-                index === rows.length - 1 ||
-                index % labelStep === 0;
+            <Tooltip content={<PerformanceTooltip />} cursor={false} />
+            <Legend />
 
-              return (
-                <g key={`vx-${index}`}>
-                  <line
-                    x1={x}
-                    y1={PAD.top}
-                    x2={x}
-                    y2={height - PAD.bottom}
-                    stroke="rgba(255,255,255,0.10)"
-                    strokeWidth="1"
-                    strokeDasharray="2 5"
-                  />
-                  {showLabel && (
-                    <text
-                      x={x}
-                      y={height - 10}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fill="rgba(255,255,255,0.42)"
-                    >
-                      {String(row.label)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+            <Bar
+              yAxisId="left"
+              dataKey="kills"
+              name="Kills"
+              fill="url(#perfBarKills)"
+              radius={[10, 10, 0, 0]}
+              maxBarSize={28}
+              activeBar={false}
+            />
 
-            {/* area fill */}
-            {areaSegments.map((segment) => (
-              <path
-                key={`area-${segment.key}`}
-                d={segment.d}
-                fill={segment.positive ? 'rgba(16,185,129,0.10)' : 'rgba(244,63,94,0.08)'}
-              />
-            ))}
+            <Bar
+              yAxisId="left"
+              dataKey="deaths"
+              name="Deaths"
+              fill="url(#perfBarDeaths)"
+              radius={[10, 10, 0, 0]}
+              maxBarSize={28}
+              activeBar={false}
+            />
 
-            {/* line glow */}
-            {segments.map((segment) => (
-              <line
-                key={`glow-${segment.from.x}-${segment.to.x}`}
-                x1={segment.from.x}
-                y1={segment.from.y}
-                x2={segment.to.x}
-                y2={segment.to.y}
-                stroke={segment.positive ? `url(#${uid}-posStroke)` : `url(#${uid}-negStroke)`}
-                strokeWidth="8"
-                strokeLinecap="round"
-                opacity="0.20"
-                filter={`url(#${uid}-lineGlow)`}
-              />
-            ))}
+            <Area
+              yAxisId="right"
+              type="monotone"
+              dataKey="avgKd"
+              name=""
+              stroke="none"
+              fill="url(#avgKdFill)"
+              legendType="none"
+              activeDot={false}
+              isAnimationActive
+            />
 
-            {/* main line */}
-            {segments.map((segment) => (
-              <line
-                key={`seg-${segment.from.x}-${segment.to.x}`}
-                x1={segment.from.x}
-                y1={segment.from.y}
-                x2={segment.to.x}
-                y2={segment.to.y}
-                stroke={segment.positive ? `url(#${uid}-posStroke)` : `url(#${uid}-negStroke)`}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-            ))}
-
-            {/* points */}
-            {points.map((point, index) => {
-              const positive = point.value >= 0;
-
-              return (
-                <g key={`point-${index}`}>
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r="7"
-                    fill={positive ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.10)'}
-                  />
-                  <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r="3.5"
-                    fill={positive ? '#d1fae5' : '#ffe4e6'}
-                    stroke={positive ? '#10b981' : '#fb7185'}
-                    strokeWidth="2"
-                  />
-                </g>
-              );
-            })}
-
-            {/* last point emphasis */}
-            {points.length > 0 && (
-              <>
-                <circle
-                  cx={points[points.length - 1].x}
-                  cy={points[points.length - 1].y}
-                  r="12"
-                  fill={
-                    points[points.length - 1].value >= 0
-                      ? 'rgba(16,185,129,0.16)'
-                      : 'rgba(244,63,94,0.14)'
-                  }
-                />
-                <circle
-                  cx={points[points.length - 1].x}
-                  cy={points[points.length - 1].y}
-                  r="4.6"
-                  fill={
-                    points[points.length - 1].value >= 0 ? '#d1fae5' : '#ffe4e6'
-                  }
-                  stroke={
-                    points[points.length - 1].value >= 0 ? '#10b981' : '#fb7185'
-                  }
-                  strokeWidth="2.2"
-                />
-              </>
-            )}
-          </svg>
-        </div>
-      )}
+            <RechartsLine
+              yAxisId="right"
+              type="monotone"
+              dataKey="avgKd"
+              name="Avg K/D"
+              stroke="#34d399"
+              strokeWidth={1.6}
+              dot={{
+                r: 2.8,
+                fill: '#34d399',
+                stroke: '#a7f3d0',
+                strokeWidth: 1.2,
+              }}
+              activeDot={{
+                r: 4,
+                fill: '#34d399',
+                stroke: '#d1fae5',
+                strokeWidth: 1.5,
+              }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
     </Panel>
   );
 }
 
-export function KillDeathChart({
-  data,
-  title = '▧ Global Kill/Death Timeline',
-}) {
-  return (
-    <CompactNetChart
-      data={data}
-      title={title}
-      subtitle="Net result · positive = kills lead · negative = deaths lead"
-    />
-  );
-}
-
-export function AveragePerformanceChart({
-  data,
-  title = 'Player Stats Timeline',
-}) {
-  return (
-    <CompactNetChart
-      data={data}
-      title={title}
-      subtitle="Net result · positive = kills lead · negative = deaths lead"
-    />
-  );
-}
-
-export function PlayerStatsChart({
-  data,
-  title = 'Player Stats Timeline',
-}) {
-  return (
-    <CompactNetChart
-      data={data}
-      title={title}
-      subtitle="Net result · positive = kills lead · negative = deaths lead"
-    />
-  );
-}
+export const AveragePerformanceChart = PerformanceChart;
