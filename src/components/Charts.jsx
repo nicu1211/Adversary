@@ -764,7 +764,6 @@ export function PerformanceChart({ data }) {
               yAxisId="left"
               dataKey="kills"
               name="Kills"
-              stackId="battle"
               fill="url(#perfBarKills)"
               radius={[0, 0, 0, 0]}
               maxBarSize={14}
@@ -775,7 +774,6 @@ export function PerformanceChart({ data }) {
               yAxisId="left"
               dataKey="deathsNegative"
               name="Deaths"
-              stackId="battle"
               fill="url(#perfBarDeaths)"
               radius={[0, 0, 0, 0]}
               maxBarSize={14}
