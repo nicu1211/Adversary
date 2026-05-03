@@ -697,8 +697,10 @@ export function PerformanceChart({ data }) {
         <ResponsiveContainer>
           <ComposedChart
             data={performanceData}
-            barCategoryGap="42%"
+            stackOffset="sign"
+            barCategoryGap="48%"
             barGap={0}
+            barSize={19}
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
@@ -764,7 +766,6 @@ export function PerformanceChart({ data }) {
               stackId="battle"
               fill="url(#perfBarKills)"
               radius={[0, 0, 0, 0]}
-              maxBarSize={19}
               activeBar={false}
             />
 
@@ -775,7 +776,6 @@ export function PerformanceChart({ data }) {
               stackId="battle"
               fill="url(#perfBarDeaths)"
               radius={[0, 0, 0, 0]}
-              maxBarSize={19}
               activeBar={false}
             />
 
