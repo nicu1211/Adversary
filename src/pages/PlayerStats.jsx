@@ -133,9 +133,9 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
       }))
       .sort(
         (a, b) =>
-          b.total - a.total ||
-          b.favourite - a.favourite ||
           b.nemesis - a.nemesis ||
+          b.favourite - a.favourite ||
+          b.total - a.total ||
           a.name.localeCompare(b.name),
       );
   }, [favouriteTargets, nemesisTargets]);
@@ -185,7 +185,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
 
                 return (
                   <div key={row.name}>
-                    <div className="grid h-[19px] grid-cols-[1fr_1px_1fr] items-center">
+                    <div className="grid h-[22px] grid-cols-[1fr_1px_1fr] items-center">
                       <div className="relative flex h-full items-center justify-end">
                         {row.favourite > 0 && (
                           <>
@@ -194,11 +194,15 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                             </span>
 
                             <div
-                              className={`h-full bg-gradient-to-l ${blueShade}`}
+                              className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2`}
                               style={{
-                                width: `${Math.max(3, favouriteWidth)}%`,
+                                width: `${Math.max(12, favouriteWidth)}%`,
                               }}
-                            />
+                            >
+                              <span className="truncate text-[9px] font-black text-black">
+                                {row.name}
+                              </span>
+                            </div>
                           </>
                         )}
                       </div>
@@ -209,29 +213,21 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                         {row.nemesis > 0 && (
                           <>
                             <div
-                              className={`h-full bg-gradient-to-r ${redShade}`}
+                              className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2`}
                               style={{
-                                width: `${Math.max(3, nemesisWidth)}%`,
+                                width: `${Math.max(12, nemesisWidth)}%`,
                               }}
-                            />
+                            >
+                              <span className="truncate text-[9px] font-black text-black">
+                                {row.name}
+                              </span>
+                            </div>
 
                             <span className="ml-1 min-w-[24px] shrink-0 text-left text-[9px] font-black text-slate-300">
                               {row.nemesis}
                             </span>
                           </>
                         )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-[1fr_1px_1fr] text-[9px] font-bold leading-4 text-slate-500">
-                      <div className="truncate pr-2 text-right">
-                        {row.name}
-                      </div>
-
-                      <div />
-
-                      <div className="truncate pl-2 text-left">
-                        {row.name}
                       </div>
                     </div>
                   </div>
