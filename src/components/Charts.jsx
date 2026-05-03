@@ -1,6 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
 import {
-  AreaChart,
   Area,
   XAxis,
   YAxis,
@@ -13,13 +12,6 @@ import {
   Legend,
 } from 'recharts';
 import { Panel } from './UI';
-
-const tooltipStyle = {
-  background: '#0f172a',
-  border: '1px solid #334155',
-  borderRadius: 14,
-  color: '#fff',
-};
 
 const axisTick = {
   fill: '#94a3b8',
@@ -666,8 +658,7 @@ export function PerformanceChart({ data }) {
         <ResponsiveContainer>
           <ComposedChart
             data={data}
-            barCategoryGap="28%"
-            barGap={-8}
+            barCategoryGap="34%"
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
@@ -677,8 +668,8 @@ export function PerformanceChart({ data }) {
               </linearGradient>
 
               <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.96} />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.72} />
+                <stop offset="0%" stopColor="#f9a8d4" stopOpacity={0.96} />
+                <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.78} />
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
@@ -712,21 +703,23 @@ export function PerformanceChart({ data }) {
 
             <Bar
               yAxisId="left"
-              dataKey="kills"
-              name="Kills"
-              fill="url(#perfBarKills)"
-              radius={[10, 10, 0, 0]}
-              maxBarSize={28}
+              dataKey="deaths"
+              name="Deaths"
+              stackId="battle"
+              fill="url(#perfBarDeaths)"
+              radius={[0, 0, 10, 10]}
+              maxBarSize={34}
               activeBar={false}
             />
 
             <Bar
               yAxisId="left"
-              dataKey="deaths"
-              name="Deaths"
-              fill="url(#perfBarDeaths)"
+              dataKey="kills"
+              name="Kills"
+              stackId="battle"
+              fill="url(#perfBarKills)"
               radius={[10, 10, 0, 0]}
-              maxBarSize={28}
+              maxBarSize={34}
               activeBar={false}
             />
 
