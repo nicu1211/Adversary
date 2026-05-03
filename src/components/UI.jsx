@@ -26,262 +26,230 @@ function getMetricTone(label = '', className = '') {
   return 'kills';
 }
 
-function MetricIcon({ type }) {
+function MetricDivider({ tone }) {
+  const styles = {
+    kills: 'from-transparent via-blue-300/60 to-transparent',
+    death: 'from-transparent via-pink-300/60 to-transparent',
+    kd: 'from-transparent via-violet-300/60 to-transparent',
+    players: 'from-transparent via-emerald-300/60 to-transparent',
+  };
+
+  const dot = {
+    kills: 'bg-blue-300',
+    death: 'bg-pink-300',
+    kd: 'bg-violet-300',
+    players: 'bg-emerald-300',
+  };
+
+  return (
+    <div className="mx-auto my-3 flex w-full max-w-[180px] items-center justify-center gap-3">
+      <div className={`h-px flex-1 bg-gradient-to-r ${styles[tone]}`} />
+      <div className="relative h-3 w-3 rotate-45 rounded-[2px] border border-white/25 bg-white/10">
+        <div
+          className={`absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rotate-0 rounded-[1px] ${dot[tone]}`}
+        />
+      </div>
+      <div className={`h-px flex-1 bg-gradient-to-r ${styles[tone]}`} />
+    </div>
+  );
+}
+
+function MetricArt({ type }) {
   if (type === 'kills') {
     return (
-      <svg viewBox="0 0 120 120" className="h-full w-full">
-        <defs>
-          <linearGradient id="killsBlade" x1="0" x2="1">
-            <stop offset="0%" stopColor="#f8fafc" />
-            <stop offset="45%" stopColor="#93c5fd" />
-            <stop offset="100%" stopColor="#fef3c7" />
-          </linearGradient>
-          <linearGradient id="goldTrim" x1="0" x2="1">
-            <stop offset="0%" stopColor="#92400e" />
-            <stop offset="45%" stopColor="#fde68a" />
-            <stop offset="100%" stopColor="#b45309" />
-          </linearGradient>
-        </defs>
-
+      <svg viewBox="0 0 160 160" className="h-full w-full">
         <circle
-          cx="60"
-          cy="60"
-          r="43"
+          cx="80"
+          cy="80"
+          r="48"
           fill="none"
-          stroke="#60a5fa"
-          strokeOpacity="0.18"
+          stroke="rgba(96,165,250,0.16)"
+          strokeWidth="2"
+        />
+        <circle
+          cx="80"
+          cy="80"
+          r="39"
+          fill="none"
+          stroke="rgba(251,191,36,0.18)"
           strokeWidth="2"
         />
 
         <path
-          d="M25 25 L96 96"
-          stroke="url(#killsBlade)"
-          strokeWidth="8"
+          d="M44 34 L118 108"
+          stroke="#e5e7eb"
+          strokeWidth="11"
           strokeLinecap="round"
         />
         <path
-          d="M95 25 L24 96"
-          stroke="url(#killsBlade)"
-          strokeWidth="8"
-          strokeLinecap="round"
-        />
-
-        <path
-          d="M20 20 L31 27 L27 31 Z"
-          fill="url(#goldTrim)"
-        />
-        <path
-          d="M100 20 L89 27 L93 31 Z"
-          fill="url(#goldTrim)"
-        />
-
-        <path
-          d="M37 77 L25 95"
-          stroke="url(#goldTrim)"
-          strokeWidth="7"
-          strokeLinecap="round"
-        />
-        <path
-          d="M83 77 L95 95"
-          stroke="url(#goldTrim)"
-          strokeWidth="7"
+          d="M116 34 L42 108"
+          stroke="#e5e7eb"
+          strokeWidth="11"
           strokeLinecap="round"
         />
 
         <path
-          d="M28 78 L42 92"
-          stroke="#fde68a"
-          strokeWidth="4"
+          d="M38 30 L53 39 L47 46 Z"
+          fill="#d4a24a"
+        />
+        <path
+          d="M122 30 L107 39 L113 46 Z"
+          fill="#d4a24a"
+        />
+
+        <path
+          d="M61 94 L43 121"
+          stroke="#b8872f"
+          strokeWidth="9"
           strokeLinecap="round"
         />
         <path
-          d="M92 78 L78 92"
-          stroke="#fde68a"
-          strokeWidth="4"
+          d="M99 94 L117 121"
+          stroke="#b8872f"
+          strokeWidth="9"
           strokeLinecap="round"
         />
 
-        <circle cx="60" cy="60" r="6" fill="#fef3c7" />
-        <circle cx="60" cy="60" r="3" fill="#60a5fa" />
+        <path
+          d="M45 94 L66 114"
+          stroke="#e8c16a"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M115 94 L94 114"
+          stroke="#e8c16a"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M80 24 L90 38 L80 50 L70 38 Z"
+          fill="#b8872f"
+          stroke="#e8c16a"
+          strokeWidth="2"
+        />
       </svg>
     );
   }
 
   if (type === 'death') {
     return (
-      <svg viewBox="0 0 120 120" className="h-full w-full">
-        <defs>
-          <linearGradient id="deathGold" x1="0" x2="1">
-            <stop offset="0%" stopColor="#78350f" />
-            <stop offset="45%" stopColor="#fde68a" />
-            <stop offset="100%" stopColor="#a16207" />
-          </linearGradient>
-          <linearGradient id="bone" x1="0" x2="1">
-            <stop offset="0%" stopColor="#d6d3d1" />
-            <stop offset="50%" stopColor="#fafaf9" />
-            <stop offset="100%" stopColor="#a8a29e" />
-          </linearGradient>
-        </defs>
-
+      <svg viewBox="0 0 160 160" className="h-full w-full">
         <path
-          d="M60 10 L72 29 L96 24 L88 48 L108 60 L88 72 L96 96 L72 91 L60 110 L48 91 L24 96 L32 72 L12 60 L32 48 L24 24 L48 29 Z"
-          fill="none"
-          stroke="url(#deathGold)"
-          strokeWidth="3"
-          opacity="0.9"
+          d="M80 20 L92 36 L112 32 L108 52 L128 60 L108 68 L112 88 L92 84 L80 100 L68 84 L48 88 L52 68 L32 60 L52 52 L48 32 L68 36 Z"
+          fill="rgba(212,162,74,0.18)"
+          stroke="#b8872f"
+          strokeWidth="2.5"
         />
 
         <circle
-          cx="60"
-          cy="57"
-          r="31"
-          fill="url(#bone)"
-          stroke="#f9a8d4"
-          strokeOpacity="0.4"
+          cx="80"
+          cy="78"
+          r="34"
+          fill="#ddd6d3"
+          stroke="rgba(244,114,182,0.25)"
           strokeWidth="2"
         />
 
         <path
-          d="M36 53 C36 42 44 34 60 34 C76 34 84 42 84 53 C84 72 73 82 60 82 C47 82 36 72 36 53 Z"
-          fill="url(#bone)"
+          d="M52 74 C52 58 63 48 80 48 C97 48 108 58 108 74 C108 95 94 108 80 108 C66 108 52 95 52 74 Z"
+          fill="#ddd6d3"
         />
 
-        <circle cx="49" cy="57" r="8" fill="#09090b" />
-        <circle cx="71" cy="57" r="8" fill="#09090b" />
+        <circle cx="67" cy="77" r="8" fill="#09090b" />
+        <circle cx="93" cy="77" r="8" fill="#09090b" />
 
-        <path
-          d="M60 62 L54 72 H66 Z"
-          fill="#18181b"
-        />
-
-        <path
-          d="M48 82 H72"
-          stroke="#18181b"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <path
-          d="M52 78 V87 M60 78 V89 M68 78 V87"
-          stroke="#18181b"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
+        <path d="M80 84 L73 95 H87 Z" fill="#18181b" />
+        <path d="M65 104 H95" stroke="#18181b" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M70 100 V109 M80 100 V111 M90 100 V109" stroke="#18181b" strokeWidth="2.4" strokeLinecap="round" />
       </svg>
     );
   }
 
   if (type === 'kd') {
     return (
-      <svg viewBox="0 0 120 120" className="h-full w-full">
-        <defs>
-          <linearGradient id="crystal" x1="0" x2="1">
-            <stop offset="0%" stopColor="#f5f3ff" />
-            <stop offset="45%" stopColor="#a78bfa" />
-            <stop offset="100%" stopColor="#6d28d9" />
-          </linearGradient>
-          <linearGradient id="kdGold" x1="0" x2="1">
-            <stop offset="0%" stopColor="#92400e" />
-            <stop offset="50%" stopColor="#fde68a" />
-            <stop offset="100%" stopColor="#b45309" />
-          </linearGradient>
-        </defs>
-
+      <svg viewBox="0 0 160 160" className="h-full w-full">
         <circle
-          cx="60"
-          cy="60"
-          r="43"
+          cx="80"
+          cy="80"
+          r="49"
           fill="none"
-          stroke="#a78bfa"
-          strokeOpacity="0.22"
+          stroke="rgba(167,139,250,0.22)"
           strokeWidth="2"
+        />
+        <circle
+          cx="80"
+          cy="80"
+          r="39"
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="1.5"
         />
 
         <path
-          d="M60 10 L77 60 L60 110 L43 60 Z"
-          fill="url(#crystal)"
-          stroke="url(#kdGold)"
-          strokeWidth="3"
-        />
-
-        <path
-          d="M60 10 L60 110"
-          stroke="#ede9fe"
-          strokeOpacity="0.7"
+          d="M80 24 L97 63 L136 80 L97 97 L80 136 L63 97 L24 80 L63 63 Z"
+          fill="rgba(139,92,246,0.22)"
+          stroke="#bfa0ff"
           strokeWidth="2"
         />
-
         <path
-          d="M16 60 L60 43 L104 60 L60 77 Z"
-          fill="#7c3aed"
-          fillOpacity="0.35"
-          stroke="url(#kdGold)"
-          strokeWidth="2"
+          d="M80 32 L92 68 L128 80 L92 92 L80 128 L68 92 L32 80 L68 68 Z"
+          fill="#a78bfa"
+          fillOpacity="0.65"
+          stroke="#ddd6fe"
+          strokeWidth="1.5"
         />
-
-        <circle cx="60" cy="60" r="9" fill="#f5f3ff" opacity="0.95" />
-        <circle cx="60" cy="60" r="4" fill="#8b5cf6" />
+        <circle cx="80" cy="80" r="8" fill="#f5f3ff" opacity="0.95" />
       </svg>
     );
   }
 
   return (
-    <svg viewBox="0 0 120 120" className="h-full w-full">
-      <defs>
-        <linearGradient id="playerGold" x1="0" x2="1">
-          <stop offset="0%" stopColor="#78350f" />
-          <stop offset="45%" stopColor="#fde68a" />
-          <stop offset="100%" stopColor="#a16207" />
-        </linearGradient>
-        <linearGradient id="playerTeal" x1="0" x2="1">
-          <stop offset="0%" stopColor="#064e3b" />
-          <stop offset="50%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#065f46" />
-        </linearGradient>
-      </defs>
-
+    <svg viewBox="0 0 160 160" className="h-full w-full">
       <circle
-        cx="60"
-        cy="60"
-        r="43"
+        cx="80"
+        cy="80"
+        r="50"
         fill="none"
-        stroke="#34d399"
-        strokeOpacity="0.18"
+        stroke="rgba(52,211,153,0.18)"
         strokeWidth="2"
       />
 
       <path
-        d="M60 15 L72 28 L67 44 H53 L48 28 Z"
-        fill="url(#playerGold)"
-      />
-
-      <path
-        d="M45 45 C48 35 72 35 75 45 V58 C75 74 66 85 60 89 C54 85 45 74 45 58 Z"
-        fill="url(#playerGold)"
-        stroke="#fef3c7"
-        strokeOpacity="0.45"
-        strokeWidth="2"
-      />
-
-      <path
-        d="M35 91 C41 76 50 67 60 67 C70 67 79 76 85 91 Z"
-        fill="url(#playerTeal)"
-        stroke="url(#playerGold)"
-        strokeWidth="3"
-      />
-
-      <path
-        d="M31 96 H89"
-        stroke="url(#playerGold)"
-        strokeWidth="7"
-        strokeLinecap="round"
-      />
-
-      <path
-        d="M43 104 H77"
-        stroke="#34d399"
+        d="M44 104 C52 88 65 78 80 78 C95 78 108 88 116 104"
+        fill="none"
+        stroke="#6f8d66"
         strokeWidth="4"
         strokeLinecap="round"
-        opacity="0.8"
+      />
+      <path
+        d="M40 98 C49 83 63 72 80 72 C97 72 111 83 120 98"
+        fill="none"
+        stroke="#6f8d66"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="M80 36 L89 48 L85 61 H75 L71 48 Z"
+        fill="#b8872f"
+        stroke="#e8c16a"
+        strokeWidth="1.5"
+      />
+
+      <path
+        d="M62 66 C65 54 95 54 98 66 V81 C98 100 88 113 80 118 C72 113 62 100 62 81 Z"
+        fill="#b8872f"
+        stroke="#e8c16a"
+        strokeWidth="2"
+      />
+
+      <path
+        d="M58 118 H102"
+        stroke="#b8872f"
+        strokeWidth="8"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -292,36 +260,32 @@ export function Metric({ icon, label, value, sub, className = '' }) {
 
   const styles = {
     kills: {
-      card: 'border-blue-400/35 bg-blue-950/20 shadow-[inset_0_0_45px_rgba(37,99,235,0.16),0_0_22px_rgba(37,99,235,0.12)]',
-      value: 'text-blue-300 drop-shadow-[0_0_18px_rgba(96,165,250,0.55)]',
-      label: 'text-blue-50',
-      sub: 'text-slate-400',
-      divider: 'from-transparent via-blue-300/60 to-transparent',
-      glow: 'bg-blue-400/20',
+      card: 'border-blue-400/35 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.08),transparent_40%),linear-gradient(180deg,rgba(2,12,35,0.98),rgba(1,7,24,0.98))]',
+      value: 'text-blue-300',
+      label: 'text-stone-100',
+      sub: 'text-slate-500',
+      glow: 'shadow-[inset_0_0_40px_rgba(37,99,235,0.18),0_0_20px_rgba(37,99,235,0.08)]',
     },
     death: {
-      card: 'border-pink-400/35 bg-pink-950/20 shadow-[inset_0_0_45px_rgba(219,39,119,0.16),0_0_22px_rgba(219,39,119,0.12)]',
-      value: 'text-pink-300 drop-shadow-[0_0_18px_rgba(244,114,182,0.55)]',
-      label: 'text-pink-50',
-      sub: 'text-slate-400',
-      divider: 'from-transparent via-pink-300/60 to-transparent',
-      glow: 'bg-pink-400/20',
+      card: 'border-pink-400/35 bg-[radial-gradient(circle_at_top,rgba(236,72,153,0.08),transparent_40%),linear-gradient(180deg,rgba(26,8,30,0.98),rgba(12,5,20,0.98))]',
+      value: 'text-pink-300',
+      label: 'text-stone-100',
+      sub: 'text-slate-500',
+      glow: 'shadow-[inset_0_0_40px_rgba(219,39,119,0.18),0_0_20px_rgba(219,39,119,0.08)]',
     },
     kd: {
-      card: 'border-violet-400/35 bg-violet-950/20 shadow-[inset_0_0_45px_rgba(124,58,237,0.16),0_0_22px_rgba(124,58,237,0.12)]',
-      value: 'text-violet-300 drop-shadow-[0_0_18px_rgba(167,139,250,0.55)]',
-      label: 'text-violet-50',
-      sub: 'text-slate-400',
-      divider: 'from-transparent via-violet-300/60 to-transparent',
-      glow: 'bg-violet-400/20',
+      card: 'border-violet-400/35 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.08),transparent_40%),linear-gradient(180deg,rgba(14,11,43,0.98),rgba(8,6,24,0.98))]',
+      value: 'text-violet-300',
+      label: 'text-stone-100',
+      sub: 'text-slate-500',
+      glow: 'shadow-[inset_0_0_40px_rgba(124,58,237,0.18),0_0_20px_rgba(124,58,237,0.08)]',
     },
     players: {
-      card: 'border-emerald-400/35 bg-emerald-950/20 shadow-[inset_0_0_45px_rgba(5,150,105,0.16),0_0_22px_rgba(5,150,105,0.12)]',
-      value: 'text-emerald-300 drop-shadow-[0_0_18px_rgba(52,211,153,0.55)]',
-      label: 'text-emerald-50',
-      sub: 'text-slate-400',
-      divider: 'from-transparent via-emerald-300/60 to-transparent',
-      glow: 'bg-emerald-400/20',
+      card: 'border-emerald-400/35 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.08),transparent_40%),linear-gradient(180deg,rgba(7,31,28,0.98),rgba(4,19,18,0.98))]',
+      value: 'text-emerald-300',
+      label: 'text-stone-100',
+      sub: 'text-slate-500',
+      glow: 'shadow-[inset_0_0_40px_rgba(5,150,105,0.18),0_0_20px_rgba(5,150,105,0.08)]',
     },
   };
 
@@ -329,31 +293,27 @@ export function Metric({ icon, label, value, sub, className = '' }) {
 
   return (
     <div
-      className={`relative min-h-[250px] overflow-hidden rounded-3xl border p-5 text-center transition hover:-translate-y-0.5 hover:brightness-110 ${selected.card}`}
+      className={`relative overflow-hidden rounded-[28px] border p-6 text-center ${selected.card} ${selected.glow}`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_45%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent_30%)]" />
 
-      <div
-        className={`pointer-events-none absolute left-1/2 top-20 h-24 w-24 -translate-x-1/2 rounded-full blur-3xl ${selected.glow}`}
-      />
-
-      <div className="relative mx-auto mb-4 h-28 w-28">
-        <MetricIcon type={tone} />
+      <div className="relative mx-auto mb-4 h-[150px] w-[150px]">
+        <MetricArt type={tone} />
       </div>
 
-      <p className={`relative font-serif text-xl font-semibold ${selected.label}`}>
+      <p className={`relative font-serif text-[24px] leading-none ${selected.label}`}>
         {label}
       </p>
 
-      <div
-        className={`relative mx-auto my-2 h-px w-24 bg-gradient-to-r ${selected.divider}`}
-      />
+      <MetricDivider tone={tone} />
 
-      <p className={`relative font-serif text-6xl font-black leading-none ${selected.value}`}>
+      <p
+        className={`relative font-serif text-[72px] font-semibold leading-none tracking-tight ${selected.value}`}
+      >
         {value}
       </p>
 
-      <p className={`relative mt-3 text-base ${selected.sub}`}>
+      <p className={`relative mt-4 text-[18px] ${selected.sub}`}>
         {sub}
       </p>
     </div>
