@@ -80,7 +80,7 @@ function PlayerSelect({ players, value, onChange }) {
                       setOpen(false);
                       setQuery('');
                     }}
-                    className={`mb-1 flex w-full px-3 py-2 text-left text-sm rounded-xl ${
+                    className={`mb-1 flex w-full rounded-xl px-3 py-2 text-left text-sm ${
                       value === player.name
                         ? 'bg-blue-500/25 text-blue-100'
                         : 'text-slate-300 hover:bg-white/5'
@@ -180,35 +180,35 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                     ? 'from-blue-950 via-blue-800 to-blue-600'
                     : index < 7
                       ? 'from-blue-800 via-blue-600 to-sky-400'
-                      : 'from-blue-600 via-sky-400 to-cyan-200';
+                      : 'from-blue-600 via-sky-400 to-sky-200';
 
                 const redShade =
                   index < 3
                     ? 'from-red-950 via-red-800 to-rose-600'
                     : index < 7
-                      ? 'from-red-800 via-rose-600 to-pink-400'
-                      : 'from-rose-600 via-pink-400 to-pink-200';
+                      ? 'from-red-800 via-rose-600 to-rose-400'
+                      : 'from-rose-600 via-rose-400 to-pink-200';
 
                 return (
                   <div
                     key={`${row.favourite?.name || 'empty'}-${row.nemesis?.name || 'empty'}-${index}`}
                     className="min-h-0"
                   >
-                    <div className="grid h-[31px] grid-cols-[1fr_1px_1fr] items-center">
+                    <div className="grid h-[34px] grid-cols-[1fr_1px_1fr] items-center">
                       <div className="relative flex h-full items-center justify-end">
                         {row.favourite && (
                           <>
-                            <span className="mr-1 min-w-[28px] shrink-0 text-right text-xs font-black text-slate-200">
+                            <span className="mr-1 min-w-[30px] shrink-0 text-right text-xs font-black text-slate-100 drop-shadow">
                               {row.favourite.kills}
                             </span>
 
                             <div
-                              className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2`}
+                              className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2.5 shadow-[0_0_18px_rgba(56,189,248,.18)]`}
                               style={{
-                                width: `${Math.max(14, favouriteWidth)}%`,
+                                width: `${Math.max(16, favouriteWidth)}%`,
                               }}
                             >
-                              <span className="truncate text-xs font-black text-black">
+                              <span className="truncate text-xs font-black tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.85)]">
                                 {row.favourite.name}
                               </span>
                             </div>
@@ -222,17 +222,17 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                         {row.nemesis && (
                           <>
                             <div
-                              className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2`}
+                              className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2.5 shadow-[0_0_18px_rgba(244,63,94,.18)]`}
                               style={{
-                                width: `${Math.max(14, nemesisWidth)}%`,
+                                width: `${Math.max(16, nemesisWidth)}%`,
                               }}
                             >
-                              <span className="truncate text-xs font-black text-black">
+                              <span className="truncate text-xs font-black tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.85)]">
                                 {row.nemesis.name}
                               </span>
                             </div>
 
-                            <span className="ml-1 min-w-[28px] shrink-0 text-left text-xs font-black text-slate-200">
+                            <span className="ml-1 min-w-[30px] shrink-0 text-left text-xs font-black text-slate-100 drop-shadow">
                               {row.nemesis.kills}
                             </span>
                           </>
@@ -658,7 +658,7 @@ function PremiumStatList({ title, items, accent = 'emerald' }) {
           Top {items.length}
         </div>
 
-        <h3 className="tracking-[0.18em] text-sm font-black uppercase text-slate-100">
+        <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-100">
           {theme.title}
         </h3>
       </div>
