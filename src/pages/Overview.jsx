@@ -408,6 +408,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     return (
       <th className={`py-3 ${className}`}>
         <button
+          type="button"
           onClick={() => flip(id)}
           className={
             key === id
@@ -507,6 +508,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                   >
                     <td className="py-3 pl-4">
                       <button
+                        type="button"
                         onClick={() => setSelected(player)}
                         className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
                       >
@@ -688,6 +690,7 @@ function TopGuilds({ guilds, events }) {
     return (
       <th className={`py-3 ${className}`}>
         <button
+          type="button"
           onClick={() => flip(id)}
           className={
             key === id
@@ -750,6 +753,7 @@ function TopGuilds({ guilds, events }) {
                     >
                       <td className="py-3 pl-4">
                         <button
+                          type="button"
                           onClick={() => setSelected(guild)}
                           className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
                         >
@@ -892,13 +896,34 @@ export default function OverviewPage({
 
   return (
     <>
-      <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
-        <div className="mb-4">
-          <h2 className="text-2xl font-black">Battle Analytics</h2>
-          <p className="text-slate-400">{label}</p>
+      <header className="relative overflow-hidden rounded-[30px] border border-slate-700/80 bg-[#050b16]/95 p-5 shadow-[inset_0_0_70px_rgba(15,23,42,0.95),0_24px_80px_rgba(0,0,0,0.45)] sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.10),transparent_38%),radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.025),transparent_35%)]" />
+
+        <div className="pointer-events-none absolute right-8 top-6 hidden h-56 w-56 rounded-full border border-amber-200/5 xl:block" />
+        <div className="pointer-events-none absolute right-16 top-12 hidden h-40 w-40 rotate-45 border border-amber-200/5 xl:block" />
+
+        <div className="relative mb-6">
+          <div className="mb-1 flex items-center gap-3">
+            <span className="text-3xl text-amber-100/90 drop-shadow-[0_0_14px_rgba(251,191,36,0.25)]">
+              ✦
+            </span>
+
+            <h2 className="font-serif text-4xl font-black tracking-wide text-amber-100 drop-shadow-[0_0_18px_rgba(251,191,36,0.22)]">
+              Battle Analytics
+            </h2>
+
+            <span className="hidden h-px w-40 bg-gradient-to-r from-amber-200/50 to-transparent md:block" />
+            <span className="hidden text-2xl text-amber-100/70 md:block">
+              ✧
+            </span>
+          </div>
+
+          <p className="ml-11 text-base text-slate-400">
+            {label}
+          </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="relative grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Metric
             icon="⚔"
             label="Total Kills"
