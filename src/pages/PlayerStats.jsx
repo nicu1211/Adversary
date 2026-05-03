@@ -98,15 +98,34 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
-function getMinimumTargetBarWidth(name) {
-  const length = String(name || '').length;
+function shortenMiddle(name, maxLength = 12) {
+  const text = String(name || '');
 
-  if (length >= 18) return 62;
-  if (length >= 15) return 56;
-  if (length >= 12) return 48;
-  if (length >= 9) return 40;
+  if (text.length <= maxLength) return text;
 
-  return 30;
+  const left = Math.ceil((maxLength - 1) / 2);
+  const right = Math.floor((maxLength - 1) / 2);
+
+  return `${text.slice(0, left)}…${text.slice(text.length - right)}`;
+}
+
+function TargetName({ name, side }) {
+  return (
+    <span
+      title={name}
+      className={`block max-w-full overflow-hidden whitespace-nowrap text-[clamp(10px,1.05vw,14px)] font-black leading-none text-white ${
+        side === 'left' ? 'text-right' : 'text-left'
+      }`}
+      style={{
+        textShadow:
+          side === 'left'
+            ? '0 0 5px rgba(59,130,246,.45), 0 1px 2px rgba(0,0,0,.7)'
+            : '0 0 5px rgba(244,63,94,.45), 0 1px 2px rgba(0,0,0,.7)',
+      }}
+    >
+      {shortenMiddle(name, 12)}
+    </span>
+  );
 }
 
 function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
@@ -181,32 +200,20 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
           ) : (
             <div className="relative flex h-[calc(100%-36px)] flex-col justify-between gap-2">
               {rows.map((row, index) => {
-                const favouriteRawWidth = row.favourite
+                const favouriteWidth = row.favourite
                   ? Math.round((row.favourite.kills / max) * 100)
                   : 0;
 
-                const nemesisRawWidth = row.nemesis
+                const nemesisWidth = row.nemesis
                   ? Math.round((row.nemesis.kills / max) * 100)
                   : 0;
 
-                const favouriteWidth = row.favourite
-                  ? Math.min(
-                      100,
-                      Math.max(
-                        getMinimumTargetBarWidth(row.favourite.name),
-                        favouriteRawWidth,
-                      ),
-                    )
+                const finalFavouriteWidth = row.favourite
+                  ? Math.max(18, favouriteWidth)
                   : 0;
 
-                const nemesisWidth = row.nemesis
-                  ? Math.min(
-                      100,
-                      Math.max(
-                        getMinimumTargetBarWidth(row.nemesis.name),
-                        nemesisRawWidth,
-                      ),
-                    )
+                const finalNemesisWidth = row.nemesis
+                  ? Math.max(18, nemesisWidth)
                   : 0;
 
                 return (
@@ -215,10 +222,10 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                     className="min-h-0"
                   >
                     <div className="grid h-[36px] grid-cols-[1fr_1px_1fr] items-center">
-                      <div className="relative flex h-full items-center justify-end pr-0.5">
+                      <div className="relative flex h-full items-center justify-end pr-1">
                         {row.favourite && (
                           <>
-                            <span className="mr-1 min-w-[26px] shrink-0 text-right text-sm font-black text-slate-100">
+                            <span className="mr-1 min-w-[32px] shrink-0 text-right text-sm font-black text-slate-100">
                               {row.favourite.kills}
                             </span>
 
@@ -226,26 +233,20 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                               <div
                                 className={`absolute right-0 top-0 h-full rounded-l-md bg-gradient-to-l ${blueShade} shadow-[0_0_14px_rgba(59,130,246,.18)]`}
                                 style={{
-                                  width: `${favouriteWidth}%`,
+                                  width: `${finalFavouriteWidth}%`,
                                 }}
                               />
 
                               <div
-                                className="absolute inset-y-0 right-0 flex items-center justify-end px-2"
+                                className="absolute inset-y-0 right-0 flex min-w-0 items-center justify-end px-2"
                                 style={{
-                                  width: `${favouriteWidth}%`,
+                                  width: `${finalFavouriteWidth}%`,
                                 }}
                               >
-                                <span
-                                  className="block max-w-full truncate text-right text-[clamp(10px,1.05vw,14px)] font-black text-white"
-                                  style={{
-                                    textShadow:
-                                      '0 0 5px rgba(59,130,246,.45), 0 1px 2px rgba(0,0,0,.7)',
-                                  }}
-                                  title={row.favourite.name}
-                                >
-                                  {row.favourite.name}
-                                </span>
+                                <TargetName
+                                  name={row.favourite.name}
+                                  side="left"
+                                />
                               </div>
                             </div>
                           </>
@@ -254,37 +255,31 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
 
                       <div className="h-full bg-slate-500/90" />
 
-                      <div className="relative flex h-full items-center justify-start pl-0.5">
+                      <div className="relative flex h-full items-center justify-start pl-1">
                         {row.nemesis && (
                           <>
                             <div className="relative h-full w-full overflow-hidden rounded-r-md">
                               <div
                                 className={`absolute left-0 top-0 h-full rounded-r-md bg-gradient-to-r ${redShade} shadow-[0_0_14px_rgba(244,63,94,.18)]`}
                                 style={{
-                                  width: `${nemesisWidth}%`,
+                                  width: `${finalNemesisWidth}%`,
                                 }}
                               />
 
                               <div
-                                className="absolute inset-y-0 left-0 flex items-center px-2"
+                                className="absolute inset-y-0 left-0 flex min-w-0 items-center px-2"
                                 style={{
-                                  width: `${nemesisWidth}%`,
+                                  width: `${finalNemesisWidth}%`,
                                 }}
                               >
-                                <span
-                                  className="block max-w-full truncate text-left text-[clamp(10px,1.05vw,14px)] font-black text-white"
-                                  style={{
-                                    textShadow:
-                                      '0 0 5px rgba(244,63,94,.45), 0 1px 2px rgba(0,0,0,.7)',
-                                  }}
-                                  title={row.nemesis.name}
-                                >
-                                  {row.nemesis.name}
-                                </span>
+                                <TargetName
+                                  name={row.nemesis.name}
+                                  side="right"
+                                />
                               </div>
                             </div>
 
-                            <span className="ml-1 min-w-[26px] shrink-0 text-left text-sm font-black text-slate-100">
+                            <span className="ml-1 min-w-[32px] shrink-0 text-left text-sm font-black text-slate-100">
                               {row.nemesis.kills}
                             </span>
                           </>
