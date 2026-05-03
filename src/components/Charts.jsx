@@ -96,7 +96,7 @@ function OverviewLineChart({
     const range = Math.max(1, rawMax - rawMin);
     const extra = Math.max(1, range * 0.18);
 
-    const min = rawMin - extra;
+    const min = Math.min(0, rawMin - extra);
     const max = rawMax + extra;
     const safeRange = Math.max(1, max - min);
 
@@ -143,11 +143,14 @@ function OverviewLineChart({
       };
     });
 
+    const zeroY = pad.top + ((max - 0) / safeRange) * innerH;
+
     return {
       pointsKills,
       pointsDeaths,
       ticks,
       innerW,
+      zeroY,
     };
   }, [rows]);
 
@@ -163,7 +166,7 @@ function OverviewLineChart({
     );
   }
 
-  const { pointsKills, pointsDeaths, ticks, innerW } = chart;
+  const { pointsKills, pointsDeaths, ticks, innerW, zeroY } = chart;
   const linePathKills = buildSmoothPath(pointsKills);
   const linePathDeaths = buildSmoothPath(pointsDeaths);
   const labelStep = getLabelStep(rows.length);
@@ -319,6 +322,16 @@ function OverviewLineChart({
               opacity="1"
             />
           )}
+
+          {/* Linie 0 mai pronunțată */}
+          <line
+            x1={pad.left}
+            y1={zeroY}
+            x2={width - pad.right}
+            y2={zeroY}
+            stroke="rgba(255,255,255,0.16)"
+            strokeWidth="1.4"
+          />
 
           {/* Linii orizontale fine */}
           {ticks.map((tick, index) => (
