@@ -698,6 +698,7 @@ export function PerformanceChart({ data }) {
           <ComposedChart
             data={performanceData}
             barCategoryGap="42%"
+            barGap={0}
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
@@ -754,19 +755,16 @@ export function PerformanceChart({ data }) {
               strokeWidth={1.4}
             />
 
-            <ReferenceLine
-              yAxisId="right"
-              y={1}
-              stroke="transparent"
-            />
+            <ReferenceLine yAxisId="right" y={1} stroke="transparent" />
 
             <Bar
               yAxisId="left"
               dataKey="kills"
               name="Kills"
+              stackId="battle"
               fill="url(#perfBarKills)"
               radius={[0, 0, 0, 0]}
-              maxBarSize={14}
+              maxBarSize={19}
               activeBar={false}
             />
 
@@ -774,9 +772,10 @@ export function PerformanceChart({ data }) {
               yAxisId="left"
               dataKey="deathsNegative"
               name="Deaths"
+              stackId="battle"
               fill="url(#perfBarDeaths)"
               radius={[0, 0, 0, 0]}
-              maxBarSize={14}
+              maxBarSize={19}
               activeBar={false}
             />
 
