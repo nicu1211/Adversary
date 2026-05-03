@@ -62,6 +62,7 @@ export default function RawLog({
                     footer={
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
+                          type="button"
                           onClick={() => {
                             setDate(today());
                             setCalendarOpen(false);
@@ -72,6 +73,7 @@ export default function RawLog({
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => setCalendarOpen(false)}
                           className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold"
                         >
@@ -85,6 +87,7 @@ export default function RawLog({
             </div>
 
             <button
+              type="button"
               onClick={saveLog}
               className="rounded-xl bg-blue-600 font-bold hover:bg-blue-500"
             >
@@ -112,28 +115,31 @@ export default function RawLog({
           {!logs.length ? (
             <p className="text-sm text-slate-500">No saved logs yet.</p>
           ) : (
-            logs.map((log) => (
-              <div
-                key={log.id}
-                className="mb-3 rounded-xl bg-slate-900 p-3"
-              >
-                <b>{log.name}</b>
+            <div className="max-h-[520px] overflow-y-auto pr-2 [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80 [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className="mb-3 rounded-xl bg-slate-900 p-3 last:mb-0"
+                >
+                  <b>{log.name}</b>
 
-                <p className="text-xs text-slate-500">
-                  {dateOf(log)}
-                  {log.localOnly ? ' · local only' : ''}
-                </p>
+                  <p className="text-xs text-slate-500">
+                    {dateOf(log)}
+                    {log.localOnly ? ' · local only' : ''}
+                  </p>
 
-                <div className="mt-2 flex gap-2">
-                  <button
-                    onClick={() => setDeleteTarget(log)}
-                    className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-bold hover:bg-rose-500"
-                  >
-                    Delete
-                  </button>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(log)}
+                      className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-bold hover:bg-rose-500"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </Panel>
       </div>
