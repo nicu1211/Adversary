@@ -189,30 +189,26 @@ function OverviewLineChart({
         >
           <defs>
             <linearGradient id={`${uid}-stroke-kills`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#065f46" />
-              <stop offset="40%" stopColor="#10b981" />
-              <stop offset="72%" stopColor="#34d399" />
-              <stop offset="100%" stopColor="#a7f3d0" />
+              <stop offset="0%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#10b981" />
             </linearGradient>
 
             <linearGradient id={`${uid}-stroke-deaths`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#7f1d1d" />
-              <stop offset="40%" stopColor="#ef4444" />
-              <stop offset="72%" stopColor="#fb7185" />
-              <stop offset="100%" stopColor="#fecdd3" />
+              <stop offset="0%" stopColor="#ef4444" />
+              <stop offset="100%" stopColor="#ef4444" />
             </linearGradient>
 
             <linearGradient id={`${uid}-topGlow-kills`} x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="rgba(16,185,129,0.22)" />
-              <stop offset="35%" stopColor="rgba(16,185,129,0.12)" />
-              <stop offset="70%" stopColor="rgba(16,185,129,0.04)" />
+              <stop offset="0%" stopColor="rgba(16,185,129,0.42)" />
+              <stop offset="35%" stopColor="rgba(16,185,129,0.24)" />
+              <stop offset="70%" stopColor="rgba(16,185,129,0.10)" />
               <stop offset="100%" stopColor="rgba(16,185,129,0)" />
             </linearGradient>
 
             <linearGradient id={`${uid}-topGlow-deaths`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(239,68,68,0.22)" />
-              <stop offset="35%" stopColor="rgba(239,68,68,0.12)" />
-              <stop offset="70%" stopColor="rgba(239,68,68,0.04)" />
+              <stop offset="0%" stopColor="rgba(239,68,68,0.42)" />
+              <stop offset="35%" stopColor="rgba(239,68,68,0.24)" />
+              <stop offset="70%" stopColor="rgba(239,68,68,0.10)" />
               <stop offset="100%" stopColor="rgba(239,68,68,0)" />
             </linearGradient>
 
@@ -278,7 +274,7 @@ function OverviewLineChart({
             <path
               d={topGlowAreaKills}
               fill={`url(#${uid}-topGlow-kills)`}
-              opacity="0.95"
+              opacity="1"
             />
           )}
 
@@ -287,7 +283,7 @@ function OverviewLineChart({
             <path
               d={topGlowAreaDeaths}
               fill={`url(#${uid}-topGlow-deaths)`}
-              opacity="0.95"
+              opacity="1"
             />
           )}
 
@@ -361,7 +357,7 @@ function OverviewLineChart({
             strokeWidth="16"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.14"
+            opacity="0.18"
             filter={`url(#${uid}-lineGlowBig-kills)`}
           />
 
@@ -373,7 +369,7 @@ function OverviewLineChart({
             strokeWidth="9"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.28"
+            opacity="0.34"
             filter={`url(#${uid}-lineGlowSoft-kills)`}
           />
 
@@ -395,7 +391,7 @@ function OverviewLineChart({
             strokeWidth="16"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.14"
+            opacity="0.18"
             filter={`url(#${uid}-lineGlowBig-deaths)`}
           />
 
@@ -407,7 +403,7 @@ function OverviewLineChart({
             strokeWidth="9"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.28"
+            opacity="0.34"
             filter={`url(#${uid}-lineGlowSoft-deaths)`}
           />
 
