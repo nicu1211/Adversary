@@ -151,10 +151,15 @@ export function KillDeathChart({
       };
     });
 
-    const yTicks = Array.from({ length: 5 }, (_, i) => {
-      const value = max - ((max - min) * i) / 4;
-      const y = pad.top + (innerH * i) / 4;
-      return { value, y };
+    const yTicks = 5;
+    const ticks = Array.from({ length: yTicks }, (_, i) => {
+      const value = max - ((max - min) * i) / (yTicks - 1);
+      const y = pad.top + (innerH * i) / (yTicks - 1);
+
+      return {
+        value,
+        y,
+      };
     });
 
     const zeroY = pad.top + ((max - 0) / safeRange) * innerH;
@@ -162,7 +167,7 @@ export function KillDeathChart({
     return {
       pointsKills,
       pointsDeaths,
-      ticks: yTicks,
+      ticks,
       innerW,
       zeroY,
     };
@@ -248,24 +253,48 @@ export function KillDeathChart({
           aria-label={title}
         >
           <defs>
-            <linearGradient id={`${uid}-stroke-kills`} x1="0" y1="0" x2="1" y2="0">
+            <linearGradient
+              id={`${uid}-stroke-kills`}
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="0"
+            >
               <stop offset="0%" stopColor="#10b981" />
               <stop offset="100%" stopColor="#10b981" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-stroke-deaths`} x1="0" y1="0" x2="1" y2="0">
+            <linearGradient
+              id={`${uid}-stroke-deaths`}
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="0"
+            >
               <stop offset="0%" stopColor="#ef4444" />
               <stop offset="100%" stopColor="#ef4444" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-topGlow-kills`} x1="0" y1="1" x2="0" y2="0">
+            <linearGradient
+              id={`${uid}-topGlow-kills`}
+              x1="0"
+              y1="1"
+              x2="0"
+              y2="0"
+            >
               <stop offset="0%" stopColor="rgba(16,185,129,0.42)" />
               <stop offset="35%" stopColor="rgba(16,185,129,0.24)" />
               <stop offset="70%" stopColor="rgba(16,185,129,0.10)" />
               <stop offset="100%" stopColor="rgba(16,185,129,0)" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-topGlow-deaths`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={`${uid}-topGlow-deaths`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
               <stop offset="0%" stopColor="rgba(239,68,68,0.42)" />
               <stop offset="35%" stopColor="rgba(239,68,68,0.24)" />
               <stop offset="70%" stopColor="rgba(239,68,68,0.10)" />
@@ -330,11 +359,19 @@ export function KillDeathChart({
           </defs>
 
           {topGlowAreaKills && (
-            <path d={topGlowAreaKills} fill={`url(#${uid}-topGlow-kills)`} opacity="1" />
+            <path
+              d={topGlowAreaKills}
+              fill={`url(#${uid}-topGlow-kills)`}
+              opacity="1"
+            />
           )}
 
           {topGlowAreaDeaths && (
-            <path d={topGlowAreaDeaths} fill={`url(#${uid}-topGlow-deaths)`} opacity="1" />
+            <path
+              d={topGlowAreaDeaths}
+              fill={`url(#${uid}-topGlow-deaths)`}
+              opacity="1"
+            />
           )}
 
           <line
@@ -542,18 +579,13 @@ function PerformanceTooltip({ active, payload, label }) {
     payload.map((item) => [item.dataKey, item.value]),
   );
 
-  const deathsValue =
-    map.deathsNegative != null
-      ? Math.abs(Number(map.deathsNegative) || 0)
-      : Number(map.deaths) || 0;
-
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
       <p className="mb-2 text-sm font-black text-white">{label}</p>
 
       <div className="space-y-1.5 text-sm">
         <p className="font-bold text-emerald-300">Kills : {map.kills ?? 0}</p>
-        <p className="font-bold text-rose-300">Deaths : {deathsValue}</p>
+        <p className="font-bold text-rose-300">Deaths : {map.deaths ?? 0}</p>
         <p className="font-bold text-blue-300">
           Avg K/D : {map.avgKd ?? 0}
         </p>
@@ -591,29 +623,6 @@ export function PerformanceChart({ data }) {
     };
   }, [data]);
 
-  const chartData = useMemo(
-    () =>
-      (data || []).map((item) => ({
-        ...item,
-        kills: Number(item.kills) || 0,
-        deathsNegative: -(Number(item.deaths) || 0),
-        avgKd: Number(item.avgKd) || 0,
-      })),
-    [data],
-  );
-
-  const maxAbsLeft = useMemo(() => {
-    const maxValue = Math.max(
-      1,
-      ...chartData.flatMap((item) => [
-        Math.abs(Number(item.kills) || 0),
-        Math.abs(Number(item.deathsNegative) || 0),
-      ]),
-    );
-
-    return Math.ceil(maxValue * 1.15);
-  }, [chartData]);
-
   return (
     <Panel>
       <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -648,8 +657,8 @@ export function PerformanceChart({ data }) {
       <div className="h-[320px] sm:h-[360px] [&_*:focus]:outline-none">
         <ResponsiveContainer>
           <ComposedChart
-            data={chartData}
-            barCategoryGap="42%"
+            data={data}
+            barCategoryGap="34%"
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
@@ -680,13 +689,7 @@ export function PerformanceChart({ data }) {
               height={55}
             />
 
-            <YAxis
-              yAxisId="left"
-              tick={axisTick}
-              allowDecimals={false}
-              domain={[-maxAbsLeft, maxAbsLeft]}
-              tickFormatter={(value) => Math.abs(value)}
-            />
+            <YAxis yAxisId="left" tick={axisTick} allowDecimals={false} />
 
             <YAxis
               yAxisId="right"
@@ -700,27 +703,23 @@ export function PerformanceChart({ data }) {
 
             <Bar
               yAxisId="left"
-              dataKey="kills"
-              name="Kills"
+              dataKey="deaths"
+              name="Deaths"
               stackId="battle"
-              fill="url(#perfBarKills)"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={12}
+              fill="url(#perfBarDeaths)"
+              radius={[0, 0, 10, 10]}
+              maxBarSize={34}
               activeBar={false}
-              background={{
-                fill: 'rgba(255,255,255,0.07)',
-                radius: 4,
-              }}
             />
 
             <Bar
               yAxisId="left"
-              dataKey="deathsNegative"
-              name="Deaths"
+              dataKey="kills"
+              name="Kills"
               stackId="battle"
-              fill="url(#perfBarDeaths)"
-              radius={[0, 0, 4, 4]}
-              maxBarSize={12}
+              fill="url(#perfBarKills)"
+              radius={[10, 10, 0, 0]}
+              maxBarSize={34}
               activeBar={false}
             />
 
