@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { Panel } from './UI';
 
 function toNumber(value) {
@@ -75,6 +75,8 @@ function OverviewLineChart({
   title = '▧ Global Kill/Death Timeline',
 }) {
   const uid = useId();
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
   const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
 
   const width = 1000;
@@ -154,7 +156,7 @@ function OverviewLineChart({
       <Panel>
         <h3 className="mb-3 text-xl font-black">{title}</h3>
 
-        <div className="flex h-[255px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/40 text-slate-500">
+        <div className="flex h-[255px] items-center justify-center rounded-2xl border border-slate-800 bg-transparent text-slate-500">
           No chart data.
         </div>
       </Panel>
@@ -165,6 +167,17 @@ function OverviewLineChart({
   const linePathKills = buildSmoothPath(pointsKills);
   const linePathDeaths = buildSmoothPath(pointsDeaths);
   const labelStep = getLabelStep(rows.length);
+
+  const hovered =
+    hoveredIndex == null
+      ? null
+      : {
+          x: pointsKills[hoveredIndex].x,
+          y: Math.min(pointsKills[hoveredIndex].y, pointsDeaths[hoveredIndex].y),
+          label: rows[hoveredIndex].label,
+          kills: rows[hoveredIndex].kills,
+          deaths: rows[hoveredIndex].deaths,
+        };
 
   const topGlowAreaKills = pointsKills.length
     ? `${linePathKills} L ${pointsKills[pointsKills.length - 1].x} ${pad.top} L ${pointsKills[0].x} ${pad.top} Z`
@@ -180,7 +193,27 @@ function OverviewLineChart({
         <h3 className="text-xl font-black">{title}</h3>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(32,35,78,0.96),rgba(26,28,66,0.98))]">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-slate-800/60 bg-transparent"
+        onMouseLeave={() => setHoveredIndex(null)}
+      >
+        {hovered && (
+          <div
+            className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
+            style={{
+              left: `${(hovered.x / width) * 100}%`,
+              top: `${(hovered.y / height) * 100}%`,
+              transform: 'translate(-50%, calc(-100% - 12px))',
+            }}
+          >
+            <p className="mb-1 font-bold text-slate-200">
+              Ora: {hovered.label}
+            </p>
+            <p className="text-emerald-300">Kills: {hovered.kills}</p>
+            <p className="text-rose-300">Deaths: {hovered.deaths}</p>
+          </div>
+        )}
+
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="block h-auto w-full"
@@ -287,7 +320,7 @@ function OverviewLineChart({
             />
           )}
 
-          {/* Linii orizontale */}
+          {/* Linii orizontale fine */}
           {ticks.map((tick, index) => (
             <g key={`h-${index}`}>
               <line
@@ -295,7 +328,7 @@ function OverviewLineChart({
                 y1={tick.y}
                 x2={width - pad.right}
                 y2={tick.y}
-                stroke="rgba(255,255,255,0.18)"
+                stroke="rgba(255,255,255,0.055)"
                 strokeWidth="1"
               />
               <text
@@ -303,14 +336,14 @@ function OverviewLineChart({
                 y={tick.y + 4}
                 textAnchor="end"
                 fontSize="10"
-                fill="rgba(255,255,255,0.35)"
+                fill="rgba(255,255,255,0.20)"
               >
                 {formatTickValue(tick.value)}
               </text>
             </g>
           ))}
 
-          {/* Linii verticale + label-uri jos */}
+          {/* Linii verticale fine + label-uri jos */}
           {rows.map((row, index) => {
             const x =
               rows.length === 1
@@ -329,9 +362,9 @@ function OverviewLineChart({
                   y1={pad.top}
                   x2={x}
                   y2={height - pad.bottom}
-                  stroke="rgba(255,255,255,0.14)"
+                  stroke="rgba(255,255,255,0.04)"
                   strokeWidth="1"
-                  strokeDasharray="2 4"
+                  strokeDasharray="2 5"
                 />
 
                 {showLabel && (
@@ -340,7 +373,7 @@ function OverviewLineChart({
                     y={height - 10}
                     textAnchor="middle"
                     fontSize="10"
-                    fill="rgba(255,255,255,0.42)"
+                    fill="rgba(255,255,255,0.24)"
                   >
                     {String(row.label)}
                   </text>
@@ -417,45 +450,58 @@ function OverviewLineChart({
             strokeLinejoin="round"
           />
 
-          {/* Punct final kills */}
-          {pointsKills.length > 0 && (
-            <>
-              <circle
-                cx={pointsKills[pointsKills.length - 1].x}
-                cy={pointsKills[pointsKills.length - 1].y}
-                r="12"
-                fill="rgba(16,185,129,0.16)"
-              />
-              <circle
-                cx={pointsKills[pointsKills.length - 1].x}
-                cy={pointsKills[pointsKills.length - 1].y}
-                r="5"
-                fill="#10b981"
-                stroke="#d1fae5"
-                strokeWidth="2"
-              />
-            </>
+          {/* Ghidaj hover */}
+          {hovered && (
+            <line
+              x1={hovered.x}
+              y1={pad.top}
+              x2={hovered.x}
+              y2={height - pad.bottom}
+              stroke="rgba(255,255,255,0.12)"
+              strokeWidth="1"
+              strokeDasharray="3 5"
+            />
           )}
 
-          {/* Punct final deaths */}
-          {pointsDeaths.length > 0 && (
-            <>
-              <circle
-                cx={pointsDeaths[pointsDeaths.length - 1].x}
-                cy={pointsDeaths[pointsDeaths.length - 1].y}
-                r="12"
-                fill="rgba(239,68,68,0.16)"
+          {/* Zone hover invizibile */}
+          {rows.map((row, index) => {
+            const currentX =
+              rows.length === 1
+                ? pad.left + innerW / 2
+                : pad.left + (index / (rows.length - 1)) * innerW;
+
+            const prevX =
+              index === 0
+                ? pad.left
+                : rows.length === 1
+                  ? pad.left
+                  : pad.left + ((index - 1) / (rows.length - 1)) * innerW;
+
+            const nextX =
+              index === rows.length - 1
+                ? width - pad.right
+                : rows.length === 1
+                  ? width - pad.right
+                  : pad.left + ((index + 1) / (rows.length - 1)) * innerW;
+
+            const startX = index === 0 ? pad.left : (prevX + currentX) / 2;
+            const endX =
+              index === rows.length - 1
+                ? width - pad.right
+                : (currentX + nextX) / 2;
+
+            return (
+              <rect
+                key={`hover-${index}`}
+                x={startX}
+                y={pad.top}
+                width={Math.max(12, endX - startX)}
+                height={height - pad.top - pad.bottom}
+                fill="transparent"
+                onMouseEnter={() => setHoveredIndex(index)}
               />
-              <circle
-                cx={pointsDeaths[pointsDeaths.length - 1].x}
-                cy={pointsDeaths[pointsDeaths.length - 1].y}
-                r="5"
-                fill="#ef4444"
-                stroke="#fee2e2"
-                strokeWidth="2"
-              />
-            </>
-          )}
+            );
+          })}
         </svg>
       </div>
     </Panel>
