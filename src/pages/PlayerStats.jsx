@@ -134,6 +134,9 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
 
   const hasData = favouriteRows.length || nemesisRows.length;
 
+  const blueShade = 'from-blue-500/80 via-sky-500/75 to-cyan-400/70';
+  const redShade = 'from-rose-500/80 via-red-500/75 to-pink-400/70';
+
   return (
     <Panel cls="h-full">
       <div className="flex h-full flex-col">
@@ -145,9 +148,9 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-blue-500/15 blur-3xl" />
-            <div className="absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-rose-500/15 blur-3xl" />
-            <div className="absolute inset-x-4 bottom-0 h-32 bg-gradient-to-t from-violet-500/10 via-sky-500/10 to-transparent blur-3xl" />
+            <div className="absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
+            <div className="absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-rose-500/10 blur-3xl" />
+            <div className="absolute inset-x-4 bottom-0 h-32 bg-gradient-to-t from-violet-500/8 via-sky-500/8 to-transparent blur-3xl" />
           </div>
 
           <div className="relative mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
@@ -175,20 +178,6 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                   ? Math.round((row.nemesis.kills / max) * 100)
                   : 0;
 
-                const blueShade =
-                  index < 3
-                    ? 'from-blue-600 via-blue-500 to-indigo-500'
-                    : index < 7
-                      ? 'from-sky-500 via-blue-500 to-indigo-500'
-                      : 'from-cyan-400 via-sky-500 to-blue-500';
-
-                const redShade =
-                  index < 3
-                    ? 'from-red-600 via-rose-500 to-pink-500'
-                    : index < 7
-                      ? 'from-rose-500 via-red-500 to-pink-500'
-                      : 'from-pink-400 via-rose-500 to-red-500';
-
                 return (
                   <div
                     key={`${row.favourite?.name || 'empty'}-${row.nemesis?.name || 'empty'}-${index}`}
@@ -202,25 +191,20 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                               {row.favourite.kills}
                             </span>
 
-                            <div className="relative h-full w-full overflow-hidden">
+                            <div className="relative h-full w-full overflow-hidden rounded-l-md">
                               <div
-                                className={`absolute right-0 top-0 h-full rounded-l-md bg-gradient-to-l ${blueShade} shadow-[0_0_18px_rgba(59,130,246,.24)]`}
+                                className={`absolute right-0 top-0 h-full rounded-l-md bg-gradient-to-l ${blueShade} shadow-[0_0_14px_rgba(59,130,246,.18)]`}
                                 style={{
                                   width: `${Math.max(18, favouriteWidth)}%`,
                                 }}
                               />
 
-                              <div
-                                className="absolute inset-y-0 right-0 flex items-center justify-end px-3"
-                                style={{
-                                  width: `${Math.max(18, favouriteWidth)}%`,
-                                }}
-                              >
+                              <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-end px-3">
                                 <span
-                                  className="block max-w-full truncate text-right text-sm font-black text-white"
+                                  className="block max-w-full truncate text-right text-[clamp(10px,1.05vw,14px)] font-black text-white"
                                   style={{
                                     textShadow:
-                                      '0 0 6px rgba(59,130,246,.45), 0 0 12px rgba(59,130,246,.28)',
+                                      '0 0 5px rgba(59,130,246,.45), 0 1px 2px rgba(0,0,0,.7)',
                                   }}
                                   title={row.favourite.name}
                                 >
@@ -237,25 +221,20 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                       <div className="relative flex h-full items-center justify-start pl-1">
                         {row.nemesis && (
                           <>
-                            <div className="relative h-full w-full overflow-hidden">
+                            <div className="relative h-full w-full overflow-hidden rounded-r-md">
                               <div
-                                className={`absolute left-0 top-0 h-full rounded-r-md bg-gradient-to-r ${redShade} shadow-[0_0_18px_rgba(244,63,94,.24)]`}
+                                className={`absolute left-0 top-0 h-full rounded-r-md bg-gradient-to-r ${redShade} shadow-[0_0_14px_rgba(244,63,94,.18)]`}
                                 style={{
                                   width: `${Math.max(18, nemesisWidth)}%`,
                                 }}
                               />
 
-                              <div
-                                className="absolute inset-y-0 left-0 flex items-center px-3"
-                                style={{
-                                  width: `${Math.max(18, nemesisWidth)}%`,
-                                }}
-                              >
+                              <div className="absolute inset-y-0 left-0 right-0 flex items-center px-3">
                                 <span
-                                  className="block max-w-full truncate text-left text-sm font-black text-white"
+                                  className="block max-w-full truncate text-left text-[clamp(10px,1.05vw,14px)] font-black text-white"
                                   style={{
                                     textShadow:
-                                      '0 0 6px rgba(244,63,94,.45), 0 0 12px rgba(244,63,94,.28)',
+                                      '0 0 5px rgba(244,63,94,.45), 0 1px 2px rgba(0,0,0,.7)',
                                   }}
                                   title={row.nemesis.name}
                                 >
