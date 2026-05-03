@@ -737,17 +737,37 @@ export function PerformanceChart({ data }) {
                 <stop offset="100%" stopColor="#ef4444" stopOpacity={0.82} />
               </linearGradient>
 
-              <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.42} />
-                <stop offset="35%" stopColor="#60a5fa" stopOpacity={0.24} />
-                <stop offset="70%" stopColor="#60a5fa" stopOpacity={0.10} />
-                <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.01} />
+              <linearGradient id="avgKdFill" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="rgba(96,165,250,0.42)" />
+                <stop offset="35%" stopColor="rgba(96,165,250,0.24)" />
+                <stop offset="70%" stopColor="rgba(96,165,250,0.10)" />
+                <stop offset="100%" stopColor="rgba(96,165,250,0)" />
               </linearGradient>
 
-              <filter id="avgKdGlow" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="5" result="blur" />
+              <filter
+                id="avgKdGlowBig"
+                x="-60%"
+                y="-60%"
+                width="220%"
+                height="220%"
+              >
+                <feGaussianBlur stdDeviation="8" result="blur1" />
                 <feMerge>
-                  <feMergeNode in="blur" />
+                  <feMergeNode in="blur1" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+
+              <filter
+                id="avgKdGlowSoft"
+                x="-60%"
+                y="-60%"
+                width="220%"
+                height="220%"
+              >
+                <feGaussianBlur stdDeviation="4" result="blur2" />
+                <feMerge>
+                  <feMergeNode in="blur2" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
@@ -829,22 +849,53 @@ export function PerformanceChart({ data }) {
               yAxisId="right"
               type="monotone"
               dataKey="avgKd"
+              name=""
+              stroke="#60a5fa"
+              strokeWidth={10}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.16}
+              filter="url(#avgKdGlowBig)"
+              dot={false}
+              activeDot={false}
+              legendType="none"
+              isAnimationActive
+            />
+
+            <RechartsLine
+              yAxisId="right"
+              type="monotone"
+              dataKey="avgKd"
+              name=""
+              stroke="#60a5fa"
+              strokeWidth={5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={0.28}
+              filter="url(#avgKdGlowSoft)"
+              dot={false}
+              activeDot={false}
+              legendType="none"
+              isAnimationActive
+            />
+
+            <RechartsLine
+              yAxisId="right"
+              type="monotone"
+              dataKey="avgKd"
               name="K/D"
               stroke="#60a5fa"
-              strokeWidth={1.9}
-              filter="url(#avgKdGlow)"
-              dot={{
-                r: 2.8,
-                fill: '#60a5fa',
-                stroke: '#bfdbfe',
-                strokeWidth: 1.2,
-              }}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              dot={false}
               activeDot={{
                 r: 4,
                 fill: '#60a5fa',
                 stroke: '#dbeafe',
                 strokeWidth: 1.5,
               }}
+              isAnimationActive
             />
           </ComposedChart>
         </ResponsiveContainer>
