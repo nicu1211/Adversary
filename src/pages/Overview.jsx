@@ -1,7 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
-import { add, scrollCls, calculateKillFeed } from '../lib/logUtils';
+import {
+  add,
+  scrollCls,
+  calculateKillFeed,
+  calculateStats,
+} from '../lib/logUtils';
 
 function RankList({ title, items, valueKey }) {
   const rows = items.slice(0, 5);
@@ -32,7 +37,7 @@ function RankList({ title, items, valueKey }) {
                   <div
                     className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
                     style={{
-                      width: Math.max(6, Math.round((value / max) * 100)) + '%',
+                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
                     }}
                   />
                 </div>
@@ -47,265 +52,307 @@ function RankList({ title, items, valueKey }) {
   );
 }
 
-function BestOverall({ players, members, events }) {
+function BestOverall({
+  players,
+  members,
+  streaks,
+  feeds,
+  events,
+  selectedLogs,
+}) {
   const [query, setQuery] = useState('');
 
-  const allNames = useMemo(
-    () => [
-      ...new Set([
-        ...(members || []).map((member) => member.name),
-        ...(players || []).map((player) => player.name),
-      ]),
-    ],
-    [members, players],
+  const byName = Object.fromEntries(
+    players.map((player) => [player.name, player]),
   );
 
-  const warKeys = useMemo(
-    () => [
-      ...new Set(
-        (events || []).map((event) => event.war || event.date || 'Current war'),
-      ),
-    ],
-    [events],
-  );
+  const names = [
+    ...new Set([
+      ...(members || []).map((member) => member.name),
+      ...players.map((player) => player.name),
+    ]),
+  ];
 
-  function buildWarStats(warKey) {
-    const warEvents = (events || []).filter(
-      (event) => (event.war || event.date || 'Current war') === warKey,
+  function buildRowsFromStats(oneStats) {
+    const oneByName = Object.fromEntries(
+      oneStats.players.map((player) => [player.name, player]),
     );
 
-    const playerMap = Object.fromEntries(
-      allNames.map((name) => [
-        name,
-        {
-          name,
-          kills: 0,
-          deaths: 0,
-          kdNumber: 0,
-          streak: 0,
-          feed: 0,
-          played: false,
-        },
-      ]),
-    );
-
-    const streakRun = {};
-    const bestStreak = {};
-
-    [...warEvents]
-      .sort((a, b) => {
-        const dateCompare = String(a.date || '').localeCompare(
-          String(b.date || ''),
-        );
-
-        if (dateCompare !== 0) return dateCompare;
-
-        return (
-          (Number(a.sec) || 0) - (Number(b.sec) || 0) ||
-          (Number(a.i) || 0) - (Number(b.i) || 0)
-        );
-      })
-      .forEach((event) => {
-        const killer = event.killer;
-        const victim = event.victim;
-
-        if (killer && playerMap[killer]) {
-          playerMap[killer].kills += 1;
-          playerMap[killer].played = true;
-
-          streakRun[killer] = (streakRun[killer] || 0) + 1;
-          bestStreak[killer] = Math.max(
-            bestStreak[killer] || 0,
-            streakRun[killer],
-          );
-        }
-
-        if (victim && playerMap[victim]) {
-          playerMap[victim].deaths += 1;
-          playerMap[victim].played = true;
-          streakRun[victim] = 0;
-        }
-      });
-
-    const feedMap = {};
-
-    calculateKillFeed(warEvents, 10, true).forEach((feed) => {
-      feedMap[feed.name] = Math.max(feedMap[feed.name] || 0, feed.count || 0);
-    });
-
-    Object.values(playerMap).forEach((player) => {
-      player.kdNumber = player.deaths
-        ? player.kills / player.deaths
-        : player.kills;
-
-      player.streak = bestStreak[player.name] || 0;
-      player.feed = feedMap[player.name] || 0;
-    });
-
-    const rows = Object.values(playerMap).filter((player) => player.played);
-
-    function rank(key, desc = true) {
-      const sorted = [...rows].sort((a, b) => {
-        const av = Number(a[key]) || 0;
-        const bv = Number(b[key]) || 0;
-
-        return desc ? bv - av : av - bv;
-      });
-
-      const output = {};
-      let lastValue;
-      let rankNumber = 0;
-
-      sorted.forEach((player, index) => {
-        const value = Number(player[key]) || 0;
-
-        if (index === 0 || value !== lastValue) {
-          rankNumber = index + 1;
-        }
-
-        output[player.name] = rankNumber;
-        lastValue = value;
-      });
-
-      return output;
-    }
-
-    return {
-      rows,
-      ranks: {
-        kills: rank('kills', true),
-        deaths: rank('deaths', false),
-        kd: rank('kdNumber', true),
-        streak: rank('streak', true),
-        feed: rank('feed', true),
-      },
-    };
-  }
-
-  const warStats = useMemo(
-    () => warKeys.map((warKey) => buildWarStats(warKey)),
-    [warKeys, events, allNames],
-  );
-
-  const final = allNames
-    .map((name) => {
-      const playedWars = warStats.filter((war) =>
-        war.rows.some((player) => player.name === name),
-      );
-
-      if (!playedWars.length) return null;
-
-      const averageKillsRank =
-        playedWars.reduce((sum, war) => sum + (war.ranks.kills[name] || 0), 0) /
-        playedWars.length;
-
-      const averageDeathsRank =
-        playedWars.reduce(
-          (sum, war) => sum + (war.ranks.deaths[name] || 0),
-          0,
-        ) / playedWars.length;
-
-      const averageKdRank =
-        playedWars.reduce((sum, war) => sum + (war.ranks.kd[name] || 0), 0) /
-        playedWars.length;
-
-      const averageStreakRank =
-        playedWars.reduce(
-          (sum, war) => sum + (war.ranks.streak[name] || 0),
-          0,
-        ) / playedWars.length;
-
-      const averageFeedRank =
-        playedWars.reduce((sum, war) => sum + (war.ranks.feed[name] || 0), 0) /
-        playedWars.length;
-
-      const average =
-        (averageKillsRank +
-          averageDeathsRank +
-          averageKdRank +
-          averageStreakRank +
-          averageFeedRank) /
-        5;
+    return oneStats.players.map((player) => {
+      const fullPlayer = oneByName[player.name] || {
+        name: player.name,
+        kills: 0,
+        deaths: 0,
+        kd: '0.00',
+      };
 
       return {
-        name,
-        playedWars: playedWars.length,
-        average,
-        ranks: {
-          kills: averageKillsRank,
-          deaths: averageDeathsRank,
-          kd: averageKdRank,
-          streak: averageStreakRank,
-          feed: averageFeedRank,
-        },
+        ...fullPlayer,
+        kdNumber: Number(fullPlayer.kd),
+        streak: oneStats.st[player.name] || 0,
+        feed: oneStats.fd[player.name] || 0,
       };
-    })
-    .filter(Boolean)
+    });
+  }
+
+  function rankRows(rows, key, desc = true) {
+    const sorted = [...rows].sort((a, b) => {
+      const av = Number(a[key]) || 0;
+      const bv = Number(b[key]) || 0;
+
+      if (av < bv) return desc ? 1 : -1;
+      if (av > bv) return desc ? -1 : 1;
+      return 0;
+    });
+
+    const output = {};
+    let lastValue;
+    let rankNumber = 0;
+
+    sorted.forEach((player, index) => {
+      const value = Number(player[key]) || 0;
+
+      if (index === 0 || value !== lastValue) {
+        rankNumber = index + 1;
+      }
+
+      output[player.name] = rankNumber;
+      lastValue = value;
+    });
+
+    return output;
+  }
+
+  function rankKillsForStats(oneStats, rows) {
+    const reach = {};
+    const run = {};
+
+    [...(oneStats.ev || [])]
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i,
+      )
+      .filter((event) => event.type === 'kill')
+      .forEach((event) => {
+        run[event.killer] = (run[event.killer] || 0) + 1;
+
+        const finalKills =
+          rows.find((player) => player.name === event.killer)?.kills || 0;
+
+        if (finalKills && run[event.killer] === finalKills) {
+          reach[event.killer] =
+            event.date +
+            ' ' +
+            String(event.sec).padStart(5, '0') +
+            ' ' +
+            String(event.i).padStart(5, '0');
+        }
+      });
+
+    return Object.fromEntries(
+      [...rows]
+        .sort(
+          (a, b) =>
+            b.kills - a.kills ||
+            (reach[a.name] || '9999').localeCompare(reach[b.name] || '9999'),
+        )
+        .map((player, index) => [player.name, index + 1]),
+    );
+  }
+
+  function calculateAverageRanksFromSelectedLogs() {
+    const result = {};
+
+    (selectedLogs || []).forEach((log) => {
+      const oneStats = calculateStats([log]);
+      const rows = buildRowsFromStats(oneStats);
+
+      if (!rows.length) return;
+
+      const ranks = {
+        kills: rankKillsForStats(oneStats, rows),
+        deaths: rankRows(rows, 'deaths', false),
+        kd: rankRows(rows, 'kdNumber', true),
+        streak: rankRows(rows, 'streak', true),
+        feed: rankRows(rows, 'feed', true),
+      };
+
+      rows.forEach((player) => {
+        const name = player.name;
+
+        if (!result[name]) {
+          result[name] = {
+            matches: 0,
+            kills: 0,
+            deaths: 0,
+            kd: 0,
+            streak: 0,
+            feed: 0,
+          };
+        }
+
+        result[name].matches += 1;
+        result[name].kills += ranks.kills[name] || 0;
+        result[name].deaths += ranks.deaths[name] || 0;
+        result[name].kd += ranks.kd[name] || 0;
+        result[name].streak += ranks.streak[name] || 0;
+        result[name].feed += ranks.feed[name] || 0;
+      });
+    });
+
+    return Object.fromEntries(
+      Object.entries(result).map(([name, data]) => {
+        const matches = Math.max(1, data.matches);
+
+        const averageRanks = {
+          kills: data.kills / matches,
+          deaths: data.deaths / matches,
+          kd: data.kd / matches,
+          streak: data.streak / matches,
+          feed: data.feed / matches,
+        };
+
+        return [
+          name,
+          {
+            matches: data.matches,
+            ranks: averageRanks,
+            average:
+              (averageRanks.kills +
+                averageRanks.deaths +
+                averageRanks.kd +
+                averageRanks.streak +
+                averageRanks.feed) /
+              5,
+          },
+        ];
+      }),
+    );
+  }
+
+  const averageRanks = calculateAverageRanksFromSelectedLogs();
+
+  const rows = names.map((name) => {
+    const player = byName[name] || {
+      name,
+      kills: 0,
+      deaths: 0,
+      kd: '0.00',
+    };
+
+    return {
+      ...player,
+      kdNumber: Number(player.kd),
+      streak: streaks[name] || 0,
+      feed: feeds[name] || 0,
+      average: averageRanks[name]?.average ?? 9999,
+      matches: averageRanks[name]?.matches ?? 0,
+      averageRankKills: averageRanks[name]?.ranks.kills ?? null,
+      averageRankDeaths: averageRanks[name]?.ranks.deaths ?? null,
+      averageRankKd: averageRanks[name]?.ranks.kd ?? null,
+      averageRankStreak: averageRanks[name]?.ranks.streak ?? null,
+      averageRankFeed: averageRanks[name]?.ranks.feed ?? null,
+    };
+  });
+
+  const final = rows
     .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => a.average - b.average);
 
+  function formatAverageRank(value) {
+    return value == null ? '-' : Number(value).toFixed(2);
+  }
+
   return (
-    <Panel cls="h-full">
-      <h3 className="text-xl font-black">♛ Best Overall</h3>
+    <Panel cls="h-[680px]">
+      <div className="flex h-full flex-col">
+        <h3 className="text-xl font-black">♛ Best Overall</h3>
 
-      <p className="mb-3 text-xs text-slate-400">
-        Average rank across selected wars
-      </p>
+        <p className="mb-3 text-xs text-slate-400">
+          Average of selected match ranks
+        </p>
 
-      <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search player..."
-        className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400"
-      />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search player..."
+          className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400"
+        />
 
-      {!final.length ? (
-        <p className="text-slate-500">No players.</p>
-      ) : (
-        <div className={`max-h-[500px] space-y-1.5 overflow-y-auto pr-1 ${scrollCls}`}>
-          {final.map((player, index) => (
-            <div
-              key={player.name}
-              className="rounded-xl border border-slate-800 bg-slate-900/70 p-2 hover:bg-slate-900"
-            >
-              <div className="mb-1.5 flex justify-between gap-2">
-                <b className="truncate">
-                  <span className="mr-2 text-slate-500">{index + 1}</span>
-                  {player.name}
-                </b>
+        {!final.length ? (
+          <p className="text-slate-500">No players.</p>
+        ) : (
+          <div
+            className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 ${scrollCls}`}
+          >
+            {final.map((player, index) => (
+              <div
+                key={player.name}
+                className="rounded-xl border border-slate-800 bg-slate-900/70 p-2 hover:bg-slate-900"
+              >
+                <div className="mb-1.5 flex justify-between gap-2">
+                  <b className="truncate">
+                    <span className="mr-2 text-slate-500">{index + 1}</span>
+                    {player.name}
 
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="rounded-md border border-slate-700 bg-slate-950/70 px-2 py-1 text-[10px] font-black text-slate-400">
-                    {player.playedWars} wars
-                  </span>
+                    <span className="ml-2 text-xs font-bold text-slate-500">
+                      {player.matches} wars
+                    </span>
+                  </b>
 
                   <span className="rounded-md border border-blue-400/20 bg-blue-500/5 px-2 py-1 text-sm font-black text-blue-300">
                     <small className="mr-1 text-[9px] uppercase text-blue-200/80">
                       Avg
                     </small>
-                    {player.average.toFixed(2)}
+
+                    {player.average === 9999 ? '-' : player.average.toFixed(2)}
                   </span>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-5 gap-1 text-center text-xs">
-                {[
-                  ['Kills', player.ranks.kills, 'text-blue-300'],
-                  ['Deaths', player.ranks.deaths, 'text-pink-300'],
-                  ['K/D', player.ranks.kd, 'text-emerald-300'],
-                  ['Streak', player.ranks.streak, 'text-slate-200'],
-                  ['Feed', player.ranks.feed, 'text-orange-300'],
-                ].map((item) => (
-                  <div key={item[0]} className="rounded-md bg-slate-950/70 p-1">
-                    <p className="text-slate-500">{item[0]}</p>
-                    <b className={item[2]}>#{Number(item[1]).toFixed(2)}</b>
-                  </div>
-                ))}
+                <div className="grid grid-cols-5 gap-1 text-center text-xs">
+                  {[
+                    [
+                      'Kills',
+                      formatAverageRank(player.averageRankKills),
+                      'text-blue-300',
+                    ],
+                    [
+                      'Deaths',
+                      formatAverageRank(player.averageRankDeaths),
+                      'text-pink-300',
+                    ],
+                    [
+                      'K/D',
+                      formatAverageRank(player.averageRankKd),
+                      'text-emerald-300',
+                    ],
+                    [
+                      'Streak',
+                      formatAverageRank(player.averageRankStreak),
+                      'text-slate-200',
+                    ],
+                    [
+                      'Feed',
+                      formatAverageRank(player.averageRankFeed),
+                      'text-orange-300',
+                    ],
+                  ].map((item) => (
+                    <div
+                      key={item[0]}
+                      className="rounded-md bg-slate-950/70 p-1"
+                    >
+                      <p className="text-slate-500">{item[0]}</p>
+                      <b className={item[2]}>
+                        {item[1] === '-' ? '-' : `#${item[1]}`}
+                      </b>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -347,7 +394,9 @@ function PlayerOverview({ players, streaks, feeds, events }) {
         <button
           onClick={() => flip(id)}
           className={
-            key === id ? 'font-black text-blue-300' : 'font-black hover:text-blue-300'
+            key === id
+              ? 'font-black text-blue-300'
+              : 'font-black hover:text-blue-300'
           }
         >
           {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
@@ -358,12 +407,21 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
   const history = selected
     ? events
-        .filter((event) => event.killer === selected.name || event.victim === selected.name)
+        .filter(
+          (event) =>
+            event.killer === selected.name || event.victim === selected.name,
+        )
         .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec)
     : [];
 
-  const kills = history.filter((event) => event.killer === selected?.name).length;
-  const deaths = history.filter((event) => event.victim === selected?.name).length;
+  const kills = history.filter(
+    (event) => event.killer === selected?.name,
+  ).length;
+
+  const deaths = history.filter(
+    (event) => event.victim === selected?.name,
+  ).length;
+
   const kd = deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2);
 
   const victims = {};
@@ -374,163 +432,205 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     if (event.victim === selected?.name) add(nemesis, event.killer);
   });
 
-  const favourite = Object.entries(victims).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
-  const worst = Object.entries(nemesis).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+  const favourite =
+    Object.entries(victims).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+
+  const worst =
+    Object.entries(nemesis).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
 
   return (
-    <Panel cls="h-full">
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 className="text-xl font-black">♙ Player Overview</h3>
-          <p className="text-xs text-slate-400">Click a player name to view kill history</p>
-        </div>
-
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search family name"
-          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400 md:w-64"
-        />
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-slate-800">
-        <div className={`max-h-[500px] overflow-y-auto pr-1 ${scrollCls}`}>
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
-              <tr>
-                <Header id="name" className="pl-4 text-left">
-                  Family
-                </Header>
-                <Header id="kills" className="text-right">
-                  Kills
-                </Header>
-                <Header id="deaths" className="text-right">
-                  Deaths
-                </Header>
-                <Header id="kd" className="text-right">
-                  K/D
-                </Header>
-                <Header id="streak" className="text-right">
-                  Killstreak
-                </Header>
-                <Header id="feed" className="pr-4 text-right">
-                  KillFeed
-                </Header>
-              </tr>
-            </thead>
-
-            <tbody>
-              {rows.map((player) => (
-                <tr
-                  key={player.name}
-                  className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
-                >
-                  <td className="py-3 pl-4">
-                    <button
-                      onClick={() => setSelected(player)}
-                      className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
-                    >
-                      {player.name}
-                    </button>
-                  </td>
-
-                  <td className="py-3 text-right font-black text-blue-300">⚔ {player.kills}</td>
-                  <td className="py-3 text-right font-black text-pink-300">☠ {player.deaths}</td>
-                  <td className="py-3 text-right font-black text-emerald-300">✺ {player.kd}</td>
-                  <td className="py-3 text-right font-black">{player.streak}</td>
-                  <td className="py-3 pr-4 text-right font-black text-orange-300">
-                    🔥 {player.feed}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {selected && (
-        <Popup title={`${selected.name} highlights & history`} close={() => setSelected(null)}>
-          <div className="mb-4 flex flex-wrap gap-2 text-sm">
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-              Kills <b className="text-blue-300">{kills}</b>
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-              Deaths <b className="text-pink-300">{deaths}</b>
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-              KD <b className="text-emerald-300">{kd}</b>
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-              Killstreak <b>{streaks[selected.name] || 0}</b>
-            </span>
-            <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-              Killfeed <b className="text-orange-300">{feeds[selected.name] || 0}</b>
-            </span>
+    <Panel cls="h-[680px]">
+      <div className="flex h-full flex-col">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-xl font-black">♙ Player Overview</h3>
+            <p className="text-xs text-slate-400">
+              Click a player name to view kill history
+            </p>
           </div>
 
-          <div className="mb-4 grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Favorite victim</p>
-              <p className="mt-1 font-black">{favourite[0]}</p>
-              <p className="text-sm font-bold text-blue-300">{favourite[1]} kills</p>
-            </div>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search family name"
+            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400 md:w-64"
+          />
+        </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Nemesis</p>
-              <p className="mt-1 font-black">{worst[0]}</p>
-              <p className="text-sm font-bold text-pink-300">{worst[1]} deaths</p>
-            </div>
-          </div>
-
-          <div className={`max-h-[48vh] overflow-auto rounded-2xl border border-slate-800 ${scrollCls}`}>
+        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+          <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
+              <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
-                  <th className="py-3 pl-4 text-left">Time</th>
-                  <th className="py-3 text-left">Type</th>
-                  <th className="py-3 text-left">Opponent</th>
-                  <th className="py-3 pr-4 text-left">Guild / War</th>
+                  <Header id="name" className="pl-4 text-left">
+                    Family
+                  </Header>
+                  <Header id="kills" className="text-right">
+                    Kills
+                  </Header>
+                  <Header id="deaths" className="text-right">
+                    Deaths
+                  </Header>
+                  <Header id="kd" className="text-right">
+                    K/D
+                  </Header>
+                  <Header id="streak" className="text-right">
+                    Killstreak
+                  </Header>
+                  <Header id="feed" className="pr-4 text-right">
+                    KillFeed
+                  </Header>
                 </tr>
               </thead>
 
               <tbody>
-                {history.map((event, index) => (
-                  <tr key={index} className="border-t border-slate-800 bg-slate-950/30">
-                    <td className="py-3 pl-4 font-black">{event.time}</td>
-
-                    <td className="py-3">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-black ${
-                          event.killer === selected.name
-                            ? 'bg-blue-500/15 text-blue-300'
-                            : 'bg-pink-500/15 text-pink-300'
-                        }`}
+                {rows.map((player) => (
+                  <tr
+                    key={player.name}
+                    className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
+                  >
+                    <td className="py-3 pl-4">
+                      <button
+                        onClick={() => setSelected(player)}
+                        className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
                       >
-                        {event.killer === selected.name ? 'KILL' : 'DEATH'}
-                      </span>
+                        {player.name}
+                      </button>
                     </td>
 
-                    <td className="py-3 font-bold">
-                      {event.killer === selected.name ? event.victim : event.killer}
+                    <td className="py-3 text-right font-black text-blue-300">
+                      ⚔ {player.kills}
                     </td>
 
-                    <td className="py-3 pr-4 text-slate-400">
-                      {event.guild} / {event.war}
+                    <td className="py-3 text-right font-black text-pink-300">
+                      ☠ {player.deaths}
+                    </td>
+
+                    <td className="py-3 text-right font-black text-emerald-300">
+                      ✺ {player.kd}
+                    </td>
+
+                    <td className="py-3 text-right font-black">
+                      {player.streak}
+                    </td>
+
+                    <td className="py-3 pr-4 text-right font-black text-orange-300">
+                      🔥 {player.feed}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Popup>
-      )}
+        </div>
+
+        {selected && (
+          <Popup
+            title={`${selected.name} highlights & history`}
+            close={() => setSelected(null)}
+          >
+            <div className="mb-4 flex flex-wrap gap-2 text-sm">
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Kills <b className="text-blue-300">{kills}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Deaths <b className="text-pink-300">{deaths}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                KD <b className="text-emerald-300">{kd}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Killstreak <b>{streaks[selected.name] || 0}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Killfeed{' '}
+                <b className="text-orange-300">{feeds[selected.name] || 0}</b>
+              </span>
+            </div>
+
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">
+                  Favorite victim
+                </p>
+                <p className="mt-1 font-black">{favourite[0]}</p>
+                <p className="text-sm font-bold text-blue-300">
+                  {favourite[1]} kills
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">
+                  Nemesis
+                </p>
+                <p className="mt-1 font-black">{worst[0]}</p>
+                <p className="text-sm font-bold text-pink-300">
+                  {worst[1]} deaths
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`max-h-[48vh] overflow-auto rounded-2xl border border-slate-800 ${scrollCls}`}
+            >
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
+                  <tr>
+                    <th className="py-3 pl-4 text-left">Time</th>
+                    <th className="py-3 text-left">Type</th>
+                    <th className="py-3 text-left">Opponent</th>
+                    <th className="py-3 pr-4 text-left">Guild / War</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {history.map((event, index) => (
+                    <tr
+                      key={index}
+                      className="border-t border-slate-800 bg-slate-950/30"
+                    >
+                      <td className="py-3 pl-4 font-black">{event.time}</td>
+
+                      <td className="py-3">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-black ${
+                            event.killer === selected.name
+                              ? 'bg-blue-500/15 text-blue-300'
+                              : 'bg-pink-500/15 text-pink-300'
+                          }`}
+                        >
+                          {event.killer === selected.name ? 'KILL' : 'DEATH'}
+                        </span>
+                      </td>
+
+                      <td className="py-3 font-bold">
+                        {event.killer === selected.name
+                          ? event.victim
+                          : event.killer}
+                      </td>
+
+                      <td className="py-3 pr-4 text-slate-400">
+                        {event.guild} / {event.war}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Popup>
+        )}
+      </div>
     </Panel>
   );
 }
 
 function TopGuilds({ guilds, events }) {
   const [selected, setSelected] = useState(null);
-  const [sort, setSort] = useState(['kills', 'desc']);
+  const [sort, setSort] = useState(['totalInteractions', 'desc']);
 
   const [key, direction] = sort;
 
@@ -538,12 +638,16 @@ function TopGuilds({ guilds, events }) {
     .map((guild) => {
       const kills = guild.deaths;
       const deaths = guild.kills;
+      const totalInteractions = kills + deaths;
+      const kdNumber = deaths ? kills / deaths : kills;
 
       return {
         ...guild,
         kills,
         deaths,
-        kd: deaths ? kills / deaths : kills,
+        totalInteractions,
+        kdNumber,
+        kd: kdNumber.toFixed(2),
       };
     })
     .sort((a, b) => {
@@ -552,10 +656,9 @@ function TopGuilds({ guilds, events }) {
 
       if (av < bv) return direction === 'asc' ? -1 : 1;
       if (av > bv) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
 
-  const log = selected ? events.filter((event) => event.guild === selected.name) : [];
+      return b.totalInteractions - a.totalInteractions || b.kills - a.kills;
+    });
 
   function flip(nextKey) {
     setSort(
@@ -567,10 +670,14 @@ function TopGuilds({ guilds, events }) {
 
   function Header({ id, children, className = '' }) {
     return (
-      <th className={className}>
+      <th className={`py-3 ${className}`}>
         <button
           onClick={() => flip(id)}
-          className={key === id ? 'font-black text-blue-300' : 'font-black hover:text-blue-300'}
+          className={
+            key === id
+              ? 'font-black text-blue-300'
+              : 'font-black hover:text-blue-300'
+          }
         >
           {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
         </button>
@@ -578,111 +685,193 @@ function TopGuilds({ guilds, events }) {
     );
   }
 
+  const log = selected
+    ? events.filter((event) => event.guild === selected.name)
+    : [];
+
   return (
-    <Panel cls="h-full">
-      <h3 className="text-xl font-black">🛡 Top Guilds</h3>
-      <p className="mb-4 text-xs text-slate-400">Click a guild name to view the kill log</p>
+    <Panel cls="h-[520px]">
+      <div className="flex h-full flex-col">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h3 className="text-xl font-black">🛡 Top Guilds</h3>
 
-      <div className={`max-h-[390px] overflow-y-auto pr-1 ${scrollCls}`}>
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-slate-950 text-xs uppercase text-slate-400">
-            <tr>
-              <Header id="name" className="text-left">
-                Guild
-              </Header>
-              <Header id="kills">Kills</Header>
-              <Header id="deaths">Deaths</Header>
-              <Header id="kd">K/D</Header>
-            </tr>
-          </thead>
+          <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
+            {rows.length} guilds
+          </span>
+        </div>
 
-          <tbody>
-            {rows.map((guild, index) => (
-              <tr key={guild.name} className="border-t border-slate-800">
-                <td className="py-3">
-                  <button
-                    onClick={() => setSelected(guild)}
-                    className="font-bold hover:text-blue-300"
-                  >
-                    {index + 1}. {guild.name}
-                  </button>
-                </td>
+        {!rows.length ? (
+          <p className="text-slate-500">No guild data yet.</p>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+            <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
+                  <tr>
+                    <Header id="name" className="pl-4 text-left">
+                      Guild
+                    </Header>
 
-                <td className="text-center font-black text-blue-300">{guild.kills}</td>
-                <td className="text-center font-black text-pink-300">{guild.deaths}</td>
-                <td className="text-center font-black text-emerald-300">
-                  {Number(guild.kd).toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    <Header id="kills" className="text-center">
+                      Kills
+                    </Header>
 
-      {selected && (
-        <Popup title={`${selected.name} Kill Log`} close={() => setSelected(null)}>
-          <div className="space-y-2">
-            {log.map((event, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-[82px_1fr_105px] gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm"
-              >
-                <div>
-                  <b>{event.time}</b>
-                  <p className="text-[10px] text-slate-500">{event.date}</p>
-                </div>
+                    <Header id="deaths" className="text-center">
+                      Deaths
+                    </Header>
 
-                <p className="truncate">
-                  <b className={event.type === 'kill' ? 'text-blue-300' : 'text-pink-300'}>
-                    {event.type === 'kill' ? event.killer : event.victim}
-                  </b>{' '}
-                  {event.type === 'kill' ? 'killed' : 'died to'}{' '}
-                  <b>{event.type === 'kill' ? event.victim : event.killer}</b>
-                </p>
+                    <Header id="kdNumber" className="pr-4 text-center">
+                      K/D
+                    </Header>
+                  </tr>
+                </thead>
 
-                <span className={event.type === 'kill' ? 'text-blue-300' : 'text-pink-300'}>
-                  {event.type === 'kill' ? 'OUR KILL' : 'OUR DEATH'}
-                </span>
-              </div>
-            ))}
+                <tbody>
+                  {rows.map((guild, index) => (
+                    <tr
+                      key={guild.name}
+                      className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
+                    >
+                      <td className="py-3 pl-4">
+                        <button
+                          onClick={() => setSelected(guild)}
+                          className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
+                        >
+                          {index + 1}. {guild.name}
+                        </button>
+                      </td>
+
+                      <td className="py-3 text-center font-black text-blue-300">
+                        {guild.kills}
+                      </td>
+
+                      <td className="py-3 text-center font-black text-pink-300">
+                        {guild.deaths}
+                      </td>
+
+                      <td
+                        className={`py-3 pr-4 text-center font-black ${
+                          Number(guild.kd) >= 1
+                            ? 'text-emerald-300'
+                            : 'text-rose-300'
+                        }`}
+                      >
+                        {guild.kd}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </Popup>
-      )}
+        )}
+
+        {selected && (
+          <Popup
+            title={`${selected.name} Kill Log`}
+            close={() => setSelected(null)}
+          >
+            {!log.length ? (
+              <p className="text-slate-500">No kill log found for this guild.</p>
+            ) : (
+              <div
+                className={`max-h-[60vh] space-y-2 overflow-y-auto pr-2 ${scrollCls}`}
+              >
+                {log.map((event, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-[82px_1fr_105px] gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm"
+                  >
+                    <div>
+                      <b>{event.time}</b>
+                      <p className="text-[10px] text-slate-500">{event.date}</p>
+                    </div>
+
+                    <p className="truncate">
+                      <b
+                        className={
+                          event.type === 'kill'
+                            ? 'text-blue-300'
+                            : 'text-pink-300'
+                        }
+                      >
+                        {event.type === 'kill' ? event.killer : event.victim}
+                      </b>{' '}
+                      {event.type === 'kill' ? 'killed' : 'died to'}{' '}
+                      <b>
+                        {event.type === 'kill' ? event.victim : event.killer}
+                      </b>
+                    </p>
+
+                    <span
+                      className={
+                        event.type === 'kill'
+                          ? 'text-blue-300'
+                          : 'text-pink-300'
+                      }
+                    >
+                      {event.type === 'kill' ? 'OUR KILL' : 'OUR DEATH'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Popup>
+        )}
+      </div>
     </Panel>
   );
 }
 
 function KillFeedPanel({ killFeeds }) {
+  const rows = killFeeds.slice(0, 5);
+
   return (
-    <Panel cls="h-full">
-      <h3 className="mb-4 text-xl font-black">🔥 Kill Feed</h3>
+    <Panel cls="h-[520px]">
+      <div className="flex h-full flex-col">
+        <h3 className="mb-4 text-xl font-black">🔥 Kill Feed</h3>
 
-      <div className="space-y-2">
-        {killFeeds.slice(0, 5).map((feed, index) => (
-          <div
-            key={index}
-            className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3"
-          >
-            <div className="flex justify-between">
-              <b>
-                {index + 1}. {feed.name}
-              </b>
-              <b className="text-orange-300">🔥 {feed.count}</b>
-            </div>
+        {!rows.length ? (
+          <p className="text-slate-500">No kill feeds yet.</p>
+        ) : (
+          <div className="grid gap-2">
+            {rows.map((feed, index) => (
+              <div
+                key={index}
+                className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <b className="truncate text-sm">
+                    {index + 1}. {feed.name}
+                  </b>
 
-            <p className="text-xs text-slate-400">
-              {feed.start}-{feed.end} · {feed.war}
-            </p>
+                  <b className="shrink-0 text-sm text-orange-300">
+                    🔥 {feed.count}
+                  </b>
+                </div>
 
-            <p className="truncate text-xs text-slate-500">{feed.victims.join(', ')}</p>
+                <p className="truncate text-[11px] text-slate-400">
+                  {feed.start}-{feed.end} · {feed.war}
+                </p>
+
+                <p className="truncate text-[11px] text-slate-500">
+                  {feed.victims.join(', ')}
+                </p>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </Panel>
   );
 }
 
-export default function OverviewPage({ stats, label, members }) {
+export default function OverviewPage({
+  stats,
+  label,
+  members,
+  selectedLogs,
+}) {
   const killFeeds = calculateKillFeed(stats.ev, 10, true);
 
   return (
@@ -734,7 +923,10 @@ export default function OverviewPage({ stats, label, members }) {
         <BestOverall
           players={stats.players}
           members={members}
+          streaks={stats.st}
+          feeds={stats.fd}
           events={stats.ev}
+          selectedLogs={selectedLogs}
         />
 
         <PlayerOverview
