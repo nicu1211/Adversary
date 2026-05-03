@@ -762,20 +762,21 @@ export function PerformanceChart({ data }) {
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(96,165,250,0.44)" />
-                <stop offset="35%" stopColor="rgba(96,165,250,0.26)" />
-                <stop offset="70%" stopColor="rgba(96,165,250,0.12)" />
+                <stop offset="0%" stopColor="rgba(96,165,250,0.82)" />
+                <stop offset="28%" stopColor="rgba(96,165,250,0.58)" />
+                <stop offset="58%" stopColor="rgba(96,165,250,0.32)" />
+                <stop offset="82%" stopColor="rgba(96,165,250,0.14)" />
                 <stop offset="100%" stopColor="rgba(96,165,250,0)" />
               </linearGradient>
 
               <filter
                 id="avgKdGlowBig"
-                x="-60%"
-                y="-60%"
-                width="220%"
-                height="220%"
+                x="-80%"
+                y="-80%"
+                width="260%"
+                height="260%"
               >
-                <feGaussianBlur stdDeviation="8" result="blur1" />
+                <feGaussianBlur stdDeviation="12" result="blur1" />
                 <feMerge>
                   <feMergeNode in="blur1" />
                   <feMergeNode in="SourceGraphic" />
@@ -784,12 +785,12 @@ export function PerformanceChart({ data }) {
 
               <filter
                 id="avgKdGlowSoft"
-                x="-60%"
-                y="-60%"
-                width="220%"
-                height="220%"
+                x="-70%"
+                y="-70%"
+                width="240%"
+                height="240%"
               >
-                <feGaussianBlur stdDeviation="4" result="blur2" />
+                <feGaussianBlur stdDeviation="6" result="blur2" />
                 <feMerge>
                   <feMergeNode in="blur2" />
                   <feMergeNode in="SourceGraphic" />
@@ -865,10 +866,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="#60a5fa"
-              strokeWidth={10}
+              strokeWidth={16}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.16}
+              opacity={0.28}
               filter="url(#avgKdGlowBig)"
               dot={false}
               activeDot={false}
@@ -882,10 +883,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="#60a5fa"
-              strokeWidth={5}
+              strokeWidth={8}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.28}
+              opacity={0.42}
               filter="url(#avgKdGlowSoft)"
               dot={false}
               activeDot={false}
