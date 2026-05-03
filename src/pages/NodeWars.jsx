@@ -2,6 +2,25 @@ import React, { useMemo, useState } from 'react';
 import { Panel } from '../components/UI';
 import { calculateStats, dateOf } from '../lib/logUtils';
 
+function SortHeader({ id, label, sort, onSort, className = '' }) {
+  const active = sort.key === id;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(id)}
+      className={`inline-flex w-full items-center justify-center gap-1 font-black uppercase tracking-wider transition hover:text-blue-300 ${
+        active ? 'text-blue-300' : 'text-slate-400'
+      } ${className}`}
+    >
+      <span>{label}</span>
+      <span className="text-[11px]">
+        {active ? (sort.dir === 'desc' ? '↓' : '↑') : '↕'}
+      </span>
+    </button>
+  );
+}
+
 export default function NodeWars({
   logs,
   setPage,
@@ -12,8 +31,29 @@ export default function NodeWars({
   const [query, setQuery] = useState('');
   const [warning, setWarning] = useState('');
 
+  const [sort, setSort] = useState({
+    key: 'time',
+    dir: 'desc',
+  });
+
+  function toggleSort(key) {
+    setSort((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          dir: current.dir === 'desc' ? 'asc' : 'desc',
+        };
+      }
+
+      return {
+        key,
+        dir: 'desc',
+      };
+    });
+  }
+
   const rows = useMemo(() => {
-    return logs
+    const mappedRows = logs
       .map((log) => {
         const stats = calculateStats([{ ...log, date: dateOf(log) }]);
 
@@ -40,9 +80,10 @@ export default function NodeWars({
           ...log,
           date: dateOf(log),
           players: stats.players.length,
-          kills: stats.kills,
-          deaths: stats.deaths,
+          kills: Number(stats.kills) || 0,
+          deaths: Number(stats.deaths) || 0,
           kd: stats.kd,
+          kdNumber: Number(stats.kd) || 0,
           topEnemies,
         };
       })
@@ -54,9 +95,39 @@ export default function NodeWars({
         return row.topEnemies.some((guild) =>
           guild.name.toLowerCase().includes(cleanQuery),
         );
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [logs, query]);
+      });
+
+    return mappedRows.sort((a, b) => {
+      let av = 0;
+      let bv = 0;
+
+      if (sort.key === 'time') {
+        av = new Date(a.date).getTime() || 0;
+        bv = new Date(b.date).getTime() || 0;
+      }
+
+      if (sort.key === 'kills') {
+        av = Number(a.kills) || 0;
+        bv = Number(b.kills) || 0;
+      }
+
+      if (sort.key === 'deaths') {
+        av = Number(a.deaths) || 0;
+        bv = Number(b.deaths) || 0;
+      }
+
+      if (sort.key === 'kd') {
+        av = Number(a.kdNumber) || 0;
+        bv = Number(b.kdNumber) || 0;
+      }
+
+      if (av === bv) {
+        return String(b.date).localeCompare(String(a.date));
+      }
+
+      return sort.dir === 'asc' ? av - bv : bv - av;
+    });
+  }, [logs, query, sort]);
 
   const visibleIds = rows.map((row) => String(row.id));
 
@@ -176,8 +247,7 @@ export default function NodeWars({
 
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
         <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-          Displayed logs:{' '}
-          <b className="text-slate-100">{rows.length}</b>
+          Displayed logs: <b className="text-slate-100">{rows.length}</b>
         </span>
 
         <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
@@ -197,13 +267,49 @@ export default function NodeWars({
           <table className="w-full min-w-[1180px] text-sm">
             <thead className="sticky top-0 z-10 bg-slate-950 text-xs uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="w-[170px] py-4 pl-4 text-left">Time ↕</th>
+                <th className="w-[170px] py-4 pl-4 text-left">
+                  <SortHeader
+                    id="time"
+                    label="Time"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className="justify-start"
+                  />
+                </th>
+
                 <th className="w-[170px] py-4 text-left">Guild</th>
+
                 <th className="py-4 text-left">Top 5 enemies</th>
-                <th className="w-[110px] py-4 text-center">Players ↕</th>
-                <th className="w-[100px] py-4 text-center">Kills ↕</th>
-                <th className="w-[110px] py-4 text-center">Deaths ↕</th>
-                <th className="w-[90px] py-4 text-center">KD ↕</th>
+
+                <th className="w-[110px] py-4 text-center">Players</th>
+
+                <th className="w-[100px] py-4 text-center">
+                  <SortHeader
+                    id="kills"
+                    label="Kills"
+                    sort={sort}
+                    onSort={toggleSort}
+                  />
+                </th>
+
+                <th className="w-[110px] py-4 text-center">
+                  <SortHeader
+                    id="deaths"
+                    label="Deaths"
+                    sort={sort}
+                    onSort={toggleSort}
+                  />
+                </th>
+
+                <th className="w-[90px] py-4 text-center">
+                  <SortHeader
+                    id="kd"
+                    label="KD"
+                    sort={sort}
+                    onSort={toggleSort}
+                  />
+                </th>
+
                 <th className="w-[90px] py-4 pr-4 text-center">Select</th>
               </tr>
             </thead>
