@@ -252,7 +252,7 @@ function OverviewLineChart({
               width="220%"
               height="220%"
             >
-              <feGaussianBlur stdDeviation="10" result="blur1" />
+              <feGaussianBlur stdDeviation="8" result="blur1" />
               <feMerge>
                 <feMergeNode in="blur1" />
                 <feMergeNode in="SourceGraphic" />
@@ -266,7 +266,7 @@ function OverviewLineChart({
               width="220%"
               height="220%"
             >
-              <feGaussianBlur stdDeviation="5" result="blur2" />
+              <feGaussianBlur stdDeviation="4" result="blur2" />
               <feMerge>
                 <feMergeNode in="blur2" />
                 <feMergeNode in="SourceGraphic" />
@@ -280,7 +280,7 @@ function OverviewLineChart({
               width="220%"
               height="220%"
             >
-              <feGaussianBlur stdDeviation="10" result="blur3" />
+              <feGaussianBlur stdDeviation="8" result="blur3" />
               <feMerge>
                 <feMergeNode in="blur3" />
                 <feMergeNode in="SourceGraphic" />
@@ -294,7 +294,7 @@ function OverviewLineChart({
               width="220%"
               height="220%"
             >
-              <feGaussianBlur stdDeviation="5" result="blur4" />
+              <feGaussianBlur stdDeviation="4" result="blur4" />
               <feMerge>
                 <feMergeNode in="blur4" />
                 <feMergeNode in="SourceGraphic" />
@@ -387,10 +387,10 @@ function OverviewLineChart({
             d={linePathKills}
             fill="none"
             stroke={`url(#${uid}-stroke-kills)`}
-            strokeWidth="16"
+            strokeWidth="10"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.18"
+            opacity="0.16"
             filter={`url(#${uid}-lineGlowBig-kills)`}
           />
 
@@ -399,10 +399,10 @@ function OverviewLineChart({
             d={linePathKills}
             fill="none"
             stroke={`url(#${uid}-stroke-kills)`}
-            strokeWidth="9"
+            strokeWidth="5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.34"
+            opacity="0.28"
             filter={`url(#${uid}-lineGlowSoft-kills)`}
           />
 
@@ -411,7 +411,7 @@ function OverviewLineChart({
             d={linePathKills}
             fill="none"
             stroke={`url(#${uid}-stroke-kills)`}
-            strokeWidth="4"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -421,10 +421,10 @@ function OverviewLineChart({
             d={linePathDeaths}
             fill="none"
             stroke={`url(#${uid}-stroke-deaths)`}
-            strokeWidth="16"
+            strokeWidth="10"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.18"
+            opacity="0.16"
             filter={`url(#${uid}-lineGlowBig-deaths)`}
           />
 
@@ -433,10 +433,10 @@ function OverviewLineChart({
             d={linePathDeaths}
             fill="none"
             stroke={`url(#${uid}-stroke-deaths)`}
-            strokeWidth="9"
+            strokeWidth="5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.34"
+            opacity="0.28"
             filter={`url(#${uid}-lineGlowSoft-deaths)`}
           />
 
@@ -445,7 +445,7 @@ function OverviewLineChart({
             d={linePathDeaths}
             fill="none"
             stroke={`url(#${uid}-stroke-deaths)`}
-            strokeWidth="4"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
