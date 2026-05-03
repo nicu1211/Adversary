@@ -52,10 +52,6 @@ function normalizeTimelineData(data = []) {
     const kills = toNumber(pick(item, ['kills', 'kill', 'k'], 0));
     const deaths = toNumber(pick(item, ['deaths', 'death', 'd'], 0));
 
-    const value = toNumber(
-      pick(item, ['net', 'diff', 'value', 'score'], kills),
-    );
-
     return {
       label:
         pick(
@@ -63,7 +59,8 @@ function normalizeTimelineData(data = []) {
           ['label', 'time', 'minute', 'slot', 'name', 'x'],
           index + 1,
         ) ?? index + 1,
-      value,
+      kills,
+      deaths,
     };
   });
 }
@@ -90,7 +87,7 @@ function OverviewLineChart({
     const innerW = width - pad.left - pad.right;
     const innerH = height - pad.top - pad.bottom;
 
-    const values = rows.map((row) => row.value);
+    const values = rows.flatMap((row) => [row.kills, row.deaths]);
     const rawMin = Math.min(...values);
     const rawMax = Math.max(...values);
 
@@ -101,19 +98,35 @@ function OverviewLineChart({
     const max = rawMax + extra;
     const safeRange = Math.max(1, max - min);
 
-    const points = rows.map((row, index) => {
+    const pointsKills = rows.map((row, index) => {
       const x =
         rows.length === 1
           ? pad.left + innerW / 2
           : pad.left + (index / (rows.length - 1)) * innerW;
 
-      const y = pad.top + ((max - row.value) / safeRange) * innerH;
+      const y = pad.top + ((max - row.kills) / safeRange) * innerH;
 
       return {
         x,
         y,
         label: row.label,
-        value: row.value,
+        value: row.kills,
+      };
+    });
+
+    const pointsDeaths = rows.map((row, index) => {
+      const x =
+        rows.length === 1
+          ? pad.left + innerW / 2
+          : pad.left + (index / (rows.length - 1)) * innerW;
+
+      const y = pad.top + ((max - row.deaths) / safeRange) * innerH;
+
+      return {
+        x,
+        y,
+        label: row.label,
+        value: row.deaths,
       };
     });
 
@@ -129,7 +142,8 @@ function OverviewLineChart({
     });
 
     return {
-      points,
+      pointsKills,
+      pointsDeaths,
       ticks,
       innerW,
     };
@@ -147,12 +161,17 @@ function OverviewLineChart({
     );
   }
 
-  const { points, ticks, innerW } = chart;
-  const linePath = buildSmoothPath(points);
+  const { pointsKills, pointsDeaths, ticks, innerW } = chart;
+  const linePathKills = buildSmoothPath(pointsKills);
+  const linePathDeaths = buildSmoothPath(pointsDeaths);
   const labelStep = getLabelStep(rows.length);
 
-  const topGlowArea = points.length
-    ? `${linePath} L ${points[points.length - 1].x} ${pad.top} L ${points[0].x} ${pad.top} Z`
+  const topGlowAreaKills = pointsKills.length
+    ? `${linePathKills} L ${pointsKills[pointsKills.length - 1].x} ${pad.top} L ${pointsKills[0].x} ${pad.top} Z`
+    : '';
+
+  const topGlowAreaDeaths = pointsDeaths.length
+    ? `${linePathDeaths} L ${pointsDeaths[pointsDeaths.length - 1].x} ${pad.top} L ${pointsDeaths[0].x} ${pad.top} Z`
     : '';
 
   return (
@@ -169,22 +188,36 @@ function OverviewLineChart({
           aria-label={title}
         >
           <defs>
-            <linearGradient id={`${uid}-stroke`} x1="0" y1="0" x2="1" y2="0">
+            <linearGradient id={`${uid}-stroke-kills`} x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#065f46" />
               <stop offset="40%" stopColor="#10b981" />
               <stop offset="72%" stopColor="#34d399" />
               <stop offset="100%" stopColor="#a7f3d0" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-topGlow`} x1="0" y1="1" x2="0" y2="0">
+            <linearGradient id={`${uid}-stroke-deaths`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#7f1d1d" />
+              <stop offset="40%" stopColor="#ef4444" />
+              <stop offset="72%" stopColor="#fb7185" />
+              <stop offset="100%" stopColor="#fecdd3" />
+            </linearGradient>
+
+            <linearGradient id={`${uid}-topGlow-kills`} x1="0" y1="1" x2="0" y2="0">
               <stop offset="0%" stopColor="rgba(16,185,129,0.22)" />
               <stop offset="35%" stopColor="rgba(16,185,129,0.12)" />
               <stop offset="70%" stopColor="rgba(16,185,129,0.04)" />
               <stop offset="100%" stopColor="rgba(16,185,129,0)" />
             </linearGradient>
 
+            <linearGradient id={`${uid}-topGlow-deaths`} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="rgba(239,68,68,0.22)" />
+              <stop offset="35%" stopColor="rgba(239,68,68,0.12)" />
+              <stop offset="70%" stopColor="rgba(239,68,68,0.04)" />
+              <stop offset="100%" stopColor="rgba(239,68,68,0)" />
+            </linearGradient>
+
             <filter
-              id={`${uid}-lineGlowBig`}
+              id={`${uid}-lineGlowBig-kills`}
               x="-60%"
               y="-60%"
               width="220%"
@@ -198,7 +231,7 @@ function OverviewLineChart({
             </filter>
 
             <filter
-              id={`${uid}-lineGlowSoft`}
+              id={`${uid}-lineGlowSoft-kills`}
               x="-60%"
               y="-60%"
               width="220%"
@@ -210,13 +243,50 @@ function OverviewLineChart({
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+
+            <filter
+              id={`${uid}-lineGlowBig-deaths`}
+              x="-60%"
+              y="-60%"
+              width="220%"
+              height="220%"
+            >
+              <feGaussianBlur stdDeviation="10" result="blur3" />
+              <feMerge>
+                <feMergeNode in="blur3" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            <filter
+              id={`${uid}-lineGlowSoft-deaths`}
+              x="-60%"
+              y="-60%"
+              width="220%"
+              height="220%"
+            >
+              <feGaussianBlur stdDeviation="5" result="blur4" />
+              <feMerge>
+                <feMergeNode in="blur4" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
-          {/* Glow care pornește din linie și se estompează în sus */}
-          {topGlowArea && (
+          {/* Glow verde care pornește din linie și se estompează în sus */}
+          {topGlowAreaKills && (
             <path
-              d={topGlowArea}
-              fill={`url(#${uid}-topGlow)`}
+              d={topGlowAreaKills}
+              fill={`url(#${uid}-topGlow-kills)`}
+              opacity="0.95"
+            />
+          )}
+
+          {/* Glow roșu care pornește din linie și se estompează în sus */}
+          {topGlowAreaDeaths && (
+            <path
+              d={topGlowAreaDeaths}
+              fill={`url(#${uid}-topGlow-deaths)`}
               opacity="0.95"
             />
           )}
@@ -283,55 +353,109 @@ function OverviewLineChart({
             );
           })}
 
-          {/* Glow exterior mare */}
+          {/* Glow exterior mare kills */}
           <path
-            d={linePath}
+            d={linePathKills}
             fill="none"
-            stroke={`url(#${uid}-stroke)`}
+            stroke={`url(#${uid}-stroke-kills)`}
             strokeWidth="16"
             strokeLinecap="round"
             strokeLinejoin="round"
             opacity="0.14"
-            filter={`url(#${uid}-lineGlowBig)`}
+            filter={`url(#${uid}-lineGlowBig-kills)`}
           />
 
-          {/* Glow exterior mediu */}
+          {/* Glow exterior mediu kills */}
           <path
-            d={linePath}
+            d={linePathKills}
             fill="none"
-            stroke={`url(#${uid}-stroke)`}
+            stroke={`url(#${uid}-stroke-kills)`}
             strokeWidth="9"
             strokeLinecap="round"
             strokeLinejoin="round"
             opacity="0.28"
-            filter={`url(#${uid}-lineGlowSoft)`}
+            filter={`url(#${uid}-lineGlowSoft-kills)`}
           />
 
-          {/* Linia principală */}
+          {/* Linia principală kills */}
           <path
-            d={linePath}
+            d={linePathKills}
             fill="none"
-            stroke={`url(#${uid}-stroke)`}
+            stroke={`url(#${uid}-stroke-kills)`}
             strokeWidth="4"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* Punct final */}
-          {points.length > 0 && (
+          {/* Glow exterior mare deaths */}
+          <path
+            d={linePathDeaths}
+            fill="none"
+            stroke={`url(#${uid}-stroke-deaths)`}
+            strokeWidth="16"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.14"
+            filter={`url(#${uid}-lineGlowBig-deaths)`}
+          />
+
+          {/* Glow exterior mediu deaths */}
+          <path
+            d={linePathDeaths}
+            fill="none"
+            stroke={`url(#${uid}-stroke-deaths)`}
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.28"
+            filter={`url(#${uid}-lineGlowSoft-deaths)`}
+          />
+
+          {/* Linia principală deaths */}
+          <path
+            d={linePathDeaths}
+            fill="none"
+            stroke={`url(#${uid}-stroke-deaths)`}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Punct final kills */}
+          {pointsKills.length > 0 && (
             <>
               <circle
-                cx={points[points.length - 1].x}
-                cy={points[points.length - 1].y}
+                cx={pointsKills[pointsKills.length - 1].x}
+                cy={pointsKills[pointsKills.length - 1].y}
                 r="12"
                 fill="rgba(16,185,129,0.16)"
               />
               <circle
-                cx={points[points.length - 1].x}
-                cy={points[points.length - 1].y}
+                cx={pointsKills[pointsKills.length - 1].x}
+                cy={pointsKills[pointsKills.length - 1].y}
                 r="5"
                 fill="#10b981"
                 stroke="#d1fae5"
+                strokeWidth="2"
+              />
+            </>
+          )}
+
+          {/* Punct final deaths */}
+          {pointsDeaths.length > 0 && (
+            <>
+              <circle
+                cx={pointsDeaths[pointsDeaths.length - 1].x}
+                cy={pointsDeaths[pointsDeaths.length - 1].y}
+                r="12"
+                fill="rgba(239,68,68,0.16)"
+              />
+              <circle
+                cx={pointsDeaths[pointsDeaths.length - 1].x}
+                cy={pointsDeaths[pointsDeaths.length - 1].y}
+                r="5"
+                fill="#ef4444"
+                stroke="#fee2e2"
                 strokeWidth="2"
               />
             </>
