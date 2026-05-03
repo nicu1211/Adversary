@@ -106,11 +106,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
         kills: Number(item.kills) || 0,
       }))
       .filter((item) => item.kills > 0)
-      .sort(
-        (a, b) =>
-          b.kills - a.kills ||
-          a.name.localeCompare(b.name),
-      )
+      .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
       .slice(0, 10);
   }, [favouriteTargets]);
 
@@ -121,11 +117,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
         kills: Number(item.kills) || 0,
       }))
       .filter((item) => item.kills > 0)
-      .sort(
-        (a, b) =>
-          b.kills - a.kills ||
-          a.name.localeCompare(b.name),
-      )
+      .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
       .slice(0, 10);
   }, [nemesisTargets]);
 
@@ -149,8 +141,16 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
           <h3 className="text-2xl font-black">Targets & Nemesis</h3>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/70 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
-          <div className="mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/75 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <div className="absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-blue-500/15 blur-3xl" />
+            <div className="absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-rose-500/15 blur-3xl" />
+            <div className="absolute inset-x-6 bottom-0 h-28 bg-gradient-to-t from-sky-500/10 via-rose-500/5 to-transparent blur-2xl" />
+          </div>
+
+          <div className="relative mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
             <div className="pr-4 text-right text-blue-300">
               Favourite Targets
             </div>
@@ -161,11 +161,11 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
           </div>
 
           {!hasData ? (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
+            <p className="relative rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
               No target data yet.
             </p>
           ) : (
-            <div className="flex h-[calc(100%-36px)] flex-col justify-between gap-2">
+            <div className="relative flex h-[calc(100%-36px)] flex-col justify-between gap-2">
               {rows.map((row, index) => {
                 const favouriteWidth = row.favourite
                   ? Math.round((row.favourite.kills / max) * 100)
@@ -177,40 +177,50 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
 
                 const blueShade =
                   index < 3
-                    ? 'from-blue-950 via-blue-800 to-blue-600'
+                    ? 'from-blue-950 via-blue-800 to-blue-650'
                     : index < 7
-                      ? 'from-blue-800 via-blue-600 to-sky-400'
-                      : 'from-blue-600 via-sky-400 to-sky-200';
+                      ? 'from-blue-900 via-blue-700 to-sky-500'
+                      : 'from-blue-800 via-blue-600 to-cyan-400';
 
                 const redShade =
                   index < 3
-                    ? 'from-red-950 via-red-800 to-rose-600'
+                    ? 'from-red-950 via-red-800 to-rose-650'
                     : index < 7
-                      ? 'from-red-800 via-rose-600 to-rose-400'
-                      : 'from-rose-600 via-rose-400 to-pink-200';
+                      ? 'from-red-900 via-red-700 to-rose-500'
+                      : 'from-red-800 via-rose-600 to-pink-400';
 
                 return (
                   <div
                     key={`${row.favourite?.name || 'empty'}-${row.nemesis?.name || 'empty'}-${index}`}
                     className="min-h-0"
                   >
-                    <div className="grid h-[34px] grid-cols-[1fr_1px_1fr] items-center">
-                      <div className="relative flex h-full items-center justify-end">
+                    <div className="grid h-[36px] grid-cols-[1fr_1px_1fr] items-center">
+                      <div className="relative flex h-full items-center justify-end pr-1">
                         {row.favourite && (
                           <>
-                            <span className="mr-1 min-w-[30px] shrink-0 text-right text-xs font-black text-slate-100 drop-shadow">
+                            <span className="mr-1 min-w-[32px] shrink-0 text-right text-sm font-black text-slate-100">
                               {row.favourite.kills}
                             </span>
 
-                            <div
-                              className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2.5 shadow-[0_0_18px_rgba(56,189,248,.18)]`}
-                              style={{
-                                width: `${Math.max(16, favouriteWidth)}%`,
-                              }}
-                            >
-                              <span className="truncate text-xs font-black tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.85)]">
-                                {row.favourite.name}
-                              </span>
+                            <div className="relative h-full w-full overflow-visible">
+                              <div
+                                className={`absolute right-0 top-0 h-full rounded-l-md bg-gradient-to-l ${blueShade} shadow-[0_0_18px_rgba(59,130,246,.22)]`}
+                                style={{
+                                  width: `${Math.max(16, favouriteWidth)}%`,
+                                }}
+                              />
+                              <div className="absolute inset-y-0 right-0 flex max-w-full items-center px-2">
+                                <span
+                                  className="truncate text-sm font-black text-black"
+                                  style={{
+                                    textShadow:
+                                      '0 0 6px rgba(59,130,246,.65), 0 0 10px rgba(59,130,246,.35)',
+                                  }}
+                                  title={row.favourite.name}
+                                >
+                                  {row.favourite.name}
+                                </span>
+                              </div>
                             </div>
                           </>
                         )}
@@ -218,21 +228,31 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
 
                       <div className="h-full bg-slate-500/90" />
 
-                      <div className="relative flex h-full items-center justify-start">
+                      <div className="relative flex h-full items-center justify-start pl-1">
                         {row.nemesis && (
                           <>
-                            <div
-                              className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2.5 shadow-[0_0_18px_rgba(244,63,94,.18)]`}
-                              style={{
-                                width: `${Math.max(16, nemesisWidth)}%`,
-                              }}
-                            >
-                              <span className="truncate text-xs font-black tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.85)]">
-                                {row.nemesis.name}
-                              </span>
+                            <div className="relative h-full w-full overflow-visible">
+                              <div
+                                className={`absolute left-0 top-0 h-full rounded-r-md bg-gradient-to-r ${redShade} shadow-[0_0_18px_rgba(244,63,94,.22)]`}
+                                style={{
+                                  width: `${Math.max(16, nemesisWidth)}%`,
+                                }}
+                              />
+                              <div className="absolute inset-y-0 left-0 flex max-w-full items-center px-2">
+                                <span
+                                  className="truncate text-sm font-black text-black"
+                                  style={{
+                                    textShadow:
+                                      '0 0 6px rgba(244,63,94,.65), 0 0 10px rgba(244,63,94,.35)',
+                                  }}
+                                  title={row.nemesis.name}
+                                >
+                                  {row.nemesis.name}
+                                </span>
+                              </div>
                             </div>
 
-                            <span className="ml-1 min-w-[30px] shrink-0 text-left text-xs font-black text-slate-100 drop-shadow">
+                            <span className="ml-1 min-w-[32px] shrink-0 text-left text-sm font-black text-slate-100">
                               {row.nemesis.kills}
                             </span>
                           </>
