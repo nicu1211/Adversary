@@ -110,7 +110,8 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
         (a, b) =>
           b.kills - a.kills ||
           a.name.localeCompare(b.name),
-      );
+      )
+      .slice(0, 10);
   }, [favouriteTargets]);
 
   const nemesisRows = useMemo(() => {
@@ -124,12 +125,11 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
         (a, b) =>
           b.kills - a.kills ||
           a.name.localeCompare(b.name),
-      );
+      )
+      .slice(0, 10);
   }, [nemesisTargets]);
 
-  const rowCount = Math.max(favouriteRows.length, nemesisRows.length);
-
-  const rows = Array.from({ length: rowCount }, (_, index) => ({
+  const rows = Array.from({ length: 10 }, (_, index) => ({
     favourite: favouriteRows[index] || null,
     nemesis: nemesisRows[index] || null,
   }));
@@ -139,6 +139,8 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
     ...favouriteRows.map((item) => item.kills),
     ...nemesisRows.map((item) => item.kills),
   );
+
+  const hasData = favouriteRows.length || nemesisRows.length;
 
   return (
     <Panel cls="h-full">
@@ -158,89 +160,88 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
             <div className="pl-4 text-left text-pink-300">Nemesis</div>
           </div>
 
-          {!rows.length ? (
+          {!hasData ? (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
               No target data yet.
             </p>
           ) : (
-            <div className={`h-full overflow-y-auto pr-2 ${scrollCls}`}>
-              <div className="space-y-[3px]">
-                {rows.map((row, index) => {
-                  const favouriteWidth = row.favourite
-                    ? Math.round((row.favourite.kills / max) * 100)
-                    : 0;
+            <div className="flex h-[calc(100%-36px)] flex-col justify-between gap-2">
+              {rows.map((row, index) => {
+                const favouriteWidth = row.favourite
+                  ? Math.round((row.favourite.kills / max) * 100)
+                  : 0;
 
-                  const nemesisWidth = row.nemesis
-                    ? Math.round((row.nemesis.kills / max) * 100)
-                    : 0;
+                const nemesisWidth = row.nemesis
+                  ? Math.round((row.nemesis.kills / max) * 100)
+                  : 0;
 
-                  const blueShade =
-                    index < 3
-                      ? 'from-sky-300 via-sky-400 to-blue-500'
-                      : index < 7
-                        ? 'from-sky-400 via-blue-500 to-blue-700'
-                        : 'from-blue-500 via-blue-700 to-blue-950';
+                const blueShade =
+                  index < 3
+                    ? 'from-sky-300 via-sky-400 to-blue-500'
+                    : index < 7
+                      ? 'from-sky-400 via-blue-500 to-blue-700'
+                      : 'from-blue-500 via-blue-700 to-blue-950';
 
-                  const redShade =
-                    index < 3
-                      ? 'from-pink-300 via-rose-400 to-rose-500'
-                      : index < 7
-                        ? 'from-rose-400 via-rose-500 to-red-700'
-                        : 'from-rose-500 via-red-700 to-red-950';
+                const redShade =
+                  index < 3
+                    ? 'from-pink-300 via-rose-400 to-rose-500'
+                    : index < 7
+                      ? 'from-rose-400 via-rose-500 to-red-700'
+                      : 'from-rose-500 via-red-700 to-red-950';
 
-                  return (
-                    <div
-                      key={`${row.favourite?.name || 'empty'}-${row.nemesis?.name || 'empty'}-${index}`}
-                    >
-                      <div className="grid h-[22px] grid-cols-[1fr_1px_1fr] items-center">
-                        <div className="relative flex h-full items-center justify-end">
-                          {row.favourite && (
-                            <>
-                              <span className="mr-1 min-w-[24px] shrink-0 text-right text-[9px] font-black text-slate-300">
-                                {row.favourite.kills}
+                return (
+                  <div
+                    key={`${row.favourite?.name || 'empty'}-${row.nemesis?.name || 'empty'}-${index}`}
+                    className="min-h-0"
+                  >
+                    <div className="grid h-[31px] grid-cols-[1fr_1px_1fr] items-center">
+                      <div className="relative flex h-full items-center justify-end">
+                        {row.favourite && (
+                          <>
+                            <span className="mr-1 min-w-[24px] shrink-0 text-right text-[10px] font-black text-slate-300">
+                              {row.favourite.kills}
+                            </span>
+
+                            <div
+                              className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2`}
+                              style={{
+                                width: `${Math.max(13, favouriteWidth)}%`,
+                              }}
+                            >
+                              <span className="truncate text-[10px] font-black text-black">
+                                {row.favourite.name}
                               </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
 
-                              <div
-                                className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2`}
-                                style={{
-                                  width: `${Math.max(12, favouriteWidth)}%`,
-                                }}
-                              >
-                                <span className="truncate text-[9px] font-black text-black">
-                                  {row.favourite.name}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                      <div className="h-full bg-slate-500/90" />
 
-                        <div className="h-full bg-slate-500/90" />
-
-                        <div className="relative flex h-full items-center justify-start">
-                          {row.nemesis && (
-                            <>
-                              <div
-                                className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2`}
-                                style={{
-                                  width: `${Math.max(12, nemesisWidth)}%`,
-                                }}
-                              >
-                                <span className="truncate text-[9px] font-black text-black">
-                                  {row.nemesis.name}
-                                </span>
-                              </div>
-
-                              <span className="ml-1 min-w-[24px] shrink-0 text-left text-[9px] font-black text-slate-300">
-                                {row.nemesis.kills}
+                      <div className="relative flex h-full items-center justify-start">
+                        {row.nemesis && (
+                          <>
+                            <div
+                              className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2`}
+                              style={{
+                                width: `${Math.max(13, nemesisWidth)}%`,
+                              }}
+                            >
+                              <span className="truncate text-[10px] font-black text-black">
+                                {row.nemesis.name}
                               </span>
-                            </>
-                          )}
-                        </div>
+                            </div>
+
+                            <span className="ml-1 min-w-[24px] shrink-0 text-left text-[10px] font-black text-slate-300">
+                              {row.nemesis.kills}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
