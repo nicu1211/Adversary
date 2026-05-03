@@ -98,73 +98,148 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
-function MiniRankList({ title, items, valueKey, tone = 'blue' }) {
-  const rows = items.slice(0, 5);
-  const max = Math.max(1, ...rows.map((item) => Number(item[valueKey]) || 0));
-
-  const fillClass =
-    tone === 'pink'
-      ? 'bg-gradient-to-r from-fuchsia-500 to-pink-300'
-      : 'bg-gradient-to-r from-blue-500 to-cyan-300';
-
-  return (
-    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/45 p-4">
-      <h4 className="mb-4 text-xl font-black">{title}</h4>
-
-      {!rows.length ? (
-        <p className="text-sm text-slate-500">No data yet.</p>
-      ) : (
-        rows.map((item, index) => {
-          const value = Number(item[valueKey]) || 0;
-
-          return (
-            <div
-              key={`${title}-${item.name}`}
-              className="mb-3 grid grid-cols-[32px_1fr_38px] items-center gap-3 text-sm last:mb-0"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black text-slate-100">
-                {index + 1}
-              </span>
-
-              <div className="min-w-0">
-                <p className="mb-1.5 truncate font-bold">{item.name}</p>
-
-                <div className="h-2 rounded-full bg-slate-800">
-                  <div
-                    className={`h-2 rounded-full ${fillClass}`}
-                    style={{
-                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <b className="text-right text-slate-100">{value}</b>
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
-
 function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
+  const rows = useMemo(() => {
+    const map = {};
+
+    favouriteTargets.forEach((item) => {
+      if (!map[item.name]) {
+        map[item.name] = {
+          name: item.name,
+          favourite: 0,
+          nemesis: 0,
+        };
+      }
+
+      map[item.name].favourite = Number(item.kills) || 0;
+    });
+
+    nemesisTargets.forEach((item) => {
+      if (!map[item.name]) {
+        map[item.name] = {
+          name: item.name,
+          favourite: 0,
+          nemesis: 0,
+        };
+      }
+
+      map[item.name].nemesis = Number(item.kills) || 0;
+    });
+
+    return Object.values(map)
+      .map((item) => ({
+        ...item,
+        total: item.favourite + item.nemesis,
+      }))
+      .sort(
+        (a, b) =>
+          b.total - a.total ||
+          b.favourite - a.favourite ||
+          b.nemesis - a.nemesis ||
+          a.name.localeCompare(b.name),
+      );
+  }, [favouriteTargets, nemesisTargets]);
+
+  const max = Math.max(
+    1,
+    ...rows.flatMap((item) => [item.favourite, item.nemesis]),
+  );
+
   return (
     <Panel>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <MiniRankList
-          title="Favourite Targets"
-          items={favouriteTargets}
-          valueKey="kills"
-          tone="blue"
-        />
+      <div className="overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/70 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
+        <div className="mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
+          <div className="pr-4 text-right text-blue-300">
+            Favourite Targets
+          </div>
 
-        <MiniRankList
-          title="Nemesis"
-          items={nemesisTargets}
-          valueKey="kills"
-          tone="pink"
-        />
+          <div className="h-5 bg-slate-500/80" />
+
+          <div className="pl-4 text-left text-pink-300">Nemesis</div>
+        </div>
+
+        {!rows.length ? (
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
+            No target data yet.
+          </p>
+        ) : (
+          <div className={`max-h-[420px] overflow-y-auto pr-2 ${scrollCls}`}>
+            <div className="space-y-[3px]">
+              {rows.map((row, index) => {
+                const favouriteWidth = Math.round((row.favourite / max) * 100);
+                const nemesisWidth = Math.round((row.nemesis / max) * 100);
+
+                const blueShade =
+                  index < 3
+                    ? 'from-sky-300 via-sky-400 to-blue-500'
+                    : index < 7
+                      ? 'from-sky-400 via-blue-500 to-blue-700'
+                      : 'from-blue-500 via-blue-700 to-blue-950';
+
+                const redShade =
+                  index < 3
+                    ? 'from-pink-300 via-rose-400 to-rose-500'
+                    : index < 7
+                      ? 'from-rose-400 via-rose-500 to-red-700'
+                      : 'from-rose-500 via-red-700 to-red-950';
+
+                return (
+                  <div key={row.name}>
+                    <div className="grid h-[19px] grid-cols-[1fr_1px_1fr] items-center">
+                      <div className="relative flex h-full items-center justify-end">
+                        {row.favourite > 0 && (
+                          <>
+                            <span className="mr-1 min-w-[24px] shrink-0 text-right text-[9px] font-black text-slate-300">
+                              {row.favourite}
+                            </span>
+
+                            <div
+                              className={`h-full bg-gradient-to-l ${blueShade}`}
+                              style={{
+                                width: `${Math.max(3, favouriteWidth)}%`,
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+
+                      <div className="h-full bg-slate-500/90" />
+
+                      <div className="relative flex h-full items-center justify-start">
+                        {row.nemesis > 0 && (
+                          <>
+                            <div
+                              className={`h-full bg-gradient-to-r ${redShade}`}
+                              style={{
+                                width: `${Math.max(3, nemesisWidth)}%`,
+                              }}
+                            />
+
+                            <span className="ml-1 min-w-[24px] shrink-0 text-left text-[9px] font-black text-slate-300">
+                              {row.nemesis}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_1px_1fr] text-[9px] font-bold leading-4 text-slate-500">
+                      <div className="truncate pr-2 text-right">
+                        {row.name}
+                      </div>
+
+                      <div />
+
+                      <div className="truncate pl-2 text-left">
+                        {row.name}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </Panel>
   );
