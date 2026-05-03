@@ -762,11 +762,11 @@ export function PerformanceChart({ data }) {
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(96,165,250,0.82)" />
-                <stop offset="28%" stopColor="rgba(96,165,250,0.58)" />
-                <stop offset="58%" stopColor="rgba(96,165,250,0.32)" />
-                <stop offset="82%" stopColor="rgba(96,165,250,0.14)" />
-                <stop offset="100%" stopColor="rgba(96,165,250,0)" />
+                <stop offset="0%" stopColor="rgba(96,165,250,0.92)" />
+                <stop offset="22%" stopColor="rgba(96,165,250,0.72)" />
+                <stop offset="45%" stopColor="rgba(96,165,250,0.48)" />
+                <stop offset="70%" stopColor="rgba(96,165,250,0.24)" />
+                <stop offset="100%" stopColor="rgba(96,165,250,0.02)" />
               </linearGradient>
 
               <filter
@@ -866,10 +866,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="#60a5fa"
-              strokeWidth={16}
+              strokeWidth={12}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.28}
+              opacity={0.24}
               filter="url(#avgKdGlowBig)"
               dot={false}
               activeDot={false}
@@ -883,10 +883,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="#60a5fa"
-              strokeWidth={8}
+              strokeWidth={6}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.42}
+              opacity={0.36}
               filter="url(#avgKdGlowSoft)"
               dot={false}
               activeDot={false}
@@ -900,7 +900,7 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name="K/D"
               stroke="#60a5fa"
-              strokeWidth={2}
+              strokeWidth={1.6}
               strokeLinecap="round"
               strokeLinejoin="round"
               dot={false}
