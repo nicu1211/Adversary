@@ -1,291 +1,355 @@
-import React, { useMemo } from 'react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  ComposedChart,
-  Bar,
-  Line as RechartsLine,
-  Legend,
-} from 'recharts';
+import React, { useId, useMemo } from 'react';
 import { Panel } from './UI';
 
-const tooltipStyle = {
-  background: '#0f172a',
-  border: '1px solid #334155',
-  borderRadius: 14,
-  color: '#fff',
-};
-
-const axisTick = {
-  fill: '#94a3b8',
-  fontSize: 11,
-};
-
-export function KillDeathChart({ data, title }) {
-  return (
-    <Panel>
-      <h2 className="text-2xl font-black">{title}</h2>
-
-      <div className="h-[260px] sm:h-[300px]">
-        <ResponsiveContainer>
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id="killFillMain" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.06} />
-              </linearGradient>
-
-              <linearGradient id="deathFillMain" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f472b6" stopOpacity={0.35} />
-                <stop offset="95%" stopColor="#f472b6" stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
-
-            <CartesianGrid stroke="rgba(148,163,184,.14)" />
-
-            <XAxis
-              dataKey="time"
-              tick={axisTick}
-              angle={-35}
-              textAnchor="end"
-              height={55}
-            />
-
-            <YAxis tick={axisTick} allowDecimals={false} />
-
-            <Tooltip contentStyle={tooltipStyle} />
-
-            <Area
-              type="monotone"
-              dataKey="kills"
-              name="Kills"
-              stroke="#60a5fa"
-              strokeWidth={3}
-              fill="url(#killFillMain)"
-            />
-
-            <Area
-              type="monotone"
-              dataKey="deaths"
-              name="Deaths"
-              stroke="#f472b6"
-              strokeWidth={3}
-              fill="url(#deathFillMain)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </Panel>
-  );
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
-function SummaryChip({ label, value, colorClass }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 shadow-lg backdrop-blur-xl">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-        {label}
-      </p>
-      <p className={`text-sm font-black ${colorClass}`}>{value}</p>
-    </div>
-  );
+function pick(obj, keys, fallback = null) {
+  for (const key of keys) {
+    if (obj && obj[key] != null) return obj[key];
+  }
+  return fallback;
 }
 
-function PerformanceTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
+function buildSmoothPath(points) {
+  if (!points.length) return '';
 
-  const map = Object.fromEntries(
-    payload.map((item) => [item.dataKey, item.value]),
-  );
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y}`;
+  }
 
-  return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
-      <p className="mb-2 text-sm font-black text-white">{label}</p>
+  let path = `M ${points[0].x} ${points[0].y}`;
 
-      <div className="space-y-1.5 text-sm">
-        <p className="font-bold text-cyan-300">Kills : {map.kills ?? 0}</p>
-        <p className="font-bold text-pink-300">Deaths : {map.deaths ?? 0}</p>
-        <p className="font-bold text-emerald-300">
-          Avg K/D : {map.avgKd ?? 0}
-        </p>
-      </div>
-    </div>
-  );
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  }
+
+  return path;
 }
 
-export function PerformanceChart({ data }) {
-  const summary = useMemo(() => {
-    if (!data?.length) {
-      return {
-        avgKills: '0.00',
-        avgDeaths: '0.00',
-        avgKd: '0.00',
-      };
-    }
+function getLabelStep(length) {
+  if (length <= 8) return 1;
+  if (length <= 14) return 2;
+  if (length <= 24) return 3;
+  if (length <= 36) return 4;
+  return Math.ceil(length / 8);
+}
 
-    const avgKills =
-      data.reduce((sum, item) => sum + (Number(item.avgKills) || 0), 0) /
-      data.length;
+function normalizeTimelineData(data = []) {
+  return data.map((item, index) => {
+    const kills = toNumber(pick(item, ['kills', 'kill', 'k'], 0));
+    const deaths = toNumber(pick(item, ['deaths', 'death', 'd'], 0));
 
-    const avgDeaths =
-      data.reduce((sum, item) => sum + (Number(item.avgDeaths) || 0), 0) /
-      data.length;
-
-    const avgKd =
-      data.reduce((sum, item) => sum + (Number(item.avgKd) || 0), 0) /
-      data.length;
+    const value = toNumber(
+      pick(item, ['net', 'diff', 'value', 'score'], kills - deaths),
+    );
 
     return {
-      avgKills: avgKills.toFixed(2),
-      avgDeaths: avgDeaths.toFixed(2),
-      avgKd: avgKd.toFixed(2),
+      label:
+        pick(
+          item,
+          ['label', 'time', 'minute', 'slot', 'name', 'x'],
+          index + 1,
+        ) ?? index + 1,
+      value,
     };
-  }, [data]);
+  });
+}
+
+function formatTickValue(value) {
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? '+' : ''}${rounded}`;
+}
+
+function OverviewLineChart({
+  data,
+  title = '▧ Global Kill/Death Timeline',
+}) {
+  const uid = useId();
+  const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
+
+  const width = 1000;
+  const height = 255;
+  const pad = { top: 18, right: 16, bottom: 30, left: 40 };
+
+  const chart = useMemo(() => {
+    if (!rows.length) return null;
+
+    const innerW = width - pad.left - pad.right;
+    const innerH = height - pad.top - pad.bottom;
+
+    const values = rows.map((row) => row.value);
+    const rawMin = Math.min(...values);
+    const rawMax = Math.max(...values);
+
+    const range = Math.max(1, rawMax - rawMin);
+    const extra = Math.max(1, range * 0.18);
+
+    const min = rawMin - extra;
+    const max = rawMax + extra;
+    const safeRange = Math.max(1, max - min);
+
+    const points = rows.map((row, index) => {
+      const x =
+        rows.length === 1
+          ? pad.left + innerW / 2
+          : pad.left + (index / (rows.length - 1)) * innerW;
+
+      const y = pad.top + ((max - row.value) / safeRange) * innerH;
+
+      return {
+        x,
+        y,
+        label: row.label,
+        value: row.value,
+      };
+    });
+
+    const yTicks = 5;
+    const ticks = Array.from({ length: yTicks }, (_, i) => {
+      const value = max - ((max - min) * i) / (yTicks - 1);
+      const y = pad.top + (innerH * i) / (yTicks - 1);
+
+      return {
+        value,
+        y,
+      };
+    });
+
+    return {
+      points,
+      ticks,
+      innerW,
+    };
+  }, [rows]);
+
+  if (!chart) {
+    return (
+      <Panel>
+        <h3 className="mb-3 text-xl font-black">{title}</h3>
+
+        <div className="flex h-[255px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/40 text-slate-500">
+          No chart data.
+        </div>
+      </Panel>
+    );
+  }
+
+  const { points, ticks, innerW } = chart;
+  const linePath = buildSmoothPath(points);
+  const labelStep = getLabelStep(rows.length);
+
+  const topGlowArea = points.length
+    ? `${linePath} L ${points[points.length - 1].x} ${pad.top} L ${points[0].x} ${pad.top} Z`
+    : '';
 
   return (
-    <Panel>
-      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <h2 className="text-2xl font-black">Performance</h2>
-          <p className="text-sm text-slate-400">
-            Daily performance with kills, deaths and average K/D
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <SummaryChip
-            label="Average Kills"
-            value={summary.avgKills}
-            colorClass="text-cyan-300"
-          />
-
-          <SummaryChip
-            label="Average Deaths"
-            value={summary.avgDeaths}
-            colorClass="text-pink-300"
-          />
-
-          <SummaryChip
-            label="Average K/D"
-            value={summary.avgKd}
-            colorClass="text-emerald-300"
-          />
-        </div>
+    <Panel cls="overflow-hidden">
+      <div className="mb-3">
+        <h3 className="text-xl font-black">{title}</h3>
       </div>
 
-      <div className="h-[320px] sm:h-[360px] [&_*:focus]:outline-none">
-        <ResponsiveContainer>
-          <ComposedChart
-            data={data}
-            barCategoryGap="28%"
-            barGap={-8}
-            margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
-          >
-            <defs>
-              <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8bf3ff" stopOpacity={0.96} />
-                <stop offset="100%" stopColor="#5fd0ff" stopOpacity={0.72} />
-              </linearGradient>
+      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(32,35,78,0.96),rgba(26,28,66,0.98))]">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="block h-auto w-full"
+          role="img"
+          aria-label={title}
+        >
+          <defs>
+            <linearGradient id={`${uid}-stroke`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#5B5CFF" />
+              <stop offset="40%" stopColor="#8B5CF6" />
+              <stop offset="72%" stopColor="#D946EF" />
+              <stop offset="100%" stopColor="#FF62C7" />
+            </linearGradient>
 
-              <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f9c0ff" stopOpacity={0.96} />
-                <stop offset="100%" stopColor="#f472b6" stopOpacity={0.72} />
-              </linearGradient>
+            <linearGradient id={`${uid}-topGlow`} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="rgba(217,70,239,0.22)" />
+              <stop offset="35%" stopColor="rgba(168,85,247,0.12)" />
+              <stop offset="70%" stopColor="rgba(168,85,247,0.04)" />
+              <stop offset="100%" stopColor="rgba(168,85,247,0)" />
+            </linearGradient>
 
-              <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#34d399" stopOpacity={0.18} />
-                <stop offset="55%" stopColor="#34d399" stopOpacity={0.07} />
-                <stop offset="100%" stopColor="#34d399" stopOpacity={0.01} />
-              </linearGradient>
-            </defs>
+            <filter
+              id={`${uid}-lineGlowBig`}
+              x="-60%"
+              y="-60%"
+              width="220%"
+              height="220%"
+            >
+              <feGaussianBlur stdDeviation="10" result="blur1" />
+              <feMerge>
+                <feMergeNode in="blur1" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
 
-            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
+            <filter
+              id={`${uid}-lineGlowSoft`}
+              x="-60%"
+              y="-60%"
+              width="220%"
+              height="220%"
+            >
+              <feGaussianBlur stdDeviation="5" result="blur2" />
+              <feMerge>
+                <feMergeNode in="blur2" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
 
-            <XAxis
-              dataKey="time"
-              tick={axisTick}
-              angle={-35}
-              textAnchor="end"
-              height={55}
+          {/* Glow care pornește din linie și se estompează în sus */}
+          {topGlowArea && (
+            <path
+              d={topGlowArea}
+              fill={`url(#${uid}-topGlow)`}
+              opacity="0.95"
             />
+          )}
 
-            <YAxis
-              yAxisId="left"
-              tick={axisTick}
-              allowDecimals={false}
-            />
+          {/* Linii orizontale */}
+          {ticks.map((tick, index) => (
+            <g key={`h-${index}`}>
+              <line
+                x1={pad.left}
+                y1={tick.y}
+                x2={width - pad.right}
+                y2={tick.y}
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth="1"
+              />
+              <text
+                x={pad.left - 8}
+                y={tick.y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="rgba(255,255,255,0.35)"
+              >
+                {formatTickValue(tick.value)}
+              </text>
+            </g>
+          ))}
 
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={axisTick}
-              allowDecimals
-            />
+          {/* Linii verticale + label-uri jos */}
+          {rows.map((row, index) => {
+            const x =
+              rows.length === 1
+                ? pad.left + innerW / 2
+                : pad.left + (index / (rows.length - 1)) * innerW;
 
-            <Tooltip content={<PerformanceTooltip />} cursor={false} />
-            <Legend />
+            const showLabel =
+              index === 0 ||
+              index === rows.length - 1 ||
+              index % labelStep === 0;
 
-            <Bar
-              yAxisId="left"
-              dataKey="kills"
-              name="Kills"
-              fill="url(#perfBarKills)"
-              radius={[10, 10, 0, 0]}
-              maxBarSize={28}
-              activeBar={false}
-            />
+            return (
+              <g key={`v-${index}`}>
+                <line
+                  x1={x}
+                  y1={pad.top}
+                  x2={x}
+                  y2={height - pad.bottom}
+                  stroke="rgba(255,255,255,0.14)"
+                  strokeWidth="1"
+                  strokeDasharray="2 4"
+                />
 
-            <Bar
-              yAxisId="left"
-              dataKey="deaths"
-              name="Deaths"
-              fill="url(#perfBarDeaths)"
-              radius={[10, 10, 0, 0]}
-              maxBarSize={28}
-              activeBar={false}
-            />
+                {showLabel && (
+                  <text
+                    x={x}
+                    y={height - 10}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="rgba(255,255,255,0.42)"
+                  >
+                    {String(row.label)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
-            <Area
-              yAxisId="right"
-              type="monotone"
-              dataKey="avgKd"
-              name=""
-              stroke="none"
-              fill="url(#avgKdFill)"
-              legendType="none"
-              activeDot={false}
-              isAnimationActive
-            />
+          {/* Glow exterior mare */}
+          <path
+            d={linePath}
+            fill="none"
+            stroke={`url(#${uid}-stroke)`}
+            strokeWidth="16"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.14"
+            filter={`url(#${uid}-lineGlowBig)`}
+          />
 
-            <RechartsLine
-              yAxisId="right"
-              type="monotone"
-              dataKey="avgKd"
-              name="Avg K/D"
-              stroke="#34d399"
-              strokeWidth={1.6}
-              dot={{
-                r: 2.8,
-                fill: '#34d399',
-                stroke: '#a7f3d0',
-                strokeWidth: 1.2,
-              }}
-              activeDot={{
-                r: 4,
-                fill: '#34d399',
-                stroke: '#d1fae5',
-                strokeWidth: 1.5,
-              }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+          {/* Glow exterior mediu */}
+          <path
+            d={linePath}
+            fill="none"
+            stroke={`url(#${uid}-stroke)`}
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.28"
+            filter={`url(#${uid}-lineGlowSoft)`}
+          />
+
+          {/* Linia principală */}
+          <path
+            d={linePath}
+            fill="none"
+            stroke={`url(#${uid}-stroke)`}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Punct final */}
+          {points.length > 0 && (
+            <>
+              <circle
+                cx={points[points.length - 1].x}
+                cy={points[points.length - 1].y}
+                r="12"
+                fill="rgba(255,98,199,0.16)"
+              />
+              <circle
+                cx={points[points.length - 1].x}
+                cy={points[points.length - 1].y}
+                r="5"
+                fill="#FF62C7"
+                stroke="#FFD3EF"
+                strokeWidth="2"
+              />
+            </>
+          )}
+        </svg>
       </div>
     </Panel>
   );
 }
 
-export const AveragePerformanceChart = PerformanceChart;
+export function KillDeathChart(props) {
+  return <OverviewLineChart {...props} />;
+}
+
+export function AveragePerformanceChart(props) {
+  return <OverviewLineChart {...props} />;
+}
+
+export function PlayerStatsChart(props) {
+  return <OverviewLineChart {...props} />;
+}
