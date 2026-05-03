@@ -675,15 +675,39 @@ export function PerformanceChart({ data }) {
     [battleDomain],
   );
 
-  const avgKdSpread = useMemo(() => {
-    const deviations = (performanceData || []).map((item) =>
-      Math.abs((Number(item.avgKd) || 0) - 1),
+  const avgKdDomain = useMemo(() => {
+    const leftMin = battleDomain.min;
+    const leftMax = battleDomain.max;
+    const leftRange = Math.max(1, leftMax - leftMin);
+
+    const zeroPosition = Math.min(
+      0.95,
+      Math.max(0.05, (0 - leftMin) / leftRange),
     );
 
-    const maxDeviation = Math.max(0.25, ...deviations);
+    const values = performanceData.map((item) => Number(item.avgKd) || 0);
 
-    return Number((maxDeviation * 1.2).toFixed(2));
-  }, [performanceData]);
+    const lowerDeviation = Math.max(
+      0.25,
+      ...values.map((value) => Math.max(0, 1 - value)),
+    );
+
+    const upperDeviation = Math.max(
+      0.25,
+      ...values.map((value) => Math.max(0, value - 1)),
+    );
+
+    const scale = Math.max(
+      lowerDeviation / zeroPosition,
+      upperDeviation / (1 - zeroPosition),
+      0.5,
+    );
+
+    const lower = zeroPosition * scale;
+    const upper = (1 - zeroPosition) * scale;
+
+    return [1 - lower, 1 + upper];
+  }, [battleDomain, performanceData]);
 
   return (
     <Panel>
@@ -737,10 +761,10 @@ export function PerformanceChart({ data }) {
                 <stop offset="100%" stopColor="#ef4444" stopOpacity={0.82} />
               </linearGradient>
 
-              <linearGradient id="avgKdFill" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor="rgba(96,165,250,0.42)" />
-                <stop offset="35%" stopColor="rgba(96,165,250,0.24)" />
-                <stop offset="70%" stopColor="rgba(96,165,250,0.10)" />
+              <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(96,165,250,0.44)" />
+                <stop offset="35%" stopColor="rgba(96,165,250,0.26)" />
+                <stop offset="70%" stopColor="rgba(96,165,250,0.12)" />
                 <stop offset="100%" stopColor="rgba(96,165,250,0)" />
               </linearGradient>
 
@@ -797,7 +821,7 @@ export function PerformanceChart({ data }) {
               orientation="right"
               tick={axisTick}
               allowDecimals
-              domain={[1 - avgKdSpread, 1 + avgKdSpread]}
+              domain={avgKdDomain}
             />
 
             <Tooltip content={<PerformanceTooltip />} cursor={false} />
@@ -818,16 +842,6 @@ export function PerformanceChart({ data }) {
               name="Kills"
               stackId="battle"
               fill="url(#perfBarKills)"
-              radius={[0, 0, 0, 0]}
-              activeBar={false}
-            />
-
-            <Bar
-              yAxisId="left"
-              dataKey="deathsNegative"
-              name="Deaths"
-              stackId="battle"
-              fill="url(#perfBarDeaths)"
               radius={[0, 0, 0, 0]}
               activeBar={false}
             />
@@ -896,6 +910,16 @@ export function PerformanceChart({ data }) {
                 strokeWidth: 1.5,
               }}
               isAnimationActive
+            />
+
+            <Bar
+              yAxisId="left"
+              dataKey="deathsNegative"
+              name="Deaths"
+              stackId="battle"
+              fill="url(#perfBarDeaths)"
+              radius={[0, 0, 0, 0]}
+              activeBar={false}
             />
           </ComposedChart>
         </ResponsiveContainer>
