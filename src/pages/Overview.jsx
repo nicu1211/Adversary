@@ -519,12 +519,7 @@ function TopGuilds({ guilds, events }) {
     <Panel cls="h-[520px]">
       <div className="flex h-full flex-col">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-black">🛡 Top Guilds</h3>
-            <p className="text-xs text-slate-400">
-              Showing 12 at a time · scroll to see all interacted guilds
-            </p>
-          </div>
+          <h3 className="text-xl font-black">🛡 Top Guilds</h3>
 
           <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
             {rows.length} guilds
@@ -654,25 +649,27 @@ function KillFeedPanel({ killFeeds }) {
         {!rows.length ? (
           <p className="text-slate-500">No kill feeds yet.</p>
         ) : (
-          <div className={`min-h-0 flex-1 overflow-y-auto pr-2 ${scrollCls}`}>
+          <div className="grid gap-2">
             {rows.map((feed, index) => (
               <div
                 key={index}
-                className="mb-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 last:mb-0"
+                className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
               >
-                <div className="flex justify-between">
-                  <b>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <b className="truncate text-sm">
                     {index + 1}. {feed.name}
                   </b>
 
-                  <b className="text-orange-300">🔥 {feed.count}</b>
+                  <b className="shrink-0 text-sm text-orange-300">
+                    🔥 {feed.count}
+                  </b>
                 </div>
 
-                <p className="text-xs text-slate-400">
+                <p className="truncate text-[11px] text-slate-400">
                   {feed.start}-{feed.end} · {feed.war}
                 </p>
 
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-[11px] text-slate-500">
                   {feed.victims.join(', ')}
                 </p>
               </div>
