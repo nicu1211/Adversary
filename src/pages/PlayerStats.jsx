@@ -147,7 +147,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             <div className="absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-blue-500/15 blur-3xl" />
             <div className="absolute -right-16 bottom-0 h-40 w-40 rounded-full bg-rose-500/15 blur-3xl" />
-            <div className="absolute inset-x-6 bottom-0 h-28 bg-gradient-to-t from-sky-500/10 via-rose-500/5 to-transparent blur-2xl" />
+            <div className="absolute inset-x-4 bottom-0 h-32 bg-gradient-to-t from-violet-500/10 via-sky-500/10 to-transparent blur-3xl" />
           </div>
 
           <div className="relative mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
@@ -177,17 +177,17 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
 
                 const blueShade =
                   index < 3
-                    ? 'from-blue-950 via-blue-800 to-blue-650'
+                    ? 'from-blue-600 via-blue-500 to-indigo-500'
                     : index < 7
-                      ? 'from-blue-900 via-blue-700 to-sky-500'
-                      : 'from-blue-800 via-blue-600 to-cyan-400';
+                      ? 'from-sky-500 via-blue-500 to-indigo-500'
+                      : 'from-cyan-400 via-sky-500 to-blue-500';
 
                 const redShade =
                   index < 3
-                    ? 'from-red-950 via-red-800 to-rose-650'
+                    ? 'from-red-600 via-rose-500 to-pink-500'
                     : index < 7
-                      ? 'from-red-900 via-red-700 to-rose-500'
-                      : 'from-red-800 via-rose-600 to-pink-400';
+                      ? 'from-rose-500 via-red-500 to-pink-500'
+                      : 'from-pink-400 via-rose-500 to-red-500';
 
                 return (
                   <div
@@ -202,19 +202,25 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                               {row.favourite.kills}
                             </span>
 
-                            <div className="relative h-full w-full overflow-visible">
+                            <div className="relative h-full w-full overflow-hidden">
                               <div
-                                className={`absolute right-0 top-0 h-full rounded-l-md bg-gradient-to-l ${blueShade} shadow-[0_0_18px_rgba(59,130,246,.22)]`}
+                                className={`absolute right-0 top-0 h-full rounded-l-md bg-gradient-to-l ${blueShade} shadow-[0_0_18px_rgba(59,130,246,.24)]`}
                                 style={{
-                                  width: `${Math.max(16, favouriteWidth)}%`,
+                                  width: `${Math.max(18, favouriteWidth)}%`,
                                 }}
                               />
-                              <div className="absolute inset-y-0 right-0 flex max-w-full items-center px-2">
+
+                              <div
+                                className="absolute inset-y-0 right-0 flex items-center justify-end px-3"
+                                style={{
+                                  width: `${Math.max(18, favouriteWidth)}%`,
+                                }}
+                              >
                                 <span
-                                  className="truncate text-sm font-black text-black"
+                                  className="block max-w-full truncate text-right text-sm font-black text-white"
                                   style={{
                                     textShadow:
-                                      '0 0 6px rgba(59,130,246,.65), 0 0 10px rgba(59,130,246,.35)',
+                                      '0 0 6px rgba(59,130,246,.45), 0 0 12px rgba(59,130,246,.28)',
                                   }}
                                   title={row.favourite.name}
                                 >
@@ -231,19 +237,25 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                       <div className="relative flex h-full items-center justify-start pl-1">
                         {row.nemesis && (
                           <>
-                            <div className="relative h-full w-full overflow-visible">
+                            <div className="relative h-full w-full overflow-hidden">
                               <div
-                                className={`absolute left-0 top-0 h-full rounded-r-md bg-gradient-to-r ${redShade} shadow-[0_0_18px_rgba(244,63,94,.22)]`}
+                                className={`absolute left-0 top-0 h-full rounded-r-md bg-gradient-to-r ${redShade} shadow-[0_0_18px_rgba(244,63,94,.24)]`}
                                 style={{
-                                  width: `${Math.max(16, nemesisWidth)}%`,
+                                  width: `${Math.max(18, nemesisWidth)}%`,
                                 }}
                               />
-                              <div className="absolute inset-y-0 left-0 flex max-w-full items-center px-2">
+
+                              <div
+                                className="absolute inset-y-0 left-0 flex items-center px-3"
+                                style={{
+                                  width: `${Math.max(18, nemesisWidth)}%`,
+                                }}
+                              >
                                 <span
-                                  className="truncate text-sm font-black text-black"
+                                  className="block max-w-full truncate text-left text-sm font-black text-white"
                                   style={{
                                     textShadow:
-                                      '0 0 6px rgba(244,63,94,.65), 0 0 10px rgba(244,63,94,.35)',
+                                      '0 0 6px rgba(244,63,94,.45), 0 0 12px rgba(244,63,94,.28)',
                                   }}
                                   title={row.nemesis.name}
                                 >
