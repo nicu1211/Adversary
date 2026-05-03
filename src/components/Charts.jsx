@@ -820,7 +820,10 @@ export function PerformanceChart({ data }) {
             <YAxis
               yAxisId="right"
               orientation="right"
-              tick={axisTick}
+              tick={false}
+              axisLine={false}
+              tickLine={false}
+              width={0}
               allowDecimals
               domain={avgKdDomain}
             />
