@@ -10,6 +10,7 @@ import {
   Bar,
   Line as RechartsLine,
   Legend,
+  ReferenceLine,
 } from 'recharts';
 import { Panel } from './UI';
 
@@ -579,13 +580,18 @@ function PerformanceTooltip({ active, payload, label }) {
     payload.map((item) => [item.dataKey, item.value]),
   );
 
+  const deaths =
+    map.deathsNegative != null
+      ? Math.abs(Number(map.deathsNegative) || 0)
+      : map.deaths ?? 0;
+
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
       <p className="mb-2 text-sm font-black text-white">{label}</p>
 
       <div className="space-y-1.5 text-sm">
         <p className="font-bold text-emerald-300">Kills : {map.kills ?? 0}</p>
-        <p className="font-bold text-rose-300">Deaths : {map.deaths ?? 0}</p>
+        <p className="font-bold text-rose-300">Deaths : {deaths}</p>
         <p className="font-bold text-blue-300">
           Avg K/D : {map.avgKd ?? 0}
         </p>
@@ -623,6 +629,29 @@ export function PerformanceChart({ data }) {
     };
   }, [data]);
 
+  const performanceData = useMemo(
+    () =>
+      (data || []).map((item) => ({
+        ...item,
+        kills: Number(item.kills) || 0,
+        deathsNegative: -(Number(item.deaths) || 0),
+        avgKd: Number(item.avgKd) || 0,
+      })),
+    [data],
+  );
+
+  const maxBattleValue = useMemo(() => {
+    const max = Math.max(
+      1,
+      ...performanceData.flatMap((item) => [
+        Math.abs(Number(item.kills) || 0),
+        Math.abs(Number(item.deathsNegative) || 0),
+      ]),
+    );
+
+    return Math.ceil(max * 1.2);
+  }, [performanceData]);
+
   return (
     <Panel>
       <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -657,8 +686,8 @@ export function PerformanceChart({ data }) {
       <div className="h-[320px] sm:h-[360px] [&_*:focus]:outline-none">
         <ResponsiveContainer>
           <ComposedChart
-            data={data}
-            barCategoryGap="34%"
+            data={performanceData}
+            barCategoryGap="42%"
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
@@ -689,7 +718,13 @@ export function PerformanceChart({ data }) {
               height={55}
             />
 
-            <YAxis yAxisId="left" tick={axisTick} allowDecimals={false} />
+            <YAxis
+              yAxisId="left"
+              tick={axisTick}
+              allowDecimals={false}
+              domain={[-maxBattleValue, maxBattleValue]}
+              tickFormatter={(value) => Math.abs(value)}
+            />
 
             <YAxis
               yAxisId="right"
@@ -701,25 +736,30 @@ export function PerformanceChart({ data }) {
             <Tooltip content={<PerformanceTooltip />} cursor={false} />
             <Legend />
 
-            <Bar
+            <ReferenceLine
               yAxisId="left"
-              dataKey="deaths"
-              name="Deaths"
-              stackId="battle"
-              fill="url(#perfBarDeaths)"
-              radius={[0, 0, 10, 10]}
-              maxBarSize={34}
-              activeBar={false}
+              y={0}
+              stroke="rgba(255,255,255,.22)"
+              strokeWidth={1.4}
             />
 
             <Bar
               yAxisId="left"
               dataKey="kills"
               name="Kills"
-              stackId="battle"
               fill="url(#perfBarKills)"
-              radius={[10, 10, 0, 0]}
-              maxBarSize={34}
+              radius={[0, 0, 0, 0]}
+              maxBarSize={14}
+              activeBar={false}
+            />
+
+            <Bar
+              yAxisId="left"
+              dataKey="deathsNegative"
+              name="Deaths"
+              fill="url(#perfBarDeaths)"
+              radius={[0, 0, 0, 0]}
+              maxBarSize={14}
               activeBar={false}
             />
 
