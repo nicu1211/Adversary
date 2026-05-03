@@ -99,143 +99,151 @@ function PlayerSelect({ players, value, onChange }) {
 }
 
 function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
-  const rows = useMemo(() => {
-    const map = {};
-
-    favouriteTargets.forEach((item) => {
-      if (!map[item.name]) {
-        map[item.name] = {
-          name: item.name,
-          favourite: 0,
-          nemesis: 0,
-        };
-      }
-
-      map[item.name].favourite = Number(item.kills) || 0;
-    });
-
-    nemesisTargets.forEach((item) => {
-      if (!map[item.name]) {
-        map[item.name] = {
-          name: item.name,
-          favourite: 0,
-          nemesis: 0,
-        };
-      }
-
-      map[item.name].nemesis = Number(item.kills) || 0;
-    });
-
-    return Object.values(map)
+  const favouriteRows = useMemo(() => {
+    return [...favouriteTargets]
       .map((item) => ({
-        ...item,
-        total: item.favourite + item.nemesis,
+        name: item.name,
+        kills: Number(item.kills) || 0,
       }))
+      .filter((item) => item.kills > 0)
       .sort(
         (a, b) =>
-          b.nemesis - a.nemesis ||
-          b.favourite - a.favourite ||
-          b.total - a.total ||
+          b.kills - a.kills ||
           a.name.localeCompare(b.name),
       );
-  }, [favouriteTargets, nemesisTargets]);
+  }, [favouriteTargets]);
+
+  const nemesisRows = useMemo(() => {
+    return [...nemesisTargets]
+      .map((item) => ({
+        name: item.name,
+        kills: Number(item.kills) || 0,
+      }))
+      .filter((item) => item.kills > 0)
+      .sort(
+        (a, b) =>
+          b.kills - a.kills ||
+          a.name.localeCompare(b.name),
+      );
+  }, [nemesisTargets]);
+
+  const rowCount = Math.max(favouriteRows.length, nemesisRows.length);
+
+  const rows = Array.from({ length: rowCount }, (_, index) => ({
+    favourite: favouriteRows[index] || null,
+    nemesis: nemesisRows[index] || null,
+  }));
 
   const max = Math.max(
     1,
-    ...rows.flatMap((item) => [item.favourite, item.nemesis]),
+    ...favouriteRows.map((item) => item.kills),
+    ...nemesisRows.map((item) => item.kills),
   );
 
   return (
-    <Panel>
-      <div className="overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/70 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
-        <div className="mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
-          <div className="pr-4 text-right text-blue-300">
-            Favourite Targets
-          </div>
-
-          <div className="h-5 bg-slate-500/80" />
-
-          <div className="pl-4 text-left text-pink-300">Nemesis</div>
+    <Panel cls="h-full">
+      <div className="flex h-full flex-col">
+        <div className="mb-4">
+          <h3 className="text-2xl font-black">Targets & Nemesis</h3>
         </div>
 
-        {!rows.length ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
-            No target data yet.
-          </p>
-        ) : (
-          <div className={`max-h-[420px] overflow-y-auto pr-2 ${scrollCls}`}>
-            <div className="space-y-[3px]">
-              {rows.map((row, index) => {
-                const favouriteWidth = Math.round((row.favourite / max) * 100);
-                const nemesisWidth = Math.round((row.nemesis / max) * 100);
+        <div className="min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/70 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
+          <div className="mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
+            <div className="pr-4 text-right text-blue-300">
+              Favourite Targets
+            </div>
 
-                const blueShade =
-                  index < 3
-                    ? 'from-sky-300 via-sky-400 to-blue-500'
-                    : index < 7
-                      ? 'from-sky-400 via-blue-500 to-blue-700'
-                      : 'from-blue-500 via-blue-700 to-blue-950';
+            <div className="h-5 bg-slate-500/80" />
 
-                const redShade =
-                  index < 3
-                    ? 'from-pink-300 via-rose-400 to-rose-500'
-                    : index < 7
-                      ? 'from-rose-400 via-rose-500 to-red-700'
-                      : 'from-rose-500 via-red-700 to-red-950';
+            <div className="pl-4 text-left text-pink-300">Nemesis</div>
+          </div>
 
-                return (
-                  <div key={row.name}>
-                    <div className="grid h-[22px] grid-cols-[1fr_1px_1fr] items-center">
-                      <div className="relative flex h-full items-center justify-end">
-                        {row.favourite > 0 && (
-                          <>
-                            <span className="mr-1 min-w-[24px] shrink-0 text-right text-[9px] font-black text-slate-300">
-                              {row.favourite}
-                            </span>
+          {!rows.length ? (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
+              No target data yet.
+            </p>
+          ) : (
+            <div className={`h-full overflow-y-auto pr-2 ${scrollCls}`}>
+              <div className="space-y-[3px]">
+                {rows.map((row, index) => {
+                  const favouriteWidth = row.favourite
+                    ? Math.round((row.favourite.kills / max) * 100)
+                    : 0;
 
-                            <div
-                              className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2`}
-                              style={{
-                                width: `${Math.max(12, favouriteWidth)}%`,
-                              }}
-                            >
-                              <span className="truncate text-[9px] font-black text-black">
-                                {row.name}
+                  const nemesisWidth = row.nemesis
+                    ? Math.round((row.nemesis.kills / max) * 100)
+                    : 0;
+
+                  const blueShade =
+                    index < 3
+                      ? 'from-sky-300 via-sky-400 to-blue-500'
+                      : index < 7
+                        ? 'from-sky-400 via-blue-500 to-blue-700'
+                        : 'from-blue-500 via-blue-700 to-blue-950';
+
+                  const redShade =
+                    index < 3
+                      ? 'from-pink-300 via-rose-400 to-rose-500'
+                      : index < 7
+                        ? 'from-rose-400 via-rose-500 to-red-700'
+                        : 'from-rose-500 via-red-700 to-red-950';
+
+                  return (
+                    <div
+                      key={`${row.favourite?.name || 'empty'}-${row.nemesis?.name || 'empty'}-${index}`}
+                    >
+                      <div className="grid h-[22px] grid-cols-[1fr_1px_1fr] items-center">
+                        <div className="relative flex h-full items-center justify-end">
+                          {row.favourite && (
+                            <>
+                              <span className="mr-1 min-w-[24px] shrink-0 text-right text-[9px] font-black text-slate-300">
+                                {row.favourite.kills}
                               </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
 
-                      <div className="h-full bg-slate-500/90" />
+                              <div
+                                className={`flex h-full items-center justify-end overflow-hidden bg-gradient-to-l ${blueShade} px-2`}
+                                style={{
+                                  width: `${Math.max(12, favouriteWidth)}%`,
+                                }}
+                              >
+                                <span className="truncate text-[9px] font-black text-black">
+                                  {row.favourite.name}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
 
-                      <div className="relative flex h-full items-center justify-start">
-                        {row.nemesis > 0 && (
-                          <>
-                            <div
-                              className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2`}
-                              style={{
-                                width: `${Math.max(12, nemesisWidth)}%`,
-                              }}
-                            >
-                              <span className="truncate text-[9px] font-black text-black">
-                                {row.name}
+                        <div className="h-full bg-slate-500/90" />
+
+                        <div className="relative flex h-full items-center justify-start">
+                          {row.nemesis && (
+                            <>
+                              <div
+                                className={`flex h-full items-center justify-start overflow-hidden bg-gradient-to-r ${redShade} px-2`}
+                                style={{
+                                  width: `${Math.max(12, nemesisWidth)}%`,
+                                }}
+                              >
+                                <span className="truncate text-[9px] font-black text-black">
+                                  {row.nemesis.name}
+                                </span>
+                              </div>
+
+                              <span className="ml-1 min-w-[24px] shrink-0 text-left text-[9px] font-black text-slate-300">
+                                {row.nemesis.kills}
                               </span>
-                            </div>
-
-                            <span className="ml-1 min-w-[24px] shrink-0 text-left text-[9px] font-black text-slate-300">
-                              {row.nemesis}
-                            </span>
-                          </>
-                        )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </Panel>
   );
@@ -969,7 +977,7 @@ export default function PlayerStats({ stats }) {
             title="Performance"
           />
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+          <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[1.15fr_1fr]">
             <EnemyGuildTable rows={selectedStats.enemyGuildRows} />
 
             <TargetsAndNemesisPanel
