@@ -98,31 +98,34 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
+function shortenTargetName(name, maxLength = 12) {
+  const text = String(name || '');
+
+  if (text.length <= maxLength) return text;
+
+  const start = Math.ceil((maxLength - 1) / 2);
+  const end = Math.floor((maxLength - 1) / 2);
+
+  return `${text.slice(0, start)}…${text.slice(text.length - end)}`;
+}
+
 function TargetPlayerName({ name, side }) {
-  const length = String(name).length;
-
-  const fontSize =
-    length > 18 ? '9px' : length > 15 ? '10px' : length > 12 ? '11px' : '14px';
-
-  const letterSpacing =
-    length > 18 ? '-0.075em' : length > 15 ? '-0.055em' : length > 12 ? '-0.035em' : '-0.015em';
+  const displayName = shortenTargetName(name, 12);
 
   return (
     <span
       title={name}
-      className={`block max-w-full overflow-hidden whitespace-nowrap font-black leading-none text-white ${
+      className={`block max-w-full overflow-hidden whitespace-nowrap text-sm font-black leading-none text-white ${
         side === 'left' ? 'text-right' : 'text-left'
       }`}
       style={{
-        fontSize,
-        letterSpacing,
         textShadow:
           side === 'left'
-            ? '0 0 5px rgba(59,130,246,.45), 0 1px 2px rgba(0,0,0,.7)'
-            : '0 0 5px rgba(244,63,94,.45), 0 1px 2px rgba(0,0,0,.7)',
+            ? '0 0 5px rgba(59,130,246,.45), 0 1px 2px rgba(0,0,0,.75)'
+            : '0 0 5px rgba(244,63,94,.45), 0 1px 2px rgba(0,0,0,.75)',
       }}
     >
-      {name}
+      {displayName}
     </span>
   );
 }
