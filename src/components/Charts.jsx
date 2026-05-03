@@ -10,6 +10,7 @@ function pick(obj, keys, fallback = null) {
   for (const key of keys) {
     if (obj && obj[key] != null) return obj[key];
   }
+
   return fallback;
 }
 
@@ -37,6 +38,16 @@ function buildSmoothPath(points) {
   }
 
   return path;
+}
+
+function buildAreaPath(points, baselineY) {
+  if (!points.length) return '';
+
+  const linePath = buildSmoothPath(points);
+  const first = points[0];
+  const last = points[points.length - 1];
+
+  return `${linePath} L ${last.x} ${baselineY} L ${first.x} ${baselineY} Z`;
 }
 
 function getLabelStep(length) {
@@ -80,7 +91,23 @@ function formatTickValue(value) {
   return String(rounded);
 }
 
-function OverviewLineChart({
+function ChartLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+      <div className="flex items-center gap-2">
+        <span className="h-[2px] w-8 rounded-full bg-gradient-to-r from-emerald-800 via-emerald-400 to-emerald-200 shadow-[0_0_14px_rgba(16,185,129,0.75)]" />
+        <span>Kills</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="h-[2px] w-8 rounded-full bg-gradient-to-r from-rose-900 via-rose-500 to-rose-200 shadow-[0_0_14px_rgba(244,63,94,0.75)]" />
+        <span>Deaths</span>
+      </div>
+    </div>
+  );
+}
+
+function BattleTimelineChart({
   data,
   title = '▧ Global Kill/Death Timeline',
 }) {
@@ -91,19 +118,18 @@ function OverviewLineChart({
 
   const width = 1000;
   const height = 255;
-  const pad = { top: 18, right: 16, bottom: 30, left: 40 };
+  const pad = { top: 18, right: 18, bottom: 30, left: 42 };
 
   const chart = useMemo(() => {
     if (!rows.length) return null;
 
     const innerW = width - pad.left - pad.right;
     const innerH = height - pad.top - pad.bottom;
+    const baselineY = height - pad.bottom;
 
-    const values = rows.flatMap((row) => [row.kills, row.deaths]);
-    const rawMax = Math.max(1, ...values);
-
+    const allValues = rows.flatMap((row) => [row.kills, row.deaths]);
+    const rawMax = Math.max(1, ...allValues);
     const max = rawMax * 1.12;
-    const safeRange = Math.max(1, max);
 
     const pointsKills = rows.map((row, index) => {
       const x =
@@ -111,7 +137,7 @@ function OverviewLineChart({
           ? pad.left + innerW / 2
           : pad.left + (index / (rows.length - 1)) * innerW;
 
-      const y = pad.top + ((max - row.kills) / safeRange) * innerH;
+      const y = pad.top + innerH - (row.kills / max) * innerH;
 
       return {
         x,
@@ -127,7 +153,7 @@ function OverviewLineChart({
           ? pad.left + innerW / 2
           : pad.left + (index / (rows.length - 1)) * innerW;
 
-      const y = pad.top + ((max - row.deaths) / safeRange) * innerH;
+      const y = pad.top + innerH - (row.deaths / max) * innerH;
 
       return {
         x,
@@ -137,7 +163,7 @@ function OverviewLineChart({
       };
     });
 
-    const yTicks = 5;
+    const yTicks = 4;
     const ticks = Array.from({ length: yTicks }, (_, i) => {
       const value = max - (max * i) / (yTicks - 1);
       const y = pad.top + (innerH * i) / (yTicks - 1);
@@ -149,17 +175,21 @@ function OverviewLineChart({
     });
 
     return {
+      innerW,
+      innerH,
+      baselineY,
       pointsKills,
       pointsDeaths,
       ticks,
-      innerW,
     };
   }, [rows]);
 
   if (!chart) {
     return (
       <Panel>
-        <h3 className="mb-3 text-xl font-black">{title}</h3>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-xl font-black">{title}</h3>
+        </div>
 
         <div className="flex h-[255px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/40 text-slate-500">
           No chart data.
@@ -168,10 +198,14 @@ function OverviewLineChart({
     );
   }
 
-  const { pointsKills, pointsDeaths, ticks, innerW } = chart;
+  const { innerW, baselineY, pointsKills, pointsDeaths, ticks } = chart;
 
   const killPath = buildSmoothPath(pointsKills);
   const deathPath = buildSmoothPath(pointsDeaths);
+
+  const killAreaPath = buildAreaPath(pointsKills, baselineY);
+  const deathAreaPath = buildAreaPath(pointsDeaths, baselineY);
+
   const labelStep = getLabelStep(rows.length);
 
   const hovered =
@@ -187,12 +221,13 @@ function OverviewLineChart({
 
   return (
     <Panel cls="overflow-hidden">
-      <div className="mb-3">
+      <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <h3 className="text-xl font-black">{title}</h3>
+        <ChartLegend />
       </div>
 
       <div
-        className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(32,35,78,0.96),rgba(26,28,66,0.98))]"
+        className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#221b4e]"
         onMouseLeave={() => setHoveredIndex(null)}
       >
         {hovered && (
@@ -219,159 +254,179 @@ function OverviewLineChart({
           aria-label={title}
         >
           <defs>
+            <radialGradient
+              id={`${uid}-bgGlow`}
+              cx="0"
+              cy="0"
+              r="1"
+              gradientUnits="userSpaceOnUse"
+              gradientTransform="translate(820 52) rotate(142) scale(760 260)"
+            >
+              <stop stopColor="#7442A5" stopOpacity="0.55" />
+              <stop offset="0.45" stopColor="#342868" stopOpacity="0.75" />
+              <stop offset="1" stopColor="#17143B" />
+            </radialGradient>
+
             <linearGradient id={`${uid}-killStroke`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#065f46" />
-              <stop offset="45%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#a7f3d0" />
+              <stop offset="0%" stopColor="#064e3b" />
+              <stop offset="0.35" stopColor="#10b981" />
+              <stop offset="0.7" stopColor="#34d399" />
+              <stop offset="1" stopColor="#d1fae5" />
             </linearGradient>
 
             <linearGradient id={`${uid}-deathStroke`} x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#7f1d1d" />
-              <stop offset="45%" stopColor="#ef4444" />
-              <stop offset="100%" stopColor="#fecdd3" />
+              <stop offset="0.35" stopColor="#ef4444" />
+              <stop offset="0.7" stopColor="#fb7185" />
+              <stop offset="1" stopColor="#ffe4e6" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-killGlowTop`} x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="rgba(16,185,129,0.18)" />
-              <stop offset="45%" stopColor="rgba(16,185,129,0.08)" />
-              <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+            <linearGradient id={`${uid}-killArea`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.34" />
+              <stop offset="0.45" stopColor="#10b981" stopOpacity="0.15" />
+              <stop offset="1" stopColor="#10b981" stopOpacity="0" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-deathGlowTop`} x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="rgba(244,63,94,0.16)" />
-              <stop offset="45%" stopColor="rgba(244,63,94,0.07)" />
-              <stop offset="100%" stopColor="rgba(244,63,94,0)" />
+            <linearGradient id={`${uid}-deathArea`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.30" />
+              <stop offset="0.45" stopColor="#ef4444" stopOpacity="0.13" />
+              <stop offset="1" stopColor="#ef4444" stopOpacity="0" />
             </linearGradient>
 
             <filter
-              id={`${uid}-killGlowBig`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              id={`${uid}-killGlow`}
+              x="-40%"
+              y="-40%"
+              width="180%"
+              height="180%"
             >
-              <feGaussianBlur stdDeviation="10" result="blur1" />
+              <feGaussianBlur stdDeviation="7" result="blur" />
+              <feColorMatrix
+                in="blur"
+                type="matrix"
+                values="
+                  0 0 0 0 0.05
+                  0 1 0 0 0.85
+                  0 0 1 0 0.45
+                  0 0 0 0.95 0
+                "
+              />
               <feMerge>
-                <feMergeNode in="blur1" />
+                <feMergeNode />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
 
             <filter
-              id={`${uid}-killGlowSoft`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              id={`${uid}-deathGlow`}
+              x="-40%"
+              y="-40%"
+              width="180%"
+              height="180%"
             >
-              <feGaussianBlur stdDeviation="5" result="blur2" />
+              <feGaussianBlur stdDeviation="7" result="blur" />
+              <feColorMatrix
+                in="blur"
+                type="matrix"
+                values="
+                  1 0 0 0 0.9
+                  0 0 0 0 0.15
+                  0 0 1 0 0.22
+                  0 0 0 0.95 0
+                "
+              />
               <feMerge>
-                <feMergeNode in="blur2" />
+                <feMergeNode />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
 
             <filter
-              id={`${uid}-deathGlowBig`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              id={`${uid}-wideKillGlow`}
+              x="-60%"
+              y="-60%"
+              width="220%"
+              height="220%"
             >
-              <feGaussianBlur stdDeviation="10" result="blur3" />
-              <feMerge>
-                <feMergeNode in="blur3" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+              <feGaussianBlur stdDeviation="15" />
             </filter>
 
             <filter
-              id={`${uid}-deathGlowSoft`}
-              x="-70%"
-              y="-70%"
-              width="240%"
-              height="240%"
+              id={`${uid}-wideDeathGlow`}
+              x="-60%"
+              y="-60%"
+              width="220%"
+              height="220%"
             >
-              <feGaussianBlur stdDeviation="5" result="blur4" />
-              <feMerge>
-                <feMergeNode in="blur4" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+              <feGaussianBlur stdDeviation="15" />
             </filter>
           </defs>
 
-          {/* Fade/glow din linia kills spre exterior */}
-          {pointsKills.length > 0 && (
-            <path
-              d={`${killPath} L ${pointsKills[pointsKills.length - 1].x} ${pad.top} L ${pointsKills[0].x} ${pad.top} Z`}
-              fill={`url(#${uid}-killGlowTop)`}
-              opacity="0.95"
-            />
-          )}
+          {/* Background exact stock-like */}
+          <rect width={width} height={height} fill={`url(#${uid}-bgGlow)`} />
+          <rect width={width} height={height} fill="#1A1644" opacity="0.18" />
 
-          {/* Fade/glow din linia deaths spre exterior */}
-          {pointsDeaths.length > 0 && (
-            <path
-              d={`${deathPath} L ${pointsDeaths[pointsDeaths.length - 1].x} ${pad.top} L ${pointsDeaths[0].x} ${pad.top} Z`}
-              fill={`url(#${uid}-deathGlowTop)`}
-              opacity="0.85"
-            />
-          )}
-
-          {/* Linii orizontale */}
+          {/* Grid orizontal subtil */}
           {ticks.map((tick, index) => (
             <g key={`h-${index}`}>
               <line
-                x1={pad.left}
+                x1="0"
                 y1={tick.y}
-                x2={width - pad.right}
+                x2={width}
                 y2={tick.y}
-                stroke="rgba(255,255,255,0.18)"
+                stroke="white"
+                strokeOpacity="0.13"
                 strokeWidth="1"
               />
+
               <text
                 x={pad.left - 8}
                 y={tick.y + 4}
                 textAnchor="end"
                 fontSize="10"
-                fill="rgba(255,255,255,0.35)"
+                fill="rgba(255,255,255,0.28)"
               >
                 {formatTickValue(tick.value)}
               </text>
             </g>
           ))}
 
-          {/* Linii verticale + label-uri jos */}
+          {/* Grid vertical dotted subtil */}
           {rows.map((row, index) => {
             const x =
               rows.length === 1
                 ? pad.left + innerW / 2
                 : pad.left + (index / (rows.length - 1)) * innerW;
 
-            const showLabel =
+            const showGrid =
               index === 0 ||
               index === rows.length - 1 ||
               index % labelStep === 0;
 
+            const showLabel = showGrid;
+
             return (
               <g key={`v-${index}`}>
-                <line
-                  x1={x}
-                  y1={pad.top}
-                  x2={x}
-                  y2={height - pad.bottom}
-                  stroke="rgba(255,255,255,0.14)"
-                  strokeWidth="1"
-                  strokeDasharray="2 4"
-                />
+                {showGrid && (
+                  <line
+                    x1={x}
+                    y1="0"
+                    x2={x}
+                    y2={height}
+                    stroke="white"
+                    strokeOpacity="0.10"
+                    strokeWidth="1"
+                    strokeDasharray="2 4"
+                  />
+                )}
 
                 {showLabel && (
                   <text
                     x={x}
-                    y={height - 10}
+                    y={height - 9}
                     textAnchor="middle"
                     fontSize="10"
-                    fill="rgba(255,255,255,0.42)"
+                    fill="rgba(255,255,255,0.32)"
                   >
                     {String(row.label)}
                   </text>
@@ -380,72 +435,76 @@ function OverviewLineChart({
             );
           })}
 
-          {/* Glow exterior mare kills */}
+          {/* Fill sub kills */}
+          <path d={killAreaPath} fill={`url(#${uid}-killArea)`} />
+
+          {/* Fill sub deaths */}
+          <path d={deathAreaPath} fill={`url(#${uid}-deathArea)`} />
+
+          {/* Glow larg kills */}
           <path
             d={killPath}
-            fill="none"
-            stroke={`url(#${uid}-killStroke)`}
-            strokeWidth="15"
+            stroke="#10b981"
+            strokeOpacity="0.26"
+            strokeWidth="18"
             strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.16"
-            filter={`url(#${uid}-killGlowBig)`}
+            fill="none"
+            filter={`url(#${uid}-wideKillGlow)`}
           />
 
-          {/* Glow exterior mediu kills */}
+          {/* Glow larg deaths */}
+          <path
+            d={deathPath}
+            stroke="#ef4444"
+            strokeOpacity="0.24"
+            strokeWidth="18"
+            strokeLinecap="round"
+            fill="none"
+            filter={`url(#${uid}-wideDeathGlow)`}
+          />
+
+          {/* Glow apropiat kills */}
           <path
             d={killPath}
-            fill="none"
-            stroke={`url(#${uid}-killStroke)`}
+            stroke="#10b981"
+            strokeOpacity="0.58"
             strokeWidth="8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.28"
-            filter={`url(#${uid}-killGlowSoft)`}
+            fill="none"
+            filter={`url(#${uid}-killGlow)`}
           />
 
-          {/* Glow exterior mare deaths */}
+          {/* Glow apropiat deaths */}
           <path
             d={deathPath}
-            fill="none"
-            stroke={`url(#${uid}-deathStroke)`}
-            strokeWidth="15"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.16"
-            filter={`url(#${uid}-deathGlowBig)`}
-          />
-
-          {/* Glow exterior mediu deaths */}
-          <path
-            d={deathPath}
-            fill="none"
-            stroke={`url(#${uid}-deathStroke)`}
+            stroke="#ef4444"
+            strokeOpacity="0.56"
             strokeWidth="8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.28"
-            filter={`url(#${uid}-deathGlowSoft)`}
+            fill="none"
+            filter={`url(#${uid}-deathGlow)`}
           />
 
           {/* Linia principală kills */}
           <path
             d={killPath}
-            fill="none"
             stroke={`url(#${uid}-killStroke)`}
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
+            fill="none"
           />
 
           {/* Linia principală deaths */}
           <path
             d={deathPath}
-            fill="none"
             stroke={`url(#${uid}-deathStroke)`}
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
+            fill="none"
           />
 
           {/* Ghidaj hover */}
@@ -455,7 +514,7 @@ function OverviewLineChart({
               y1={pad.top}
               x2={hovered.x}
               y2={height - pad.bottom}
-              stroke="rgba(255,255,255,0.14)"
+              stroke="rgba(255,255,255,0.18)"
               strokeWidth="1"
               strokeDasharray="3 5"
             />
@@ -507,13 +566,13 @@ function OverviewLineChart({
 }
 
 export function KillDeathChart(props) {
-  return <OverviewLineChart {...props} />;
+  return <BattleTimelineChart {...props} />;
 }
 
 export function AveragePerformanceChart(props) {
-  return <OverviewLineChart {...props} />;
+  return <BattleTimelineChart {...props} />;
 }
 
 export function PlayerStatsChart(props) {
-  return <OverviewLineChart {...props} />;
+  return <BattleTimelineChart {...props} />;
 }
