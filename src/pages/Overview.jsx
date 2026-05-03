@@ -432,26 +432,11 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     if (event.victim === selected?.name) add(nemesis, event.killer);
   });
 
-  const targetRows = [
-    ...new Set([...Object.keys(victims), ...Object.keys(nemesis)]),
-  ]
-    .map((name) => ({
-      name,
-      favourite: victims[name] || 0,
-      nemesis: nemesis[name] || 0,
-    }))
-    .sort(
-      (a, b) =>
-        Math.max(b.favourite, b.nemesis) -
-          Math.max(a.favourite, a.nemesis) ||
-        b.favourite - a.favourite ||
-        b.nemesis - a.nemesis,
-    );
+  const favourite =
+    Object.entries(victims).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
 
-  const targetMax = Math.max(
-    1,
-    ...targetRows.flatMap((row) => [row.favourite, row.nemesis]),
-  );
+  const worst =
+    Object.entries(nemesis).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
 
   return (
     <Panel cls="h-[680px]">
@@ -567,72 +552,26 @@ function PlayerOverview({ players, streaks, feeds, events }) {
               </span>
             </div>
 
-            <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="mb-3 grid grid-cols-[1fr_1px_1fr] items-center gap-0 text-xs font-black uppercase tracking-wide text-slate-400">
-                <div className="pr-4 text-right text-blue-300">
-                  Favourite Targets
-                </div>
-                <div className="h-4 bg-slate-600/80" />
-                <div className="pl-4 text-left text-pink-300">Nemesis</div>
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">
+                  Favorite victim
+                </p>
+                <p className="mt-1 font-black">{favourite[0]}</p>
+                <p className="text-sm font-bold text-blue-300">
+                  {favourite[1]} kills
+                </p>
               </div>
 
-              {!targetRows.length ? (
-                <p className="py-8 text-center text-sm text-slate-500">
-                  No target data for this player.
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">
+                  Nemesis
                 </p>
-              ) : (
-                <div
-                  className={`max-h-[320px] space-y-2 overflow-y-auto pr-2 ${scrollCls}`}
-                >
-                  {targetRows.map((row) => {
-                    const favouriteWidth = Math.max(
-                      row.favourite ? 7 : 0,
-                      Math.round((row.favourite / targetMax) * 100),
-                    );
-
-                    const nemesisWidth = Math.max(
-                      row.nemesis ? 7 : 0,
-                      Math.round((row.nemesis / targetMax) * 100),
-                    );
-
-                    return (
-                      <div key={row.name}>
-                        <div className="mb-1 flex items-center justify-center text-xs font-bold text-slate-300">
-                          <span className="max-w-[260px] truncate rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1">
-                            {row.name}
-                          </span>
-                        </div>
-
-                        <div className="relative grid h-8 grid-cols-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/70">
-                          <div className="absolute left-1/2 top-0 z-10 h-full w-px -translate-x-1/2 bg-slate-500/80" />
-
-                          <div className="relative flex items-center justify-end">
-                            {row.favourite > 0 && (
-                              <div
-                                className="flex h-full items-center justify-start rounded-l-xl bg-gradient-to-l from-blue-400/95 via-blue-500/70 to-blue-500/20 px-2 text-xs font-black text-blue-50 shadow-[0_0_18px_rgba(59,130,246,0.25)]"
-                                style={{ width: `${favouriteWidth}%` }}
-                              >
-                                {row.favourite}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="relative flex items-center justify-start">
-                            {row.nemesis > 0 && (
-                              <div
-                                className="flex h-full items-center justify-end rounded-r-xl bg-gradient-to-r from-pink-400/95 via-rose-500/70 to-rose-500/20 px-2 text-xs font-black text-rose-50 shadow-[0_0_18px_rgba(244,63,94,0.25)]"
-                                style={{ width: `${nemesisWidth}%` }}
-                              >
-                                {row.nemesis}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                <p className="mt-1 font-black">{worst[0]}</p>
+                <p className="text-sm font-bold text-pink-300">
+                  {worst[1]} deaths
+                </p>
+              </div>
             </div>
 
             <div
