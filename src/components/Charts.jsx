@@ -171,7 +171,7 @@ function OverviewLineChart({
     : '';
 
   const topGlowAreaDeaths = pointsDeaths.length
-    ? `${linePathDeaths} L ${pointsDeaths[pointsDeaths.length - 1].x} ${pad.top} L ${pointsDeaths[0].x} ${pad.top} Z`
+    ? `${linePathDeaths} L ${pointsDeaths[pointsDeaths.length - 1].x} ${height - pad.bottom} L ${pointsDeaths[0].x} ${height - pad.bottom} Z`
     : '';
 
   return (
@@ -209,7 +209,7 @@ function OverviewLineChart({
               <stop offset="100%" stopColor="rgba(16,185,129,0)" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-topGlow-deaths`} x1="0" y1="1" x2="0" y2="0">
+            <linearGradient id={`${uid}-topGlow-deaths`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="rgba(239,68,68,0.22)" />
               <stop offset="35%" stopColor="rgba(239,68,68,0.12)" />
               <stop offset="70%" stopColor="rgba(239,68,68,0.04)" />
@@ -282,7 +282,7 @@ function OverviewLineChart({
             />
           )}
 
-          {/* Glow roșu care pornește din linie și se estompează în sus */}
+          {/* Glow roșu care pornește din linie și se estompează în jos */}
           {topGlowAreaDeaths && (
             <path
               d={topGlowAreaDeaths}
