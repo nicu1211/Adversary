@@ -53,7 +53,7 @@ function normalizeTimelineData(data = []) {
     const deaths = toNumber(pick(item, ['deaths', 'death', 'd'], 0));
 
     const value = toNumber(
-      pick(item, ['net', 'diff', 'value', 'score'], kills - deaths),
+      pick(item, ['net', 'diff', 'value', 'score'], kills),
     );
 
     return {
@@ -170,17 +170,17 @@ function OverviewLineChart({
         >
           <defs>
             <linearGradient id={`${uid}-stroke`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#5B5CFF" />
-              <stop offset="40%" stopColor="#8B5CF6" />
-              <stop offset="72%" stopColor="#D946EF" />
-              <stop offset="100%" stopColor="#FF62C7" />
+              <stop offset="0%" stopColor="#065f46" />
+              <stop offset="40%" stopColor="#10b981" />
+              <stop offset="72%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#a7f3d0" />
             </linearGradient>
 
             <linearGradient id={`${uid}-topGlow`} x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="rgba(217,70,239,0.22)" />
-              <stop offset="35%" stopColor="rgba(168,85,247,0.12)" />
-              <stop offset="70%" stopColor="rgba(168,85,247,0.04)" />
-              <stop offset="100%" stopColor="rgba(168,85,247,0)" />
+              <stop offset="0%" stopColor="rgba(16,185,129,0.22)" />
+              <stop offset="35%" stopColor="rgba(16,185,129,0.12)" />
+              <stop offset="70%" stopColor="rgba(16,185,129,0.04)" />
+              <stop offset="100%" stopColor="rgba(16,185,129,0)" />
             </linearGradient>
 
             <filter
@@ -324,14 +324,14 @@ function OverviewLineChart({
                 cx={points[points.length - 1].x}
                 cy={points[points.length - 1].y}
                 r="12"
-                fill="rgba(255,98,199,0.16)"
+                fill="rgba(16,185,129,0.16)"
               />
               <circle
                 cx={points[points.length - 1].x}
                 cy={points[points.length - 1].y}
                 r="5"
-                fill="#FF62C7"
-                stroke="#FFD3EF"
+                fill="#10b981"
+                stroke="#d1fae5"
                 strokeWidth="2"
               />
             </>
