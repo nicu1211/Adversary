@@ -1,8 +1,8 @@
-import React, { useId, useMemo } from 'react';
+import React, { useMemo, useId } from 'react';
 import { Panel } from './UI';
 
-const CHART_HEIGHT = 320;
-const PAD = { top: 20, right: 18, bottom: 34, left: 44 };
+const CHART_HEIGHT = 230;
+const PAD = { top: 18, right: 14, bottom: 30, left: 42 };
 
 function toNumber(value) {
   const n = Number(value);
@@ -16,178 +16,185 @@ function pick(obj, keys, fallback = 0) {
   return fallback;
 }
 
-function formatCompact(value) {
+function formatValue(value) {
   const n = Number(value) || 0;
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return String(n);
+  if (Math.abs(n) >= 1000) {
+    return `${n > 0 ? '+' : ''}${(n / 1000).toFixed(Math.abs(n) >= 10000 ? 0 : 1)}k`;
+  }
+  return `${n > 0 ? '+' : ''}${n}`;
 }
 
 function normalizeChartData(data = []) {
-  return data.map((item, index) => ({
-    raw: item,
-    label:
-      pick(item, ['label', 'time', 'minute', 'slot', 'name', 'x'], index + 1) ??
-      index + 1,
-    kills: toNumber(pick(item, ['kills', 'kill', 'k', 'valueA', 'a'], 0)),
-    deaths: toNumber(pick(item, ['deaths', 'death', 'd', 'valueB', 'b'], 0)),
-  }));
+  return data.map((item, index) => {
+    const kills = toNumber(pick(item, ['kills', 'kill', 'k', 'valueA', 'a'], 0));
+    const deaths = toNumber(pick(item, ['deaths', 'death', 'd', 'valueB', 'b'], 0));
+    const net = kills - deaths;
+
+    return {
+      raw: item,
+      label:
+        pick(item, ['label', 'time', 'minute', 'slot', 'name', 'x'], index + 1) ??
+        index + 1,
+      kills,
+      deaths,
+      net,
+    };
+  });
 }
 
-function getCoords(rows, width, height) {
+function getLabelStep(length) {
+  if (length <= 8) return 1;
+  if (length <= 14) return 2;
+  if (length <= 24) return 3;
+  if (length <= 36) return 4;
+  if (length <= 48) return 5;
+  return Math.ceil(length / 8);
+}
+
+function getChartGeometry(rows, width, height) {
   const innerW = width - PAD.left - PAD.right;
   const innerH = height - PAD.top - PAD.bottom;
-  const maxValue = Math.max(
-    1,
-    ...rows.flatMap((row) => [row.kills, row.deaths]),
-  );
+  const zeroY = PAD.top + innerH / 2;
 
-  const yTicks = 5;
-  const grid = Array.from({ length: yTicks }, (_, i) => {
-    const value = (maxValue / (yTicks - 1)) * i;
-    const y = PAD.top + innerH - (value / maxValue) * innerH;
+  const maxAbs = Math.max(1, ...rows.map((row) => Math.abs(row.net)));
 
-    return {
-      value: Math.round(value),
-      y,
-    };
-  });
-
-  const kills = rows.map((row, index) => {
+  const points = rows.map((row, index) => {
     const x =
       rows.length === 1
         ? PAD.left + innerW / 2
         : PAD.left + (index / (rows.length - 1)) * innerW;
 
-    const y = PAD.top + innerH - (row.kills / maxValue) * innerH;
+    const y = zeroY - (row.net / maxAbs) * (innerH / 2);
 
     return {
       x,
       y,
-      value: row.kills,
       label: row.label,
+      value: row.net,
+      kills: row.kills,
+      deaths: row.deaths,
     };
   });
 
-  const deaths = rows.map((row, index) => {
-    const x =
-      rows.length === 1
-        ? PAD.left + innerW / 2
-        : PAD.left + (index / (rows.length - 1)) * innerW;
-
-    const y = PAD.top + innerH - (row.deaths / maxValue) * innerH;
-
-    return {
-      x,
-      y,
-      value: row.deaths,
-      label: row.label,
-    };
-  });
+  const ticks = [
+    { value: maxAbs, y: PAD.top },
+    { value: Math.round(maxAbs / 2), y: PAD.top + innerH * 0.25 },
+    { value: 0, y: zeroY },
+    { value: -Math.round(maxAbs / 2), y: PAD.top + innerH * 0.75 },
+    { value: -maxAbs, y: PAD.top + innerH },
+  ];
 
   return {
-    kills,
-    deaths,
-    grid,
-    maxValue,
+    points,
+    ticks,
     innerW,
     innerH,
+    zeroY,
+    maxAbs,
   };
 }
 
-function buildSmoothPath(points) {
-  if (!points.length) return '';
-
-  if (points.length === 1) {
-    return `M ${points[0].x} ${points[0].y}`;
+function segmentAtZero(a, b, zeroY) {
+  if ((a.value >= 0 && b.value >= 0) || (a.value <= 0 && b.value <= 0)) {
+    return null;
   }
 
-  let path = `M ${points[0].x} ${points[0].y}`;
+  const ratio = (0 - a.value) / (b.value - a.value);
+  const x = a.x + (b.x - a.x) * ratio;
+  const y = zeroY;
 
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const p0 = points[i - 1] || points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || p2;
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
-  }
-
-  return path;
-}
-
-function buildAreaPath(points, height) {
-  if (!points.length) return '';
-
-  const line = buildSmoothPath(points);
-  const last = points[points.length - 1];
-  const first = points[0];
-  const bottom = height - PAD.bottom;
-
-  return `${line} L ${last.x} ${bottom} L ${first.x} ${bottom} Z`;
+  return { x, y, value: 0 };
 }
 
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
       <div className="flex items-center gap-2">
-        <span className="h-2.5 w-8 rounded-full bg-gradient-to-r from-emerald-700 via-emerald-400 to-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.45)]" />
-        <span>Kills</span>
+        <span className="h-2 w-7 rounded-full bg-gradient-to-r from-emerald-700 via-emerald-400 to-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.35)]" />
+        <span>Positive</span>
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="h-2.5 w-8 rounded-full bg-gradient-to-r from-rose-700 via-rose-400 to-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.45)]" />
-        <span>Deaths</span>
+        <span className="h-2 w-7 rounded-full bg-gradient-to-r from-rose-700 via-rose-400 to-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.35)]" />
+        <span>Negative</span>
       </div>
     </div>
   );
 }
 
-function BattleCurveChart({
+function CompactNetChart({
   data = [],
-  title = 'Kill / Death Timeline',
-  subtitle = 'Smooth battle flow',
+  title = 'Battle Timeline',
+  subtitle = 'Net kills - deaths',
 }) {
-  const gradientId = useId();
+  const uid = useId();
   const rows = useMemo(() => normalizeChartData(data), [data]);
 
   const width = 1000;
   const height = CHART_HEIGHT;
 
-  const { kills, deaths, grid, innerW, innerH } = useMemo(
-    () => getCoords(rows, width, height),
+  const { points, ticks, innerW, zeroY } = useMemo(
+    () => getChartGeometry(rows, width, height),
     [rows],
   );
 
-  const killPath = useMemo(() => buildSmoothPath(kills), [kills]);
-  const deathPath = useMemo(() => buildSmoothPath(deaths), [deaths]);
+  const labelStep = getLabelStep(rows.length);
 
-  const killArea = useMemo(() => buildAreaPath(kills, height), [kills]);
-  const deathArea = useMemo(() => buildAreaPath(deaths, height), [deaths]);
+  const segments = [];
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i];
+    const b = points[i + 1];
+    const crossing = segmentAtZero(a, b, zeroY);
 
-  const bottom = height - PAD.bottom;
+    if (!crossing) {
+      segments.push({
+        from: a,
+        to: b,
+        positive: a.value >= 0 && b.value >= 0,
+      });
+    } else {
+      segments.push({
+        from: a,
+        to: crossing,
+        positive: a.value >= 0,
+      });
+      segments.push({
+        from: crossing,
+        to: b,
+        positive: b.value >= 0,
+      });
+    }
+  }
+
+  const areaSegments = segments.map((segment, index) => ({
+    ...segment,
+    d: [
+      `M ${segment.from.x} ${zeroY}`,
+      `L ${segment.from.x} ${segment.from.y}`,
+      `L ${segment.to.x} ${segment.to.y}`,
+      `L ${segment.to.x} ${zeroY}`,
+      'Z',
+    ].join(' '),
+    key: `${index}-${segment.from.x}-${segment.to.x}`,
+  }));
 
   return (
     <Panel cls="overflow-hidden">
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-xl font-black">{title}</h3>
-          <p className="text-xs text-slate-400">{subtitle}</p>
+          <h3 className="text-lg font-black">{title}</h3>
+          <p className="text-[11px] text-slate-400">{subtitle}</p>
         </div>
 
         <Legend />
       </div>
 
       {!rows.length ? (
-        <div className="flex h-[320px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/50 text-slate-500">
+        <div className="flex h-[230px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/40 text-slate-500">
           No chart data.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(40,30,83,0.92),rgba(17,19,47,0.98))] shadow-[inset_0_0_80px_rgba(168,85,247,0.08)]">
+        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(4,8,18,0.98),rgba(7,12,22,0.98))]">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             className="block h-auto w-full"
@@ -195,48 +202,26 @@ function BattleCurveChart({
             aria-label={title}
           >
             <defs>
-              <linearGradient id={`${gradientId}-bgGlow`} x1="0" x2="1">
-                <stop offset="0%" stopColor="rgba(52,211,153,0.04)" />
-                <stop offset="50%" stopColor="rgba(168,85,247,0.08)" />
-                <stop offset="100%" stopColor="rgba(244,63,94,0.04)" />
-              </linearGradient>
-
-              <linearGradient id={`${gradientId}-killStroke`} x1="0" y1="0" x2="1" y2="0">
+              <linearGradient id={`${uid}-posStroke`} x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="#166534" />
-                <stop offset="35%" stopColor="#10b981" />
-                <stop offset="70%" stopColor="#34d399" />
-                <stop offset="100%" stopColor="#a7f3d0" />
+                <stop offset="50%" stopColor="#10b981" />
+                <stop offset="100%" stopColor="#86efac" />
               </linearGradient>
 
-              <linearGradient id={`${gradientId}-deathStroke`} x1="0" y1="0" x2="1" y2="0">
+              <linearGradient id={`${uid}-negStroke`} x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="#7f1d1d" />
-                <stop offset="35%" stopColor="#ef4444" />
-                <stop offset="70%" stopColor="#fb7185" />
-                <stop offset="100%" stopColor="#fecdd3" />
+                <stop offset="50%" stopColor="#ef4444" />
+                <stop offset="100%" stopColor="#fda4af" />
               </linearGradient>
 
-              <linearGradient id={`${gradientId}-killArea`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(16,185,129,0.22)" />
-                <stop offset="70%" stopColor="rgba(16,185,129,0.06)" />
-                <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+              <linearGradient id={`${uid}-topGlow`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.08)" />
+                <stop offset="35%" stopColor="rgba(255,255,255,0.02)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
               </linearGradient>
 
-              <linearGradient id={`${gradientId}-deathArea`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(244,63,94,0.18)" />
-                <stop offset="70%" stopColor="rgba(244,63,94,0.05)" />
-                <stop offset="100%" stopColor="rgba(244,63,94,0)" />
-              </linearGradient>
-
-              <filter id={`${gradientId}-killGlow`} x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-
-              <filter id={`${gradientId}-deathGlow`} x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="5" result="blur" />
+              <filter id={`${uid}-lineGlow`} x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
@@ -244,174 +229,163 @@ function BattleCurveChart({
               </filter>
             </defs>
 
+            {/* top glow like screenshot */}
             <rect
               x="0"
               y="0"
               width={width}
-              height={height}
-              fill={`url(#${gradientId}-bgGlow)`}
+              height={70}
+              fill={`url(#${uid}-topGlow)`}
             />
 
-            {/* Horizontal grid */}
-            {grid.map((tick, index) => (
-              <g key={`h-${index}`}>
+            {/* horizontal grid */}
+            {ticks.map((tick, index) => (
+              <g key={`tick-${index}`}>
                 <line
                   x1={PAD.left}
                   y1={tick.y}
                   x2={width - PAD.right}
                   y2={tick.y}
-                  stroke="rgba(255,255,255,0.18)"
-                  strokeWidth="1"
+                  stroke={tick.value === 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)'}
+                  strokeWidth={tick.value === 0 ? '1.3' : '1'}
                 />
                 <text
-                  x={PAD.left - 10}
+                  x={PAD.left - 8}
                   y={tick.y + 4}
                   textAnchor="end"
-                  fontSize="12"
-                  fill="rgba(255,255,255,0.55)"
+                  fontSize="11"
+                  fill="rgba(255,255,255,0.45)"
                 >
-                  {formatCompact(tick.value)}
+                  {formatValue(tick.value)}
                 </text>
               </g>
             ))}
 
-            {/* Vertical grid */}
+            {/* vertical grid + compact labels */}
             {rows.map((row, index) => {
               const x =
                 rows.length === 1
                   ? PAD.left + innerW / 2
                   : PAD.left + (index / (rows.length - 1)) * innerW;
 
+              const showLabel =
+                index === 0 ||
+                index === rows.length - 1 ||
+                index % labelStep === 0;
+
               return (
-                <g key={`v-${index}`}>
+                <g key={`vx-${index}`}>
                   <line
                     x1={x}
                     y1={PAD.top}
                     x2={x}
-                    y2={bottom}
-                    stroke="rgba(255,255,255,0.16)"
+                    y2={height - PAD.bottom}
+                    stroke="rgba(255,255,255,0.10)"
                     strokeWidth="1"
                     strokeDasharray="2 5"
                   />
-                  <text
-                    x={x}
-                    y={height - 12}
-                    textAnchor="middle"
-                    fontSize="12"
-                    fill="rgba(255,255,255,0.5)"
-                  >
-                    {String(row.label)}
-                  </text>
+                  {showLabel && (
+                    <text
+                      x={x}
+                      y={height - 10}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fill="rgba(255,255,255,0.42)"
+                    >
+                      {String(row.label)}
+                    </text>
+                  )}
                 </g>
               );
             })}
 
-            {/* Areas */}
-            <path d={killArea} fill={`url(#${gradientId}-killArea)`} />
-            <path d={deathArea} fill={`url(#${gradientId}-deathArea)`} />
-
-            {/* Glow lines */}
-            <path
-              d={killPath}
-              fill="none"
-              stroke={`url(#${gradientId}-killStroke)`}
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.18"
-              filter={`url(#${gradientId}-killGlow)`}
-            />
-            <path
-              d={deathPath}
-              fill="none"
-              stroke={`url(#${gradientId}-deathStroke)`}
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.18"
-              filter={`url(#${gradientId}-deathGlow)`}
-            />
-
-            {/* Main lines */}
-            <path
-              d={killPath}
-              fill="none"
-              stroke={`url(#${gradientId}-killStroke)`}
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d={deathPath}
-              fill="none"
-              stroke={`url(#${gradientId}-deathStroke)`}
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {/* Dots */}
-            {kills.map((point, index) => (
-              <g key={`kill-${index}`}>
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r="3.2"
-                  fill="#d1fae5"
-                  stroke="#10b981"
-                  strokeWidth="2"
-                />
-              </g>
+            {/* area fill */}
+            {areaSegments.map((segment) => (
+              <path
+                key={`area-${segment.key}`}
+                d={segment.d}
+                fill={segment.positive ? 'rgba(16,185,129,0.10)' : 'rgba(244,63,94,0.08)'}
+              />
             ))}
 
-            {deaths.map((point, index) => (
-              <g key={`death-${index}`}>
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r="3.2"
-                  fill="#ffe4e6"
-                  stroke="#fb7185"
-                  strokeWidth="2"
-                />
-              </g>
+            {/* line glow */}
+            {segments.map((segment) => (
+              <line
+                key={`glow-${segment.from.x}-${segment.to.x}`}
+                x1={segment.from.x}
+                y1={segment.from.y}
+                x2={segment.to.x}
+                y2={segment.to.y}
+                stroke={segment.positive ? `url(#${uid}-posStroke)` : `url(#${uid}-negStroke)`}
+                strokeWidth="8"
+                strokeLinecap="round"
+                opacity="0.20"
+                filter={`url(#${uid}-lineGlow)`}
+              />
             ))}
 
-            {/* Last-point emphasis */}
-            {kills.length > 0 && (
-              <>
-                <circle
-                  cx={kills[kills.length - 1].x}
-                  cy={kills[kills.length - 1].y}
-                  r="12"
-                  fill="rgba(16,185,129,0.18)"
-                />
-                <circle
-                  cx={kills[kills.length - 1].x}
-                  cy={kills[kills.length - 1].y}
-                  r="5"
-                  fill="#d1fae5"
-                  stroke="#10b981"
-                  strokeWidth="2.5"
-                />
-              </>
-            )}
+            {/* main line */}
+            {segments.map((segment) => (
+              <line
+                key={`seg-${segment.from.x}-${segment.to.x}`}
+                x1={segment.from.x}
+                y1={segment.from.y}
+                x2={segment.to.x}
+                y2={segment.to.y}
+                stroke={segment.positive ? `url(#${uid}-posStroke)` : `url(#${uid}-negStroke)`}
+                strokeWidth="3.5"
+                strokeLinecap="round"
+              />
+            ))}
 
-            {deaths.length > 0 && (
+            {/* points */}
+            {points.map((point, index) => {
+              const positive = point.value >= 0;
+
+              return (
+                <g key={`point-${index}`}>
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="7"
+                    fill={positive ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.10)'}
+                  />
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="3.5"
+                    fill={positive ? '#d1fae5' : '#ffe4e6'}
+                    stroke={positive ? '#10b981' : '#fb7185'}
+                    strokeWidth="2"
+                  />
+                </g>
+              );
+            })}
+
+            {/* last point emphasis */}
+            {points.length > 0 && (
               <>
                 <circle
-                  cx={deaths[deaths.length - 1].x}
-                  cy={deaths[deaths.length - 1].y}
+                  cx={points[points.length - 1].x}
+                  cy={points[points.length - 1].y}
                   r="12"
-                  fill="rgba(244,63,94,0.16)"
+                  fill={
+                    points[points.length - 1].value >= 0
+                      ? 'rgba(16,185,129,0.16)'
+                      : 'rgba(244,63,94,0.14)'
+                  }
                 />
                 <circle
-                  cx={deaths[deaths.length - 1].x}
-                  cy={deaths[deaths.length - 1].y}
-                  r="5"
-                  fill="#ffe4e6"
-                  stroke="#fb7185"
-                  strokeWidth="2.5"
+                  cx={points[points.length - 1].x}
+                  cy={points[points.length - 1].y}
+                  r="4.6"
+                  fill={
+                    points[points.length - 1].value >= 0 ? '#d1fae5' : '#ffe4e6'
+                  }
+                  stroke={
+                    points[points.length - 1].value >= 0 ? '#10b981' : '#fb7185'
+                  }
+                  strokeWidth="2.2"
                 />
               </>
             )}
@@ -422,36 +396,41 @@ function BattleCurveChart({
   );
 }
 
-export function KillDeathChart({ data, title = '▧ Global Kill/Death Timeline' }) {
+export function KillDeathChart({
+  data,
+  title = '▧ Global Kill/Death Timeline',
+}) {
   return (
-    <BattleCurveChart
+    <CompactNetChart
       data={data}
       title={title}
-      subtitle="Green = kills · Red = deaths"
+      subtitle="Net result · positive = kills lead · negative = deaths lead"
     />
   );
 }
 
-/**
- * Alias util dacă în alte pagini ai alte importuri din Charts.jsx.
- * Dacă PlayerStats folosește unul dintre numele astea, nu mai trebuie să schimbi importurile.
- */
-export function AveragePerformanceChart({ data, title = 'Player Stats Timeline' }) {
+export function AveragePerformanceChart({
+  data,
+  title = 'Player Stats Timeline',
+}) {
   return (
-    <BattleCurveChart
+    <CompactNetChart
       data={data}
       title={title}
-      subtitle="Green = kills · Red = deaths"
+      subtitle="Net result · positive = kills lead · negative = deaths lead"
     />
   );
 }
 
-export function PlayerStatsChart({ data, title = 'Player Stats Timeline' }) {
+export function PlayerStatsChart({
+  data,
+  title = 'Player Stats Timeline',
+}) {
   return (
-    <BattleCurveChart
+    <CompactNetChart
       data={data}
       title={title}
-      subtitle="Green = kills · Red = deaths"
+      subtitle="Net result · positive = kills lead · negative = deaths lead"
     />
   );
 }
