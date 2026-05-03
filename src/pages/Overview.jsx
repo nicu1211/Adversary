@@ -65,32 +65,28 @@ function BestOverall({ players, members, streaks, feeds, events }) {
     (a, b) => a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i,
   );
 
-  function getWarKey(event) {
-    return `${event.date || 'unknown'}__${event.war || 'unknown'}`;
-  }
+  const rowsForDisplay = names.map((name) => {
+    const player = byName[name] || {
+      name,
+      kills: 0,
+      deaths: 0,
+      kd: '0.00',
+    };
 
-  const warEvents = {};
-
-  sortedEvents.forEach((event) => {
-    const key = getWarKey(event);
-
-    if (!warEvents[key]) {
-      warEvents[key] = [];
-    }
-
-    warEvents[key].push(event);
+    return {
+      ...player,
+      kdNumber: Number(player.kd) || 0,
+      streak: streaks[name] || 0,
+      feed: feeds[name] || 0,
+      matches: 0,
+      averageRank: 9999,
+    };
   });
 
-  function rankRows(rows, key, desc = true) {
-    const sorted = [...rows].sort((a, b) => {
-      const av = Number(a[key]) || 0;
-      const bv = Number(b[key]) || 0;
-
-      if (av < bv) return desc ? 1 : -1;
-      if (av > bv) return desc ? -1 : 1;
-
-      return a.name.localeCompare(b.name);
-    });
+  function rankDisplay(key, desc = true) {
+    const sorted = [...rowsForDisplay].sort((a, b) =>
+      desc ? b[key] - a[key] : a[key] - b[key],
+    );
 
     const output = {};
     let lastValue;
@@ -109,104 +105,6 @@ function BestOverall({ players, members, streaks, feeds, events }) {
 
     return output;
   }
-
-  const perPlayerMatchAverage = {};
-  const perPlayerMatches = {};
-
-  Object.values(warEvents).forEach((war) => {
-    const warStats = {};
-    const streakRun = {};
-    const recentKills = {};
-
-    function ensurePlayer(name) {
-      if (!knownNames.has(name)) return null;
-
-      if (!warStats[name]) {
-        warStats[name] = {
-          name,
-          kills: 0,
-          deaths: 0,
-          kdNumber: 0,
-          streak: 0,
-          feed: 0,
-        };
-      }
-
-      return warStats[name];
-    }
-
-    war.forEach((event) => {
-      const killer = event.killer;
-      const victim = event.victim;
-
-      if (knownNames.has(killer)) {
-        const killerStats = ensurePlayer(killer);
-
-        if (killerStats) {
-          killerStats.kills += 1;
-
-          streakRun[killer] = (streakRun[killer] || 0) + 1;
-          killerStats.streak = Math.max(killerStats.streak, streakRun[killer]);
-
-          if (!recentKills[killer]) {
-            recentKills[killer] = [];
-          }
-
-          recentKills[killer] = recentKills[killer].filter(
-            (sec) => event.sec - sec <= 10,
-          );
-
-          recentKills[killer].push(event.sec);
-          killerStats.feed = Math.max(killerStats.feed, recentKills[killer].length);
-        }
-      }
-
-      if (knownNames.has(victim)) {
-        const victimStats = ensurePlayer(victim);
-
-        if (victimStats) {
-          victimStats.deaths += 1;
-          streakRun[victim] = 0;
-        }
-      }
-    });
-
-    const rows = Object.values(warStats)
-      .map((player) => ({
-        ...player,
-        kdNumber: player.deaths
-          ? player.kills / player.deaths
-          : player.kills,
-      }))
-      .filter((player) => player.kills > 0 || player.deaths > 0);
-
-    if (!rows.length) return;
-
-    const ranks = {
-      kills: rankRows(rows, 'kills'),
-      deaths: rankRows(rows, 'deaths', false),
-      kd: rankRows(rows, 'kdNumber'),
-      streak: rankRows(rows, 'streak'),
-      feed: rankRows(rows, 'feed'),
-    };
-
-    rows.forEach((player) => {
-      const matchAverage =
-        (ranks.kills[player.name] +
-          ranks.deaths[player.name] +
-          ranks.kd[player.name] +
-          ranks.streak[player.name] +
-          ranks.feed[player.name]) /
-        5;
-
-      if (!perPlayerMatchAverage[player.name]) {
-        perPlayerMatchAverage[player.name] = [];
-      }
-
-      perPlayerMatchAverage[player.name].push(matchAverage);
-      perPlayerMatches[player.name] = (perPlayerMatches[player.name] || 0) + 1;
-    });
-  });
 
   function rankKillsWithReach() {
     const reach = {};
@@ -240,10 +138,20 @@ function BestOverall({ players, members, streaks, feeds, events }) {
     );
   }
 
-  function rankDisplay(key, desc = true) {
-    const sorted = [...rowsForDisplay].sort((a, b) =>
-      desc ? b[key] - a[key] : a[key] - b[key],
-    );
+  function getWarKey(event) {
+    return `${event.date || 'unknown'}__${event.war || 'unknown'}`;
+  }
+
+  function rankWarRows(rows, key, desc = true) {
+    const sorted = [...rows].sort((a, b) => {
+      const av = Number(a[key]) || 0;
+      const bv = Number(b[key]) || 0;
+
+      if (av < bv) return desc ? 1 : -1;
+      if (av > bv) return desc ? -1 : 1;
+
+      return a.name.localeCompare(b.name);
+    });
 
     const output = {};
     let lastValue;
@@ -263,30 +171,120 @@ function BestOverall({ players, members, streaks, feeds, events }) {
     return output;
   }
 
-  const rowsForDisplay = names.map((name) => {
-    const player = byName[name] || {
-      name,
-      kills: 0,
-      deaths: 0,
-      kd: '0.00',
-    };
+  const warGroups = {};
 
-    const matchAverages = perPlayerMatchAverage[name] || [];
-    const matches = perPlayerMatches[name] || 0;
+  sortedEvents.forEach((event) => {
+    const key = getWarKey(event);
 
-    const averageRank = matchAverages.length
-      ? matchAverages.reduce((sum, value) => sum + value, 0) / matchAverages.length
-      : 9999;
+    if (!warGroups[key]) {
+      warGroups[key] = [];
+    }
 
-    return {
-      ...player,
-      kdNumber: Number(player.kd) || 0,
-      streak: streaks[name] || 0,
-      feed: feeds[name] || 0,
-      matches,
-      averageRank,
-    };
+    warGroups[key].push(event);
   });
+
+  const playerAverageList = {};
+  const playerMatchCount = {};
+
+  Object.values(warGroups).forEach((warEvents) => {
+    const warStats = {};
+    const streakRun = {};
+    const recentKills = {};
+
+    function ensurePlayer(name) {
+      if (!knownNames.has(name)) return null;
+
+      if (!warStats[name]) {
+        warStats[name] = {
+          name,
+          kills: 0,
+          deaths: 0,
+          kdNumber: 0,
+          streak: 0,
+          feed: 0,
+        };
+      }
+
+      return warStats[name];
+    }
+
+    warEvents.forEach((event) => {
+      const killer = event.killer;
+      const victim = event.victim;
+
+      if (knownNames.has(killer)) {
+        const player = ensurePlayer(killer);
+
+        if (player) {
+          player.kills += 1;
+
+          streakRun[killer] = (streakRun[killer] || 0) + 1;
+          player.streak = Math.max(player.streak, streakRun[killer]);
+
+          if (!recentKills[killer]) {
+            recentKills[killer] = [];
+          }
+
+          recentKills[killer] = recentKills[killer].filter(
+            (sec) => event.sec - sec <= 10,
+          );
+
+          recentKills[killer].push(event.sec);
+          player.feed = Math.max(player.feed, recentKills[killer].length);
+        }
+      }
+
+      if (knownNames.has(victim)) {
+        const player = ensurePlayer(victim);
+
+        if (player) {
+          player.deaths += 1;
+          streakRun[victim] = 0;
+        }
+      }
+    });
+
+    const warRows = Object.values(warStats)
+      .filter((player) => player.kills > 0 || player.deaths > 0)
+      .map((player) => ({
+        ...player,
+        kdNumber: player.deaths ? player.kills / player.deaths : player.kills,
+      }));
+
+    if (!warRows.length) return;
+
+    const warRanks = {
+      kills: rankWarRows(warRows, 'kills'),
+      deaths: rankWarRows(warRows, 'deaths', false),
+      kd: rankWarRows(warRows, 'kdNumber'),
+      streak: rankWarRows(warRows, 'streak'),
+      feed: rankWarRows(warRows, 'feed'),
+    };
+
+    warRows.forEach((player) => {
+      const matchAverage =
+        (warRanks.kills[player.name] +
+          warRanks.deaths[player.name] +
+          warRanks.kd[player.name] +
+          warRanks.streak[player.name] +
+          warRanks.feed[player.name]) /
+        5;
+
+      if (!playerAverageList[player.name]) {
+        playerAverageList[player.name] = [];
+      }
+
+      playerAverageList[player.name].push(matchAverage);
+      playerMatchCount[player.name] = (playerMatchCount[player.name] || 0) + 1;
+    });
+  });
+
+  const averageByName = Object.fromEntries(
+    Object.entries(playerAverageList).map(([name, averages]) => [
+      name,
+      averages.reduce((sum, value) => sum + value, 0) / averages.length,
+    ]),
+  );
 
   const ranks = {
     kills: rankKillsWithReach(),
@@ -297,6 +295,11 @@ function BestOverall({ players, members, streaks, feeds, events }) {
   };
 
   const final = rowsForDisplay
+    .map((player) => ({
+      ...player,
+      matches: playerMatchCount[player.name] || 0,
+      averageRank: averageByName[player.name] ?? 9999,
+    }))
     .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => a.averageRank - b.averageRank);
 
