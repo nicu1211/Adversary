@@ -47,73 +47,134 @@ function RankList({ title, items, valueKey }) {
   );
 }
 
-function BestOverall({ players, members, streaks, feeds, events }) {
+function BestOverall({ players, members, events }) {
   const [query, setQuery] = useState('');
 
-  const byName = Object.fromEntries(
-    players.map((player) => [player.name, player]),
+  const knownNames = new Set([
+    ...(members || []).map((member) => member.name),
+    ...players.map((player) => player.name),
+  ]);
+
+  const names = [...knownNames];
+
+  const sortedEvents = [...(events || [])].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i,
   );
 
-  const names = [
-    ...new Set([
-      ...(members || []).map((member) => member.name),
-      ...players.map((player) => player.name),
-    ]),
-  ];
+  function warKey(event) {
+    return `${event.date || 'unknown'}__${event.war || 'unknown'}`;
+  }
+
+  const perPlayerWarStats = {};
+
+  function ensurePlayerWar(name, key) {
+    if (!knownNames.has(name)) return null;
+
+    if (!perPlayerWarStats[name]) {
+      perPlayerWarStats[name] = {};
+    }
+
+    if (!perPlayerWarStats[name][key]) {
+      perPlayerWarStats[name][key] = {
+        kills: 0,
+        deaths: 0,
+        maxStreak: 0,
+        maxFeed: 0,
+      };
+    }
+
+    return perPlayerWarStats[name][key];
+  }
+
+  const warGroups = {};
+
+  sortedEvents.forEach((event) => {
+    const key = warKey(event);
+
+    if (!warGroups[key]) {
+      warGroups[key] = [];
+    }
+
+    warGroups[key].push(event);
+  });
+
+  Object.entries(warGroups).forEach(([key, warEvents]) => {
+    const streakRun = {};
+    const recentKills = {};
+
+    warEvents.forEach((event) => {
+      const killer = event.killer;
+      const victim = event.victim;
+
+      if (knownNames.has(killer)) {
+        const stats = ensurePlayerWar(killer, key);
+
+        if (stats) {
+          stats.kills += 1;
+
+          streakRun[killer] = (streakRun[killer] || 0) + 1;
+          stats.maxStreak = Math.max(stats.maxStreak, streakRun[killer]);
+
+          if (!recentKills[killer]) {
+            recentKills[killer] = [];
+          }
+
+          recentKills[killer] = recentKills[killer].filter(
+            (sec) => event.sec - sec <= 10,
+          );
+
+          recentKills[killer].push(event.sec);
+
+          stats.maxFeed = Math.max(stats.maxFeed, recentKills[killer].length);
+        }
+      }
+
+      if (knownNames.has(victim)) {
+        const stats = ensurePlayerWar(victim, key);
+
+        if (stats) {
+          stats.deaths += 1;
+          streakRun[victim] = 0;
+        }
+      }
+    });
+  });
 
   const rows = names.map((name) => {
-    const player = byName[name] || {
-      name,
-      kills: 0,
-      deaths: 0,
-      kd: '0.00',
-    };
+    const wars = Object.values(perPlayerWarStats[name] || {});
+    const matches = wars.length;
+
+    const totalKills = wars.reduce((sum, war) => sum + war.kills, 0);
+    const totalDeaths = wars.reduce((sum, war) => sum + war.deaths, 0);
+    const totalStreak = wars.reduce((sum, war) => sum + war.maxStreak, 0);
+    const totalFeed = wars.reduce((sum, war) => sum + war.maxFeed, 0);
+
+    const avgKills = matches ? totalKills / matches : 0;
+    const avgDeaths = matches ? totalDeaths / matches : 0;
+    const avgStreak = matches ? totalStreak / matches : 0;
+    const avgFeed = matches ? totalFeed / matches : 0;
+    const avgKd = avgDeaths ? avgKills / avgDeaths : avgKills;
 
     return {
-      ...player,
-      kdNumber: Number(player.kd),
-      streak: streaks[name] || 0,
-      feed: feeds[name] || 0,
+      name,
+      matches,
+      totalKills,
+      totalDeaths,
+      avgKills,
+      avgDeaths,
+      avgKd,
+      avgStreak,
+      avgFeed,
     };
   });
 
-  const reach = {};
-  const run = {};
-
-  [...(events || [])]
-    .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i)
-    .filter((event) => event.type === 'kill')
-    .forEach((event) => {
-      run[event.killer] = (run[event.killer] || 0) + 1;
-
-      const finalKills = byName[event.killer]?.kills || 0;
-
-      if (finalKills && run[event.killer] === finalKills) {
-        reach[event.killer] =
-          event.date +
-          ' ' +
-          String(event.sec).padStart(5, '0') +
-          ' ' +
-          String(event.i).padStart(5, '0');
-      }
-    });
-
-  function rankKills() {
-    return Object.fromEntries(
-      [...rows]
-        .sort(
-          (a, b) =>
-            b.kills - a.kills ||
-            (reach[a.name] || '9999').localeCompare(reach[b.name] || '9999'),
-        )
-        .map((player, index) => [player.name, index + 1]),
-    );
-  }
-
   function rank(key, desc = true) {
-    const sorted = [...rows].sort((a, b) =>
-      desc ? b[key] - a[key] : a[key] - b[key],
-    );
+    const sorted = [...rows].sort((a, b) => {
+      const av = Number(a[key]) || 0;
+      const bv = Number(b[key]) || 0;
+
+      return desc ? bv - av : av - bv;
+    });
 
     const output = {};
     let lastValue;
@@ -134,17 +195,17 @@ function BestOverall({ players, members, streaks, feeds, events }) {
   }
 
   const ranks = {
-    kills: rankKills(),
-    deaths: rank('deaths', false),
-    kd: rank('kdNumber'),
-    streak: rank('streak'),
-    feed: rank('feed'),
+    kills: rank('avgKills'),
+    deaths: rank('avgDeaths', false),
+    kd: rank('avgKd'),
+    streak: rank('avgStreak'),
+    feed: rank('avgFeed'),
   };
 
   const final = rows
     .map((player) => ({
       ...player,
-      average:
+      averageRank:
         (ranks.kills[player.name] +
           ranks.deaths[player.name] +
           ranks.kd[player.name] +
@@ -153,7 +214,7 @@ function BestOverall({ players, members, streaks, feeds, events }) {
         5,
     }))
     .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
-    .sort((a, b) => a.average - b.average);
+    .sort((a, b) => a.averageRank - b.averageRank);
 
   return (
     <Panel cls="h-[680px]">
@@ -161,7 +222,7 @@ function BestOverall({ players, members, streaks, feeds, events }) {
         <h3 className="text-xl font-black">♛ Best Overall</h3>
 
         <p className="mb-3 text-xs text-slate-400">
-          Average rank across whole guild
+          Average performance across selected wars
         </p>
 
         <input
@@ -190,25 +251,56 @@ function BestOverall({ players, members, streaks, feeds, events }) {
 
                   <span className="rounded-md border border-blue-400/20 bg-blue-500/5 px-2 py-1 text-sm font-black text-blue-300">
                     <small className="mr-1 text-[9px] uppercase text-blue-200/80">
-                      Avg
+                      Avg Rank
                     </small>
-                    {player.average.toFixed(2)}
+                    {player.averageRank.toFixed(2)}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-5 gap-1 text-center text-xs">
-                  {[
-                    ['Kills', ranks.kills[player.name], 'text-blue-300'],
-                    ['Deaths', ranks.deaths[player.name], 'text-pink-300'],
-                    ['K/D', ranks.kd[player.name], 'text-emerald-300'],
-                    ['Streak', ranks.streak[player.name], 'text-slate-200'],
-                    ['Feed', ranks.feed[player.name], 'text-orange-300'],
-                  ].map((item) => (
-                    <div key={item[0]} className="rounded-md bg-slate-950/70 p-1">
-                      <p className="text-slate-500">{item[0]}</p>
-                      <b className={item[2]}>#{item[1]}</b>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-6 gap-1 text-center text-xs">
+                  <div className="rounded-md bg-slate-950/70 p-1">
+                    <p className="text-slate-500">Wars</p>
+                    <b className="text-slate-200">{player.matches}</b>
+                  </div>
+
+                  <div className="rounded-md bg-slate-950/70 p-1">
+                    <p className="text-slate-500">K/M</p>
+                    <b className="text-blue-300">{player.avgKills.toFixed(1)}</b>
+                  </div>
+
+                  <div className="rounded-md bg-slate-950/70 p-1">
+                    <p className="text-slate-500">D/M</p>
+                    <b className="text-pink-300">
+                      {player.avgDeaths.toFixed(1)}
+                    </b>
+                  </div>
+
+                  <div className="rounded-md bg-slate-950/70 p-1">
+                    <p className="text-slate-500">K/D</p>
+                    <b
+                      className={
+                        player.avgKd >= 1
+                          ? 'text-emerald-300'
+                          : 'text-rose-300'
+                      }
+                    >
+                      {player.avgKd.toFixed(2)}
+                    </b>
+                  </div>
+
+                  <div className="rounded-md bg-slate-950/70 p-1">
+                    <p className="text-slate-500">Streak</p>
+                    <b className="text-slate-200">
+                      {player.avgStreak.toFixed(1)}
+                    </b>
+                  </div>
+
+                  <div className="rounded-md bg-slate-950/70 p-1">
+                    <p className="text-slate-500">Feed</p>
+                    <b className="text-orange-300">
+                      {player.avgFeed.toFixed(1)}
+                    </b>
+                  </div>
                 </div>
               </div>
             ))}
@@ -492,24 +584,60 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
 function TopGuilds({ guilds, events }) {
   const [selected, setSelected] = useState(null);
+  const [sort, setSort] = useState(['totalInteractions', 'desc']);
+
+  const [key, direction] = sort;
 
   const rows = [...guilds]
     .map((guild) => {
       const kills = guild.deaths;
       const deaths = guild.kills;
       const totalInteractions = kills + deaths;
+      const kdNumber = deaths ? kills / deaths : kills;
 
       return {
         ...guild,
         kills,
         deaths,
         totalInteractions,
-        kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+        kdNumber,
+        kd: kdNumber.toFixed(2),
       };
     })
-    .sort(
-      (a, b) => b.totalInteractions - a.totalInteractions || b.kills - a.kills,
+    .sort((a, b) => {
+      const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
+      const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
+
+      if (av < bv) return direction === 'asc' ? -1 : 1;
+      if (av > bv) return direction === 'asc' ? 1 : -1;
+
+      return b.totalInteractions - a.totalInteractions || b.kills - a.kills;
+    });
+
+  function flip(nextKey) {
+    setSort(
+      key === nextKey
+        ? [nextKey, direction === 'desc' ? 'asc' : 'desc']
+        : [nextKey, nextKey === 'name' ? 'asc' : 'desc'],
     );
+  }
+
+  function Header({ id, children, className = '' }) {
+    return (
+      <th className={`py-3 ${className}`}>
+        <button
+          onClick={() => flip(id)}
+          className={
+            key === id
+              ? 'font-black text-blue-300'
+              : 'font-black hover:text-blue-300'
+          }
+        >
+          {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
+        </button>
+      </th>
+    );
+  }
 
   const log = selected
     ? events.filter((event) => event.guild === selected.name)
@@ -534,10 +662,21 @@ function TopGuilds({ guilds, events }) {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                   <tr>
-                    <th className="py-3 pl-4 text-left">Guild</th>
-                    <th className="py-3 text-center">Kills</th>
-                    <th className="py-3 text-center">Deaths</th>
-                    <th className="py-3 pr-4 text-center">K/D</th>
+                    <Header id="name" className="pl-4 text-left">
+                      Guild
+                    </Header>
+
+                    <Header id="kills" className="text-center">
+                      Kills
+                    </Header>
+
+                    <Header id="deaths" className="text-center">
+                      Deaths
+                    </Header>
+
+                    <Header id="kdNumber" className="pr-4 text-center">
+                      K/D
+                    </Header>
                   </tr>
                 </thead>
 
@@ -733,8 +872,6 @@ export default function OverviewPage({ stats, label, members }) {
         <BestOverall
           players={stats.players}
           members={members}
-          streaks={stats.st}
-          feeds={stats.fd}
           events={stats.ev}
         />
 
