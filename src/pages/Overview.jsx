@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Panel, Metric, Popup } from '../components/UI';
+import { Panel, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
   add,
@@ -8,47 +8,15 @@ import {
   calculateStats,
 } from '../lib/logUtils';
 
-function RankList({ title, items, valueKey }) {
-  const rows = items.slice(0, 5);
-  const max = Math.max(1, ...rows.map((x) => Number(x[valueKey]) || 0));
-
+function HeaderImage() {
   return (
-    <Panel>
-      <h3 className="mb-4 text-xl font-black">{title}</h3>
-
-      {!rows.length ? (
-        <p className="text-slate-500">No data yet.</p>
-      ) : (
-        rows.map((item, index) => {
-          const value = Number(item[valueKey]) || 0;
-
-          return (
-            <div
-              key={item.name}
-              className="mb-4 grid grid-cols-[34px_1fr_55px] items-center gap-3 text-sm"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black">
-                {index + 1}
-              </span>
-
-              <div className="min-w-0">
-                <p className="mb-2 truncate font-bold">{item.name}</p>
-                <div className="h-2.5 rounded-full bg-slate-800">
-                  <div
-                    className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
-                    style={{
-                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <b className="text-right">{value}</b>
-            </div>
-          );
-        })
-      )}
-    </Panel>
+    <header className="overflow-hidden rounded-[30px] border border-slate-700/80 bg-slate-950 shadow-2xl">
+      <img
+        src="/images/battle-analytics-header.png"
+        alt="Battle Analytics"
+        className="block w-full rounded-[30px]"
+      />
+    </header>
   );
 }
 
@@ -888,7 +856,6 @@ function KillFeedPanel({ killFeeds }) {
 
 export default function OverviewPage({
   stats,
-  label,
   members,
   selectedLogs,
 }) {
@@ -896,67 +863,7 @@ export default function OverviewPage({
 
   return (
     <>
-      <header className="relative overflow-hidden rounded-[30px] border border-slate-700/80 bg-[#050b16]/95 p-5 shadow-[inset_0_0_70px_rgba(15,23,42,0.95),0_24px_80px_rgba(0,0,0,0.45)] sm:p-7">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(168,85,247,0.10),transparent_38%),radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.025),transparent_35%)]" />
-
-        <div className="pointer-events-none absolute right-8 top-6 hidden h-56 w-56 rounded-full border border-amber-200/5 xl:block" />
-        <div className="pointer-events-none absolute right-16 top-12 hidden h-40 w-40 rotate-45 border border-amber-200/5 xl:block" />
-
-        <div className="relative mb-6">
-          <div className="mb-1 flex items-center gap-3">
-            <span className="text-3xl text-amber-100/90 drop-shadow-[0_0_14px_rgba(251,191,36,0.25)]">
-              ✦
-            </span>
-
-            <h2 className="font-serif text-4xl font-black tracking-wide text-amber-100 drop-shadow-[0_0_18px_rgba(251,191,36,0.22)]">
-              Battle Analytics
-            </h2>
-
-            <span className="hidden h-px w-40 bg-gradient-to-r from-amber-200/50 to-transparent md:block" />
-            <span className="hidden text-2xl text-amber-100/70 md:block">
-              ✧
-            </span>
-          </div>
-
-          <p className="ml-11 text-base text-slate-400">
-            {label}
-          </p>
-        </div>
-
-        <div className="relative grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric
-            icon="⚔"
-            label="Total Kills"
-            value={stats.kills}
-            sub="Eliminations"
-            className="border-blue-400/25 from-blue-500/20 text-blue-300"
-          />
-
-          <Metric
-            icon="☠"
-            label="Total Deaths"
-            value={stats.deaths}
-            sub="Deaths"
-            className="border-pink-400/25 from-pink-500/20 text-pink-300"
-          />
-
-          <Metric
-            icon="✦"
-            label="K/D"
-            value={stats.kd}
-            sub="Ratio"
-            className="border-violet-400/25 from-violet-500/20 text-violet-300"
-          />
-
-          <Metric
-            icon="♟"
-            label="Players"
-            value={stats.players.length}
-            sub="Active"
-            className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
-          />
-        </div>
-      </header>
+      <HeaderImage />
 
       <KillDeathChart data={stats.line} title="▧ Global Kill/Death Timeline" />
 
