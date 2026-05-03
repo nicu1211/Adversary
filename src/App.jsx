@@ -250,7 +250,6 @@ export default function App() {
     return (
       <div className="flex gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-2">
         <button
-          type="button"
           onClick={() => setPage('nodewars')}
           className={`rounded-xl px-4 py-2 text-sm font-bold ${
             page === 'nodewars'
@@ -262,7 +261,6 @@ export default function App() {
         </button>
 
         <button
-          type="button"
           onClick={openOverview}
           className={`rounded-xl px-4 py-2 text-sm font-bold ${
             page === 'overview'
@@ -291,7 +289,6 @@ export default function App() {
             {menu.map((item) => (
               <button
                 key={item[0]}
-                type="button"
                 onClick={() => setPage(item[0])}
                 className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
                   isActive(item[0])
@@ -313,7 +310,6 @@ export default function App() {
           {menu.map((item) => (
             <button
               key={item[0]}
-              type="button"
               onClick={() => setPage(item[0])}
               className={`mb-2 w-full rounded-xl px-4 py-3 text-left font-bold ${
                 isActive(item[0])
