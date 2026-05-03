@@ -351,6 +351,7 @@ export default function App() {
                 stats={stats}
                 label={label}
                 members={members}
+                selectedLogs={activeLogs}
               />
             </>
           )}
