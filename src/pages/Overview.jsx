@@ -436,81 +436,121 @@ function TopGuilds({ guilds, events }) {
     .map((guild) => {
       const kills = guild.deaths;
       const deaths = guild.kills;
+      const totalInteractions = kills + deaths;
 
       return {
         ...guild,
         kills,
         deaths,
+        totalInteractions,
         kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
       };
     })
-    .sort((a, b) => b.kills - a.kills)
-    .slice(0, 8);
+    .sort((a, b) => b.totalInteractions - a.totalInteractions || b.kills - a.kills);
 
   const log = selected ? events.filter((event) => event.guild === selected.name) : [];
 
   return (
     <Panel>
-      <h3 className="text-xl font-black">🛡 Top Guilds</h3>
-      <p className="mb-4 text-xs text-slate-400">Click a guild name to view the kill log</p>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-black">🛡 Top Guilds</h3>
+          <p className="text-xs text-slate-400">
+            Showing 12 at a time · scroll to see all interacted guilds
+          </p>
+        </div>
 
-      <table className="w-full text-sm">
-        <thead className="text-xs uppercase text-slate-400">
-          <tr>
-            <th className="text-left">Guild</th>
-            <th>Kills</th>
-            <th>Deaths</th>
-            <th>K/D</th>
-          </tr>
-        </thead>
+        <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
+          {rows.length} guilds
+        </span>
+      </div>
 
-        <tbody>
-          {rows.map((guild, index) => (
-            <tr key={guild.name} className="border-t border-slate-800">
-              <td className="py-3">
-                <button
-                  onClick={() => setSelected(guild)}
-                  className="font-bold hover:text-blue-300"
-                >
-                  {index + 1}. {guild.name}
-                </button>
-              </td>
+      {!rows.length ? (
+        <p className="text-slate-500">No guild data yet.</p>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-800">
+          <div className={`max-h-[520px] overflow-y-auto pr-1 ${scrollCls}`}>
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
+                <tr>
+                  <th className="py-3 pl-4 text-left">Guild</th>
+                  <th className="py-3 text-center">Kills</th>
+                  <th className="py-3 text-center">Deaths</th>
+                  <th className="py-3 pr-4 text-center">K/D</th>
+                </tr>
+              </thead>
 
-              <td className="text-center font-black text-blue-300">{guild.kills}</td>
-              <td className="text-center font-black text-pink-300">{guild.deaths}</td>
-              <td className="text-center font-black text-emerald-300">{guild.kd}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              <tbody>
+                {rows.map((guild, index) => (
+                  <tr
+                    key={guild.name}
+                    className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
+                  >
+                    <td className="py-3 pl-4">
+                      <button
+                        onClick={() => setSelected(guild)}
+                        className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
+                      >
+                        {index + 1}. {guild.name}
+                      </button>
+                    </td>
+
+                    <td className="py-3 text-center font-black text-blue-300">
+                      {guild.kills}
+                    </td>
+
+                    <td className="py-3 text-center font-black text-pink-300">
+                      {guild.deaths}
+                    </td>
+
+                    <td
+                      className={`py-3 pr-4 text-center font-black ${
+                        Number(guild.kd) >= 1
+                          ? 'text-emerald-300'
+                          : 'text-rose-300'
+                      }`}
+                    >
+                      {guild.kd}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {selected && (
         <Popup title={`${selected.name} Kill Log`} close={() => setSelected(null)}>
-          <div className="space-y-2">
-            {log.map((event, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-[82px_1fr_105px] gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm"
-              >
-                <div>
-                  <b>{event.time}</b>
-                  <p className="text-[10px] text-slate-500">{event.date}</p>
+          {!log.length ? (
+            <p className="text-slate-500">No kill log found for this guild.</p>
+          ) : (
+            <div className={`max-h-[60vh] space-y-2 overflow-y-auto pr-2 ${scrollCls}`}>
+              {log.map((event, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-[82px_1fr_105px] gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm"
+                >
+                  <div>
+                    <b>{event.time}</b>
+                    <p className="text-[10px] text-slate-500">{event.date}</p>
+                  </div>
+
+                  <p className="truncate">
+                    <b className={event.type === 'kill' ? 'text-blue-300' : 'text-pink-300'}>
+                      {event.type === 'kill' ? event.killer : event.victim}
+                    </b>{' '}
+                    {event.type === 'kill' ? 'killed' : 'died to'}{' '}
+                    <b>{event.type === 'kill' ? event.victim : event.killer}</b>
+                  </p>
+
+                  <span className={event.type === 'kill' ? 'text-blue-300' : 'text-pink-300'}>
+                    {event.type === 'kill' ? 'OUR KILL' : 'OUR DEATH'}
+                  </span>
                 </div>
-
-                <p className="truncate">
-                  <b className={event.type === 'kill' ? 'text-blue-300' : 'text-pink-300'}>
-                    {event.type === 'kill' ? event.killer : event.victim}
-                  </b>{' '}
-                  {event.type === 'kill' ? 'killed' : 'died to'}{' '}
-                  <b>{event.type === 'kill' ? event.victim : event.killer}</b>
-                </p>
-
-                <span className={event.type === 'kill' ? 'text-blue-300' : 'text-pink-300'}>
-                  {event.type === 'kill' ? 'OUR KILL' : 'OUR DEATH'}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Popup>
       )}
     </Panel>
