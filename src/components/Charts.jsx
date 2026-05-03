@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { Panel } from './UI';
 
 function toNumber(value) {
@@ -49,11 +49,12 @@ function getLabelStep(length) {
 
 function normalizeTimelineData(data = []) {
   return data.map((item, index) => {
-    const kills = toNumber(pick(item, ['kills', 'kill', 'k'], 0));
-    const deaths = toNumber(pick(item, ['deaths', 'death', 'd'], 0));
+    const kills = toNumber(
+      pick(item, ['kills', 'kill', 'k', 'valueA', 'a'], 0),
+    );
 
-    const value = toNumber(
-      pick(item, ['net', 'diff', 'value', 'score'], kills - deaths),
+    const deaths = toNumber(
+      pick(item, ['deaths', 'death', 'd', 'valueB', 'b'], 0),
     );
 
     return {
@@ -63,14 +64,20 @@ function normalizeTimelineData(data = []) {
           ['label', 'time', 'minute', 'slot', 'name', 'x'],
           index + 1,
         ) ?? index + 1,
-      value,
+      kills,
+      deaths,
     };
   });
 }
 
 function formatTickValue(value) {
   const rounded = Math.round(value);
-  return `${rounded > 0 ? '+' : ''}${rounded}`;
+
+  if (rounded >= 1000) {
+    return `${(rounded / 1000).toFixed(rounded >= 10000 ? 0 : 1)}k`;
+  }
+
+  return String(rounded);
 }
 
 function OverviewLineChart({
@@ -78,6 +85,8 @@ function OverviewLineChart({
   title = '▧ Global Kill/Death Timeline',
 }) {
   const uid = useId();
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
   const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
 
   const width = 1000;
@@ -90,36 +99,47 @@ function OverviewLineChart({
     const innerW = width - pad.left - pad.right;
     const innerH = height - pad.top - pad.bottom;
 
-    const values = rows.map((row) => row.value);
-    const rawMin = Math.min(...values);
-    const rawMax = Math.max(...values);
+    const values = rows.flatMap((row) => [row.kills, row.deaths]);
+    const rawMax = Math.max(1, ...values);
 
-    const range = Math.max(1, rawMax - rawMin);
-    const extra = Math.max(1, range * 0.18);
+    const max = rawMax * 1.12;
+    const safeRange = Math.max(1, max);
 
-    const min = rawMin - extra;
-    const max = rawMax + extra;
-    const safeRange = Math.max(1, max - min);
-
-    const points = rows.map((row, index) => {
+    const pointsKills = rows.map((row, index) => {
       const x =
         rows.length === 1
           ? pad.left + innerW / 2
           : pad.left + (index / (rows.length - 1)) * innerW;
 
-      const y = pad.top + ((max - row.value) / safeRange) * innerH;
+      const y = pad.top + ((max - row.kills) / safeRange) * innerH;
 
       return {
         x,
         y,
         label: row.label,
-        value: row.value,
+        value: row.kills,
+      };
+    });
+
+    const pointsDeaths = rows.map((row, index) => {
+      const x =
+        rows.length === 1
+          ? pad.left + innerW / 2
+          : pad.left + (index / (rows.length - 1)) * innerW;
+
+      const y = pad.top + ((max - row.deaths) / safeRange) * innerH;
+
+      return {
+        x,
+        y,
+        label: row.label,
+        value: row.deaths,
       };
     });
 
     const yTicks = 5;
     const ticks = Array.from({ length: yTicks }, (_, i) => {
-      const value = max - ((max - min) * i) / (yTicks - 1);
+      const value = max - (max * i) / (yTicks - 1);
       const y = pad.top + (innerH * i) / (yTicks - 1);
 
       return {
@@ -129,7 +149,8 @@ function OverviewLineChart({
     });
 
     return {
-      points,
+      pointsKills,
+      pointsDeaths,
       ticks,
       innerW,
     };
@@ -147,13 +168,22 @@ function OverviewLineChart({
     );
   }
 
-  const { points, ticks, innerW } = chart;
-  const linePath = buildSmoothPath(points);
+  const { pointsKills, pointsDeaths, ticks, innerW } = chart;
+
+  const killPath = buildSmoothPath(pointsKills);
+  const deathPath = buildSmoothPath(pointsDeaths);
   const labelStep = getLabelStep(rows.length);
 
-  const topGlowArea = points.length
-    ? `${linePath} L ${points[points.length - 1].x} ${pad.top} L ${points[0].x} ${pad.top} Z`
-    : '';
+  const hovered =
+    hoveredIndex == null
+      ? null
+      : {
+          x: pointsKills[hoveredIndex].x,
+          y: Math.min(pointsKills[hoveredIndex].y, pointsDeaths[hoveredIndex].y),
+          label: rows[hoveredIndex].label,
+          kills: rows[hoveredIndex].kills,
+          deaths: rows[hoveredIndex].deaths,
+        };
 
   return (
     <Panel cls="overflow-hidden">
@@ -161,7 +191,27 @@ function OverviewLineChart({
         <h3 className="text-xl font-black">{title}</h3>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(32,35,78,0.96),rgba(26,28,66,0.98))]">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(32,35,78,0.96),rgba(26,28,66,0.98))]"
+        onMouseLeave={() => setHoveredIndex(null)}
+      >
+        {hovered && (
+          <div
+            className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
+            style={{
+              left: `${(hovered.x / width) * 100}%`,
+              top: `${(hovered.y / height) * 100}%`,
+              transform: 'translate(-50%, calc(-100% - 12px))',
+            }}
+          >
+            <p className="mb-1 font-bold text-slate-200">
+              Ora: {hovered.label}
+            </p>
+            <p className="text-emerald-300">Kills: {hovered.kills}</p>
+            <p className="text-rose-300">Deaths: {hovered.deaths}</p>
+          </div>
+        )}
+
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="block h-auto w-full"
@@ -169,26 +219,36 @@ function OverviewLineChart({
           aria-label={title}
         >
           <defs>
-            <linearGradient id={`${uid}-stroke`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#5B5CFF" />
-              <stop offset="40%" stopColor="#8B5CF6" />
-              <stop offset="72%" stopColor="#D946EF" />
-              <stop offset="100%" stopColor="#FF62C7" />
+            <linearGradient id={`${uid}-killStroke`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#065f46" />
+              <stop offset="45%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#a7f3d0" />
             </linearGradient>
 
-            <linearGradient id={`${uid}-topGlow`} x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="rgba(217,70,239,0.22)" />
-              <stop offset="35%" stopColor="rgba(168,85,247,0.12)" />
-              <stop offset="70%" stopColor="rgba(168,85,247,0.04)" />
-              <stop offset="100%" stopColor="rgba(168,85,247,0)" />
+            <linearGradient id={`${uid}-deathStroke`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#7f1d1d" />
+              <stop offset="45%" stopColor="#ef4444" />
+              <stop offset="100%" stopColor="#fecdd3" />
+            </linearGradient>
+
+            <linearGradient id={`${uid}-killGlowTop`} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="rgba(16,185,129,0.18)" />
+              <stop offset="45%" stopColor="rgba(16,185,129,0.08)" />
+              <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+            </linearGradient>
+
+            <linearGradient id={`${uid}-deathGlowTop`} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="rgba(244,63,94,0.16)" />
+              <stop offset="45%" stopColor="rgba(244,63,94,0.07)" />
+              <stop offset="100%" stopColor="rgba(244,63,94,0)" />
             </linearGradient>
 
             <filter
-              id={`${uid}-lineGlowBig`}
-              x="-60%"
-              y="-60%"
-              width="220%"
-              height="220%"
+              id={`${uid}-killGlowBig`}
+              x="-70%"
+              y="-70%"
+              width="240%"
+              height="240%"
             >
               <feGaussianBlur stdDeviation="10" result="blur1" />
               <feMerge>
@@ -198,11 +258,11 @@ function OverviewLineChart({
             </filter>
 
             <filter
-              id={`${uid}-lineGlowSoft`}
-              x="-60%"
-              y="-60%"
-              width="220%"
-              height="220%"
+              id={`${uid}-killGlowSoft`}
+              x="-70%"
+              y="-70%"
+              width="240%"
+              height="240%"
             >
               <feGaussianBlur stdDeviation="5" result="blur2" />
               <feMerge>
@@ -210,14 +270,51 @@ function OverviewLineChart({
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+
+            <filter
+              id={`${uid}-deathGlowBig`}
+              x="-70%"
+              y="-70%"
+              width="240%"
+              height="240%"
+            >
+              <feGaussianBlur stdDeviation="10" result="blur3" />
+              <feMerge>
+                <feMergeNode in="blur3" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            <filter
+              id={`${uid}-deathGlowSoft`}
+              x="-70%"
+              y="-70%"
+              width="240%"
+              height="240%"
+            >
+              <feGaussianBlur stdDeviation="5" result="blur4" />
+              <feMerge>
+                <feMergeNode in="blur4" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
-          {/* Glow care pornește din linie și se estompează în sus */}
-          {topGlowArea && (
+          {/* Fade/glow din linia kills spre exterior */}
+          {pointsKills.length > 0 && (
             <path
-              d={topGlowArea}
-              fill={`url(#${uid}-topGlow)`}
+              d={`${killPath} L ${pointsKills[pointsKills.length - 1].x} ${pad.top} L ${pointsKills[0].x} ${pad.top} Z`}
+              fill={`url(#${uid}-killGlowTop)`}
               opacity="0.95"
+            />
+          )}
+
+          {/* Fade/glow din linia deaths spre exterior */}
+          {pointsDeaths.length > 0 && (
+            <path
+              d={`${deathPath} L ${pointsDeaths[pointsDeaths.length - 1].x} ${pad.top} L ${pointsDeaths[0].x} ${pad.top} Z`}
+              fill={`url(#${uid}-deathGlowTop)`}
+              opacity="0.85"
             />
           )}
 
@@ -283,59 +380,126 @@ function OverviewLineChart({
             );
           })}
 
-          {/* Glow exterior mare */}
+          {/* Glow exterior mare kills */}
           <path
-            d={linePath}
+            d={killPath}
             fill="none"
-            stroke={`url(#${uid}-stroke)`}
-            strokeWidth="16"
+            stroke={`url(#${uid}-killStroke)`}
+            strokeWidth="15"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.14"
-            filter={`url(#${uid}-lineGlowBig)`}
+            opacity="0.16"
+            filter={`url(#${uid}-killGlowBig)`}
           />
 
-          {/* Glow exterior mediu */}
+          {/* Glow exterior mediu kills */}
           <path
-            d={linePath}
+            d={killPath}
             fill="none"
-            stroke={`url(#${uid}-stroke)`}
-            strokeWidth="9"
+            stroke={`url(#${uid}-killStroke)`}
+            strokeWidth="8"
             strokeLinecap="round"
             strokeLinejoin="round"
             opacity="0.28"
-            filter={`url(#${uid}-lineGlowSoft)`}
+            filter={`url(#${uid}-killGlowSoft)`}
           />
 
-          {/* Linia principală */}
+          {/* Glow exterior mare deaths */}
           <path
-            d={linePath}
+            d={deathPath}
             fill="none"
-            stroke={`url(#${uid}-stroke)`}
-            strokeWidth="4"
+            stroke={`url(#${uid}-deathStroke)`}
+            strokeWidth="15"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.16"
+            filter={`url(#${uid}-deathGlowBig)`}
+          />
+
+          {/* Glow exterior mediu deaths */}
+          <path
+            d={deathPath}
+            fill="none"
+            stroke={`url(#${uid}-deathStroke)`}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.28"
+            filter={`url(#${uid}-deathGlowSoft)`}
+          />
+
+          {/* Linia principală kills */}
+          <path
+            d={killPath}
+            fill="none"
+            stroke={`url(#${uid}-killStroke)`}
+            strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* Punct final */}
-          {points.length > 0 && (
-            <>
-              <circle
-                cx={points[points.length - 1].x}
-                cy={points[points.length - 1].y}
-                r="12"
-                fill="rgba(255,98,199,0.16)"
-              />
-              <circle
-                cx={points[points.length - 1].x}
-                cy={points[points.length - 1].y}
-                r="5"
-                fill="#FF62C7"
-                stroke="#FFD3EF"
-                strokeWidth="2"
-              />
-            </>
+          {/* Linia principală deaths */}
+          <path
+            d={deathPath}
+            fill="none"
+            stroke={`url(#${uid}-deathStroke)`}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Ghidaj hover */}
+          {hovered && (
+            <line
+              x1={hovered.x}
+              y1={pad.top}
+              x2={hovered.x}
+              y2={height - pad.bottom}
+              stroke="rgba(255,255,255,0.14)"
+              strokeWidth="1"
+              strokeDasharray="3 5"
+            />
           )}
+
+          {/* Zone hover invizibile */}
+          {rows.map((row, index) => {
+            const currentX =
+              rows.length === 1
+                ? pad.left + innerW / 2
+                : pad.left + (index / (rows.length - 1)) * innerW;
+
+            const prevX =
+              index === 0
+                ? pad.left
+                : rows.length === 1
+                  ? pad.left
+                  : pad.left + ((index - 1) / (rows.length - 1)) * innerW;
+
+            const nextX =
+              index === rows.length - 1
+                ? width - pad.right
+                : rows.length === 1
+                  ? width - pad.right
+                  : pad.left + ((index + 1) / (rows.length - 1)) * innerW;
+
+            const startX = index === 0 ? pad.left : (prevX + currentX) / 2;
+            const endX =
+              index === rows.length - 1
+                ? width - pad.right
+                : (currentX + nextX) / 2;
+
+            return (
+              <rect
+                key={`hover-${index}`}
+                x={startX}
+                y={pad.top}
+                width={Math.max(12, endX - startX)}
+                height={height - pad.top - pad.bottom}
+                fill="transparent"
+                onMouseEnter={() => setHoveredIndex(index)}
+              />
+            );
+          })}
         </svg>
       </div>
     </Panel>
