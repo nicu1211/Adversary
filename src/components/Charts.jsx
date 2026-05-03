@@ -652,6 +652,16 @@ export function PerformanceChart({ data }) {
     return Math.ceil(max * 1.2);
   }, [performanceData]);
 
+  const avgKdSpread = useMemo(() => {
+    const deviations = (performanceData || []).map((item) =>
+      Math.abs((Number(item.avgKd) || 0) - 1),
+    );
+
+    const maxDeviation = Math.max(0.25, ...deviations);
+
+    return Number((maxDeviation * 1.2).toFixed(2));
+  }, [performanceData]);
+
   return (
     <Panel>
       <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -702,8 +712,8 @@ export function PerformanceChart({ data }) {
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.22} />
-                <stop offset="55%" stopColor="#60a5fa" stopOpacity={0.09} />
+                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.16} />
+                <stop offset="55%" stopColor="#60a5fa" stopOpacity={0.07} />
                 <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.01} />
               </linearGradient>
             </defs>
@@ -731,6 +741,7 @@ export function PerformanceChart({ data }) {
               orientation="right"
               tick={axisTick}
               allowDecimals
+              domain={[1 - avgKdSpread, 1 + avgKdSpread]}
             />
 
             <Tooltip content={<PerformanceTooltip />} cursor={false} />
@@ -743,10 +754,17 @@ export function PerformanceChart({ data }) {
               strokeWidth={1.4}
             />
 
+            <ReferenceLine
+              yAxisId="right"
+              y={1}
+              stroke="transparent"
+            />
+
             <Bar
               yAxisId="left"
               dataKey="kills"
               name="Kills"
+              stackId="battle"
               fill="url(#perfBarKills)"
               radius={[0, 0, 0, 0]}
               maxBarSize={14}
@@ -757,6 +775,7 @@ export function PerformanceChart({ data }) {
               yAxisId="left"
               dataKey="deathsNegative"
               name="Deaths"
+              stackId="battle"
               fill="url(#perfBarDeaths)"
               radius={[0, 0, 0, 0]}
               maxBarSize={14}
@@ -773,6 +792,7 @@ export function PerformanceChart({ data }) {
               legendType="none"
               activeDot={false}
               isAnimationActive
+              baseValue={1}
             />
 
             <RechartsLine
