@@ -98,6 +98,17 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
+function getMinimumTargetBarWidth(name) {
+  const length = String(name || '').length;
+
+  if (length >= 18) return 62;
+  if (length >= 15) return 56;
+  if (length >= 12) return 48;
+  if (length >= 9) return 40;
+
+  return 30;
+}
+
 function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
   const favouriteRows = useMemo(() => {
     return [...favouriteTargets]
@@ -170,12 +181,32 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
           ) : (
             <div className="relative flex h-[calc(100%-36px)] flex-col justify-between gap-2">
               {rows.map((row, index) => {
-                const favouriteWidth = row.favourite
+                const favouriteRawWidth = row.favourite
                   ? Math.round((row.favourite.kills / max) * 100)
                   : 0;
 
-                const nemesisWidth = row.nemesis
+                const nemesisRawWidth = row.nemesis
                   ? Math.round((row.nemesis.kills / max) * 100)
+                  : 0;
+
+                const favouriteWidth = row.favourite
+                  ? Math.min(
+                      100,
+                      Math.max(
+                        getMinimumTargetBarWidth(row.favourite.name),
+                        favouriteRawWidth,
+                      ),
+                    )
+                  : 0;
+
+                const nemesisWidth = row.nemesis
+                  ? Math.min(
+                      100,
+                      Math.max(
+                        getMinimumTargetBarWidth(row.nemesis.name),
+                        nemesisRawWidth,
+                      ),
+                    )
                   : 0;
 
                 return (
@@ -184,10 +215,10 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                     className="min-h-0"
                   >
                     <div className="grid h-[36px] grid-cols-[1fr_1px_1fr] items-center">
-                      <div className="relative flex h-full items-center justify-end pr-1">
+                      <div className="relative flex h-full items-center justify-end pr-0.5">
                         {row.favourite && (
                           <>
-                            <span className="mr-1 min-w-[32px] shrink-0 text-right text-sm font-black text-slate-100">
+                            <span className="mr-1 min-w-[26px] shrink-0 text-right text-sm font-black text-slate-100">
                               {row.favourite.kills}
                             </span>
 
@@ -195,11 +226,16 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                               <div
                                 className={`absolute right-0 top-0 h-full rounded-l-md bg-gradient-to-l ${blueShade} shadow-[0_0_14px_rgba(59,130,246,.18)]`}
                                 style={{
-                                  width: `${Math.max(18, favouriteWidth)}%`,
+                                  width: `${favouriteWidth}%`,
                                 }}
                               />
 
-                              <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-end px-3">
+                              <div
+                                className="absolute inset-y-0 right-0 flex items-center justify-end px-2"
+                                style={{
+                                  width: `${favouriteWidth}%`,
+                                }}
+                              >
                                 <span
                                   className="block max-w-full truncate text-right text-[clamp(10px,1.05vw,14px)] font-black text-white"
                                   style={{
@@ -218,18 +254,23 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
 
                       <div className="h-full bg-slate-500/90" />
 
-                      <div className="relative flex h-full items-center justify-start pl-1">
+                      <div className="relative flex h-full items-center justify-start pl-0.5">
                         {row.nemesis && (
                           <>
                             <div className="relative h-full w-full overflow-hidden rounded-r-md">
                               <div
                                 className={`absolute left-0 top-0 h-full rounded-r-md bg-gradient-to-r ${redShade} shadow-[0_0_14px_rgba(244,63,94,.18)]`}
                                 style={{
-                                  width: `${Math.max(18, nemesisWidth)}%`,
+                                  width: `${nemesisWidth}%`,
                                 }}
                               />
 
-                              <div className="absolute inset-y-0 left-0 right-0 flex items-center px-3">
+                              <div
+                                className="absolute inset-y-0 left-0 flex items-center px-2"
+                                style={{
+                                  width: `${nemesisWidth}%`,
+                                }}
+                              >
                                 <span
                                   className="block max-w-full truncate text-left text-[clamp(10px,1.05vw,14px)] font-black text-white"
                                   style={{
@@ -243,7 +284,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                               </div>
                             </div>
 
-                            <span className="ml-1 min-w-[32px] shrink-0 text-left text-sm font-black text-slate-100">
+                            <span className="ml-1 min-w-[26px] shrink-0 text-left text-sm font-black text-slate-100">
                               {row.nemesis.kills}
                             </span>
                           </>
