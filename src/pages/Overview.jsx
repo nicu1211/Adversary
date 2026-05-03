@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Panel, Popup } from '../components/UI';
+import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
   add,
@@ -8,15 +8,47 @@ import {
   calculateStats,
 } from '../lib/logUtils';
 
-function HeaderImage() {
+function RankList({ title, items, valueKey }) {
+  const rows = items.slice(0, 5);
+  const max = Math.max(1, ...rows.map((x) => Number(x[valueKey]) || 0));
+
   return (
-    <header className="overflow-hidden rounded-[30px] border border-slate-700/80 bg-slate-950 shadow-2xl">
-      <img
-        src="/images/battle-analytics-header.png"
-        alt="Battle Analytics"
-        className="block w-full rounded-[30px]"
-      />
-    </header>
+    <Panel>
+      <h3 className="mb-4 text-xl font-black">{title}</h3>
+
+      {!rows.length ? (
+        <p className="text-slate-500">No data yet.</p>
+      ) : (
+        rows.map((item, index) => {
+          const value = Number(item[valueKey]) || 0;
+
+          return (
+            <div
+              key={item.name}
+              className="mb-4 grid grid-cols-[34px_1fr_55px] items-center gap-3 text-sm"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black">
+                {index + 1}
+              </span>
+
+              <div className="min-w-0">
+                <p className="mb-2 truncate font-bold">{item.name}</p>
+                <div className="h-2.5 rounded-full bg-slate-800">
+                  <div
+                    className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
+                    style={{
+                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <b className="text-right">{value}</b>
+            </div>
+          );
+        })
+      )}
+    </Panel>
   );
 }
 
@@ -376,7 +408,6 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     return (
       <th className={`py-3 ${className}`}>
         <button
-          type="button"
           onClick={() => flip(id)}
           className={
             key === id
@@ -476,7 +507,6 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                   >
                     <td className="py-3 pl-4">
                       <button
-                        type="button"
                         onClick={() => setSelected(player)}
                         className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
                       >
@@ -658,7 +688,6 @@ function TopGuilds({ guilds, events }) {
     return (
       <th className={`py-3 ${className}`}>
         <button
-          type="button"
           onClick={() => flip(id)}
           className={
             key === id
@@ -721,7 +750,6 @@ function TopGuilds({ guilds, events }) {
                     >
                       <td className="py-3 pl-4">
                         <button
-                          type="button"
                           onClick={() => setSelected(guild)}
                           className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
                         >
@@ -856,6 +884,7 @@ function KillFeedPanel({ killFeeds }) {
 
 export default function OverviewPage({
   stats,
+  label,
   members,
   selectedLogs,
 }) {
@@ -863,7 +892,46 @@ export default function OverviewPage({
 
   return (
     <>
-      <HeaderImage />
+      <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
+        <div className="mb-4">
+          <h2 className="text-2xl font-black">Battle Analytics</h2>
+          <p className="text-slate-400">{label}</p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric
+            icon="⚔"
+            label="Total Kills"
+            value={stats.kills}
+            sub="Eliminations"
+            className="border-blue-400/25 from-blue-500/20 text-blue-300"
+          />
+
+          <Metric
+            icon="☠"
+            label="Total Deaths"
+            value={stats.deaths}
+            sub="Deaths"
+            className="border-pink-400/25 from-pink-500/20 text-pink-300"
+          />
+
+          <Metric
+            icon="✦"
+            label="K/D"
+            value={stats.kd}
+            sub="Ratio"
+            className="border-violet-400/25 from-violet-500/20 text-violet-300"
+          />
+
+          <Metric
+            icon="♟"
+            label="Players"
+            value={stats.players.length}
+            sub="Active"
+            className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
+          />
+        </div>
+      </header>
 
       <KillDeathChart data={stats.line} title="▧ Global Kill/Death Timeline" />
 
