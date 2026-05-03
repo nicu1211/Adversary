@@ -90,6 +90,19 @@ function formatTickValue(value) {
   return `${rounded > 0 ? '+' : ''}${rounded}`;
 }
 
+function buildDynamicTicks(min, max) {
+  const ticks = new Set([min, 0, max]);
+
+  const start = Math.ceil(min / 10) * 10;
+  const end = Math.floor(max / 10) * 10;
+
+  for (let value = start; value <= end; value += 10) {
+    ticks.add(value);
+  }
+
+  return [...ticks].sort((a, b) => a - b);
+}
+
 export function KillDeathChart({
   data,
   title = '▧ Global Kill/Death Timeline',
@@ -632,33 +645,35 @@ export function PerformanceChart({ data }) {
       (data || []).map((item) => ({
         ...item,
         kills: Number(item.kills) || 0,
-        deathsNegative: -(Number(item.deaths) || 0),
+        deathsNegative: -Math.min(50, Number(item.deaths) || 0),
         avgKd: Number(item.avgKd) || 0,
       })),
     [data],
   );
 
-  const maxBattleValue = useMemo(() => {
-    const max = Math.max(
-      10,
-      ...performanceData.flatMap((item) => [
-        Math.abs(Number(item.kills) || 0),
-        Math.abs(Number(item.deathsNegative) || 0),
-      ]),
+  const battleDomain = useMemo(() => {
+    const maxKills = Math.max(
+      1,
+      ...performanceData.map((item) => Number(item.kills) || 0),
     );
 
-    return Math.ceil(max / 10) * 10;
+    const maxDeaths = Math.max(
+      1,
+      ...performanceData.map((item) =>
+        Math.abs(Number(item.deathsNegative) || 0),
+      ),
+    );
+
+    return {
+      min: -Math.min(50, maxDeaths),
+      max: maxKills,
+    };
   }, [performanceData]);
 
-  const battleTicks = useMemo(() => {
-    const ticks = [];
-
-    for (let value = -maxBattleValue; value <= maxBattleValue; value += 10) {
-      ticks.push(value);
-    }
-
-    return ticks;
-  }, [maxBattleValue]);
+  const battleTicks = useMemo(
+    () => buildDynamicTicks(battleDomain.min, battleDomain.max),
+    [battleDomain],
+  );
 
   const avgKdSpread = useMemo(() => {
     const deviations = (performanceData || []).map((item) =>
@@ -752,7 +767,7 @@ export function PerformanceChart({ data }) {
               yAxisId="left"
               tick={axisTick}
               allowDecimals={false}
-              domain={[-maxBattleValue, maxBattleValue]}
+              domain={[battleDomain.min, battleDomain.max]}
               ticks={battleTicks}
               tickFormatter={(value) => value}
             />
