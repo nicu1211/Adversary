@@ -485,7 +485,7 @@ export function KillDeathChart({
             d={linePathKills}
             fill="none"
             stroke={`url(#${uid}-stroke-kills)`}
-            strokeWidth="2"
+            strokeWidth="1.6"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -516,7 +516,7 @@ export function KillDeathChart({
             d={linePathDeaths}
             fill="none"
             stroke={`url(#${uid}-stroke-deaths)`}
-            strokeWidth="2"
+            strokeWidth="1.6"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
