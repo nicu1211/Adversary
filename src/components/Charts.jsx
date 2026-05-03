@@ -592,9 +592,7 @@ function PerformanceTooltip({ active, payload, label }) {
       <div className="space-y-1.5 text-sm">
         <p className="font-bold text-emerald-300">Kills : {map.kills ?? 0}</p>
         <p className="font-bold text-rose-300">Deaths : {deaths}</p>
-        <p className="font-bold text-blue-300">
-          Avg K/D : {map.avgKd ?? 0}
-        </p>
+        <p className="font-bold text-blue-300">K/D : {map.avgKd ?? 0}</p>
       </div>
     </div>
   );
@@ -642,15 +640,25 @@ export function PerformanceChart({ data }) {
 
   const maxBattleValue = useMemo(() => {
     const max = Math.max(
-      1,
+      10,
       ...performanceData.flatMap((item) => [
         Math.abs(Number(item.kills) || 0),
         Math.abs(Number(item.deathsNegative) || 0),
       ]),
     );
 
-    return Math.ceil(max * 1.2);
+    return Math.ceil(max / 10) * 10;
   }, [performanceData]);
+
+  const battleTicks = useMemo(() => {
+    const ticks = [];
+
+    for (let value = -maxBattleValue; value <= maxBattleValue; value += 10) {
+      ticks.push(value);
+    }
+
+    return ticks;
+  }, [maxBattleValue]);
 
   const avgKdSpread = useMemo(() => {
     const deviations = (performanceData || []).map((item) =>
@@ -715,10 +723,19 @@ export function PerformanceChart({ data }) {
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.16} />
-                <stop offset="55%" stopColor="#60a5fa" stopOpacity={0.07} />
+                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.42} />
+                <stop offset="35%" stopColor="#60a5fa" stopOpacity={0.24} />
+                <stop offset="70%" stopColor="#60a5fa" stopOpacity={0.10} />
                 <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.01} />
               </linearGradient>
+
+              <filter id="avgKdGlow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
             </defs>
 
             <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
@@ -736,7 +753,8 @@ export function PerformanceChart({ data }) {
               tick={axisTick}
               allowDecimals={false}
               domain={[-maxBattleValue, maxBattleValue]}
-              tickFormatter={(value) => Math.abs(value)}
+              ticks={battleTicks}
+              tickFormatter={(value) => value}
             />
 
             <YAxis
@@ -753,8 +771,8 @@ export function PerformanceChart({ data }) {
             <ReferenceLine
               yAxisId="left"
               y={0}
-              stroke="rgba(255,255,255,.22)"
-              strokeWidth={1.4}
+              stroke="rgba(255,255,255,.24)"
+              strokeWidth={1.5}
             />
 
             <ReferenceLine yAxisId="right" y={1} stroke="transparent" />
@@ -796,9 +814,10 @@ export function PerformanceChart({ data }) {
               yAxisId="right"
               type="monotone"
               dataKey="avgKd"
-              name="Avg K/D"
+              name="K/D"
               stroke="#60a5fa"
-              strokeWidth={1.8}
+              strokeWidth={1.9}
+              filter="url(#avgKdGlow)"
               dot={{
                 r: 2.8,
                 fill: '#60a5fa',
