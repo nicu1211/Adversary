@@ -4,7 +4,6 @@ import {
   CalendarDays,
   ChevronDown,
   Crosshair,
-  Filter,
   Skull,
   Swords,
   Users,
@@ -142,6 +141,22 @@ function getDaysAgoFromLatest(date, latestTime) {
   return diff / (1000 * 60 * 60 * 24);
 }
 
+function buildLinePoints(values, maxValue, width = 260, top = 8, bottom = 50) {
+  const safeValues = values.length ? values : [0];
+  const max = Math.max(Number(maxValue) || 0, 1);
+  const height = bottom - top;
+
+  return safeValues
+    .map((value, index) => {
+      const x =
+        safeValues.length === 1 ? width / 2 : (index / (safeValues.length - 1)) * width;
+      const y = bottom - ((Number(value) || 0) / max) * height;
+
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
+}
+
 /* -------------------- PERIOD SELECT -------------------- */
 function PeriodSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -198,7 +213,7 @@ function PeriodSelect({ value, onChange }) {
 /* -------------------- ENEMY PILL -------------------- */
 function EnemyPill({ enemy }) {
   return (
-    <div className="flex h-8 min-w-[96px] max-w-[160px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="flex h-7 min-w-[92px] max-w-[155px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <span
         title={enemy.name}
         className="truncate text-[12px] font-black text-slate-100"
@@ -217,7 +232,7 @@ function EnemyPill({ enemy }) {
 function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-900/80">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-900/80">
         {icon}
       </div>
 
@@ -235,137 +250,144 @@ function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
 }
 
 /* -------------------- MINI KILLS / DEATHS GRAPH -------------------- */
-function KillsDeathsMiniGraph({ kills, deaths, id }) {
-  const safeKills = Number(kills) || 0;
-  const safeDeaths = Number(deaths) || 0;
-  const max = Math.max(safeKills, safeDeaths, 1);
+function KillsDeathsMiniGraph({ row, graphMax, id }) {
+  const pointsSource = row.topEnemies.length
+    ? row.topEnemies.map((enemy) => ({
+        kills: Number(enemy.deaths) || 0,
+        deaths: Number(enemy.kills) || 0,
+      }))
+    : [
+        { kills: Number(row.kills) || 0, deaths: Number(row.deaths) || 0 },
+        { kills: Number(row.kills) || 0, deaths: Number(row.deaths) || 0 },
+      ];
 
-  const chartHeight = 42;
-  const baseY = 48;
+  const killsValues =
+    pointsSource.length === 1
+      ? [pointsSource[0].kills, pointsSource[0].kills]
+      : pointsSource.map((point) => point.kills);
 
-  const killHeight = Math.max((safeKills / max) * chartHeight, safeKills > 0 ? 4 : 0);
-  const deathHeight = Math.max((safeDeaths / max) * chartHeight, safeDeaths > 0 ? 4 : 0);
+  const deathsValues =
+    pointsSource.length === 1
+      ? [pointsSource[0].deaths, pointsSource[0].deaths]
+      : pointsSource.map((point) => point.deaths);
 
-  const killY = baseY - killHeight;
-  const deathY = baseY - deathHeight;
+  const max = Math.max(
+    Number(graphMax) || 0,
+    ...killsValues,
+    ...deathsValues,
+    1,
+  );
 
-  const gradientIdKills = `killsBar-${id}`;
-  const gradientIdDeaths = `deathsBar-${id}`;
+  const killsPoints = buildLinePoints(killsValues, max, 260, 8, 50);
+  const deathsPoints = buildLinePoints(deathsValues, max, 260, 8, 50);
+
+  const killsArea = `0,54 ${killsPoints} 260,54`;
+  const deathsArea = `0,54 ${deathsPoints} 260,54`;
+
+  const gradientIdKills = `killsArea-${id}`;
+  const gradientIdDeaths = `deathsArea-${id}`;
 
   return (
-    <div className="hidden min-w-[220px] max-w-[240px] rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2 xl:block">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+    <div className="hidden min-w-[300px] max-w-[320px] rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-1.5 xl:block">
+      <div className="mb-0.5 flex items-center justify-between gap-2">
+        <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">
           Kills / Deaths
         </div>
 
         <div className="flex items-center gap-2 text-[10px] font-black">
-          <span className="text-emerald-400">{safeKills}</span>
+          <span className="text-emerald-400">{row.kills}</span>
           <span className="text-slate-600">/</span>
-          <span className="text-rose-400">{safeDeaths}</span>
+          <span className="text-rose-400">{row.deaths}</span>
         </div>
       </div>
 
-      <svg viewBox="0 0 190 56" className="h-[48px] w-full overflow-visible">
+      <svg viewBox="0 0 260 56" className="h-[43px] w-full overflow-visible">
         <defs>
           <linearGradient id={gradientIdKills} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.20" />
+            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.02" />
           </linearGradient>
 
           <linearGradient id={gradientIdDeaths} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.20" />
+            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
         <line
           x1="0"
-          y1={baseY}
-          x2="190"
-          y2={baseY}
+          y1="50"
+          x2="260"
+          y2="50"
           stroke="rgb(51 65 85)"
           strokeWidth="1"
           strokeDasharray="3 4"
-          opacity="0.6"
-        />
-
-        <line
-          x1="55"
-          y1={killY}
-          x2="135"
-          y2={deathY}
-          stroke="rgb(148 163 184)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeDasharray="4 5"
           opacity="0.55"
         />
 
-        <rect
-          x="35"
-          y={killY}
-          width="40"
-          height={killHeight}
-          rx="8"
-          fill={`url(#${gradientIdKills})`}
-        />
+        <polygon points={killsArea} fill={`url(#${gradientIdKills})`} />
+        <polygon points={deathsArea} fill={`url(#${gradientIdDeaths})`} />
 
-        <rect
-          x="115"
-          y={deathY}
-          width="40"
-          height={deathHeight}
-          rx="8"
-          fill={`url(#${gradientIdDeaths})`}
-        />
-
-        <circle
-          cx="55"
-          cy={killY}
-          r="3"
-          fill="rgb(15 23 42)"
+        <polyline
+          points={killsPoints}
+          fill="none"
           stroke="rgb(52 211 153)"
-          strokeWidth="2"
+          strokeWidth="2.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
 
-        <circle
-          cx="135"
-          cy={deathY}
-          r="3"
-          fill="rgb(15 23 42)"
+        <polyline
+          points={deathsPoints}
+          fill="none"
           stroke="rgb(251 113 133)"
-          strokeWidth="2"
+          strokeWidth="2.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
 
-        <text
-          x="55"
-          y="55"
-          textAnchor="middle"
-          fill="rgb(52 211 153)"
-          fontSize="8"
-          fontWeight="900"
-        >
-          K
-        </text>
+        {killsValues.map((value, index) => {
+          const x =
+            killsValues.length === 1 ? 130 : (index / (killsValues.length - 1)) * 260;
+          const y = 50 - ((Number(value) || 0) / max) * 42;
 
-        <text
-          x="135"
-          y="55"
-          textAnchor="middle"
-          fill="rgb(251 113 133)"
-          fontSize="8"
-          fontWeight="900"
-        >
-          D
-        </text>
+          return (
+            <circle
+              key={`k-${value}-${index}`}
+              cx={x}
+              cy={y}
+              r="2.2"
+              fill="rgb(15 23 42)"
+              stroke="rgb(52 211 153)"
+              strokeWidth="1.8"
+            />
+          );
+        })}
+
+        {deathsValues.map((value, index) => {
+          const x =
+            deathsValues.length === 1 ? 130 : (index / (deathsValues.length - 1)) * 260;
+          const y = 50 - ((Number(value) || 0) / max) * 42;
+
+          return (
+            <circle
+              key={`d-${value}-${index}`}
+              cx={x}
+              cy={y}
+              r="2.2"
+              fill="rgb(15 23 42)"
+              stroke="rgb(251 113 133)"
+              strokeWidth="1.8"
+            />
+          );
+        })}
       </svg>
     </div>
   );
 }
 
 /* -------------------- WAR CARD -------------------- */
-function WarCard({ row, index, checked, onOpen, onToggle }) {
+function WarCard({ row, index, checked, onOpen, onToggle, graphMax }) {
   const accent = accentByIndex(index);
   const date = formatWarDate(row.date);
   const time = formatWarTime(row);
@@ -378,72 +400,70 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
         checked
           ? 'border-violet-400/60 bg-slate-950 shadow-[0_0_34px_rgba(139,92,246,0.26)]'
           : `border-slate-800/90 bg-slate-950 hover:-translate-y-[1px] hover:border-slate-600 ${accent.hoverShadow}`
-      } lg:grid-cols-[124px_1fr]`}
+      } lg:grid-cols-[118px_1fr]`}
     >
       <div
         className={`pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-100`}
       />
 
       <div
-        className={`relative flex min-h-[106px] flex-col justify-between overflow-hidden rounded-l-xl bg-gradient-to-br ${accent.date} p-3`}
+        className={`relative flex min-h-[94px] flex-col justify-between overflow-hidden rounded-l-xl bg-gradient-to-br ${accent.date} p-3`}
       >
         <div>
           <div
-            className={`mb-3 grid h-8 w-8 place-items-center rounded-xl ${accent.iconBox}`}
+            className={`mb-2 grid h-7 w-7 place-items-center rounded-lg ${accent.iconBox}`}
           >
-            <CalendarDays size={16} />
+            <CalendarDays size={15} />
           </div>
 
           <div
             title={date.weekday}
-            className="max-w-[96px] truncate text-[13px] font-black leading-tight text-white"
+            className="max-w-[92px] truncate text-[12px] font-black leading-tight text-white"
           >
             {date.weekday},
           </div>
 
-          <div className="mt-1 text-[15px] font-black leading-tight text-white">
+          <div className="mt-0.5 text-[14px] font-black leading-tight text-white">
             {date.full}
           </div>
         </div>
 
         {time && (
-          <div className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+          <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-slate-400">
             <span className="h-2.5 w-2.5 rounded-full border border-slate-500" />
             {time}
           </div>
         )}
       </div>
 
-      <div className="relative min-w-0 overflow-hidden rounded-r-xl p-3 lg:p-4">
+      <div className="relative min-w-0 overflow-hidden rounded-r-xl p-3">
         <div
           className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.topLine} opacity-70`}
         />
 
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-4 xl:grid-cols-[150px_1fr_240px]">
+            <div className="grid min-w-0 gap-3 xl:grid-cols-[140px_minmax(250px,1fr)_320px]">
               <div>
-                <div className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Kills/Deaths Ratio
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full border px-3 py-1 text-sm font-black ${badgeColor(
-                      row.kd,
-                    )}`}
-                  >
-                    {row.kd}
-                  </span>
-                </div>
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-sm font-black ${badgeColor(
+                    row.kd,
+                  )}`}
+                >
+                  {row.kd}
+                </span>
               </div>
 
               <div className="min-w-0">
-                <div className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Top 5 Enemies
                 </div>
 
-                <div className="flex min-w-0 flex-wrap gap-2 xl:flex-nowrap xl:overflow-hidden">
+                <div className="flex min-w-0 flex-wrap gap-1.5 xl:flex-nowrap xl:overflow-hidden">
                   {row.topEnemies.length ? (
                     row.topEnemies.map((enemy) => (
                       <EnemyPill key={enemy.name} enemy={enemy} />
@@ -457,46 +477,46 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
               </div>
 
               <KillsDeathsMiniGraph
-                kills={row.kills}
-                deaths={row.deaths}
+                row={row}
+                graphMax={graphMax}
                 id={`${row.id}-${index}`}
               />
             </div>
 
-            <div className="mt-3 h-px bg-slate-800/80" />
+            <div className="mt-2.5 h-px bg-slate-800/80" />
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
               <WarMetric
                 label="Players"
                 value={row.players}
-                icon={<Users size={18} className="text-indigo-300" />}
+                icon={<Users size={17} className="text-indigo-300" />}
               />
 
               <WarMetric
                 label="Kills"
                 value={row.kills}
                 valueClass="text-emerald-400"
-                icon={<Swords size={18} className="text-emerald-300" />}
+                icon={<Swords size={17} className="text-emerald-300" />}
               />
 
               <WarMetric
                 label="Deaths"
                 value={row.deaths}
                 valueClass="text-rose-400"
-                icon={<Skull size={18} className="text-rose-300" />}
+                icon={<Skull size={17} className="text-rose-300" />}
               />
 
               <WarMetric
                 label="K/D"
                 value={row.kd}
                 valueClass={kdNumber >= 1 ? 'text-emerald-400' : 'text-rose-400'}
-                icon={<Crosshair size={18} className="text-lime-300" />}
+                icon={<Crosshair size={17} className="text-lime-300" />}
               />
             </div>
           </div>
 
           <div
-            className="mt-[34px] flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 transition group-hover:border-slate-700"
+            className="mt-[28px] flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 transition group-hover:border-slate-700"
             onClick={(event) => event.stopPropagation()}
           >
             <input
@@ -506,7 +526,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                 event.stopPropagation();
                 onToggle();
               }}
-              className={`h-4.5 w-4.5 cursor-pointer ${accent.checkbox}`}
+              className={`h-[18px] w-[18px] cursor-pointer ${accent.checkbox}`}
               title={checked ? 'Deselect this war' : 'Select this war'}
             />
           </div>
@@ -545,72 +565,103 @@ function SummaryStat({
   );
 }
 
-function Sparkline({ rows }) {
-  const values = rows.map((row) => Number(row.kdNumber) || 0);
-  const safeValues = values.length ? values : [0];
+function KillsDeathsTrend({ rows }) {
+  const orderedRows = [...rows].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
 
-  const min = Math.min(...safeValues);
-  const max = Math.max(...safeValues);
-  const range = max - min || 1;
+  const killsValues = orderedRows.map((row) => Number(row.kills) || 0);
+  const deathsValues = orderedRows.map((row) => Number(row.deaths) || 0);
+  const safeKills = killsValues.length ? killsValues : [0];
+  const safeDeaths = deathsValues.length ? deathsValues : [0];
 
-  const points = safeValues
-    .map((value, index) => {
-      const x =
-        safeValues.length === 1 ? 0 : (index / (safeValues.length - 1)) * 150;
-      const y = 42 - ((value - min) / range) * 34;
-
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(' ');
-
-  const areaPoints = `0,48 ${points} 150,48`;
+  const max = Math.max(...safeKills, ...safeDeaths, 1);
+  const width = 260;
+  const killsPoints = buildLinePoints(safeKills, max, width, 8, 50);
+  const deathsPoints = buildLinePoints(safeDeaths, max, width, 8, 50);
 
   return (
-    <div className="flex min-w-[190px] flex-1 items-center gap-4 px-4 py-3">
+    <div className="flex min-w-[340px] flex-1 items-center gap-4 px-4 py-3">
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cyan-500/10">
         <Activity size={20} className="text-cyan-300" />
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
-          K/D Trend
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+            Kills / Deaths Trend
+          </div>
+
+          <div className="flex items-center gap-3 text-[10px] font-black">
+            <span className="text-emerald-400">Kills</span>
+            <span className="text-rose-400">Deaths</span>
+          </div>
         </div>
 
-        <svg viewBox="0 0 150 52" className="h-[44px] w-full overflow-visible">
-          <defs>
-            <linearGradient id="kdArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="rgb(34 197 94)" stopOpacity="0.32" />
-              <stop offset="100%" stopColor="rgb(34 197 94)" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-
-          <polygon points={areaPoints} fill="url(#kdArea)" />
+        <svg viewBox={`0 0 ${width} 56`} className="h-[48px] w-full overflow-visible">
+          <line
+            x1="0"
+            y1="50"
+            x2={width}
+            y2="50"
+            stroke="rgb(51 65 85)"
+            strokeWidth="1"
+            strokeDasharray="3 4"
+            opacity="0.55"
+          />
 
           <polyline
-            points={points}
+            points={killsPoints}
             fill="none"
-            stroke="rgb(34 197 94)"
-            strokeWidth="2.2"
+            stroke="rgb(52 211 153)"
+            strokeWidth="2.4"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {safeValues.map((value, index) => {
+          <polyline
+            points={deathsPoints}
+            fill="none"
+            stroke="rgb(251 113 133)"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {safeKills.map((value, index) => {
             const x =
-              safeValues.length === 1
-                ? 0
-                : (index / (safeValues.length - 1)) * 150;
-            const y = 42 - ((value - min) / range) * 34;
+              safeKills.length === 1 ? width / 2 : (index / (safeKills.length - 1)) * width;
+            const y = 50 - ((Number(value) || 0) / max) * 42;
 
             return (
               <circle
-                key={`${value}-${index}`}
+                key={`summary-k-${value}-${index}`}
                 cx={x}
                 cy={y}
-                r="2.3"
+                r="2.4"
                 fill="rgb(15 23 42)"
-                stroke="rgb(34 197 94)"
-                strokeWidth="2"
+                stroke="rgb(52 211 153)"
+                strokeWidth="1.8"
+              />
+            );
+          })}
+
+          {safeDeaths.map((value, index) => {
+            const x =
+              safeDeaths.length === 1
+                ? width / 2
+                : (index / (safeDeaths.length - 1)) * width;
+            const y = 50 - ((Number(value) || 0) / max) * 42;
+
+            return (
+              <circle
+                key={`summary-d-${value}-${index}`}
+                cx={x}
+                cy={y}
+                r="2.4"
+                fill="rgb(15 23 42)"
+                stroke="rgb(251 113 133)"
+                strokeWidth="1.8"
               />
             );
           })}
@@ -773,6 +824,20 @@ export default function NodeWars({
     };
   }, [rows]);
 
+  const graphMax = useMemo(() => {
+    return Math.max(
+      ...rows.flatMap((row) => [
+        Number(row.kills) || 0,
+        Number(row.deaths) || 0,
+        ...row.topEnemies.flatMap((enemy) => [
+          Number(enemy.kills) || 0,
+          Number(enemy.deaths) || 0,
+        ]),
+      ]),
+      1,
+    );
+  }, [rows]);
+
   function openWar(row) {
     setWarning('');
     setSelectedDays([row.date]);
@@ -831,34 +896,8 @@ export default function NodeWars({
   return (
     <Panel cls="border-0 bg-transparent p-0 shadow-none">
       <div className="space-y-3">
-        {/* HEADER */}
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-900/80 bg-black/40 p-3 shadow-[0_18px_80px_rgba(0,0,0,0.35)] sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-violet-500/15 text-violet-300 shadow-[0_0_30px_rgba(139,92,246,0.2)]">
-              <Swords size={22} />
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-black leading-tight text-white">
-                Guild Warfare
-              </h2>
-
-              <p className="text-sm font-semibold text-slate-500">
-                Match History
-              </p>
-            </div>
-          </div>
-
-          <PeriodSelect value={periodDays} onChange={setPeriodDays} />
-        </div>
-
         {/* FILTER PANEL */}
         <div className="rounded-xl border border-slate-800 bg-slate-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
-          <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500">
-            <Filter size={15} />
-            Filter
-          </div>
-
           <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
             <div>
               <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -933,6 +972,8 @@ export default function NodeWars({
               >
                 Open overview
               </button>
+
+              <PeriodSelect value={periodDays} onChange={setPeriodDays} />
             </div>
           </div>
         </div>
@@ -945,7 +986,7 @@ export default function NodeWars({
         )}
 
         {/* SUMMARY */}
-        <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-[repeat(4,minmax(130px,1fr))_minmax(220px,1.25fr)]">
+        <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-[repeat(4,minmax(130px,1fr))_minmax(340px,1.75fr)]">
           <SummaryStat
             label="Total Matches"
             value={totals.matches}
@@ -982,12 +1023,12 @@ export default function NodeWars({
             icon={<Activity size={20} className="text-cyan-300" />}
           />
 
-          <Sparkline rows={rows} />
+          <KillsDeathsTrend rows={rows} />
         </div>
 
         {/* LIST */}
         <div
-          className={`max-h-[calc(100vh-392px)] space-y-2 overflow-auto px-1 py-1 ${scrollCls}`}
+          className={`max-h-[calc(100vh-330px)] space-y-2 overflow-auto px-1 py-1 ${scrollCls}`}
         >
           {!rows.length ? (
             <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
@@ -1004,6 +1045,7 @@ export default function NodeWars({
                   row={row}
                   index={index}
                   checked={checked}
+                  graphMax={graphMax}
                   onOpen={() => openWar(row)}
                   onToggle={() => toggleWar(row)}
                 />
