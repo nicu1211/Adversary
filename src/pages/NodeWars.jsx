@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Activity,
   CalendarDays,
+  ChevronDown,
   ChevronRight,
   Crosshair,
   Filter,
@@ -62,14 +63,14 @@ function formatWarDate(date) {
 
   if (Number.isNaN(parsed.getTime())) {
     return {
-      weekday: 'War',
+      weekday: 'War Day',
       full: String(date || '-'),
     };
   }
 
   return {
     weekday: parsed.toLocaleDateString('en-GB', {
-      weekday: 'short',
+      weekday: 'long',
     }),
     full: parsed.toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -86,6 +87,7 @@ function formatWarTime(row) {
     row.created ||
     row.time ||
     row.timestamp ||
+    row.date ||
     '';
 
   if (!source) return '';
@@ -103,35 +105,93 @@ function formatWarTime(row) {
 function accentByIndex(index) {
   const accents = [
     {
-      name: 'violet',
-      date: 'from-violet-950/90 via-violet-900/30 to-slate-950',
+      date: 'from-violet-950/95 via-violet-900/35 to-slate-950',
       iconBox: 'bg-violet-500/15 text-violet-300 shadow-violet-500/20',
       arrow: 'bg-violet-500/15 text-violet-300 hover:bg-violet-500/25',
       line: 'from-violet-500/0 via-violet-400/40 to-violet-500/0',
+      hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.22)]',
     },
     {
-      name: 'blue',
-      date: 'from-blue-950/90 via-blue-900/30 to-slate-950',
+      date: 'from-blue-950/95 via-blue-900/35 to-slate-950',
       iconBox: 'bg-blue-500/15 text-blue-300 shadow-blue-500/20',
       arrow: 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/25',
       line: 'from-blue-500/0 via-blue-400/40 to-blue-500/0',
+      hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.22)]',
     },
     {
-      name: 'cyan',
-      date: 'from-cyan-950/90 via-cyan-900/30 to-slate-950',
+      date: 'from-cyan-950/95 via-cyan-900/35 to-slate-950',
       iconBox: 'bg-cyan-500/15 text-cyan-300 shadow-cyan-500/20',
       arrow: 'bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25',
       line: 'from-cyan-500/0 via-cyan-400/40 to-cyan-500/0',
+      hoverShadow: 'hover:shadow-[0_0_34px_rgba(6,182,212,0.22)]',
     },
   ];
 
   return accents[index % accents.length];
 }
 
+function getDaysAgoFromLatest(date, latestTime) {
+  const parsed = new Date(date).getTime();
+
+  if (!latestTime || Number.isNaN(parsed)) return 0;
+
+  const diff = latestTime - parsed;
+
+  return diff / (1000 * 60 * 60 * 24);
+}
+
+/* -------------------- PERIOD SELECT -------------------- */
+function PeriodSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+
+  const options = [
+    { value: 7, label: 'Last 7 Days' },
+    { value: 30, label: 'Last 30 Days' },
+  ];
+
+  const selected = options.find((option) => option.value === value) || options[0];
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs font-black text-slate-300 transition hover:border-slate-700 hover:bg-slate-900"
+      >
+        <CalendarDays size={15} />
+        {selected.label}
+        <ChevronDown size={14} className={open ? 'rotate-180 transition' : 'transition'} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.45)]">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={`block w-full px-4 py-3 text-left text-xs font-black transition ${
+                value === option.value
+                  ? 'bg-violet-500/15 text-violet-200'
+                  : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* -------------------- ENEMY PILL -------------------- */
 function EnemyPill({ enemy }) {
   return (
-    <div className="flex h-8 min-w-[82px] max-w-[145px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="flex h-8 min-w-[88px] max-w-[150px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <span
         title={enemy.name}
         className="truncate text-[11px] font-black text-slate-200"
@@ -177,47 +237,54 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
   return (
     <div
       onClick={onOpen}
-      className={`group relative grid cursor-pointer overflow-hidden rounded-xl border transition duration-200 ${
+      className={`group relative grid cursor-pointer overflow-visible rounded-xl border transition duration-200 ${
         checked
-          ? 'border-violet-400/60 bg-slate-950 shadow-[0_0_28px_rgba(139,92,246,0.16)]'
-          : 'border-slate-800/90 bg-slate-950 hover:border-slate-700'
-      } lg:grid-cols-[98px_1fr]`}
+          ? 'border-violet-400/60 bg-slate-950 shadow-[0_0_34px_rgba(139,92,246,0.26)]'
+          : `border-slate-800/90 bg-slate-950 hover:-translate-y-[1px] hover:border-slate-600 ${accent.hoverShadow}`
+      } lg:grid-cols-[132px_1fr]`}
     >
       <div
-        className={`relative flex min-h-[116px] flex-col justify-between bg-gradient-to-br ${accent.date} p-4`}
+        className={`absolute -inset-[1px] -z-10 rounded-xl bg-gradient-to-r ${accent.line} opacity-0 blur-xl transition duration-200 group-hover:opacity-100`}
+      />
+
+      <div
+        className={`relative flex min-h-[124px] flex-col justify-between overflow-hidden rounded-l-xl bg-gradient-to-br ${accent.date} p-4`}
       >
         <div>
           <div
-            className={`mb-6 grid h-9 w-9 place-items-center rounded-xl ${accent.iconBox}`}
+            className={`mb-5 grid h-9 w-9 place-items-center rounded-xl ${accent.iconBox}`}
           >
             <CalendarDays size={18} />
           </div>
 
-          <div className="text-sm font-black leading-tight text-white">
+          <div
+            title={date.weekday}
+            className="max-w-[100px] truncate text-sm font-black leading-tight text-white"
+          >
             {date.weekday},
           </div>
 
-          <div className="text-lg font-black leading-tight text-white">
+          <div className="mt-1 text-base font-black leading-tight text-white">
             {date.full}
           </div>
         </div>
 
         {time && (
-          <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
             <span className="h-3 w-3 rounded-full border border-slate-500" />
             {time}
           </div>
         )}
       </div>
 
-      <div className="relative min-w-0 p-4 lg:p-5">
+      <div className="relative min-w-0 overflow-hidden rounded-r-xl p-4 lg:p-5">
         <div
           className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.line} opacity-70`}
         />
 
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-5 xl:grid-cols-[110px_1fr]">
+            <div className="grid min-w-0 gap-5 xl:grid-cols-[120px_1fr]">
               <div>
                 <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                   Guild
@@ -311,7 +378,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 }
 
 /* -------------------- SUMMARY CARD -------------------- */
-function SummaryStat({ icon, label, value, valueClass = 'text-slate-100' }) {
+function SummaryStat({ icon, label, value, valueClass = 'text-slate-100', barClass = 'bg-slate-100' }) {
   return (
     <div className="flex items-center gap-3 border-slate-800 px-4 py-3 md:border-r">
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-900/80">
@@ -327,7 +394,7 @@ function SummaryStat({ icon, label, value, valueClass = 'text-slate-100' }) {
           {value}
         </div>
 
-        <div className={`mt-1 h-[2px] w-10 rounded-full ${valueClass.replace('text-', 'bg-')}`} />
+        <div className={`mt-1 h-[2px] w-10 rounded-full ${barClass}`} />
       </div>
     </div>
   );
@@ -419,6 +486,7 @@ export default function NodeWars({
   const [query, setQuery] = useState('');
   const [warning, setWarning] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [periodDays, setPeriodDays] = useState(7);
   const [sort, setSort] = useState({
     key: 'time',
     dir: 'desc',
@@ -440,44 +508,60 @@ export default function NodeWars({
     });
   }
 
+  const allRows = useMemo(() => {
+    return logs.map((log) => {
+      const stats = calculateStats([{ ...log, date: dateOf(log) }]);
+
+      const topEnemies = [...stats.guilds]
+        .map((guild) => {
+          const ourKills = guild.kills;
+          const ourDeaths = guild.deaths;
+          const totalInteractions = ourKills + ourDeaths;
+
+          return {
+            name: guild.name,
+            kills: ourDeaths,
+            deaths: ourKills,
+            total: totalInteractions,
+            kd: ourKills
+              ? (ourDeaths / ourKills).toFixed(2)
+              : ourDeaths.toFixed(2),
+          };
+        })
+        .sort((a, b) => b.total - a.total || b.kills - a.kills)
+        .slice(0, 5);
+
+      return {
+        ...log,
+        date: dateOf(log),
+        players: stats.players.length,
+        kills: Number(stats.kills) || 0,
+        deaths: Number(stats.deaths) || 0,
+        kd: stats.kd,
+        kdNumber: Number(stats.kd) || 0,
+        topEnemies,
+      };
+    });
+  }, [logs]);
+
+  const latestWarTime = useMemo(() => {
+    const times = allRows
+      .map((row) => new Date(row.date).getTime())
+      .filter((time) => !Number.isNaN(time));
+
+    return times.length ? Math.max(...times) : 0;
+  }, [allRows]);
+
   const rows = useMemo(() => {
-    const mappedRows = logs
-      .map((log) => {
-        const stats = calculateStats([{ ...log, date: dateOf(log) }]);
+    const cleanQuery = query.trim().toLowerCase();
 
-        const topEnemies = [...stats.guilds]
-          .map((guild) => {
-            const ourKills = guild.kills;
-            const ourDeaths = guild.deaths;
-            const totalInteractions = ourKills + ourDeaths;
+    const filtered = allRows
+      .filter((row) => {
+        const daysAgo = getDaysAgoFromLatest(row.date, latestWarTime);
 
-            return {
-              name: guild.name,
-              kills: ourDeaths,
-              deaths: ourKills,
-              total: totalInteractions,
-              kd: ourKills
-                ? (ourDeaths / ourKills).toFixed(2)
-                : ourDeaths.toFixed(2),
-            };
-          })
-          .sort((a, b) => b.total - a.total || b.kills - a.kills)
-          .slice(0, 5);
-
-        return {
-          ...log,
-          date: dateOf(log),
-          players: stats.players.length,
-          kills: Number(stats.kills) || 0,
-          deaths: Number(stats.deaths) || 0,
-          kd: stats.kd,
-          kdNumber: Number(stats.kd) || 0,
-          topEnemies,
-        };
+        return daysAgo >= 0 && daysAgo < periodDays;
       })
       .filter((row) => {
-        const cleanQuery = query.trim().toLowerCase();
-
         if (!cleanQuery) return true;
 
         return row.topEnemies.some((guild) =>
@@ -485,7 +569,7 @@ export default function NodeWars({
         );
       });
 
-    return mappedRows.sort((a, b) => {
+    return filtered.sort((a, b) => {
       let av = 0;
       let bv = 0;
 
@@ -515,7 +599,7 @@ export default function NodeWars({
 
       return sort.dir === 'asc' ? av - bv : bv - av;
     });
-  }, [logs, query, sort]);
+  }, [allRows, latestWarTime, periodDays, query, sort]);
 
   const visibleIds = rows.map((row) => String(row.id));
 
@@ -620,14 +704,7 @@ export default function NodeWars({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs font-black text-slate-300 transition hover:border-slate-700 hover:bg-slate-900"
-            >
-              <CalendarDays size={15} />
-              Last 7 Days
-              <span className="text-slate-600">⌄</span>
-            </button>
+            <PeriodSelect value={periodDays} onChange={setPeriodDays} />
 
             <button
               type="button"
@@ -733,10 +810,10 @@ export default function NodeWars({
         )}
 
         {/* LIST */}
-        <div className={`max-h-[calc(100vh-260px)] space-y-3 overflow-auto pr-1 ${scrollCls}`}>
+        <div className={`max-h-[calc(100vh-260px)] space-y-3 overflow-auto px-1 py-1 ${scrollCls}`}>
           {!rows.length ? (
             <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
-              No saved node wars found for this search.
+              No saved node wars found for this filter.
             </div>
           ) : (
             rows.map((row, index) => {
@@ -763,6 +840,7 @@ export default function NodeWars({
             label="Total Matches"
             value={totals.matches}
             valueClass="text-violet-400"
+            barClass="bg-violet-400"
             icon={<Swords size={20} className="text-violet-300" />}
           />
 
@@ -770,6 +848,7 @@ export default function NodeWars({
             label="Total Kills"
             value={totals.kills.toLocaleString('en-US')}
             valueClass="text-emerald-400"
+            barClass="bg-emerald-400"
             icon={<Crosshair size={20} className="text-emerald-300" />}
           />
 
@@ -777,6 +856,7 @@ export default function NodeWars({
             label="Total Deaths"
             value={totals.deaths.toLocaleString('en-US')}
             valueClass="text-rose-400"
+            barClass="bg-rose-400"
             icon={<Skull size={20} className="text-rose-300" />}
           />
 
@@ -784,6 +864,7 @@ export default function NodeWars({
             label="Overall K/D"
             value={totals.kd}
             valueClass={Number(totals.kd) >= 1 ? 'text-emerald-400' : 'text-rose-400'}
+            barClass={Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'}
             icon={<Activity size={20} className="text-cyan-300" />}
           />
 
