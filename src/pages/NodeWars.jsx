@@ -108,7 +108,6 @@ function accentByIndex(index) {
       topLine: 'from-violet-500/0 via-violet-400/40 to-violet-500/0',
       glow: 'bg-violet-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.20)]',
-      checkbox: 'accent-violet-500',
     },
     {
       date: 'from-blue-950/95 via-blue-900/35 to-slate-950',
@@ -116,7 +115,6 @@ function accentByIndex(index) {
       topLine: 'from-blue-500/0 via-blue-400/40 to-blue-500/0',
       glow: 'bg-blue-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.20)]',
-      checkbox: 'accent-blue-500',
     },
     {
       date: 'from-cyan-950/95 via-cyan-900/35 to-slate-950',
@@ -124,7 +122,6 @@ function accentByIndex(index) {
       topLine: 'from-cyan-500/0 via-cyan-400/40 to-cyan-500/0',
       glow: 'bg-cyan-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(6,182,212,0.20)]',
-      checkbox: 'accent-cyan-500',
     },
   ];
 
@@ -233,115 +230,8 @@ function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
   );
 }
 
-/* -------------------- MINI KILLS / DEATHS GRAPH -------------------- */
-function KillsDeathsMiniGraph({ row, graphMax, id }) {
-  const kills = Number(row.kills) || 0;
-  const deaths = Number(row.deaths) || 0;
-  const max = Math.max(Number(graphMax) || 0, kills, deaths, 1);
-
-  const width = 260;
-  const bottom = 50;
-  const top = 8;
-  const height = bottom - top;
-
-  const killsY = bottom - (kills / max) * height;
-  const deathsY = bottom - (deaths / max) * height;
-
-  const killsPoints = `0,${bottom} 80,${killsY.toFixed(2)} 180,${killsY.toFixed(
-    2,
-  )} ${width},${killsY.toFixed(2)}`;
-
-  const deathsPoints = `0,${bottom} 80,${deathsY.toFixed(
-    2,
-  )} 180,${deathsY.toFixed(2)} ${width},${deathsY.toFixed(2)}`;
-
-  const gradientIdKills = `killsArea-${id}`;
-  const gradientIdDeaths = `deathsArea-${id}`;
-
-  return (
-    <div className="hidden min-w-[300px] max-w-[320px] rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-1.5 xl:block">
-      <svg viewBox="0 0 260 56" className="h-[43px] w-full overflow-visible">
-        <defs>
-          <linearGradient id={gradientIdKills} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.14" />
-            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.01" />
-          </linearGradient>
-
-          <linearGradient id={gradientIdDeaths} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.14" />
-            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.01" />
-          </linearGradient>
-        </defs>
-
-        <line
-          x1="0"
-          y1={bottom}
-          x2={width}
-          y2={bottom}
-          stroke="rgb(51 65 85)"
-          strokeWidth="1"
-          strokeDasharray="3 4"
-          opacity="0.55"
-        />
-
-        <polygon
-          points={`0,54 ${killsPoints} ${width},54`}
-          fill={`url(#${gradientIdKills})`}
-        />
-
-        <polygon
-          points={`0,54 ${deathsPoints} ${width},54`}
-          fill={`url(#${gradientIdDeaths})`}
-        />
-
-        <polyline
-          points={killsPoints}
-          fill="none"
-          stroke="rgb(52 211 153)"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        <polyline
-          points={deathsPoints}
-          fill="none"
-          stroke="rgb(251 113 133)"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {[80, 180, width].map((x) => (
-          <circle
-            key={`k-${x}`}
-            cx={x}
-            cy={killsY}
-            r="2.3"
-            fill="rgb(15 23 42)"
-            stroke="rgb(52 211 153)"
-            strokeWidth="1.8"
-          />
-        ))}
-
-        {[80, 180, width].map((x) => (
-          <circle
-            key={`d-${x}`}
-            cx={x}
-            cy={deathsY}
-            r="2.3"
-            fill="rgb(15 23 42)"
-            stroke="rgb(251 113 133)"
-            strokeWidth="1.8"
-          />
-        ))}
-      </svg>
-    </div>
-  );
-}
-
 /* -------------------- WAR CARD -------------------- */
-function WarCard({ row, index, checked, onOpen, onToggle, graphMax }) {
+function WarCard({ row, index, checked, onOpen, onToggle }) {
   const accent = accentByIndex(index);
   const date = formatWarDate(row.date);
   const time = formatWarTime(row);
@@ -352,7 +242,7 @@ function WarCard({ row, index, checked, onOpen, onToggle, graphMax }) {
       onClick={onOpen}
       className={`group relative grid cursor-pointer overflow-visible rounded-xl border transition duration-200 ${
         checked
-          ? 'border-violet-400/60 bg-slate-950 shadow-[0_0_34px_rgba(139,92,246,0.26)]'
+          ? 'border-violet-400/60 bg-slate-950 shadow-[0_0_34px_rgba(255,255,255,0.12)]'
           : `border-slate-800/90 bg-slate-950 hover:-translate-y-[1px] hover:border-slate-600 ${accent.hoverShadow}`
       } lg:grid-cols-[118px_1fr]`}
     >
@@ -397,7 +287,7 @@ function WarCard({ row, index, checked, onOpen, onToggle, graphMax }) {
 
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-3 xl:grid-cols-[140px_minmax(250px,1fr)_320px]">
+            <div className="grid min-w-0 gap-3 xl:grid-cols-[150px_1fr]">
               <div>
                 <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Kills/Deaths Ratio
@@ -429,12 +319,6 @@ function WarCard({ row, index, checked, onOpen, onToggle, graphMax }) {
                   )}
                 </div>
               </div>
-
-              <KillsDeathsMiniGraph
-                row={row}
-                graphMax={graphMax}
-                id={`${row.id}-${index}`}
-              />
             </div>
 
             <div className="mt-2.5 h-px bg-slate-800/80" />
@@ -470,7 +354,11 @@ function WarCard({ row, index, checked, onOpen, onToggle, graphMax }) {
           </div>
 
           <div
-            className="mt-[28px] flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 transition group-hover:border-slate-700"
+            className={`mt-[28px] flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition ${
+              checked
+                ? 'border-white/80 bg-white/10 shadow-[0_0_18px_rgba(255,255,255,0.18)]'
+                : 'border-slate-800 bg-slate-950/70 group-hover:border-slate-700'
+            }`}
             onClick={(event) => event.stopPropagation()}
           >
             <input
@@ -480,7 +368,8 @@ function WarCard({ row, index, checked, onOpen, onToggle, graphMax }) {
                 event.stopPropagation();
                 onToggle();
               }}
-              className={`h-[18px] w-[18px] cursor-pointer ${accent.checkbox}`}
+              className="h-[18px] w-[18px] cursor-pointer"
+              style={{ accentColor: '#ffffff' }}
               title={checked ? 'Deselect this war' : 'Select this war'}
             />
           </div>
@@ -727,9 +616,7 @@ export default function NodeWars({
     (id) => id !== 'all' && id !== 'current',
   );
 
-  const allDisplayedLogsSelected =
-    visibleIds.length > 0 &&
-    visibleIds.every((id) => selectedRealWars.includes(id));
+  const hasAnySelection = selectedRealWars.length > 0;
 
   const selectedVisibleCount = visibleIds.filter((id) =>
     selectedRealWars.includes(id),
@@ -745,13 +632,6 @@ export default function NodeWars({
       deaths,
       kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
     };
-  }, [rows]);
-
-  const graphMax = useMemo(() => {
-    return Math.max(
-      ...rows.flatMap((row) => [Number(row.kills) || 0, Number(row.deaths) || 0]),
-      1,
-    );
   }, [rows]);
 
   function openWar(row) {
@@ -781,16 +661,16 @@ export default function NodeWars({
   function selectDisplayedLogs() {
     setWarning('');
 
+    if (hasAnySelection) {
+      setSelectedDays(['all']);
+      setSelectedWars([]);
+      return;
+    }
+
     if (!visibleIds.length) {
       setSelectedDays(['all']);
       setSelectedWars([]);
       setWarning('No saved node wars found for this search.');
-      return;
-    }
-
-    if (allDisplayedLogsSelected) {
-      setSelectedDays(['all']);
-      setSelectedWars([]);
       return;
     }
 
@@ -872,9 +752,13 @@ export default function NodeWars({
               <button
                 type="button"
                 onClick={selectDisplayedLogs}
-                className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-2 text-xs font-black text-violet-200 transition hover:border-violet-300/60 hover:bg-violet-500/20"
+                className={`rounded-xl border px-4 py-2 text-xs font-black transition ${
+                  hasAnySelection
+                    ? 'border-white/40 bg-white/10 text-white hover:border-white/70 hover:bg-white/15'
+                    : 'border-violet-400/30 bg-violet-500/10 text-violet-200 hover:border-violet-300/60 hover:bg-violet-500/20'
+                }`}
               >
-                {allDisplayedLogsSelected ? 'Clear selection' : 'Select displayed'}
+                {hasAnySelection ? 'Clear selection' : 'Select displayed'}
               </button>
 
               <button
@@ -957,7 +841,6 @@ export default function NodeWars({
                   row={row}
                   index={index}
                   checked={checked}
-                  graphMax={graphMax}
                   onOpen={() => openWar(row)}
                   onToggle={() => toggleWar(row)}
                 />
