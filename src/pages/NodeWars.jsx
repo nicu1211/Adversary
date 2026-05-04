@@ -149,7 +149,9 @@ function buildLinePoints(values, maxValue, width = 260, top = 8, bottom = 50) {
   return safeValues
     .map((value, index) => {
       const x =
-        safeValues.length === 1 ? width / 2 : (index / (safeValues.length - 1)) * width;
+        safeValues.length === 1
+          ? width / 2
+          : (index / (safeValues.length - 1)) * width;
       const y = bottom - ((Number(value) || 0) / max) * height;
 
       return `${x.toFixed(2)},${y.toFixed(2)}`;
@@ -281,36 +283,21 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
   const killsPoints = buildLinePoints(killsValues, max, 260, 8, 50);
   const deathsPoints = buildLinePoints(deathsValues, max, 260, 8, 50);
 
-  const killsArea = `0,54 ${killsPoints} 260,54`;
-  const deathsArea = `0,54 ${deathsPoints} 260,54`;
-
   const gradientIdKills = `killsArea-${id}`;
   const gradientIdDeaths = `deathsArea-${id}`;
 
   return (
     <div className="hidden min-w-[300px] max-w-[320px] rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-1.5 xl:block">
-      <div className="mb-0.5 flex items-center justify-between gap-2">
-        <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-          Kills / Deaths
-        </div>
-
-        <div className="flex items-center gap-2 text-[10px] font-black">
-          <span className="text-emerald-400">{row.kills}</span>
-          <span className="text-slate-600">/</span>
-          <span className="text-rose-400">{row.deaths}</span>
-        </div>
-      </div>
-
       <svg viewBox="0 0 260 56" className="h-[43px] w-full overflow-visible">
         <defs>
           <linearGradient id={gradientIdKills} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.20" />
-            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.14" />
+            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.01" />
           </linearGradient>
 
           <linearGradient id={gradientIdDeaths} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.14" />
+            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.01" />
           </linearGradient>
         </defs>
 
@@ -325,8 +312,14 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
           opacity="0.55"
         />
 
-        <polygon points={killsArea} fill={`url(#${gradientIdKills})`} />
-        <polygon points={deathsArea} fill={`url(#${gradientIdDeaths})`} />
+        <polygon
+          points={`0,54 ${killsPoints} 260,54`}
+          fill={`url(#${gradientIdKills})`}
+        />
+        <polygon
+          points={`0,54 ${deathsPoints} 260,54`}
+          fill={`url(#${gradientIdDeaths})`}
+        />
 
         <polyline
           points={killsPoints}
@@ -348,7 +341,9 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
 
         {killsValues.map((value, index) => {
           const x =
-            killsValues.length === 1 ? 130 : (index / (killsValues.length - 1)) * 260;
+            killsValues.length === 1
+              ? 130
+              : (index / (killsValues.length - 1)) * 260;
           const y = 50 - ((Number(value) || 0) / max) * 42;
 
           return (
@@ -366,7 +361,9 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
 
         {deathsValues.map((value, index) => {
           const x =
-            deathsValues.length === 1 ? 130 : (index / (deathsValues.length - 1)) * 260;
+            deathsValues.length === 1
+              ? 130
+              : (index / (deathsValues.length - 1)) * 260;
           const y = 50 - ((Number(value) || 0) / max) * 42;
 
           return (
@@ -565,103 +562,72 @@ function SummaryStat({
   );
 }
 
-function KillsDeathsTrend({ rows }) {
-  const orderedRows = [...rows].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  );
+function Sparkline({ rows }) {
+  const values = rows.map((row) => Number(row.kdNumber) || 0);
+  const safeValues = values.length ? values : [0];
 
-  const killsValues = orderedRows.map((row) => Number(row.kills) || 0);
-  const deathsValues = orderedRows.map((row) => Number(row.deaths) || 0);
-  const safeKills = killsValues.length ? killsValues : [0];
-  const safeDeaths = deathsValues.length ? deathsValues : [0];
+  const min = Math.min(...safeValues);
+  const max = Math.max(...safeValues);
+  const range = max - min || 1;
 
-  const max = Math.max(...safeKills, ...safeDeaths, 1);
-  const width = 260;
-  const killsPoints = buildLinePoints(safeKills, max, width, 8, 50);
-  const deathsPoints = buildLinePoints(safeDeaths, max, width, 8, 50);
+  const points = safeValues
+    .map((value, index) => {
+      const x =
+        safeValues.length === 1 ? 0 : (index / (safeValues.length - 1)) * 150;
+      const y = 42 - ((value - min) / range) * 34;
+
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
+
+  const areaPoints = `0,48 ${points} 150,48`;
 
   return (
-    <div className="flex min-w-[340px] flex-1 items-center gap-4 px-4 py-3">
+    <div className="flex min-w-[190px] flex-1 items-center gap-4 px-4 py-3">
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cyan-500/10">
         <Activity size={20} className="text-cyan-300" />
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center justify-between gap-3">
-          <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-            Kills / Deaths Trend
-          </div>
-
-          <div className="flex items-center gap-3 text-[10px] font-black">
-            <span className="text-emerald-400">Kills</span>
-            <span className="text-rose-400">Deaths</span>
-          </div>
+        <div className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+          K/D Trend
         </div>
 
-        <svg viewBox={`0 0 ${width} 56`} className="h-[48px] w-full overflow-visible">
-          <line
-            x1="0"
-            y1="50"
-            x2={width}
-            y2="50"
-            stroke="rgb(51 65 85)"
-            strokeWidth="1"
-            strokeDasharray="3 4"
-            opacity="0.55"
-          />
+        <svg viewBox="0 0 150 52" className="h-[44px] w-full overflow-visible">
+          <defs>
+            <linearGradient id="kdArea" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="rgb(34 197 94)" stopOpacity="0.32" />
+              <stop offset="100%" stopColor="rgb(34 197 94)" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          <polygon points={areaPoints} fill="url(#kdArea)" />
 
           <polyline
-            points={killsPoints}
+            points={points}
             fill="none"
-            stroke="rgb(52 211 153)"
-            strokeWidth="2.4"
+            stroke="rgb(34 197 94)"
+            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          <polyline
-            points={deathsPoints}
-            fill="none"
-            stroke="rgb(251 113 133)"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {safeKills.map((value, index) => {
+          {safeValues.map((value, index) => {
             const x =
-              safeKills.length === 1 ? width / 2 : (index / (safeKills.length - 1)) * width;
-            const y = 50 - ((Number(value) || 0) / max) * 42;
+              safeValues.length === 1
+                ? 0
+                : (index / (safeValues.length - 1)) * 150;
+            const y = 42 - ((value - min) / range) * 34;
 
             return (
               <circle
-                key={`summary-k-${value}-${index}`}
+                key={`${value}-${index}`}
                 cx={x}
                 cy={y}
-                r="2.4"
+                r="2.3"
                 fill="rgb(15 23 42)"
-                stroke="rgb(52 211 153)"
-                strokeWidth="1.8"
-              />
-            );
-          })}
-
-          {safeDeaths.map((value, index) => {
-            const x =
-              safeDeaths.length === 1
-                ? width / 2
-                : (index / (safeDeaths.length - 1)) * width;
-            const y = 50 - ((Number(value) || 0) / max) * 42;
-
-            return (
-              <circle
-                key={`summary-d-${value}-${index}`}
-                cx={x}
-                cy={y}
-                r="2.4"
-                fill="rgb(15 23 42)"
-                stroke="rgb(251 113 133)"
-                strokeWidth="1.8"
+                stroke="rgb(34 197 94)"
+                strokeWidth="2"
               />
             );
           })}
@@ -900,10 +866,6 @@ export default function NodeWars({
         <div className="rounded-xl border border-slate-800 bg-slate-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
           <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
             <div>
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
-                Search enemies
-              </label>
-
               <input
                 value={query}
                 onChange={(event) => {
@@ -986,7 +948,7 @@ export default function NodeWars({
         )}
 
         {/* SUMMARY */}
-        <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-[repeat(4,minmax(130px,1fr))_minmax(340px,1.75fr)]">
+        <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-[repeat(4,minmax(130px,1fr))_minmax(220px,1.25fr)]">
           <SummaryStat
             label="Total Matches"
             value={totals.matches}
@@ -1023,7 +985,7 @@ export default function NodeWars({
             icon={<Activity size={20} className="text-cyan-300" />}
           />
 
-          <KillsDeathsTrend rows={rows} />
+          <Sparkline rows={rows} />
         </div>
 
         {/* LIST */}
