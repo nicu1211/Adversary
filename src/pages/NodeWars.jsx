@@ -108,22 +108,25 @@ function accentByIndex(index) {
       date: 'from-violet-950/95 via-violet-900/35 to-slate-950',
       iconBox: 'bg-violet-500/15 text-violet-300 shadow-violet-500/20',
       arrow: 'bg-violet-500/15 text-violet-300 hover:bg-violet-500/25',
-      line: 'from-violet-500/0 via-violet-400/40 to-violet-500/0',
-      hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.22)]',
+      topLine: 'from-violet-500/0 via-violet-400/40 to-violet-500/0',
+      glow: 'bg-violet-500/20',
+      hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.20)]',
     },
     {
       date: 'from-blue-950/95 via-blue-900/35 to-slate-950',
       iconBox: 'bg-blue-500/15 text-blue-300 shadow-blue-500/20',
       arrow: 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/25',
-      line: 'from-blue-500/0 via-blue-400/40 to-blue-500/0',
-      hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.22)]',
+      topLine: 'from-blue-500/0 via-blue-400/40 to-blue-500/0',
+      glow: 'bg-blue-500/20',
+      hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.20)]',
     },
     {
       date: 'from-cyan-950/95 via-cyan-900/35 to-slate-950',
       iconBox: 'bg-cyan-500/15 text-cyan-300 shadow-cyan-500/20',
       arrow: 'bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25',
-      line: 'from-cyan-500/0 via-cyan-400/40 to-cyan-500/0',
-      hoverShadow: 'hover:shadow-[0_0_34px_rgba(6,182,212,0.22)]',
+      topLine: 'from-cyan-500/0 via-cyan-400/40 to-cyan-500/0',
+      glow: 'bg-cyan-500/20',
+      hoverShadow: 'hover:shadow-[0_0_34px_rgba(6,182,212,0.20)]',
     },
   ];
 
@@ -160,7 +163,10 @@ function PeriodSelect({ value, onChange }) {
       >
         <CalendarDays size={15} />
         {selected.label}
-        <ChevronDown size={14} className={open ? 'rotate-180 transition' : 'transition'} />
+        <ChevronDown
+          size={14}
+          className={open ? 'rotate-180 transition' : 'transition'}
+        />
       </button>
 
       {open && (
@@ -244,7 +250,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
       } lg:grid-cols-[132px_1fr]`}
     >
       <div
-        className={`absolute -inset-[1px] -z-10 rounded-xl bg-gradient-to-r ${accent.line} opacity-0 blur-xl transition duration-200 group-hover:opacity-100`}
+        className={`pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-100`}
       />
 
       <div
@@ -279,7 +285,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
       <div className="relative min-w-0 overflow-hidden rounded-r-xl p-4 lg:p-5">
         <div
-          className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.line} opacity-70`}
+          className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.topLine} opacity-70`}
         />
 
         <div className="flex min-w-0 items-start justify-between gap-4">
@@ -378,7 +384,13 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 }
 
 /* -------------------- SUMMARY CARD -------------------- */
-function SummaryStat({ icon, label, value, valueClass = 'text-slate-100', barClass = 'bg-slate-100' }) {
+function SummaryStat({
+  icon,
+  label,
+  value,
+  valueClass = 'text-slate-100',
+  barClass = 'bg-slate-100',
+}) {
   return (
     <div className="flex items-center gap-3 border-slate-800 px-4 py-3 md:border-r">
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-900/80">
@@ -809,32 +821,7 @@ export default function NodeWars({
           </div>
         )}
 
-        {/* LIST */}
-        <div className={`max-h-[calc(100vh-260px)] space-y-3 overflow-auto px-1 py-1 ${scrollCls}`}>
-          {!rows.length ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
-              No saved node wars found for this filter.
-            </div>
-          ) : (
-            rows.map((row, index) => {
-              const id = String(row.id);
-              const checked = selectedRealWars.includes(id);
-
-              return (
-                <WarCard
-                  key={row.id}
-                  row={row}
-                  index={index}
-                  checked={checked}
-                  onOpen={() => openWar(row)}
-                  onToggle={() => toggleWar(row)}
-                />
-              );
-            })
-          )}
-        </div>
-
-        {/* SUMMARY */}
+        {/* SUMMARY - MOVED TO TOP */}
         <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-[repeat(4,minmax(130px,1fr))_minmax(220px,1.25fr)]">
           <SummaryStat
             label="Total Matches"
@@ -863,12 +850,43 @@ export default function NodeWars({
           <SummaryStat
             label="Overall K/D"
             value={totals.kd}
-            valueClass={Number(totals.kd) >= 1 ? 'text-emerald-400' : 'text-rose-400'}
-            barClass={Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'}
+            valueClass={
+              Number(totals.kd) >= 1 ? 'text-emerald-400' : 'text-rose-400'
+            }
+            barClass={
+              Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'
+            }
             icon={<Activity size={20} className="text-cyan-300" />}
           />
 
           <Sparkline rows={rows} />
+        </div>
+
+        {/* LIST */}
+        <div
+          className={`max-h-[calc(100vh-330px)] space-y-3 overflow-auto px-1 py-1 ${scrollCls}`}
+        >
+          {!rows.length ? (
+            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
+              No saved node wars found for this filter.
+            </div>
+          ) : (
+            rows.map((row, index) => {
+              const id = String(row.id);
+              const checked = selectedRealWars.includes(id);
+
+              return (
+                <WarCard
+                  key={row.id}
+                  row={row}
+                  index={index}
+                  checked={checked}
+                  onOpen={() => openWar(row)}
+                  onToggle={() => toggleWar(row)}
+                />
+              );
+            })
+          )}
         </div>
       </div>
     </Panel>
