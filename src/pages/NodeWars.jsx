@@ -193,12 +193,7 @@ function PeriodSelect({ value, onChange }) {
 }
 
 /* -------------------- ENEMY SEARCH -------------------- */
-function EnemySearch({
-  value,
-  onChange,
-  suggestions,
-  onPick,
-}) {
+function EnemySearch({ value, onChange, suggestions, onPick }) {
   const [open, setOpen] = useState(false);
 
   const showSuggestions = open && value.trim() && suggestions.length > 0;
@@ -547,6 +542,8 @@ export default function NodeWars({
   setSelectedDays,
   setSelectedWars,
   selectedWars,
+  externalWarning = '',
+  clearExternalWarning = () => {},
 }) {
   const [query, setQuery] = useState('');
   const [warning, setWarning] = useState('');
@@ -555,6 +552,11 @@ export default function NodeWars({
     key: 'time',
     dir: 'desc',
   });
+
+  function clearWarnings() {
+    setWarning('');
+    clearExternalWarning();
+  }
 
   function toggleSort(key) {
     setSort((current) => {
@@ -730,7 +732,7 @@ export default function NodeWars({
   }, [rows]);
 
   function openWar(row) {
-    setWarning('');
+    clearWarnings();
     setSelectedDays([row.date]);
     setSelectedWars([String(row.id)]);
     setPage('overview');
@@ -739,7 +741,7 @@ export default function NodeWars({
   function toggleWar(row) {
     const id = String(row.id);
 
-    setWarning('');
+    clearWarnings();
     setSelectedDays(['all']);
 
     setSelectedWars((previous) => {
@@ -754,7 +756,7 @@ export default function NodeWars({
   }
 
   function selectDisplayedLogs() {
-    setWarning('');
+    clearWarnings();
 
     if (hasAnySelection) {
       setSelectedDays(['all']);
@@ -775,11 +777,12 @@ export default function NodeWars({
 
   function openSelectedOverview() {
     if (selectedRealWars.length === 0) {
+      clearExternalWarning();
       setWarning('No node war selected. Select at least one war first.');
       return;
     }
 
-    setWarning('');
+    clearWarnings();
     setSelectedDays(['all']);
     setPage('overview');
   }
@@ -795,11 +798,11 @@ export default function NodeWars({
               suggestions={enemySuggestions}
               onChange={(value) => {
                 setQuery(value);
-                setWarning('');
+                clearWarnings();
               }}
               onPick={(enemy) => {
                 setQuery(enemy);
-                setWarning('');
+                clearWarnings();
               }}
             />
 
@@ -871,9 +874,9 @@ export default function NodeWars({
         </div>
 
         {/* WARNING */}
-        {warning && (
+        {(warning || externalWarning) && (
           <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
-            {warning}
+            {warning || externalWarning}
           </div>
         )}
 
