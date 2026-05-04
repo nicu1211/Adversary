@@ -460,72 +460,120 @@ function SummaryStat({
   );
 }
 
-function Sparkline({ rows }) {
-  const values = rows.map((row) => Number(row.kdNumber) || 0);
-  const safeValues = values.length ? values : [0];
+function KillsDeathsTrend({ rows }) {
+  const orderedRows = [...rows].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
 
-  const min = Math.min(...safeValues);
-  const max = Math.max(...safeValues);
-  const range = max - min || 1;
+  const killsValues = orderedRows.map((row) => Number(row.kills) || 0);
+  const deathsValues = orderedRows.map((row) => Number(row.deaths) || 0);
 
-  const points = safeValues
-    .map((value, index) => {
-      const x =
-        safeValues.length === 1 ? 0 : (index / (safeValues.length - 1)) * 150;
-      const y = 42 - ((value - min) / range) * 34;
+  const safeKills = killsValues.length ? killsValues : [0];
+  const safeDeaths = deathsValues.length ? deathsValues : [0];
 
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(' ');
+  const max = Math.max(...safeKills, ...safeDeaths, 1);
+  const width = 220;
+  const top = 8;
+  const bottom = 42;
+  const height = bottom - top;
 
-  const areaPoints = `0,48 ${points} 150,48`;
+  function buildPoints(values) {
+    return values
+      .map((value, index) => {
+        const x =
+          values.length === 1
+            ? width / 2
+            : (index / (values.length - 1)) * width;
+
+        const y = bottom - ((Number(value) || 0) / max) * height;
+
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(' ');
+  }
+
+  const killsPoints = buildPoints(safeKills);
+  const deathsPoints = buildPoints(safeDeaths);
 
   return (
-    <div className="flex min-w-[190px] flex-1 items-center gap-4 px-4 py-3">
+    <div className="flex min-w-[260px] flex-1 items-center gap-4 px-4 py-3">
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cyan-500/10">
         <Activity size={20} className="text-cyan-300" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
-          K/D Trend
+          Kills / Deaths Trend
         </div>
 
-        <svg viewBox="0 0 150 52" className="h-[44px] w-full overflow-visible">
-          <defs>
-            <linearGradient id="kdArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="rgb(34 197 94)" stopOpacity="0.32" />
-              <stop offset="100%" stopColor="rgb(34 197 94)" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-
-          <polygon points={areaPoints} fill="url(#kdArea)" />
+        <svg viewBox={`0 0 ${width} 52`} className="h-[44px] w-full overflow-visible">
+          <line
+            x1="0"
+            y1={bottom}
+            x2={width}
+            y2={bottom}
+            stroke="rgb(51 65 85)"
+            strokeWidth="1"
+            strokeDasharray="3 4"
+            opacity="0.55"
+          />
 
           <polyline
-            points={points}
+            points={killsPoints}
             fill="none"
-            stroke="rgb(34 197 94)"
-            strokeWidth="2.2"
+            stroke="rgb(52 211 153)"
+            strokeWidth="2.3"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {safeValues.map((value, index) => {
+          <polyline
+            points={deathsPoints}
+            fill="none"
+            stroke="rgb(251 113 133)"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {safeKills.map((value, index) => {
             const x =
-              safeValues.length === 1
-                ? 0
-                : (index / (safeValues.length - 1)) * 150;
-            const y = 42 - ((value - min) / range) * 34;
+              safeKills.length === 1
+                ? width / 2
+                : (index / (safeKills.length - 1)) * width;
+
+            const y = bottom - ((Number(value) || 0) / max) * height;
 
             return (
               <circle
-                key={`${value}-${index}`}
+                key={`kills-${value}-${index}`}
                 cx={x}
                 cy={y}
                 r="2.3"
                 fill="rgb(15 23 42)"
-                stroke="rgb(34 197 94)"
-                strokeWidth="2"
+                stroke="rgb(52 211 153)"
+                strokeWidth="1.8"
+              />
+            );
+          })}
+
+          {safeDeaths.map((value, index) => {
+            const x =
+              safeDeaths.length === 1
+                ? width / 2
+                : (index / (safeDeaths.length - 1)) * width;
+
+            const y = bottom - ((Number(value) || 0) / max) * height;
+
+            return (
+              <circle
+                key={`deaths-${value}-${index}`}
+                cx={x}
+                cy={y}
+                r="2.3"
+                fill="rgb(15 23 42)"
+                stroke="rgb(251 113 133)"
+                strokeWidth="1.8"
               />
             );
           })}
@@ -918,7 +966,7 @@ export default function NodeWars({
             icon={<Activity size={20} className="text-cyan-300" />}
           />
 
-          <Sparkline rows={rows} />
+          <KillsDeathsTrend rows={rows} />
         </div>
 
         {/* LIST */}
