@@ -110,6 +110,7 @@ function accentByIndex(index) {
       glow: 'bg-violet-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.20)]',
       checkbox: 'accent-violet-500',
+      graphId: 'violet',
     },
     {
       date: 'from-blue-950/95 via-blue-900/35 to-slate-950',
@@ -118,6 +119,7 @@ function accentByIndex(index) {
       glow: 'bg-blue-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.20)]',
       checkbox: 'accent-blue-500',
+      graphId: 'blue',
     },
     {
       date: 'from-cyan-950/95 via-cyan-900/35 to-slate-950',
@@ -126,6 +128,7 @@ function accentByIndex(index) {
       glow: 'bg-cyan-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(6,182,212,0.20)]',
       checkbox: 'accent-cyan-500',
+      graphId: 'cyan',
     },
   ];
 
@@ -232,6 +235,105 @@ function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
   );
 }
 
+/* -------------------- MINI KILLS / DEATHS GRAPH -------------------- */
+function KillsDeathsMiniGraph({ kills, deaths, id }) {
+  const safeKills = Number(kills) || 0;
+  const safeDeaths = Number(deaths) || 0;
+  const max = Math.max(safeKills, safeDeaths, 1);
+
+  const killY = 44 - (safeKills / max) * 32;
+  const deathY = 44 - (safeDeaths / max) * 32;
+
+  const killPoints = `0,44 58,${killY.toFixed(2)} 116,${killY.toFixed(2)}`;
+  const deathPoints = `0,44 58,${deathY.toFixed(2)} 116,${deathY.toFixed(2)}`;
+
+  const killArea = `0,48 0,44 58,${killY.toFixed(2)} 116,${killY.toFixed(2)} 116,48`;
+  const deathArea = `0,48 0,44 58,${deathY.toFixed(2)} 116,${deathY.toFixed(2)} 116,48`;
+
+  const gradientIdKills = `killsArea-${id}`;
+  const gradientIdDeaths = `deathsArea-${id}`;
+
+  return (
+    <div className="hidden min-w-[150px] max-w-[170px] flex-1 rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2 xl:block">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+          Kills / Deaths
+        </div>
+
+        <div className="flex items-center gap-2 text-[10px] font-black">
+          <span className="text-emerald-400">{safeKills}</span>
+          <span className="text-slate-600">/</span>
+          <span className="text-rose-400">{safeDeaths}</span>
+        </div>
+      </div>
+
+      <svg viewBox="0 0 116 52" className="h-[46px] w-full overflow-visible">
+        <defs>
+          <linearGradient id={gradientIdKills} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.02" />
+          </linearGradient>
+
+          <linearGradient id={gradientIdDeaths} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+
+        <line
+          x1="0"
+          y1="44"
+          x2="116"
+          y2="44"
+          stroke="rgb(51 65 85)"
+          strokeWidth="1"
+          strokeDasharray="3 4"
+          opacity="0.55"
+        />
+
+        <polygon points={killArea} fill={`url(#${gradientIdKills})`} />
+        <polygon points={deathArea} fill={`url(#${gradientIdDeaths})`} />
+
+        <polyline
+          points={killPoints}
+          fill="none"
+          stroke="rgb(52 211 153)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        <polyline
+          points={deathPoints}
+          fill="none"
+          stroke="rgb(251 113 133)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        <circle
+          cx="58"
+          cy={killY}
+          r="2.4"
+          fill="rgb(15 23 42)"
+          stroke="rgb(52 211 153)"
+          strokeWidth="2"
+        />
+
+        <circle
+          cx="58"
+          cy={deathY}
+          r="2.4"
+          fill="rgb(15 23 42)"
+          stroke="rgb(251 113 133)"
+          strokeWidth="2"
+        />
+      </svg>
+    </div>
+  );
+}
+
 /* -------------------- WAR CARD -------------------- */
 function WarCard({ row, index, checked, onOpen, onToggle }) {
   const accent = accentByIndex(index);
@@ -289,7 +391,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-5 xl:grid-cols-[165px_1fr]">
+            <div className="grid min-w-0 gap-5 xl:grid-cols-[165px_1fr_170px]">
               <div>
                 <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                   Kills/Deaths Ratio
@@ -323,6 +425,12 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                   )}
                 </div>
               </div>
+
+              <KillsDeathsMiniGraph
+                kills={row.kills}
+                deaths={row.deaths}
+                id={`${accent.graphId}-${row.id}`}
+              />
             </div>
 
             <div className="mt-5 h-px bg-slate-800/80" />
@@ -492,7 +600,6 @@ export default function NodeWars({
 }) {
   const [query, setQuery] = useState('');
   const [warning, setWarning] = useState('');
-  const [filterOpen, setFilterOpen] = useState(false);
   const [periodDays, setPeriodDays] = useState(7);
   const [sort, setSort] = useState({
     key: 'time',
@@ -710,104 +817,98 @@ export default function NodeWars({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <PeriodSelect value={periodDays} onChange={setPeriodDays} />
-
-            <button
-              type="button"
-              onClick={() => setFilterOpen((value) => !value)}
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-black transition ${
-                filterOpen || query.trim()
-                  ? 'border-violet-400/40 bg-violet-500/15 text-violet-200'
-                  : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
-              }`}
-            >
-              <Filter size={15} />
-              Filter
-            </button>
-          </div>
+          <PeriodSelect value={periodDays} onChange={setPeriodDays} />
         </div>
 
-        {/* FILTER PANEL */}
-        {filterOpen && (
-          <div className="rounded-xl border border-slate-800 bg-slate-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
-            <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
-              <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  Search enemies
-                </label>
+        {/* FILTER PANEL - ALWAYS ACTIVE */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+          <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500">
+            <Filter size={15} />
+            Filter
+          </div>
 
-                <input
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setWarning('');
-                  }}
-                  placeholder="Search enemies..."
-                  className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-violet-400 focus:bg-slate-900"
-                />
-              </div>
+          <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Search enemies
+              </label>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <SortHeader
-                  id="time"
-                  label="Time"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-                <SortHeader
-                  id="kills"
-                  label="Kills"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-                <SortHeader
-                  id="deaths"
-                  label="Deaths"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-                <SortHeader
-                  id="kd"
-                  label="K/D"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-              </div>
+              <input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setWarning('');
+                }}
+                placeholder="Search enemies..."
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-violet-400 focus:bg-slate-900"
+              />
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
-              <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-400">
-                <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1">
-                  Displayed: <b className="text-white">{rows.length}</b>
-                </span>
-
-                <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1">
-                  Selected:{' '}
-                  <b className="text-violet-300">{selectedVisibleCount}</b>
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={selectDisplayedLogs}
-                  className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-2 text-xs font-black text-violet-200 transition hover:border-violet-300/60 hover:bg-violet-500/20"
-                >
-                  {allDisplayedLogsSelected ? 'Clear selection' : 'Select displayed'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={openSelectedOverview}
-                  className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-xs font-black text-emerald-200 transition hover:border-emerald-300/60 hover:bg-emerald-500/20"
-                >
-                  Open overview
-                </button>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <SortHeader
+                id="time"
+                label="Time"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortHeader
+                id="kills"
+                label="Kills"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortHeader
+                id="deaths"
+                label="Deaths"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortHeader
+                id="kd"
+                label="K/D"
+                sort={sort}
+                onSort={toggleSort}
+              />
             </div>
           </div>
-        )}
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
+            <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-400">
+              <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1">
+                Displayed: <b className="text-white">{rows.length}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1">
+                Selected:{' '}
+                <b className="text-violet-300">{selectedVisibleCount}</b>
+              </span>
+
+              {query.trim() && (
+                <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-cyan-200">
+                  Search: {query.trim()}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={selectDisplayedLogs}
+                className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-2 text-xs font-black text-violet-200 transition hover:border-violet-300/60 hover:bg-violet-500/20"
+              >
+                {allDisplayedLogsSelected ? 'Clear selection' : 'Select displayed'}
+              </button>
+
+              <button
+                type="button"
+                onClick={openSelectedOverview}
+                className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-xs font-black text-emerald-200 transition hover:border-emerald-300/60 hover:bg-emerald-500/20"
+              >
+                Open overview
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* WARNING */}
         {warning && (
@@ -859,7 +960,7 @@ export default function NodeWars({
 
         {/* LIST */}
         <div
-          className={`max-h-[calc(100vh-330px)] space-y-3 overflow-auto px-1 py-1 ${scrollCls}`}
+          className={`max-h-[calc(100vh-410px)] space-y-3 overflow-auto px-1 py-1 ${scrollCls}`}
         >
           {!rows.length ? (
             <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
