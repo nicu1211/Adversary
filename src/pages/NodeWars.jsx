@@ -110,7 +110,6 @@ function accentByIndex(index) {
       glow: 'bg-violet-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.20)]',
       checkbox: 'accent-violet-500',
-      graphId: 'violet',
     },
     {
       date: 'from-blue-950/95 via-blue-900/35 to-slate-950',
@@ -119,7 +118,6 @@ function accentByIndex(index) {
       glow: 'bg-blue-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.20)]',
       checkbox: 'accent-blue-500',
-      graphId: 'blue',
     },
     {
       date: 'from-cyan-950/95 via-cyan-900/35 to-slate-950',
@@ -128,7 +126,6 @@ function accentByIndex(index) {
       glow: 'bg-cyan-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(6,182,212,0.20)]',
       checkbox: 'accent-cyan-500',
-      graphId: 'cyan',
     },
   ];
 
@@ -152,9 +149,11 @@ function PeriodSelect({ value, onChange }) {
   const options = [
     { value: 7, label: 'Last 7 Days' },
     { value: 30, label: 'Last 30 Days' },
+    { value: 'all', label: 'All Time' },
   ];
 
-  const selected = options.find((option) => option.value === value) || options[0];
+  const selected =
+    options.find((option) => option.value === value) || options[0];
 
   return (
     <div className="relative">
@@ -199,7 +198,7 @@ function PeriodSelect({ value, onChange }) {
 /* -------------------- ENEMY PILL -------------------- */
 function EnemyPill({ enemy }) {
   return (
-    <div className="flex h-9 min-w-[98px] max-w-[165px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="flex h-8 min-w-[96px] max-w-[160px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <span
         title={enemy.name}
         className="truncate text-[12px] font-black text-slate-100"
@@ -217,17 +216,17 @@ function EnemyPill({ enemy }) {
 /* -------------------- METRIC -------------------- */
 function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-900/80">
+    <div className="flex min-w-0 items-center gap-2.5">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-900/80">
         {icon}
       </div>
 
       <div className="min-w-0">
-        <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+        <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">
           {label}
         </div>
 
-        <div className={`text-xl font-black leading-tight ${valueClass}`}>
+        <div className={`text-lg font-black leading-tight ${valueClass}`}>
           {value}
         </div>
       </div>
@@ -241,20 +240,20 @@ function KillsDeathsMiniGraph({ kills, deaths, id }) {
   const safeDeaths = Number(deaths) || 0;
   const max = Math.max(safeKills, safeDeaths, 1);
 
-  const killY = 44 - (safeKills / max) * 32;
-  const deathY = 44 - (safeDeaths / max) * 32;
+  const chartHeight = 42;
+  const baseY = 48;
 
-  const killPoints = `0,44 58,${killY.toFixed(2)} 116,${killY.toFixed(2)}`;
-  const deathPoints = `0,44 58,${deathY.toFixed(2)} 116,${deathY.toFixed(2)}`;
+  const killHeight = Math.max((safeKills / max) * chartHeight, safeKills > 0 ? 4 : 0);
+  const deathHeight = Math.max((safeDeaths / max) * chartHeight, safeDeaths > 0 ? 4 : 0);
 
-  const killArea = `0,48 0,44 58,${killY.toFixed(2)} 116,${killY.toFixed(2)} 116,48`;
-  const deathArea = `0,48 0,44 58,${deathY.toFixed(2)} 116,${deathY.toFixed(2)} 116,48`;
+  const killY = baseY - killHeight;
+  const deathY = baseY - deathHeight;
 
-  const gradientIdKills = `killsArea-${id}`;
-  const gradientIdDeaths = `deathsArea-${id}`;
+  const gradientIdKills = `killsBar-${id}`;
+  const gradientIdDeaths = `deathsBar-${id}`;
 
   return (
-    <div className="hidden min-w-[150px] max-w-[170px] flex-1 rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2 xl:block">
+    <div className="hidden min-w-[220px] max-w-[240px] rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2 xl:block">
       <div className="mb-1 flex items-center justify-between gap-2">
         <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
           Kills / Deaths
@@ -267,68 +266,99 @@ function KillsDeathsMiniGraph({ kills, deaths, id }) {
         </div>
       </div>
 
-      <svg viewBox="0 0 116 52" className="h-[46px] w-full overflow-visible">
+      <svg viewBox="0 0 190 56" className="h-[48px] w-full overflow-visible">
         <defs>
           <linearGradient id={gradientIdKills} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="rgb(52 211 153)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="rgb(52 211 153)" stopOpacity="0.20" />
           </linearGradient>
 
           <linearGradient id={gradientIdDeaths} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="rgb(251 113 133)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="rgb(251 113 133)" stopOpacity="0.20" />
           </linearGradient>
         </defs>
 
         <line
           x1="0"
-          y1="44"
-          x2="116"
-          y2="44"
+          y1={baseY}
+          x2="190"
+          y2={baseY}
           stroke="rgb(51 65 85)"
           strokeWidth="1"
           strokeDasharray="3 4"
+          opacity="0.6"
+        />
+
+        <line
+          x1="55"
+          y1={killY}
+          x2="135"
+          y2={deathY}
+          stroke="rgb(148 163 184)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeDasharray="4 5"
           opacity="0.55"
         />
 
-        <polygon points={killArea} fill={`url(#${gradientIdKills})`} />
-        <polygon points={deathArea} fill={`url(#${gradientIdDeaths})`} />
-
-        <polyline
-          points={killPoints}
-          fill="none"
-          stroke="rgb(52 211 153)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <rect
+          x="35"
+          y={killY}
+          width="40"
+          height={killHeight}
+          rx="8"
+          fill={`url(#${gradientIdKills})`}
         />
 
-        <polyline
-          points={deathPoints}
-          fill="none"
-          stroke="rgb(251 113 133)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <rect
+          x="115"
+          y={deathY}
+          width="40"
+          height={deathHeight}
+          rx="8"
+          fill={`url(#${gradientIdDeaths})`}
         />
 
         <circle
-          cx="58"
+          cx="55"
           cy={killY}
-          r="2.4"
+          r="3"
           fill="rgb(15 23 42)"
           stroke="rgb(52 211 153)"
           strokeWidth="2"
         />
 
         <circle
-          cx="58"
+          cx="135"
           cy={deathY}
-          r="2.4"
+          r="3"
           fill="rgb(15 23 42)"
           stroke="rgb(251 113 133)"
           strokeWidth="2"
         />
+
+        <text
+          x="55"
+          y="55"
+          textAnchor="middle"
+          fill="rgb(52 211 153)"
+          fontSize="8"
+          fontWeight="900"
+        >
+          K
+        </text>
+
+        <text
+          x="135"
+          y="55"
+          textAnchor="middle"
+          fill="rgb(251 113 133)"
+          fontSize="8"
+          fontWeight="900"
+        >
+          D
+        </text>
       </svg>
     </div>
   );
@@ -348,52 +378,52 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
         checked
           ? 'border-violet-400/60 bg-slate-950 shadow-[0_0_34px_rgba(139,92,246,0.26)]'
           : `border-slate-800/90 bg-slate-950 hover:-translate-y-[1px] hover:border-slate-600 ${accent.hoverShadow}`
-      } lg:grid-cols-[132px_1fr]`}
+      } lg:grid-cols-[124px_1fr]`}
     >
       <div
         className={`pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-100`}
       />
 
       <div
-        className={`relative flex min-h-[124px] flex-col justify-between overflow-hidden rounded-l-xl bg-gradient-to-br ${accent.date} p-4`}
+        className={`relative flex min-h-[106px] flex-col justify-between overflow-hidden rounded-l-xl bg-gradient-to-br ${accent.date} p-3`}
       >
         <div>
           <div
-            className={`mb-5 grid h-9 w-9 place-items-center rounded-xl ${accent.iconBox}`}
+            className={`mb-3 grid h-8 w-8 place-items-center rounded-xl ${accent.iconBox}`}
           >
-            <CalendarDays size={18} />
+            <CalendarDays size={16} />
           </div>
 
           <div
             title={date.weekday}
-            className="max-w-[100px] truncate text-sm font-black leading-tight text-white"
+            className="max-w-[96px] truncate text-[13px] font-black leading-tight text-white"
           >
             {date.weekday},
           </div>
 
-          <div className="mt-1 text-base font-black leading-tight text-white">
+          <div className="mt-1 text-[15px] font-black leading-tight text-white">
             {date.full}
           </div>
         </div>
 
         {time && (
-          <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
-            <span className="h-3 w-3 rounded-full border border-slate-500" />
+          <div className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+            <span className="h-2.5 w-2.5 rounded-full border border-slate-500" />
             {time}
           </div>
         )}
       </div>
 
-      <div className="relative min-w-0 overflow-hidden rounded-r-xl p-4 lg:p-5">
+      <div className="relative min-w-0 overflow-hidden rounded-r-xl p-3 lg:p-4">
         <div
           className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.topLine} opacity-70`}
         />
 
-        <div className="flex min-w-0 items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-5 xl:grid-cols-[165px_1fr_170px]">
+            <div className="grid min-w-0 gap-4 xl:grid-cols-[150px_1fr_240px]">
               <div>
-                <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <div className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Kills/Deaths Ratio
                 </div>
 
@@ -409,7 +439,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
               </div>
 
               <div className="min-w-0">
-                <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <div className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Top 5 Enemies
                 </div>
 
@@ -429,44 +459,44 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
               <KillsDeathsMiniGraph
                 kills={row.kills}
                 deaths={row.deaths}
-                id={`${accent.graphId}-${row.id}`}
+                id={`${row.id}-${index}`}
               />
             </div>
 
-            <div className="mt-5 h-px bg-slate-800/80" />
+            <div className="mt-3 h-px bg-slate-800/80" />
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <WarMetric
                 label="Players"
                 value={row.players}
-                icon={<Users size={19} className="text-indigo-300" />}
+                icon={<Users size={18} className="text-indigo-300" />}
               />
 
               <WarMetric
                 label="Kills"
                 value={row.kills}
                 valueClass="text-emerald-400"
-                icon={<Swords size={19} className="text-emerald-300" />}
+                icon={<Swords size={18} className="text-emerald-300" />}
               />
 
               <WarMetric
                 label="Deaths"
                 value={row.deaths}
                 valueClass="text-rose-400"
-                icon={<Skull size={19} className="text-rose-300" />}
+                icon={<Skull size={18} className="text-rose-300" />}
               />
 
               <WarMetric
                 label="K/D"
                 value={row.kd}
                 valueClass={kdNumber >= 1 ? 'text-emerald-400' : 'text-rose-400'}
-                icon={<Crosshair size={19} className="text-lime-300" />}
+                icon={<Crosshair size={18} className="text-lime-300" />}
               />
             </div>
           </div>
 
           <div
-            className="mt-[43px] flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 transition group-hover:border-slate-700"
+            className="mt-[34px] flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 transition group-hover:border-slate-700"
             onClick={(event) => event.stopPropagation()}
           >
             <input
@@ -476,7 +506,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                 event.stopPropagation();
                 onToggle();
               }}
-              className={`h-5 w-5 cursor-pointer ${accent.checkbox}`}
+              className={`h-4.5 w-4.5 cursor-pointer ${accent.checkbox}`}
               title={checked ? 'Deselect this war' : 'Select this war'}
             />
           </div>
@@ -671,6 +701,8 @@ export default function NodeWars({
 
     const filtered = allRows
       .filter((row) => {
+        if (periodDays === 'all') return true;
+
         const daysAgo = getDaysAgoFromLatest(row.date, latestWarTime);
 
         return daysAgo >= 0 && daysAgo < periodDays;
@@ -820,7 +852,7 @@ export default function NodeWars({
           <PeriodSelect value={periodDays} onChange={setPeriodDays} />
         </div>
 
-        {/* FILTER PANEL - ALWAYS ACTIVE */}
+        {/* FILTER PANEL */}
         <div className="rounded-xl border border-slate-800 bg-slate-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
           <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500">
             <Filter size={15} />
@@ -863,12 +895,7 @@ export default function NodeWars({
                 sort={sort}
                 onSort={toggleSort}
               />
-              <SortHeader
-                id="kd"
-                label="K/D"
-                sort={sort}
-                onSort={toggleSort}
-              />
+              <SortHeader id="kd" label="K/D" sort={sort} onSort={toggleSort} />
             </div>
           </div>
 
@@ -960,7 +987,7 @@ export default function NodeWars({
 
         {/* LIST */}
         <div
-          className={`max-h-[calc(100vh-410px)] space-y-3 overflow-auto px-1 py-1 ${scrollCls}`}
+          className={`max-h-[calc(100vh-392px)] space-y-2 overflow-auto px-1 py-1 ${scrollCls}`}
         >
           {!rows.length ? (
             <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
