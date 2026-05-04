@@ -3,7 +3,6 @@ import {
   Activity,
   CalendarDays,
   ChevronDown,
-  ChevronRight,
   Crosshair,
   Filter,
   Skull,
@@ -107,26 +106,26 @@ function accentByIndex(index) {
     {
       date: 'from-violet-950/95 via-violet-900/35 to-slate-950',
       iconBox: 'bg-violet-500/15 text-violet-300 shadow-violet-500/20',
-      arrow: 'bg-violet-500/15 text-violet-300 hover:bg-violet-500/25',
       topLine: 'from-violet-500/0 via-violet-400/40 to-violet-500/0',
       glow: 'bg-violet-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.20)]',
+      checkbox: 'accent-violet-500',
     },
     {
       date: 'from-blue-950/95 via-blue-900/35 to-slate-950',
       iconBox: 'bg-blue-500/15 text-blue-300 shadow-blue-500/20',
-      arrow: 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/25',
       topLine: 'from-blue-500/0 via-blue-400/40 to-blue-500/0',
       glow: 'bg-blue-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.20)]',
+      checkbox: 'accent-blue-500',
     },
     {
       date: 'from-cyan-950/95 via-cyan-900/35 to-slate-950',
       iconBox: 'bg-cyan-500/15 text-cyan-300 shadow-cyan-500/20',
-      arrow: 'bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25',
       topLine: 'from-cyan-500/0 via-cyan-400/40 to-cyan-500/0',
       glow: 'bg-cyan-500/20',
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(6,182,212,0.20)]',
+      checkbox: 'accent-cyan-500',
     },
   ];
 
@@ -197,15 +196,15 @@ function PeriodSelect({ value, onChange }) {
 /* -------------------- ENEMY PILL -------------------- */
 function EnemyPill({ enemy }) {
   return (
-    <div className="flex h-8 min-w-[88px] max-w-[150px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="flex h-9 min-w-[98px] max-w-[165px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <span
         title={enemy.name}
-        className="truncate text-[11px] font-black text-slate-200"
+        className="truncate text-[12px] font-black text-slate-100"
       >
         {enemy.name}
       </span>
 
-      <span className={`text-[11px] font-black ${numberColor(enemy.kd)}`}>
+      <span className={`text-[12px] font-black ${numberColor(enemy.kd)}`}>
         {enemy.kd}
       </span>
     </div>
@@ -290,19 +289,15 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-5 xl:grid-cols-[120px_1fr]">
+            <div className="grid min-w-0 gap-5 xl:grid-cols-[165px_1fr]">
               <div>
                 <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  Guild
+                  Kills/Deaths Ratio
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-lg font-black text-white">
-                    Adversary
-                  </span>
-
                   <span
-                    className={`rounded-full border px-2 py-0.5 text-[11px] font-black ${badgeColor(
+                    className={`rounded-full border px-3 py-1 text-sm font-black ${badgeColor(
                       row.kd,
                     )}`}
                   >
@@ -362,21 +357,21 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
             </div>
           </div>
 
-          <button
-            type="button"
-            title={checked ? 'Selected for overview' : 'Select this war'}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggle();
-            }}
-            className={`mt-[42px] grid h-9 w-9 shrink-0 place-items-center rounded-xl transition ${
-              checked
-                ? 'bg-violet-500/30 text-violet-100 ring-1 ring-violet-300/50'
-                : accent.arrow
-            }`}
+          <div
+            className="mt-[43px] flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/70 transition group-hover:border-slate-700"
+            onClick={(event) => event.stopPropagation()}
           >
-            <ChevronRight size={20} />
-          </button>
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+              className={`h-5 w-5 cursor-pointer ${accent.checkbox}`}
+              title={checked ? 'Deselect this war' : 'Select this war'}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -821,7 +816,7 @@ export default function NodeWars({
           </div>
         )}
 
-        {/* SUMMARY - MOVED TO TOP */}
+        {/* SUMMARY */}
         <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-[repeat(4,minmax(130px,1fr))_minmax(220px,1.25fr)]">
           <SummaryStat
             label="Total Matches"
