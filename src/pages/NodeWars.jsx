@@ -141,24 +141,6 @@ function getDaysAgoFromLatest(date, latestTime) {
   return diff / (1000 * 60 * 60 * 24);
 }
 
-function buildLinePoints(values, maxValue, width = 260, top = 8, bottom = 50) {
-  const safeValues = values.length ? values : [0];
-  const max = Math.max(Number(maxValue) || 0, 1);
-  const height = bottom - top;
-
-  return safeValues
-    .map((value, index) => {
-      const x =
-        safeValues.length === 1
-          ? width / 2
-          : (index / (safeValues.length - 1)) * width;
-      const y = bottom - ((Number(value) || 0) / max) * height;
-
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(' ');
-}
-
 /* -------------------- PERIOD SELECT -------------------- */
 function PeriodSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -253,35 +235,25 @@ function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
 
 /* -------------------- MINI KILLS / DEATHS GRAPH -------------------- */
 function KillsDeathsMiniGraph({ row, graphMax, id }) {
-  const pointsSource = row.topEnemies.length
-    ? row.topEnemies.map((enemy) => ({
-        kills: Number(enemy.deaths) || 0,
-        deaths: Number(enemy.kills) || 0,
-      }))
-    : [
-        { kills: Number(row.kills) || 0, deaths: Number(row.deaths) || 0 },
-        { kills: Number(row.kills) || 0, deaths: Number(row.deaths) || 0 },
-      ];
+  const kills = Number(row.kills) || 0;
+  const deaths = Number(row.deaths) || 0;
+  const max = Math.max(Number(graphMax) || 0, kills, deaths, 1);
 
-  const killsValues =
-    pointsSource.length === 1
-      ? [pointsSource[0].kills, pointsSource[0].kills]
-      : pointsSource.map((point) => point.kills);
+  const width = 260;
+  const bottom = 50;
+  const top = 8;
+  const height = bottom - top;
 
-  const deathsValues =
-    pointsSource.length === 1
-      ? [pointsSource[0].deaths, pointsSource[0].deaths]
-      : pointsSource.map((point) => point.deaths);
+  const killsY = bottom - (kills / max) * height;
+  const deathsY = bottom - (deaths / max) * height;
 
-  const max = Math.max(
-    Number(graphMax) || 0,
-    ...killsValues,
-    ...deathsValues,
-    1,
-  );
+  const killsPoints = `0,${bottom} 80,${killsY.toFixed(2)} 180,${killsY.toFixed(
+    2,
+  )} ${width},${killsY.toFixed(2)}`;
 
-  const killsPoints = buildLinePoints(killsValues, max, 260, 8, 50);
-  const deathsPoints = buildLinePoints(deathsValues, max, 260, 8, 50);
+  const deathsPoints = `0,${bottom} 80,${deathsY.toFixed(
+    2,
+  )} 180,${deathsY.toFixed(2)} ${width},${deathsY.toFixed(2)}`;
 
   const gradientIdKills = `killsArea-${id}`;
   const gradientIdDeaths = `deathsArea-${id}`;
@@ -303,9 +275,9 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
 
         <line
           x1="0"
-          y1="50"
-          x2="260"
-          y2="50"
+          y1={bottom}
+          x2={width}
+          y2={bottom}
           stroke="rgb(51 65 85)"
           strokeWidth="1"
           strokeDasharray="3 4"
@@ -313,11 +285,12 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
         />
 
         <polygon
-          points={`0,54 ${killsPoints} 260,54`}
+          points={`0,54 ${killsPoints} ${width},54`}
           fill={`url(#${gradientIdKills})`}
         />
+
         <polygon
-          points={`0,54 ${deathsPoints} 260,54`}
+          points={`0,54 ${deathsPoints} ${width},54`}
           fill={`url(#${gradientIdDeaths})`}
         />
 
@@ -325,7 +298,7 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
           points={killsPoints}
           fill="none"
           stroke="rgb(52 211 153)"
-          strokeWidth="2.3"
+          strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -334,50 +307,34 @@ function KillsDeathsMiniGraph({ row, graphMax, id }) {
           points={deathsPoints}
           fill="none"
           stroke="rgb(251 113 133)"
-          strokeWidth="2.3"
+          strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
 
-        {killsValues.map((value, index) => {
-          const x =
-            killsValues.length === 1
-              ? 130
-              : (index / (killsValues.length - 1)) * 260;
-          const y = 50 - ((Number(value) || 0) / max) * 42;
+        {[80, 180, width].map((x) => (
+          <circle
+            key={`k-${x}`}
+            cx={x}
+            cy={killsY}
+            r="2.3"
+            fill="rgb(15 23 42)"
+            stroke="rgb(52 211 153)"
+            strokeWidth="1.8"
+          />
+        ))}
 
-          return (
-            <circle
-              key={`k-${value}-${index}`}
-              cx={x}
-              cy={y}
-              r="2.2"
-              fill="rgb(15 23 42)"
-              stroke="rgb(52 211 153)"
-              strokeWidth="1.8"
-            />
-          );
-        })}
-
-        {deathsValues.map((value, index) => {
-          const x =
-            deathsValues.length === 1
-              ? 130
-              : (index / (deathsValues.length - 1)) * 260;
-          const y = 50 - ((Number(value) || 0) / max) * 42;
-
-          return (
-            <circle
-              key={`d-${value}-${index}`}
-              cx={x}
-              cy={y}
-              r="2.2"
-              fill="rgb(15 23 42)"
-              stroke="rgb(251 113 133)"
-              strokeWidth="1.8"
-            />
-          );
-        })}
+        {[80, 180, width].map((x) => (
+          <circle
+            key={`d-${x}`}
+            cx={x}
+            cy={deathsY}
+            r="2.3"
+            fill="rgb(15 23 42)"
+            stroke="rgb(251 113 133)"
+            strokeWidth="1.8"
+          />
+        ))}
       </svg>
     </div>
   );
@@ -792,14 +749,7 @@ export default function NodeWars({
 
   const graphMax = useMemo(() => {
     return Math.max(
-      ...rows.flatMap((row) => [
-        Number(row.kills) || 0,
-        Number(row.deaths) || 0,
-        ...row.topEnemies.flatMap((enemy) => [
-          Number(enemy.kills) || 0,
-          Number(enemy.deaths) || 0,
-        ]),
-      ]),
+      ...rows.flatMap((row) => [Number(row.kills) || 0, Number(row.deaths) || 0]),
       1,
     );
   }, [rows]);
