@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronDown,
   Crosshair,
+  Search,
   Skull,
   Swords,
   Users,
@@ -183,6 +184,62 @@ function PeriodSelect({ value, onChange }) {
               }`}
             >
               {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* -------------------- ENEMY SEARCH -------------------- */
+function EnemySearch({
+  value,
+  onChange,
+  suggestions,
+  onPick,
+}) {
+  const [open, setOpen] = useState(false);
+
+  const showSuggestions = open && value.trim() && suggestions.length > 0;
+
+  return (
+    <div className="relative">
+      <div className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-600">
+        <Search size={16} />
+      </div>
+
+      <input
+        value={value}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          window.setTimeout(() => setOpen(false), 120);
+        }}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        placeholder="Search enemies..."
+        className="w-full rounded-xl border border-slate-800 bg-slate-950 py-3 pl-11 pr-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-violet-400 focus:bg-slate-900"
+      />
+
+      {showSuggestions && (
+        <div className="absolute left-0 right-0 z-40 mt-2 max-h-72 overflow-auto rounded-xl border border-slate-800 bg-slate-950 shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+          {suggestions.map((enemy) => (
+            <button
+              key={enemy}
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                onPick(enemy);
+                setOpen(false);
+              }}
+              className="flex w-full items-center justify-between gap-3 border-b border-slate-900 px-4 py-3 text-left text-sm font-black text-slate-300 transition last:border-b-0 hover:bg-violet-500/10 hover:text-white"
+            >
+              <span className="truncate">{enemy}</span>
+              <span className="text-[10px] uppercase tracking-wider text-slate-600">
+                Enemy
+              </span>
             </button>
           ))}
         </div>
@@ -519,6 +576,10 @@ export default function NodeWars({
     return logs.map((log) => {
       const stats = calculateStats([{ ...log, date: dateOf(log) }]);
 
+      const allEnemyNames = [...stats.guilds]
+        .map((guild) => guild.name)
+        .filter(Boolean);
+
       const topEnemies = [...stats.guilds]
         .map((guild) => {
           const ourKills = guild.kills;
@@ -547,9 +608,43 @@ export default function NodeWars({
         kd: stats.kd,
         kdNumber: Number(stats.kd) || 0,
         topEnemies,
+        allEnemyNames,
       };
     });
   }, [logs]);
+
+  const enemySuggestions = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+
+    if (!cleanQuery) return [];
+
+    const names = new Map();
+
+    allRows.forEach((row) => {
+      row.allEnemyNames.forEach((name) => {
+        const lower = name.toLowerCase();
+
+        if (lower.includes(cleanQuery)) {
+          names.set(lower, name);
+        }
+      });
+    });
+
+    return [...names.values()]
+      .sort((a, b) => {
+        const al = a.toLowerCase();
+        const bl = b.toLowerCase();
+
+        const aStarts = al.startsWith(cleanQuery);
+        const bStarts = bl.startsWith(cleanQuery);
+
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        return a.localeCompare(b);
+      })
+      .slice(0, 10);
+  }, [allRows, query]);
 
   const latestWarTime = useMemo(() => {
     const times = allRows
@@ -573,8 +668,8 @@ export default function NodeWars({
       .filter((row) => {
         if (!cleanQuery) return true;
 
-        return row.topEnemies.some((guild) =>
-          guild.name.toLowerCase().includes(cleanQuery),
+        return row.allEnemyNames.some((name) =>
+          name.toLowerCase().includes(cleanQuery),
         );
       });
 
@@ -695,17 +790,18 @@ export default function NodeWars({
         {/* FILTER PANEL */}
         <div className="rounded-xl border border-slate-800 bg-slate-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
           <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
-            <div>
-              <input
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setWarning('');
-                }}
-                placeholder="Search enemies..."
-                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-violet-400 focus:bg-slate-900"
-              />
-            </div>
+            <EnemySearch
+              value={query}
+              suggestions={enemySuggestions}
+              onChange={(value) => {
+                setQuery(value);
+                setWarning('');
+              }}
+              onPick={(enemy) => {
+                setQuery(enemy);
+                setWarning('');
+              }}
+            />
 
             <div className="flex flex-wrap items-center gap-2">
               <SortHeader
