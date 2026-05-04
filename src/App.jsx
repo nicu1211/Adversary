@@ -38,6 +38,7 @@ export default function App() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [overviewWarning, setOverviewWarning] = useState('');
 
   useEffect(() => {
     apiGet('/api/logs')
@@ -57,7 +58,9 @@ export default function App() {
       return [{ id: 'current', name, date, raw }];
     }
 
-    const base = all ? logs : logs.filter((log) => selectedDays.includes(dateOf(log)));
+    const base = all
+      ? logs
+      : logs.filter((log) => selectedDays.includes(dateOf(log)));
 
     return base
       .filter(
@@ -218,11 +221,18 @@ export default function App() {
   }
 
   function openOverview() {
-    if (selectedDays.includes('current')) {
-      setSelectedDays(['all']);
-      setSelectedWars(['all']);
+    const selectedRealWars = selectedWars.filter(
+      (id) => id !== 'all' && id !== 'current',
+    );
+
+    if (selectedRealWars.length === 0) {
+      setOverviewWarning('No node war selected. Select at least one war first.');
+      setPage('nodewars');
+      return;
     }
 
+    setOverviewWarning('');
+    setSelectedDays(['all']);
     setPage('overview');
   }
 
@@ -239,7 +249,10 @@ export default function App() {
             <button
               key={item[0]}
               type="button"
-              onClick={() => setPage(item[0])}
+              onClick={() => {
+                setOverviewWarning('');
+                setPage(item[0]);
+              }}
               className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
                 isActive(item[0])
                   ? 'border border-blue-400 bg-blue-500/20 text-white'
@@ -255,7 +268,10 @@ export default function App() {
           <div className="mt-2 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setPage('nodewars')}
+              onClick={() => {
+                setOverviewWarning('');
+                setPage('nodewars');
+              }}
               className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
                 page === 'nodewars'
                   ? 'border border-blue-400 bg-blue-500/20 text-white'
@@ -295,7 +311,10 @@ export default function App() {
                 <div key={item[0]} className="mb-2">
                   <button
                     type="button"
-                    onClick={() => setPage(item[0])}
+                    onClick={() => {
+                      setOverviewWarning('');
+                      setPage(item[0]);
+                    }}
                     className={`w-full rounded-xl px-4 py-3 text-left font-bold ${
                       isActive(item[0])
                         ? 'border border-blue-400 bg-blue-500/20'
@@ -309,7 +328,10 @@ export default function App() {
                     <div className="ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
                       <button
                         type="button"
-                        onClick={() => setPage('nodewars')}
+                        onClick={() => {
+                          setOverviewWarning('');
+                          setPage('nodewars');
+                        }}
                         className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
                           page === 'nodewars'
                             ? 'bg-blue-500/20 text-white'
@@ -347,6 +369,8 @@ export default function App() {
               setSelectedDays={setSelectedDays}
               setSelectedWars={setSelectedWars}
               selectedWars={selectedWars}
+              externalWarning={overviewWarning}
+              clearExternalWarning={() => setOverviewWarning('')}
             />
           )}
 
