@@ -48,6 +48,8 @@ export default function App() {
 
   const [nodeLogs, setNodeLogs] = useState([]);
   const [allLogs, setAllLogs] = useState(null);
+  const [overviewLogs, setOverviewLogs] = useState([]);
+
   const [members, setMembers] = useState([]);
 
   const [nodePeriod, setNodePeriod] = useState(7);
@@ -70,27 +72,6 @@ export default function App() {
 
   const logs = allLogs || nodeLogs;
 
-  function mergeUpdatedLogs(currentLogs, updatedLogs) {
-    if (!currentLogs) return currentLogs;
-
-    const map = new Map(
-      updatedLogs.map((log) => [String(log.id), log]),
-    );
-
-    return currentLogs.map((log) => {
-      const updated = map.get(String(log.id));
-
-      if (!updated) return log;
-
-      return {
-        ...log,
-        ...updated,
-        summary: updated.summary || log.summary,
-        raw: updated.raw || log.raw,
-      };
-    });
-  }
-
   const loadNodeLogs = useCallback(async (period = 7) => {
     try {
       setLoadingNodeLogs(true);
@@ -104,7 +85,6 @@ export default function App() {
       const normalized = normalizeLogs(data);
 
       setNodeLogs(normalized);
-
       setMessage('');
     } catch (error) {
       console.error('Failed to load node wars logs:', error);
@@ -133,10 +113,6 @@ export default function App() {
     try {
       setLoadingAllLogs(true);
 
-      /*
-        Player Stats și Raw Log au nevoie de raw complet.
-        Node Wars NU primește raw implicit, pentru viteză.
-      */
       const data = await apiGet(logsPath({ range: 'all', includeRaw: 1 }));
       const normalized = normalizeLogs(data);
 
@@ -157,57 +133,44 @@ export default function App() {
     }
   }, [allLogs]);
 
-  const loadRawLogsByIds = useCallback(
-    async (ids) => {
-      const cleanIds = [...new Set(ids.map(String))].filter(
-        (id) => id && id !== 'all' && id !== 'current',
+  const loadOverviewLogs = useCallback(async () => {
+    if (page !== 'overview') return;
+
+    const selectedRealWars = selectedWars.filter(
+      (id) => id !== 'all' && id !== 'current',
+    );
+
+    if (!selectedRealWars.length) {
+      setOverviewLogs([]);
+      return;
+    }
+
+    try {
+      setLoadingOverviewLogs(true);
+
+      const loaded = await Promise.all(
+        selectedRealWars.map(async (id) => {
+          const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
+          return normalizeLog(data);
+        }),
       );
 
-      if (!cleanIds.length) return [];
+      const withRaw = loaded.filter((log) => Boolean(log.raw));
 
-      const sourceLogs = allLogs || nodeLogs;
+      setOverviewLogs(withRaw);
+    } catch (error) {
+      console.error('Failed to load overview raw logs:', error);
 
-      const idsThatNeedRaw = cleanIds.filter((id) => {
-        const existing = sourceLogs.find((log) => String(log.id) === id);
-        return existing && !existing.raw;
-      });
-
-      if (!idsThatNeedRaw.length) return [];
-
-      try {
-        setLoadingOverviewLogs(true);
-
-        const loaded = await Promise.all(
-          idsThatNeedRaw.map(async (id) => {
-            const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
-            return normalizeLog(data);
-          }),
-        );
-
-        setNodeLogs((currentLogs) => mergeUpdatedLogs(currentLogs, loaded));
-
-        setAllLogs((currentLogs) => {
-          if (!currentLogs) return currentLogs;
-          return mergeUpdatedLogs(currentLogs, loaded);
-        });
-
-        return loaded;
-      } catch (error) {
-        console.error('Failed to load raw logs for overview:', error);
-
-        setMessage(
-          `Failed to load selected raw logs: ${
-            error?.message || error || 'unknown error'
-          }`,
-        );
-
-        return [];
-      } finally {
-        setLoadingOverviewLogs(false);
-      }
-    },
-    [allLogs, nodeLogs],
-  );
+      setOverviewLogs([]);
+      setMessage(
+        `Failed to load selected raw logs: ${
+          error?.message || error || 'unknown error'
+        }`,
+      );
+    } finally {
+      setLoadingOverviewLogs(false);
+    }
+  }, [page, selectedWars]);
 
   useEffect(() => {
     loadNodeLogs(7);
@@ -228,14 +191,8 @@ export default function App() {
   }, [page, loadAllLogs]);
 
   useEffect(() => {
-    if (page !== 'overview') return;
-
-    const selectedRealWars = selectedWars.filter(
-      (id) => id !== 'all' && id !== 'current',
-    );
-
-    loadRawLogsByIds(selectedRealWars);
-  }, [page, selectedWars, loadRawLogsByIds]);
+    loadOverviewLogs();
+  }, [loadOverviewLogs]);
 
   const current = selectedDays.includes('current');
   const all = selectedDays.includes('all');
@@ -243,6 +200,13 @@ export default function App() {
   const activeLogs = useMemo(() => {
     if (current) {
       return [{ id: 'current', name, date, raw }];
+    }
+
+    if (page === 'overview') {
+      return overviewLogs.map((log) => ({
+        ...log,
+        date: dateOf(log),
+      }));
     }
 
     const base = all
@@ -259,7 +223,18 @@ export default function App() {
         ...log,
         date: dateOf(log),
       }));
-  }, [current, all, logs, selectedDays, selectedWars, name, date, raw]);
+  }, [
+    current,
+    page,
+    overviewLogs,
+    all,
+    logs,
+    selectedDays,
+    selectedWars,
+    name,
+    date,
+    raw,
+  ]);
 
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
@@ -400,6 +375,12 @@ export default function App() {
               (log) => String(log.id) !== String(deleteTarget.id),
             )
           : currentLogs,
+      );
+
+      setOverviewLogs((currentLogs) =>
+        currentLogs.filter(
+          (log) => String(log.id) !== String(deleteTarget.id),
+        ),
       );
 
       setMessage('Log deleted from database');
