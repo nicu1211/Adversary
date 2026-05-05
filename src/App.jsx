@@ -1,11 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import NodeWars from './pages/NodeWars';
-import OverviewPage from './pages/Overview';
-import PlayerStats from './pages/PlayerStats';
 import RawLog from './pages/RawLog';
 
 import {
+  buildLogSummary,
   calculateStats,
   cleanLog,
   dateOf,
@@ -20,7 +26,18 @@ import {
   today,
 } from './lib/logUtils';
 
-import { apiDeleteLog, apiGet, apiWrite } from './lib/api';
+import { apiDeleteLog, apiGet, apiWrite, logsPath } from './lib/api';
+
+const OverviewPage = lazy(() => import('./pages/Overview'));
+const PlayerStats = lazy(() => import('./pages/PlayerStats'));
+
+function PageLoader({ text = 'Loading...' }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 text-sm font-bold text-slate-300">
+      {text}
+    </div>
+  );
+}
 
 export default function App() {
   const [page, setPage] = useState('nodewars');
@@ -29,8 +46,13 @@ export default function App() {
   const [name, setName] = useState('Battle log');
   const [date, setDate] = useState(today());
 
-  const [logs, setLogs] = useState([]);
+  const [nodeLogs, setNodeLogs] = useState([]);
+  const [allLogs, setAllLogs] = useState(null);
   const [members, setMembers] = useState([]);
+
+  const [nodePeriod, setNodePeriod] = useState(7);
+  const [loadingNodeLogs, setLoadingNodeLogs] = useState(false);
+  const [loadingAllLogs, setLoadingAllLogs] = useState(false);
 
   const [selectedDays, setSelectedDays] = useState(['current']);
   const [selectedWars, setSelectedWars] = useState(['current']);
@@ -45,19 +67,68 @@ export default function App() {
 
   const [overviewWarning, setOverviewWarning] = useState('');
 
-  useEffect(() => {
-    apiGet('/api/logs')
-      .then((data) => {
-        setLogs(normalizeLogs(data));
-      })
-      .catch((error) => {
-        console.error('Failed to load logs from database:', error);
+  const logs = allLogs || nodeLogs;
 
-        setLogs([]);
-        setMessage(
-          'Database load failed. Nu am încărcat loguri salvate local din browser.',
-        );
-      });
+  const loadNodeLogs = useCallback(async (period = 7) => {
+    try {
+      setLoadingNodeLogs(true);
+
+      const path =
+        period === 'all'
+          ? logsPath({ range: 'all' })
+          : logsPath({ days: period });
+
+      const data = await apiGet(path);
+      const normalized = normalizeLogs(data);
+
+      setNodeLogs(normalized);
+
+      if (period === 'all') {
+        setAllLogs(normalized);
+      }
+
+      setMessage('');
+    } catch (error) {
+      console.error('Failed to load node wars logs:', error);
+      setNodeLogs([]);
+      setMessage(
+        `Database load failed: ${
+          error?.message || error || 'unknown error'
+        }. Nu am încărcat loguri salvate local din browser.`,
+      );
+    } finally {
+      setLoadingNodeLogs(false);
+    }
+  }, []);
+
+  const loadAllLogs = useCallback(async () => {
+    if (allLogs) return allLogs;
+
+    try {
+      setLoadingAllLogs(true);
+
+      const data = await apiGet(logsPath({ range: 'all' }));
+      const normalized = normalizeLogs(data);
+
+      setAllLogs(normalized);
+      return normalized;
+    } catch (error) {
+      console.error('Failed to load all logs:', error);
+
+      setMessage(
+        `Database load failed: ${
+          error?.message || error || 'unknown error'
+        }. Nu am încărcat loguri salvate local din browser.`,
+      );
+
+      return [];
+    } finally {
+      setLoadingAllLogs(false);
+    }
+  }, [allLogs]);
+
+  useEffect(() => {
+    loadNodeLogs(7);
 
     apiGet('/api/members')
       .then((data) => {
@@ -66,7 +137,13 @@ export default function App() {
       .catch(() => {
         setMembers(readStorage(MEMBER_KEY, []));
       });
-  }, []);
+  }, [loadNodeLogs]);
+
+  useEffect(() => {
+    if (page === 'players' || page === 'raw') {
+      loadAllLogs();
+    }
+  }, [page, loadAllLogs]);
 
   const current = selectedDays.includes('current');
   const all = selectedDays.includes('all');
@@ -94,16 +171,18 @@ export default function App() {
 
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
-  const allTimeStats = useMemo(
-    () =>
-      calculateStats(
-        logs.map((log) => ({
-          ...log,
-          date: dateOf(log),
-        })),
-      ),
-    [logs],
-  );
+  const allTimeStats = useMemo(() => {
+    if (page !== 'players') {
+      return calculateStats([]);
+    }
+
+    return calculateStats(
+      (allLogs || []).map((log) => ({
+        ...log,
+        date: dateOf(log),
+      })),
+    );
+  }, [page, allLogs]);
 
   const label = current
     ? 'Current log'
@@ -124,9 +203,11 @@ export default function App() {
 
     const logHash = hashLog(raw);
 
-    const duplicate = logs.find(
-      (log) => log.hash === logHash || cleanLog(log.raw) === cleanLog(raw),
-    );
+    const duplicate = logs.find((log) => {
+      if (log.hash && log.hash === logHash) return true;
+      if (!log.raw) return false;
+      return cleanLog(log.raw) === cleanLog(raw);
+    });
 
     if (duplicate) {
       setSelectedDays([dateOf(duplicate)]);
@@ -139,13 +220,20 @@ export default function App() {
       .toString(36)
       .slice(2, 8)}`;
 
-    const payload = {
+    const baseLog = {
       id: uniqueId,
       name: name || date,
       date,
       raw,
       hash: logHash,
       createdAt: new Date().toISOString(),
+    };
+
+    const summary = buildLogSummary(baseLog);
+
+    const payload = {
+      ...baseLog,
+      summary,
     };
 
     setMessage('Saving log to database... attempt 1/5');
@@ -156,14 +244,21 @@ export default function App() {
         baseDelayMs: 700,
       });
 
-      const item = normalizeLog(response);
-      const next = [item, ...logs];
+      const item = normalizeLog({
+        ...payload,
+        ...response,
+        summary: response?.summary || payload.summary,
+      });
 
-      setLogs(next);
+      setNodeLogs((currentLogs) => [item, ...currentLogs]);
+
+      setAllLogs((currentLogs) =>
+        currentLogs ? [item, ...currentLogs] : currentLogs,
+      );
 
       setSelectedDays([item.date]);
       setSelectedWars([String(item.id)]);
-      setMessage('Log saved to database');
+      setMessage('Log saved to database. Summary calculated and saved.');
     } catch (error) {
       const text = String(error?.message || error || 'Unknown error');
 
@@ -199,24 +294,22 @@ export default function App() {
     try {
       setDeleting(true);
 
-      if (deleteTarget.localOnly) {
-        const next = logs.filter(
-          (log) => String(log.id) !== String(deleteTarget.id),
-        );
-
-        setLogs(next);
-        setMessage('Local log removed from current page');
-        setDeleteTarget(null);
-        return;
-      }
-
       await apiDeleteLog(deleteTarget);
 
-      const next = logs.filter(
-        (log) => String(log.id) !== String(deleteTarget.id),
+      setNodeLogs((currentLogs) =>
+        currentLogs.filter(
+          (log) => String(log.id) !== String(deleteTarget.id),
+        ),
       );
 
-      setLogs(next);
+      setAllLogs((currentLogs) =>
+        currentLogs
+          ? currentLogs.filter(
+              (log) => String(log.id) !== String(deleteTarget.id),
+            )
+          : currentLogs,
+      );
+
       setMessage('Log deleted from database');
       setDeleteTarget(null);
     } catch (error) {
@@ -224,6 +317,11 @@ export default function App() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  function handleNodePeriodChange(nextPeriod) {
+    setNodePeriod(nextPeriod);
+    loadNodeLogs(nextPeriod);
   }
 
   const menu = [
@@ -257,7 +355,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      {/* MOBILE NAV */}
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black text-white">
           ☾ Battle Analytics
@@ -316,7 +413,6 @@ export default function App() {
       </div>
 
       <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
-        {/* SIDEBAR */}
         <aside className="hidden border-r border-slate-800 bg-slate-950 p-4 lg:block">
           <h1 className="mb-6 text-2xl font-black text-white">
             ☾ Battle Analytics
@@ -379,11 +475,13 @@ export default function App() {
           </nav>
         </aside>
 
-        {/* CONTENT */}
         <main className="min-w-0 p-3 sm:p-5 lg:p-6">
           {page === 'nodewars' && (
             <NodeWars
-              logs={logs}
+              logs={nodeLogs}
+              loading={loadingNodeLogs}
+              periodDays={nodePeriod}
+              onPeriodChange={handleNodePeriodChange}
               setPage={setPage}
               setSelectedDays={setSelectedDays}
               setSelectedWars={setSelectedWars}
@@ -394,37 +492,55 @@ export default function App() {
           )}
 
           {page === 'overview' && (
-            <OverviewPage
-              stats={stats}
-              label={label}
-              members={members}
-              selectedLogs={activeLogs}
-            />
+            <Suspense fallback={<PageLoader text="Loading overview..." />}>
+              <OverviewPage
+                stats={stats}
+                label={label}
+                members={members}
+                selectedLogs={activeLogs}
+              />
+            </Suspense>
           )}
 
-          {page === 'players' && <PlayerStats stats={allTimeStats} />}
+          {page === 'players' && (
+            <Suspense fallback={<PageLoader text="Loading player stats..." />}>
+              {loadingAllLogs && !allLogs ? (
+                <PageLoader text="Loading all logs for Player Stats..." />
+              ) : (
+                <PlayerStats stats={allTimeStats} />
+              )}
+            </Suspense>
+          )}
 
           {page === 'raw' && (
-            <RawLog
-              raw={raw}
-              setRaw={setRaw}
-              name={name}
-              setName={setName}
-              date={date}
-              setDate={setDate}
-              logs={logs}
-              message={message}
-              saveLog={saveLog}
-              rawMonth={rawMonth}
-              setRawMonth={setRawMonth}
-              calendarOpen={calendarOpen}
-              setCalendarOpen={setCalendarOpen}
-              markedDates={markedDates}
-              deleteTarget={deleteTarget}
-              setDeleteTarget={setDeleteTarget}
-              deleting={deleting}
-              deleteLog={deleteLog}
-            />
+            <>
+              {loadingAllLogs && !allLogs && (
+                <div className="mb-4">
+                  <PageLoader text="Loading full log history..." />
+                </div>
+              )}
+
+              <RawLog
+                raw={raw}
+                setRaw={setRaw}
+                name={name}
+                setName={setName}
+                date={date}
+                setDate={setDate}
+                logs={logs}
+                message={message}
+                saveLog={saveLog}
+                rawMonth={rawMonth}
+                setRawMonth={setRawMonth}
+                calendarOpen={calendarOpen}
+                setCalendarOpen={setCalendarOpen}
+                markedDates={markedDates}
+                deleteTarget={deleteTarget}
+                setDeleteTarget={setDeleteTarget}
+                deleting={deleting}
+                deleteLog={deleteLog}
+              />
+            </>
           )}
         </main>
       </div>
