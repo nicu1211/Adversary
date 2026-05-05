@@ -53,6 +53,7 @@ export default function App() {
   const [nodePeriod, setNodePeriod] = useState(7);
   const [loadingNodeLogs, setLoadingNodeLogs] = useState(false);
   const [loadingAllLogs, setLoadingAllLogs] = useState(false);
+  const [loadingOverviewLogs, setLoadingOverviewLogs] = useState(false);
 
   const [selectedDays, setSelectedDays] = useState(['current']);
   const [selectedWars, setSelectedWars] = useState(['current']);
@@ -69,6 +70,27 @@ export default function App() {
 
   const logs = allLogs || nodeLogs;
 
+  function mergeUpdatedLogs(currentLogs, updatedLogs) {
+    if (!currentLogs) return currentLogs;
+
+    const map = new Map(
+      updatedLogs.map((log) => [String(log.id), log]),
+    );
+
+    return currentLogs.map((log) => {
+      const updated = map.get(String(log.id));
+
+      if (!updated) return log;
+
+      return {
+        ...log,
+        ...updated,
+        summary: updated.summary || log.summary,
+        raw: updated.raw || log.raw,
+      };
+    });
+  }
+
   const loadNodeLogs = useCallback(async (period = 7) => {
     try {
       setLoadingNodeLogs(true);
@@ -82,10 +104,6 @@ export default function App() {
       const normalized = normalizeLogs(data);
 
       setNodeLogs(normalized);
-
-      if (period === 'all') {
-        setAllLogs(normalized);
-      }
 
       setMessage('');
     } catch (error) {
@@ -103,18 +121,21 @@ export default function App() {
   }, []);
 
   const loadAllLogs = useCallback(async () => {
-    if (allLogs) return allLogs;
+    const allLogsAlreadyLoadedWithRaw =
+      Array.isArray(allLogs) &&
+      allLogs.length > 0 &&
+      allLogs.every((log) => Boolean(log.raw));
+
+    if (allLogsAlreadyLoadedWithRaw) {
+      return allLogs;
+    }
 
     try {
       setLoadingAllLogs(true);
 
       /*
-        IMPORTANT:
-        Backend-ul optimizat NU mai trimite raw implicit pentru /api/logs,
-        ca Node Wars să se încarce rapid.
-
-        Raw Log și Player Stats au nevoie de raw complet, deci cerem explicit:
-        /api/logs?range=all&includeRaw=1
+        Player Stats și Raw Log au nevoie de raw complet.
+        Node Wars NU primește raw implicit, pentru viteză.
       */
       const data = await apiGet(logsPath({ range: 'all', includeRaw: 1 }));
       const normalized = normalizeLogs(data);
@@ -136,6 +157,58 @@ export default function App() {
     }
   }, [allLogs]);
 
+  const loadRawLogsByIds = useCallback(
+    async (ids) => {
+      const cleanIds = [...new Set(ids.map(String))].filter(
+        (id) => id && id !== 'all' && id !== 'current',
+      );
+
+      if (!cleanIds.length) return [];
+
+      const sourceLogs = allLogs || nodeLogs;
+
+      const idsThatNeedRaw = cleanIds.filter((id) => {
+        const existing = sourceLogs.find((log) => String(log.id) === id);
+        return existing && !existing.raw;
+      });
+
+      if (!idsThatNeedRaw.length) return [];
+
+      try {
+        setLoadingOverviewLogs(true);
+
+        const loaded = await Promise.all(
+          idsThatNeedRaw.map(async (id) => {
+            const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
+            return normalizeLog(data);
+          }),
+        );
+
+        setNodeLogs((currentLogs) => mergeUpdatedLogs(currentLogs, loaded));
+
+        setAllLogs((currentLogs) => {
+          if (!currentLogs) return currentLogs;
+          return mergeUpdatedLogs(currentLogs, loaded);
+        });
+
+        return loaded;
+      } catch (error) {
+        console.error('Failed to load raw logs for overview:', error);
+
+        setMessage(
+          `Failed to load selected raw logs: ${
+            error?.message || error || 'unknown error'
+          }`,
+        );
+
+        return [];
+      } finally {
+        setLoadingOverviewLogs(false);
+      }
+    },
+    [allLogs, nodeLogs],
+  );
+
   useEffect(() => {
     loadNodeLogs(7);
 
@@ -153,6 +226,16 @@ export default function App() {
       loadAllLogs();
     }
   }, [page, loadAllLogs]);
+
+  useEffect(() => {
+    if (page !== 'overview') return;
+
+    const selectedRealWars = selectedWars.filter(
+      (id) => id !== 'all' && id !== 'current',
+    );
+
+    loadRawLogsByIds(selectedRealWars);
+  }, [page, selectedWars, loadRawLogsByIds]);
 
   const current = selectedDays.includes('current');
   const all = selectedDays.includes('all');
@@ -502,12 +585,16 @@ export default function App() {
 
           {page === 'overview' && (
             <Suspense fallback={<PageLoader text="Loading overview..." />}>
-              <OverviewPage
-                stats={stats}
-                label={label}
-                members={members}
-                selectedLogs={activeLogs}
-              />
+              {loadingOverviewLogs ? (
+                <PageLoader text="Loading selected raw logs for overview..." />
+              ) : (
+                <OverviewPage
+                  stats={stats}
+                  label={label}
+                  members={members}
+                  selectedLogs={activeLogs}
+                />
+              )}
             </Suspense>
           )}
 
