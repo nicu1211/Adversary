@@ -25,6 +25,26 @@ function safeJsonParse(text) {
   }
 }
 
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isRetryableError(error) {
+  const text = String(error?.message || error || '').toLowerCase();
+
+  return (
+    text.includes('failed to fetch') ||
+    text.includes('networkerror') ||
+    text.includes('network error') ||
+    text.includes('timeout') ||
+    text.includes('500') ||
+    text.includes('502') ||
+    text.includes('503') ||
+    text.includes('504') ||
+    text.includes('429')
+  );
+}
+
 export async function apiGet(path) {
   const response = await fetch(API + path, {
     method: 'GET',
@@ -44,7 +64,7 @@ export async function apiGet(path) {
   return safeJsonParse(text);
 }
 
-export async function apiWrite(path, method, body) {
+async function apiWriteOnce(path, method, body) {
   const response = await fetch(API + path, {
     method,
     headers: {
@@ -64,12 +84,58 @@ export async function apiWrite(path, method, body) {
 
   if (!response.ok) {
     throw new Error(
-      text ||
-        `${method} ${path} failed: ${response.status} ${response.statusText}`,
+      text || `${method} ${path} failed: ${response.status} ${response.statusText}`,
     );
   }
 
   return safeJsonParse(text);
+}
+
+export async function apiWrite(path, method, body, options = {}) {
+  const maxAttempts = options.maxAttempts || 5;
+  const baseDelayMs = options.baseDelayMs || 700;
+
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await apiWriteOnce(path, method, body);
+    } catch (error) {
+      lastError = error;
+
+      const message = String(error?.message || error || '');
+
+      if (message.includes('Invalid admin token')) {
+        throw error;
+      }
+
+      if (message.includes('Duplicate log')) {
+        throw error;
+      }
+
+      if (
+        message.includes('UnsupportedHttpVerb') ||
+        message.includes('ResourceNotFound') ||
+        message.includes('404')
+      ) {
+        throw error;
+      }
+
+      if (attempt >= maxAttempts || !isRetryableError(error)) {
+        throw new Error(
+          `Database save failed after ${attempt}/${maxAttempts} attempt(s): ${message}`,
+        );
+      }
+
+      await wait(baseDelayMs * attempt);
+    }
+  }
+
+  throw new Error(
+    `Database save failed after ${maxAttempts} attempts: ${
+      lastError?.message || lastError || 'unknown error'
+    }`,
+  );
 }
 
 export async function apiDeleteLog(log) {
@@ -115,7 +181,10 @@ export async function apiDeleteLog(log) {
 
   for (const [path, method, body] of attempts) {
     try {
-      return await apiWrite(path, method, body);
+      return await apiWrite(path, method, body, {
+        maxAttempts: 3,
+        baseDelayMs: 500,
+      });
     } catch (error) {
       lastError = error;
     }
