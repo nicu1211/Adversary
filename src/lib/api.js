@@ -29,6 +29,22 @@ function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function buildQuery(params = {}) {
+  const search = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    search.set(key, String(value));
+  });
+
+  const text = search.toString();
+  return text ? `?${text}` : '';
+}
+
+export function logsPath(params = {}) {
+  return `/api/logs${buildQuery(params)}`;
+}
+
 function isRetryableError(error) {
   const text = String(error?.message || error || '').toLowerCase();
 
@@ -45,50 +61,81 @@ function isRetryableError(error) {
   );
 }
 
-export async function apiGet(path) {
-  const response = await fetch(API + path, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-  });
+export async function apiGet(path, options = {}) {
+  const timeoutMs = options.timeoutMs || 30000;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
 
-  const text = await response.text();
+  try {
+    const response = await fetch(API + path, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    throw new Error(
-      text || `GET ${path} failed: ${response.status} ${response.statusText}`,
-    );
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(
+        text || `GET ${path} failed: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return safeJsonParse(text);
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`GET ${path} timeout after ${timeoutMs}ms`);
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
   }
-
-  return safeJsonParse(text);
 }
 
-async function apiWriteOnce(path, method, body) {
-  const response = await fetch(API + path, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'x-admin-token': getAdminToken(),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+async function apiWriteOnce(path, method, body, options = {}) {
+  const timeoutMs = options.timeoutMs || 30000;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
 
-  const text = await response.text();
+  try {
+    const response = await fetch(API + path, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'x-admin-token': getAdminToken(),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
 
-  if (response.status === 401) {
-    localStorage.removeItem(ADMIN_TOKEN_KEY);
-    throw new Error(text || 'Invalid admin token');
+    const text = await response.text();
+
+    if (response.status === 401) {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      throw new Error(text || 'Invalid admin token');
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        text ||
+          `${method} ${path} failed: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return safeJsonParse(text);
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`${method} ${path} timeout after ${timeoutMs}ms`);
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
   }
-
-  if (!response.ok) {
-    throw new Error(
-      text || `${method} ${path} failed: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  return safeJsonParse(text);
 }
 
 export async function apiWrite(path, method, body, options = {}) {
@@ -99,7 +146,7 @@ export async function apiWrite(path, method, body, options = {}) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await apiWriteOnce(path, method, body);
+      return await apiWriteOnce(path, method, body, options);
     } catch (error) {
       lastError = error;
 
