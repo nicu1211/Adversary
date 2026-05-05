@@ -10,7 +10,6 @@ import {
   cleanLog,
   dateOf,
   hashLog,
-  LOG_KEY,
   MEMBER_KEY,
   monthId,
   normalizeLog,
@@ -19,35 +18,54 @@ import {
   parseLog,
   readStorage,
   today,
-  writeStorage,
 } from './lib/logUtils';
 
 import { apiDeleteLog, apiGet, apiWrite } from './lib/api';
 
 export default function App() {
   const [page, setPage] = useState('nodewars');
+
   const [raw, setRaw] = useState('');
   const [name, setName] = useState('Battle log');
   const [date, setDate] = useState(today());
+
   const [logs, setLogs] = useState([]);
   const [members, setMembers] = useState([]);
+
   const [selectedDays, setSelectedDays] = useState(['current']);
   const [selectedWars, setSelectedWars] = useState(['current']);
+
   const [message, setMessage] = useState('');
+
   const [rawMonth, setRawMonth] = useState(monthId(new Date()));
   const [calendarOpen, setCalendarOpen] = useState(false);
+
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
   const [overviewWarning, setOverviewWarning] = useState('');
 
   useEffect(() => {
     apiGet('/api/logs')
-      .then((data) => setLogs(normalizeLogs(data)))
-      .catch(() => setLogs(normalizeLogs(readStorage(LOG_KEY, []))));
+      .then((data) => {
+        setLogs(normalizeLogs(data));
+      })
+      .catch((error) => {
+        console.error('Failed to load logs from database:', error);
+
+        setLogs([]);
+        setMessage(
+          'Database load failed. Nu am încărcat loguri salvate local din browser.',
+        );
+      });
 
     apiGet('/api/members')
-      .then((data) => setMembers(normalizeMembers(data)))
-      .catch(() => setMembers(readStorage(MEMBER_KEY, [])));
+      .then((data) => {
+        setMembers(normalizeMembers(data));
+      })
+      .catch(() => {
+        setMembers(readStorage(MEMBER_KEY, []));
+      });
   }, []);
 
   const current = selectedDays.includes('current');
@@ -90,8 +108,8 @@ export default function App() {
   const label = current
     ? 'Current log'
     : all
-    ? 'All saved days'
-    : selectedDays[0] || 'No day';
+      ? 'All saved days'
+      : selectedDays[0] || 'No day';
 
   const markedDates = useMemo(
     () => new Set([...new Set(logs.map(dateOf))]),
@@ -121,53 +139,56 @@ export default function App() {
       .toString(36)
       .slice(2, 8)}`;
 
+    const payload = {
+      id: uniqueId,
+      name: name || date,
+      date,
+      raw,
+      hash: logHash,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessage('Saving log to database... attempt 1/5');
+
     try {
-      const response = await apiWrite('/api/logs', 'POST', {
-        id: uniqueId,
-        name: name || date,
-        date,
-        raw,
-        hash: logHash,
-        createdAt: new Date().toISOString(),
+      const response = await apiWrite('/api/logs', 'POST', payload, {
+        maxAttempts: 5,
+        baseDelayMs: 700,
       });
 
       const item = normalizeLog(response);
       const next = [item, ...logs];
 
       setLogs(next);
-      writeStorage(LOG_KEY, next);
+
       setSelectedDays([item.date]);
       setSelectedWars([String(item.id)]);
       setMessage('Log saved to database');
     } catch (error) {
-      const text = String(error.message || error);
+      const text = String(error?.message || error || 'Unknown error');
 
-      const item = {
-        id: uniqueId,
-        apiId: null,
-        name: name || date,
-        date,
-        raw,
-        hash: logHash,
-        created: new Date().toISOString(),
-        localOnly: true,
-      };
+      console.error('Database save failed:', error);
 
-      const next = [item, ...logs];
+      if (text.includes('Duplicate log')) {
+        setMessage(
+          `Database refused save: ${text}. Logul NU a fost salvat local în browser.`,
+        );
+        return;
+      }
 
-      setLogs(next);
-      writeStorage(LOG_KEY, next);
-      setSelectedDays([item.date]);
-      setSelectedWars([String(item.id)]);
+      if (
+        text.includes('UnsupportedHttpVerb') ||
+        text.includes('404') ||
+        text.includes('ResourceNotFound')
+      ) {
+        setMessage(
+          `API save endpoint is not available: ${text}. Logul NU a fost salvat local în browser.`,
+        );
+        return;
+      }
 
       setMessage(
-        text.includes('Duplicate log')
-          ? `Database refused save: ${text}.\nLog saved locally only. Backend probably blocks duplicate date/hash.`
-          : text.includes('UnsupportedHttpVerb') ||
-            text.includes('404') ||
-            text.includes('ResourceNotFound')
-          ? `API save endpoint is not available: ${text}. Log saved locally only.`
-          : `Database save failed: ${text}.\nLog saved locally only.`,
+        `Database save failed after 5 attempts: ${text}. Logul NU a fost salvat local în browser.`,
       );
     }
   }
@@ -184,8 +205,7 @@ export default function App() {
         );
 
         setLogs(next);
-        writeStorage(LOG_KEY, next);
-        setMessage('Local log deleted');
+        setMessage('Local log removed from current page');
         setDeleteTarget(null);
         return;
       }
@@ -197,11 +217,10 @@ export default function App() {
       );
 
       setLogs(next);
-      writeStorage(LOG_KEY, next);
       setMessage('Log deleted from database');
       setDeleteTarget(null);
     } catch (error) {
-      setMessage(error.message || 'Delete error');
+      setMessage(error?.message || 'Delete error');
     } finally {
       setDeleting(false);
     }
