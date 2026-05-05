@@ -392,6 +392,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     return (
       <th className={`py-3 ${className}`}>
         <button
+          type="button"
           onClick={() => flip(id)}
           className={
             key === id
@@ -491,6 +492,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                   >
                     <td className="py-3 pl-4">
                       <button
+                        type="button"
                         onClick={() => setSelected(player)}
                         className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
                       >
@@ -672,6 +674,7 @@ function TopGuilds({ guilds, events }) {
     return (
       <th className={`py-3 ${className}`}>
         <button
+          type="button"
           onClick={() => flip(id)}
           className={
             key === id
@@ -734,6 +737,7 @@ function TopGuilds({ guilds, events }) {
                     >
                       <td className="py-3 pl-4">
                         <button
+                          type="button"
                           onClick={() => setSelected(guild)}
                           className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
                         >
@@ -837,7 +841,7 @@ function KillFeedPanel({ killFeeds }) {
           <div className="grid gap-2">
             {rows.map((feed, index) => (
               <div
-                key={index}
+                key={`${feed.name}-${feed.date}-${feed.start}-${index}`}
                 className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
@@ -872,7 +876,24 @@ export default function OverviewPage({
   members,
   selectedLogs,
 }) {
-  const killFeeds = calculateKillFeed(stats.ev, 10, true);
+  const emptyStats = {
+    ev: [],
+    players: [],
+    guilds: [],
+    line: [],
+    kills: 0,
+    deaths: 0,
+    kd: '0.00',
+    st: {},
+    fd: {},
+  };
+
+  const safeStats =
+    stats?.ev?.length || !selectedLogs?.length
+      ? stats || emptyStats
+      : calculateStats(selectedLogs);
+
+  const killFeeds = calculateKillFeed(safeStats.ev || [], 10, true);
 
   return (
     <>
@@ -886,7 +907,7 @@ export default function OverviewPage({
           <Metric
             icon="⚔"
             label="Total Kills"
-            value={stats.kills}
+            value={safeStats.kills}
             sub="Eliminations"
             className="border-blue-400/25 from-blue-500/20 text-blue-300"
           />
@@ -894,7 +915,7 @@ export default function OverviewPage({
           <Metric
             icon="☠"
             label="Total Deaths"
-            value={stats.deaths}
+            value={safeStats.deaths}
             sub="Deaths"
             className="border-pink-400/25 from-pink-500/20 text-pink-300"
           />
@@ -902,7 +923,7 @@ export default function OverviewPage({
           <Metric
             icon="✦"
             label="K/D"
-            value={stats.kd}
+            value={safeStats.kd}
             sub="Ratio"
             className="border-violet-400/25 from-violet-500/20 text-violet-300"
           />
@@ -910,35 +931,38 @@ export default function OverviewPage({
           <Metric
             icon="♟"
             label="Players"
-            value={stats.players.length}
+            value={safeStats.players.length}
             sub="Active"
             className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
           />
         </div>
       </header>
 
-      <KillDeathChart data={stats.line} title="▧ Global Kill/Death Timeline" />
+      <KillDeathChart
+        data={safeStats.line}
+        title="▧ Global Kill/Death Timeline"
+      />
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[420px_1fr]">
         <BestOverall
-          players={stats.players}
+          players={safeStats.players}
           members={members}
-          streaks={stats.st}
-          feeds={stats.fd}
-          events={stats.ev}
+          streaks={safeStats.st}
+          feeds={safeStats.fd}
+          events={safeStats.ev}
           selectedLogs={selectedLogs}
         />
 
         <PlayerOverview
-          players={stats.players}
-          streaks={stats.st}
-          feeds={stats.fd}
-          events={stats.ev}
+          players={safeStats.players}
+          streaks={safeStats.st}
+          feeds={safeStats.fd}
+          events={safeStats.ev}
         />
       </section>
 
       <section className="grid items-stretch gap-4 xl:grid-cols-2">
-        <TopGuilds guilds={stats.guilds} events={stats.ev} />
+        <TopGuilds guilds={safeStats.guilds} events={safeStats.ev} />
 
         <KillFeedPanel killFeeds={killFeeds} />
       </section>
