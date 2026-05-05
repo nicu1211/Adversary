@@ -90,6 +90,7 @@ export default function App() {
       setMessage('');
     } catch (error) {
       console.error('Failed to load node wars logs:', error);
+
       setNodeLogs([]);
       setMessage(
         `Database load failed: ${
@@ -107,7 +108,15 @@ export default function App() {
     try {
       setLoadingAllLogs(true);
 
-      const data = await apiGet(logsPath({ range: 'all' }));
+      /*
+        IMPORTANT:
+        Backend-ul optimizat NU mai trimite raw implicit pentru /api/logs,
+        ca Node Wars să se încarce rapid.
+
+        Raw Log și Player Stats au nevoie de raw complet, deci cerem explicit:
+        /api/logs?range=all&includeRaw=1
+      */
+      const data = await apiGet(logsPath({ range: 'all', includeRaw: 1 }));
       const normalized = normalizeLogs(data);
 
       setAllLogs(normalized);
