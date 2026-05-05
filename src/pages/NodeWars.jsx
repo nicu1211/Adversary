@@ -14,6 +14,8 @@ import {
 import { Panel } from '../components/UI';
 import { buildNodeWarRow } from '../lib/logUtils';
 
+/* -------------------- SORT HEADER -------------------- */
+
 function SortHeader({ id, label, sort, onSort }) {
   const active = sort.key === id;
 
@@ -31,6 +33,8 @@ function SortHeader({ id, label, sort, onSort }) {
     </button>
   );
 }
+
+/* -------------------- HELPERS -------------------- */
 
 function numberColor(value) {
   const num = Number(value) || 0;
@@ -128,6 +132,8 @@ function accentByIndex(index) {
   return accents[index % accents.length];
 }
 
+/* -------------------- PERIOD SELECT -------------------- */
+
 function PeriodSelect({ value, onChange, loading }) {
   const [open, setOpen] = useState(false);
 
@@ -177,8 +183,11 @@ function PeriodSelect({ value, onChange, loading }) {
   );
 }
 
+/* -------------------- ENEMY SEARCH -------------------- */
+
 function EnemySearch({ value, onChange, suggestions, onPick }) {
   const [open, setOpen] = useState(false);
+
   const showSuggestions = open && value.trim() && suggestions.length > 0;
 
   return (
@@ -225,6 +234,8 @@ function EnemySearch({ value, onChange, suggestions, onPick }) {
   );
 }
 
+/* -------------------- ENEMY PILL -------------------- */
+
 function EnemyPill({ enemy }) {
   return (
     <div
@@ -239,6 +250,8 @@ function EnemyPill({ enemy }) {
   );
 }
 
+/* -------------------- METRIC -------------------- */
+
 function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
@@ -246,10 +259,13 @@ function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
         {icon}
         {label}
       </div>
+
       <div className={`text-2xl font-black ${valueClass}`}>{value}</div>
     </div>
   );
 }
+
+/* -------------------- WAR CARD -------------------- */
 
 function WarCard({ row, index, checked, onOpen, onToggle }) {
   const accent = accentByIndex(index);
@@ -287,6 +303,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
               <div className="truncate text-lg font-black text-white">
                 {date.weekday}
               </div>
+
               <div className="text-sm font-bold text-slate-400">
                 {date.full}
               </div>
@@ -306,6 +323,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
               <h3 className="truncate text-xl font-black text-white">
                 {row.name || 'Battle log'}
               </h3>
+
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Kills/Deaths Ratio
               </p>
@@ -389,6 +407,8 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
   );
 }
 
+/* -------------------- SUMMARY CARD -------------------- */
+
 function SummaryStat({
   icon,
   label,
@@ -399,10 +419,12 @@ function SummaryStat({
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
       <div className={`mb-4 h-1 w-16 rounded-full ${barClass}`} />
+
       <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-500">
         {icon}
         {label}
       </div>
+
       <div className={`text-3xl font-black ${valueClass}`}>{value}</div>
     </div>
   );
@@ -430,12 +452,19 @@ function KillsDeathsTrend({ rows }) {
     return values
       .map((value, index) => {
         const x =
-          values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
+          values.length === 1
+            ? width / 2
+            : (index / (values.length - 1)) * width;
+
         const y = bottom - ((Number(value) || 0) / max) * height;
+
         return `${x.toFixed(2)},${y.toFixed(2)}`;
       })
       .join(' ');
   }
+
+  const killsPoints = buildPoints(safeKills);
+  const deathsPoints = buildPoints(safeDeaths);
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
@@ -449,7 +478,7 @@ function KillsDeathsTrend({ rows }) {
 
       <svg viewBox={`0 0 ${width} 50`} className="h-20 w-full overflow-visible">
         <polyline
-          points={buildPoints(safeKills)}
+          points={killsPoints}
           fill="none"
           stroke="rgb(96 165 250)"
           strokeWidth="3"
@@ -458,22 +487,57 @@ function KillsDeathsTrend({ rows }) {
         />
 
         <polyline
-          points={buildPoints(safeDeaths)}
+          points={deathsPoints}
           fill="none"
           stroke="rgb(251 113 133)"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-      </svg>
 
-      <div className="mt-2 flex items-center gap-4 text-xs font-black text-slate-500">
-        <span className="text-blue-300">Kills</span>
-        <span className="text-rose-300">Deaths</span>
-      </div>
+        {safeKills.map((value, index) => {
+          const x =
+            safeKills.length === 1
+              ? width / 2
+              : (index / (safeKills.length - 1)) * width;
+
+          const y = bottom - ((Number(value) || 0) / max) * height;
+
+          return (
+            <circle
+              key={`k-${index}`}
+              cx={x}
+              cy={y}
+              r="3"
+              fill="rgb(96 165 250)"
+            />
+          );
+        })}
+
+        {safeDeaths.map((value, index) => {
+          const x =
+            safeDeaths.length === 1
+              ? width / 2
+              : (index / (safeDeaths.length - 1)) * width;
+
+          const y = bottom - ((Number(value) || 0) / max) * height;
+
+          return (
+            <circle
+              key={`d-${index}`}
+              cx={x}
+              cy={y}
+              r="3"
+              fill="rgb(251 113 133)"
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 }
+
+/* -------------------- MAIN -------------------- */
 
 export default function NodeWars({
   logs,
@@ -677,10 +741,12 @@ export default function NodeWars({
 
   return (
     <div className="space-y-5">
+      {/* FILTER PANEL */}
       <Panel>
         <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h2 className="text-2xl font-black text-white">Node Wars</h2>
+
             <p className="text-sm font-bold text-slate-500">
               Match history, quick selection and enemy search.
             </p>
@@ -746,12 +812,14 @@ export default function NodeWars({
         </div>
       </Panel>
 
+      {/* WARNING */}
       {(warning || externalWarning) && (
         <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm font-bold text-amber-200">
           {warning || externalWarning}
         </div>
       )}
 
+      {/* SUMMARY */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SummaryStat
           label="Matches"
@@ -789,6 +857,7 @@ export default function NodeWars({
         <KillsDeathsTrend rows={rows} />
       </div>
 
+      {/* LIST */}
       <div className="space-y-4">
         {loading && !rows.length ? (
           <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 text-center text-sm font-bold text-slate-400">
