@@ -209,9 +209,7 @@ export function parseLog(raw, name, date, id) {
 
       const time = line.slice(1, closeBracket);
       const info = line.slice(closeBracket + 2, openParenthesis).trim();
-      const families = line
-        .slice(openParenthesis + 1, closeParenthesis)
-        .split(',');
+      const families = line.slice(openParenthesis + 1, closeParenthesis).split(',');
 
       if (families.length < 2) return null;
 
@@ -272,10 +270,7 @@ export function calculateStreaks(events) {
   events.forEach((event) => {
     if (event.type === 'kill') {
       current[event.killer] = (current[event.killer] || 0) + 1;
-      best[event.killer] = Math.max(
-        best[event.killer] || 0,
-        current[event.killer],
-      );
+      best[event.killer] = Math.max(best[event.killer] || 0, current[event.killer]);
     } else {
       current[event.victim] = 0;
     }
@@ -340,27 +335,23 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
     : output;
 }
 
-function emptyStats() {
-  return {
-    ev: [],
-    players: [],
-    guilds: [],
-    line: [],
-    kills: 0,
-    deaths: 0,
-    kd: '0.00',
-    st: {},
-    fd: {},
-  };
-}
-
 function calculateStatsFromRaw(items) {
   const events = items
     .flatMap((log) => parseLog(log.raw, log.name, log.date, log.id))
     .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i);
 
   if (!events.length) {
-    return emptyStats();
+    return {
+      ev: [],
+      players: [],
+      guilds: [],
+      line: [],
+      kills: 0,
+      deaths: 0,
+      kd: '0.00',
+      st: {},
+      fd: {},
+    };
   }
 
   const playerKills = {};
@@ -474,8 +465,7 @@ function mergeStatsFromSummaries(items) {
     summary.players.forEach((player) => {
       add(playerKills, player.name, Number(player.kills) || 0);
       add(playerDeaths, player.name, Number(player.deaths) || 0);
-      playerFamilies[player.name] =
-        player.family || playerFamilies[player.name] || '-';
+      playerFamilies[player.name] = player.family || playerFamilies[player.name] || '-';
     });
 
     summary.guilds.forEach((guild) => {
@@ -485,7 +475,6 @@ function mergeStatsFromSummaries(items) {
 
     summary.line.forEach((point) => {
       const key = `${log.date || dateOf(log)} ${point.time}`;
-
       lineMap[key] ||= {
         time: point.time,
         kills: 0,
@@ -509,15 +498,15 @@ function mergeStatsFromSummaries(items) {
     ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
   ]
     .map((name) => {
-      const kills = playerKills[name] || 0;
-      const deaths = playerDeaths[name] || 0;
+      const pk = playerKills[name] || 0;
+      const pd = playerDeaths[name] || 0;
 
       return {
         name,
         family: playerFamilies[name] || '-',
-        kills,
-        deaths,
-        kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+        kills: pk,
+        deaths: pd,
+        kd: pd ? (pk / pd).toFixed(2) : pk.toFixed(2),
       };
     })
     .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
@@ -525,14 +514,14 @@ function mergeStatsFromSummaries(items) {
   const guilds = [
     ...new Set([...Object.keys(guildKills), ...Object.keys(guildDeaths)]),
   ].map((name) => {
-    const kills = guildKills[name] || 0;
-    const deaths = guildDeaths[name] || 0;
+    const gk = guildKills[name] || 0;
+    const gd = guildDeaths[name] || 0;
 
     return {
       name,
-      kills,
-      deaths,
-      kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+      kills: gk,
+      deaths: gd,
+      kd: gd ? (gk / gd).toFixed(2) : gk.toFixed(2),
     };
   });
 
@@ -555,30 +544,31 @@ export function calculateStats(items) {
   const logs = Array.isArray(items) ? items : [];
 
   if (!logs.length) {
-    return emptyStats();
+    return {
+      ev: [],
+      players: [],
+      guilds: [],
+      line: [],
+      kills: 0,
+      deaths: 0,
+      kd: '0.00',
+      st: {},
+      fd: {},
+    };
   }
-
-  const logsWithRaw = logs.filter((log) => Boolean(log.raw));
 
   /*
     Foarte important:
-    Dacă există raw log, folosim raw pentru calcule.
-    Overview, Player Stats, Kill Feed, Killstreak, Targets, Nemesis și Enemy Guilds
-    au nevoie de stats.ev, iar stats.ev se poate construi doar din raw loguri.
+    Dacă avem raw log, calculăm din raw.
+    Summary-ul este folosit doar când NU avem raw.
+    Altfel Overview / Player Stats nu au events și Kill Feed / history rămân goale.
   */
+  const logsWithRaw = logs.filter((log) => Boolean(log.raw));
+
   if (logsWithRaw.length > 0) {
-    return calculateStatsFromRaw(
-      logsWithRaw.map((log) => ({
-        ...log,
-        date: dateOf(log),
-      })),
-    );
+    return calculateStatsFromRaw(logsWithRaw);
   }
 
-  /*
-    Fallback pentru liste rapide fără raw:
-    Match History poate afișa summary rapid, dar fără raw nu există event history.
-  */
   return mergeStatsFromSummaries(logs);
 }
 
