@@ -129,6 +129,20 @@ function accentByIndex(index) {
   return accents[index % accents.length];
 }
 
+function getRowTime(row) {
+  const parsed = new Date(row.date).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getDaysAgoFromLatest(rowDate, latestTime) {
+  const parsed = new Date(rowDate).getTime();
+
+  if (!latestTime || Number.isNaN(parsed)) return 0;
+
+  const diff = latestTime - parsed;
+  return diff / (1000 * 60 * 60 * 24);
+}
+
 /* -------------------- PERIOD SELECT -------------------- */
 function PeriodSelect({ value, onChange, loading = false }) {
   const [open, setOpen] = useState(false);
@@ -619,6 +633,14 @@ export default function NodeWars({
     return logs.map(buildNodeWarRow);
   }, [logs]);
 
+  const latestWarTime = useMemo(() => {
+    const times = allRows
+      .map(getRowTime)
+      .filter((time) => time && !Number.isNaN(time));
+
+    return times.length ? Math.max(...times) : 0;
+  }, [allRows]);
+
   const enemySuggestions = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
 
@@ -655,21 +677,29 @@ export default function NodeWars({
   const rows = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
 
-    const filtered = allRows.filter((row) => {
-      if (!cleanQuery) return true;
+    const filtered = allRows
+      .filter((row) => {
+        if (periodDays === 'all') return true;
 
-      return row.allEnemyNames.some((name) =>
-        name.toLowerCase().includes(cleanQuery),
-      );
-    });
+        const daysAgo = getDaysAgoFromLatest(row.date, latestWarTime);
+
+        return daysAgo >= 0 && daysAgo < Number(periodDays);
+      })
+      .filter((row) => {
+        if (!cleanQuery) return true;
+
+        return row.allEnemyNames.some((name) =>
+          name.toLowerCase().includes(cleanQuery),
+        );
+      });
 
     return filtered.sort((a, b) => {
       let av = 0;
       let bv = 0;
 
       if (sort.key === 'time') {
-        av = new Date(a.date).getTime() || 0;
-        bv = new Date(b.date).getTime() || 0;
+        av = getRowTime(a);
+        bv = getRowTime(b);
       }
 
       if (sort.key === 'kills') {
@@ -693,7 +723,7 @@ export default function NodeWars({
 
       return sort.dir === 'asc' ? av - bv : bv - av;
     });
-  }, [allRows, query, sort]);
+  }, [allRows, latestWarTime, periodDays, query, sort]);
 
   const visibleIds = rows.map((row) => String(row.id));
 
