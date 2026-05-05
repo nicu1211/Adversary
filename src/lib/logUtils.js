@@ -18,7 +18,10 @@ export const scrollCls =
   '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80 [&::-webkit-scrollbar-thumb:hover]:bg-slate-600';
 
 export function iso(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function today() {
@@ -77,12 +80,14 @@ export function add(obj, key, amount = 1) {
 }
 
 export function secondsFromTime(time) {
-  const p = time.split(':').map(Number);
-  return p[0] * 3600 + p[1] * 60 + p[2];
+  const p = String(time || '00:00:00').split(':').map(Number);
+  return (p[0] || 0) * 3600 + (p[1] || 0) * 60 + (p[2] || 0);
 }
 
 export function minuteLabel(seconds) {
-  return `${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}`;
+  return `${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(
+    Math.floor(seconds / 60) % 60,
+  ).padStart(2, '0')}`;
 }
 
 export function cleanLog(text) {
@@ -115,6 +120,38 @@ export function dateOf(log) {
   );
 }
 
+function normalizeSummary(summary) {
+  if (!summary || typeof summary !== 'object') return null;
+
+  return {
+    version: summary.version || 1,
+    kills: Number(summary.kills) || 0,
+    deaths: Number(summary.deaths) || 0,
+    kd: String(summary.kd ?? '0.00'),
+    playersCount:
+      Number(summary.playersCount) ||
+      Number(summary.players_count) ||
+      Number(summary.players?.length) ||
+      0,
+    players: Array.isArray(summary.players) ? summary.players : [],
+    guilds: Array.isArray(summary.guilds) ? summary.guilds : [],
+    line: Array.isArray(summary.line) ? summary.line : [],
+    topEnemies: Array.isArray(summary.topEnemies)
+      ? summary.topEnemies
+      : Array.isArray(summary.top_enemies)
+        ? summary.top_enemies
+        : [],
+    enemyNames: Array.isArray(summary.enemyNames)
+      ? summary.enemyNames
+      : Array.isArray(summary.enemy_names)
+        ? summary.enemy_names
+        : [],
+    st: summary.st || {},
+    fd: summary.fd || {},
+    calculatedAt: summary.calculatedAt || summary.calculated_at || null,
+  };
+}
+
 export function normalizeLog(log) {
   const apiId =
     log.id ??
@@ -133,15 +170,11 @@ export function normalizeLog(log) {
     _src: log,
     name: log.name ?? log.title ?? log.date ?? log.warDate ?? 'Battle log',
     date: dateOf(log),
-    raw:
-      log.raw ??
-      log.rawLog ??
-      log.raw_log ??
-      log.log ??
-      log.content ??
-      '',
+    raw: log.raw ?? log.rawLog ?? log.raw_log ?? log.log ?? log.content ?? '',
     hash: log.hash,
+    summary: normalizeSummary(log.summary || log.stats || log.analytics),
     created: log.created ?? log.createdAt ?? log.created_at,
+    createdAt: log.createdAt ?? log.created_at ?? log.created,
     localOnly: log.localOnly || false,
   };
 }
@@ -155,9 +188,7 @@ export function normalizeLogs(data) {
         ? data.data
         : [];
 
-  return arr
-    .map(normalizeLog)
-    .filter((log) => log.raw);
+  return arr.map(normalizeLog).filter((log) => log.raw || log.summary);
 }
 
 export function normalizeMembers(data) {
@@ -264,7 +295,6 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
     list.sort((a, b) => a.sec - b.sec);
 
     const name = key.split('@@')[0];
-
     let left = 0;
     let bestStart = 0;
     let bestEnd = 0;
@@ -305,7 +335,7 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
     : output;
 }
 
-export function calculateStats(items) {
+function calculateStatsFromRaw(items) {
   const events = items
     .flatMap((log) => parseLog(log.raw, log.name, log.date, log.id))
     .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec);
@@ -410,5 +440,214 @@ export function calculateStats(items) {
     kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
     st: calculateStreaks(events),
     fd: calculateKillFeed(events),
+  };
+}
+
+function mergeStatsFromSummaries(items) {
+  const playerKills = {};
+  const playerDeaths = {};
+  const playerFamilies = {};
+  const guildKills = {};
+  const guildDeaths = {};
+  const lineMap = {};
+  const st = {};
+  const fd = {};
+
+  let kills = 0;
+  let deaths = 0;
+
+  items.forEach((log) => {
+    const summary = getLogSummary(log);
+
+    kills += Number(summary.kills) || 0;
+    deaths += Number(summary.deaths) || 0;
+
+    summary.players.forEach((player) => {
+      add(playerKills, player.name, Number(player.kills) || 0);
+      add(playerDeaths, player.name, Number(player.deaths) || 0);
+      playerFamilies[player.name] = player.family || playerFamilies[player.name] || '-';
+    });
+
+    summary.guilds.forEach((guild) => {
+      add(guildKills, guild.name, Number(guild.kills) || 0);
+      add(guildDeaths, guild.name, Number(guild.deaths) || 0);
+    });
+
+    summary.line.forEach((point) => {
+      const key = `${log.date || dateOf(log)} ${point.time}`;
+      lineMap[key] ||= {
+        time: point.time,
+        kills: 0,
+        deaths: 0,
+      };
+
+      lineMap[key].kills += Number(point.kills) || 0;
+      lineMap[key].deaths += Number(point.deaths) || 0;
+    });
+
+    Object.entries(summary.st || {}).forEach(([name, value]) => {
+      st[name] = Math.max(Number(st[name]) || 0, Number(value) || 0);
+    });
+
+    Object.entries(summary.fd || {}).forEach(([name, value]) => {
+      fd[name] = Math.max(Number(fd[name]) || 0, Number(value) || 0);
+    });
+  });
+
+  const players = [
+    ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
+  ]
+    .map((name) => {
+      const pk = playerKills[name] || 0;
+      const pd = playerDeaths[name] || 0;
+
+      return {
+        name,
+        family: playerFamilies[name] || '-',
+        kills: pk,
+        deaths: pd,
+        kd: pd ? (pk / pd).toFixed(2) : pk.toFixed(2),
+      };
+    })
+    .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+
+  const guilds = [
+    ...new Set([...Object.keys(guildKills), ...Object.keys(guildDeaths)]),
+  ].map((name) => {
+    const gk = guildKills[name] || 0;
+    const gd = guildDeaths[name] || 0;
+
+    return {
+      name,
+      kills: gk,
+      deaths: gd,
+      kd: gd ? (gk / gd).toFixed(2) : gk.toFixed(2),
+    };
+  });
+
+  const line = Object.values(lineMap);
+
+  return {
+    ev: [],
+    players,
+    guilds,
+    line,
+    kills,
+    deaths,
+    kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+    st,
+    fd,
+  };
+}
+
+export function calculateStats(items) {
+  const logs = Array.isArray(items) ? items : [];
+
+  if (!logs.length) {
+    return {
+      ev: [],
+      players: [],
+      guilds: [],
+      line: [],
+      kills: 0,
+      deaths: 0,
+      kd: '0.00',
+      st: {},
+      fd: {},
+    };
+  }
+
+  const allHaveSummary = logs.every((log) => log.summary || log.stats || log.analytics);
+  const someMissingRaw = logs.some((log) => !log.raw);
+
+  if (allHaveSummary && someMissingRaw) {
+    return mergeStatsFromSummaries(logs);
+  }
+
+  return calculateStatsFromRaw(logs);
+}
+
+export function buildLogSummary(log) {
+  const stats = calculateStatsFromRaw([
+    {
+      ...log,
+      date: dateOf(log),
+    },
+  ]);
+
+  const topEnemies = [...stats.guilds]
+    .map((guild) => {
+      const ourKills = Number(guild.kills) || 0;
+      const ourDeaths = Number(guild.deaths) || 0;
+      const total = ourKills + ourDeaths;
+
+      return {
+        name: guild.name,
+        kills: ourDeaths,
+        deaths: ourKills,
+        total,
+        kd: ourKills ? (ourDeaths / ourKills).toFixed(2) : ourDeaths.toFixed(2),
+      };
+    })
+    .sort((a, b) => b.total - a.total || b.kills - a.kills)
+    .slice(0, 5);
+
+  return {
+    version: 1,
+    kills: stats.kills,
+    deaths: stats.deaths,
+    kd: stats.kd,
+    playersCount: stats.players.length,
+    players: stats.players,
+    guilds: stats.guilds,
+    line: stats.line,
+    topEnemies,
+    enemyNames: stats.guilds.map((guild) => guild.name).filter(Boolean),
+    st: stats.st,
+    fd: stats.fd,
+    calculatedAt: new Date().toISOString(),
+  };
+}
+
+export function getLogSummary(log) {
+  const normalized = normalizeSummary(log?.summary || log?.stats || log?.analytics);
+
+  if (normalized) return normalized;
+
+  if (!log?.raw) {
+    return normalizeSummary({
+      kills: 0,
+      deaths: 0,
+      kd: '0.00',
+      playersCount: 0,
+      players: [],
+      guilds: [],
+      line: [],
+      topEnemies: [],
+      enemyNames: [],
+      st: {},
+      fd: {},
+    });
+  }
+
+  return buildLogSummary(log);
+}
+
+export function buildNodeWarRow(log) {
+  const summary = getLogSummary(log);
+
+  return {
+    ...log,
+    date: dateOf(log),
+    players: Number(summary.playersCount) || Number(summary.players?.length) || 0,
+    kills: Number(summary.kills) || 0,
+    deaths: Number(summary.deaths) || 0,
+    kd: summary.kd || '0.00',
+    kdNumber: Number(summary.kd) || 0,
+    topEnemies: summary.topEnemies || [],
+    allEnemyNames:
+      summary.enemyNames?.length > 0
+        ? summary.enemyNames
+        : (summary.guilds || []).map((guild) => guild.name).filter(Boolean),
   };
 }
