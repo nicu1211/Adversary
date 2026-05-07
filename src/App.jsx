@@ -842,9 +842,9 @@ export default function App() {
   }
 
   const menu = [
+    ['nodewars', 'Node Wars'],
     ['players', 'Player Stats'],
     ['hall', 'Hall of Fame'],
-    ['nodewars', 'Node Wars'],
     ['raw', 'Raw Log'],
   ];
 
