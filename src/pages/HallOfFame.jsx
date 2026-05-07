@@ -4,6 +4,7 @@ import {
   Award,
   BarChart3,
   CalendarDays,
+  ChevronRight,
   Crown,
   Flame,
   Medal,
@@ -123,7 +124,11 @@ function buildHallData(stats) {
       const streak = num(safe.st?.[player.name]);
       const feed = num(safe.fd?.[player.name]);
       const wars = warsByPlayer[player.name]?.size || 0;
-      const score = Math.max(0, Math.round(kills * 3 + ratio * 420 + streak * 90 + feed * 120 + wars * 60 - deaths * 0.7));
+      const score = Math.max(
+        0,
+        Math.round(kills * 3 + ratio * 420 + streak * 90 + feed * 120 + wars * 60 - deaths * 0.7),
+      );
+
       let title = 'Guild Veteran';
       if (kills >= 1000) title = 'Top Fragger';
       if (ratio >= 4) title = 'Best K/D';
@@ -180,35 +185,129 @@ function buildHallData(stats) {
 }
 
 const toneClasses = {
-  amber: 'border-amber-400/20 bg-amber-500/10 text-amber-300',
-  rose: 'border-rose-400/20 bg-rose-500/10 text-rose-300',
-  emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-300',
-  orange: 'border-orange-400/20 bg-orange-500/10 text-orange-300',
-  cyan: 'border-cyan-400/20 bg-cyan-500/10 text-cyan-300',
-  blue: 'border-blue-400/20 bg-blue-500/10 text-blue-300',
-  violet: 'border-violet-400/20 bg-violet-500/10 text-violet-300',
-  slate: 'border-slate-800 bg-slate-950/70 text-slate-300',
+  amber: {
+    soft: 'border-amber-400/25 bg-amber-500/10 text-amber-300 shadow-amber-500/10',
+    text: 'text-amber-300',
+    bar: 'from-amber-500 to-yellow-300',
+    glow: 'shadow-[0_0_35px_rgba(245,158,11,.18)]',
+  },
+  rose: {
+    soft: 'border-rose-400/25 bg-rose-500/10 text-rose-300 shadow-rose-500/10',
+    text: 'text-rose-300',
+    bar: 'from-rose-500 to-red-300',
+    glow: 'shadow-[0_0_35px_rgba(244,63,94,.15)]',
+  },
+  emerald: {
+    soft: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300 shadow-emerald-500/10',
+    text: 'text-emerald-300',
+    bar: 'from-emerald-500 to-lime-300',
+    glow: 'shadow-[0_0_35px_rgba(16,185,129,.15)]',
+  },
+  orange: {
+    soft: 'border-orange-400/25 bg-orange-500/10 text-orange-300 shadow-orange-500/10',
+    text: 'text-orange-300',
+    bar: 'from-orange-500 to-amber-300',
+    glow: 'shadow-[0_0_35px_rgba(249,115,22,.15)]',
+  },
+  cyan: {
+    soft: 'border-cyan-400/25 bg-cyan-500/10 text-cyan-300 shadow-cyan-500/10',
+    text: 'text-cyan-300',
+    bar: 'from-cyan-500 to-blue-300',
+    glow: 'shadow-[0_0_35px_rgba(6,182,212,.15)]',
+  },
+  blue: {
+    soft: 'border-blue-400/25 bg-blue-500/10 text-blue-300 shadow-blue-500/10',
+    text: 'text-blue-300',
+    bar: 'from-blue-500 to-sky-300',
+    glow: 'shadow-[0_0_35px_rgba(59,130,246,.18)]',
+  },
+  violet: {
+    soft: 'border-violet-400/25 bg-violet-500/10 text-violet-300 shadow-violet-500/10',
+    text: 'text-violet-300',
+    bar: 'from-violet-500 to-fuchsia-300',
+    glow: 'shadow-[0_0_35px_rgba(139,92,246,.15)]',
+  },
+  slate: {
+    soft: 'border-slate-700 bg-slate-950/70 text-slate-300 shadow-slate-900/10',
+    text: 'text-slate-300',
+    bar: 'from-slate-500 to-slate-300',
+    glow: 'shadow-[0_0_35px_rgba(15,23,42,.4)]',
+  },
 };
 
-function Avatar({ name, size = 'md' }) {
-  const sizes = { sm: 'h-9 w-9 text-xs', md: 'h-12 w-12 text-sm', lg: 'h-16 w-16 text-lg' };
+function getTone(tone) {
+  return toneClasses[tone] || toneClasses.blue;
+}
+
+function PageFrame({ children }) {
   return (
-    <div className={cls('grid shrink-0 place-items-center rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-800 via-slate-950 to-blue-950 font-black text-blue-200 shadow-lg', sizes[size])}>
+    <div className="relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,.3),transparent)]" />
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
+      <div className="relative space-y-5">{children}</div>
+    </div>
+  );
+}
+
+function PremiumPanel({ children, className = '', glow = false }) {
+  return (
+    <div
+      className={cls(
+        'relative overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/72 shadow-2xl backdrop-blur-xl',
+        glow && 'shadow-[0_0_40px_rgba(59,130,246,.12)]',
+        className,
+      )}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/40 to-transparent" />
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
+
+function Avatar({ name, size = 'md', rank = 0 }) {
+  const sizes = {
+    sm: 'h-9 w-9 text-xs rounded-xl',
+    md: 'h-12 w-12 text-sm rounded-2xl',
+    lg: 'h-16 w-16 text-lg rounded-2xl',
+    xl: 'h-24 w-24 text-3xl rounded-[1.65rem]',
+  };
+
+  const ring =
+    rank === 1
+      ? 'border-amber-300/50 shadow-[0_0_30px_rgba(245,158,11,.2)]'
+      : rank === 2
+        ? 'border-slate-300/35 shadow-[0_0_24px_rgba(148,163,184,.14)]'
+        : rank === 3
+          ? 'border-orange-300/40 shadow-[0_0_24px_rgba(249,115,22,.14)]'
+          : 'border-blue-300/20 shadow-[0_0_24px_rgba(59,130,246,.08)]';
+
+  return (
+    <div
+      className={cls(
+        'grid shrink-0 place-items-center border bg-gradient-to-br from-slate-700 via-slate-950 to-blue-950 font-black text-blue-100',
+        sizes[size],
+        ring,
+      )}
+    >
       {initials(name)}
     </div>
   );
 }
 
 function StatCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
+  const toneInfo = getTone(tone);
+
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 shadow-xl">
-      <div className="flex items-start justify-between gap-3">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/75 p-4 shadow-xl transition duration-200 hover:-translate-y-0.5 hover:border-blue-400/25 hover:bg-slate-900/80">
+      <div className="absolute right-0 top-0 h-20 w-20 rounded-full bg-blue-500/5 blur-2xl transition group-hover:bg-blue-500/10" />
+      <div className="relative flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-black uppercase tracking-wider text-slate-500">{label}</div>
+          <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{label}</div>
           <div className="mt-2 text-2xl font-black text-slate-100">{value}</div>
           {sub && <div className="mt-1 text-xs font-bold text-slate-500">{sub}</div>}
         </div>
-        <div className={cls('grid h-10 w-10 place-items-center rounded-xl border', toneClasses[tone])}>
+        <div className={cls('grid h-11 w-11 place-items-center rounded-xl border shadow-lg', toneInfo.soft, toneInfo.glow)}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -219,21 +318,45 @@ function StatCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
 function SectionTitle({ icon: Icon, title, action }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-slate-300">
-        <Icon className="h-4 w-4 text-blue-300" />
+      <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-slate-300">
+        <span className="grid h-8 w-8 place-items-center rounded-xl border border-blue-400/20 bg-blue-500/10 text-blue-300">
+          <Icon className="h-4 w-4" />
+        </span>
         {title}
       </h3>
-      {action && <button className="text-xs font-black text-blue-300 hover:text-blue-200">{action} →</button>}
+      {action && (
+        <button className="group flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs font-black text-blue-300 transition hover:border-blue-400/30 hover:bg-blue-500/10 hover:text-blue-200">
+          {action}
+          <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function RankBadge({ rank }) {
+  const classes =
+    rank === 1
+      ? 'border-amber-300/40 bg-amber-500/15 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,.18)]'
+      : rank === 2
+        ? 'border-slate-300/30 bg-slate-400/10 text-slate-200'
+        : rank === 3
+          ? 'border-orange-300/35 bg-orange-500/10 text-orange-200'
+          : 'border-slate-700 bg-slate-900 text-slate-400';
+
+  return (
+    <div className={cls('grid h-10 w-10 place-items-center rounded-xl border text-sm font-black', classes)}>
+      #{rank}
     </div>
   );
 }
 
 function LegendRow({ row, rank }) {
   return (
-    <div className="group grid grid-cols-[42px_1.3fr_.8fr_.55fr_.55fr_.55fr] items-center gap-3 border-b border-slate-900 px-4 py-3 last:border-b-0 hover:bg-slate-900/70">
-      <div className={cls('text-lg font-black', rank === 1 ? 'text-amber-300' : rank === 2 ? 'text-slate-300' : rank === 3 ? 'text-orange-300' : 'text-slate-500')}>#{rank}</div>
+    <div className="group grid grid-cols-[54px_1.35fr_.85fr_.6fr_.55fr_.55fr] items-center gap-3 border-b border-slate-900/90 px-4 py-3.5 last:border-b-0 hover:bg-blue-500/[0.045]">
+      <RankBadge rank={rank} />
       <div className="flex min-w-0 items-center gap-3">
-        <Avatar name={row.name} size="sm" />
+        <Avatar name={row.name} size="sm" rank={rank} />
         <div className="min-w-0">
           <div className="truncate text-sm font-black text-white">{row.name}</div>
           <div className="truncate text-xs font-bold text-blue-300">{row.family || row.guild || 'Adversary'}</div>
@@ -247,55 +370,87 @@ function LegendRow({ row, rank }) {
   );
 }
 
-function Leaderboard({ rows, limit = 8 }) {
+function Leaderboard({ rows, limit = 8, title = 'Hall Leaderboard' }) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/70 shadow-2xl">
-      <div className="grid grid-cols-[42px_1.3fr_.8fr_.55fr_.55fr_.55fr] gap-3 border-b border-slate-800 px-4 py-3 text-xs font-black uppercase tracking-wider text-slate-500">
-        <div>#</div>
-        <div>Player</div>
-        <div>Title</div>
-        <div className="text-right">Score</div>
-        <div className="text-right">K/D</div>
-        <div className="text-right">Kills</div>
+    <PremiumPanel>
+      <div className="p-5 pb-0">
+        <SectionTitle icon={BarChart3} title={title} action="View all" />
       </div>
-      {rows.slice(0, limit).map((row, index) => <LegendRow key={row.name} row={row} rank={index + 1} />)}
-    </div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[760px]">
+          <div className="grid grid-cols-[54px_1.35fr_.85fr_.6fr_.55fr_.55fr] gap-3 border-y border-slate-800 bg-slate-950/80 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            <div>Rank</div>
+            <div>Player</div>
+            <div>Title</div>
+            <div className="text-right">Score</div>
+            <div className="text-right">K/D</div>
+            <div className="text-right">Kills</div>
+          </div>
+          {rows.slice(0, limit).map((row, index) => <LegendRow key={row.name} row={row} rank={index + 1} />)}
+        </div>
+      </div>
+    </PremiumPanel>
   );
 }
 
-function AchievementCard({ item }) {
+function AchievementCard({ item, compact = false }) {
   const Icon = item.icon;
+  const toneInfo = getTone(item.tone);
+
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 shadow-xl transition hover:border-blue-400/30 hover:bg-slate-900/80">
-      <div className="flex items-start justify-between gap-3">
-        <div className={cls('grid h-11 w-11 place-items-center rounded-xl border', toneClasses[item.tone])}>
-          <Icon className="h-5 w-5" />
+    <div className="group relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/70 p-4 shadow-xl transition duration-200 hover:-translate-y-1 hover:border-blue-400/30 hover:bg-slate-900/85">
+      <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-blue-500/5 blur-2xl transition group-hover:bg-blue-500/12" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className={cls('grid h-12 w-12 place-items-center rounded-2xl border shadow-lg', toneInfo.soft, toneInfo.glow)}>
+          <Icon className="h-6 w-6" />
         </div>
-        <Sparkles className="h-4 w-4 text-slate-600" />
+        <Sparkles className="h-4 w-4 text-slate-600 group-hover:text-blue-300" />
       </div>
-      <div className="mt-4 text-sm font-black text-white">{item.title}</div>
-      <div className="mt-1 text-xs font-bold text-slate-500">{item.sub}</div>
-      <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
+      <div className={cls('relative', compact ? 'mt-3' : 'mt-5')}>
+        <div className="text-sm font-black uppercase tracking-wide text-white">{item.title}</div>
+        <div className="mt-1 text-xs font-bold text-slate-500">{item.sub}</div>
+      </div>
+      <div className="relative mt-4 flex items-center gap-3 rounded-2xl border border-slate-800 bg-black/25 p-3">
         <Avatar name={item.player?.name} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-black text-slate-100">{item.player?.name || '-'}</div>
           <div className="text-xs font-bold text-slate-500">{item.player?.title || 'Legend'}</div>
         </div>
-        <div className="text-lg font-black text-blue-200">{item.value}</div>
+        <div className={cls('text-lg font-black', toneInfo.text)}>{item.value}</div>
+      </div>
+      <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-slate-900">
+        <div className={cls('h-full w-3/4 rounded-full bg-gradient-to-r', toneInfo.bar)} />
       </div>
     </div>
   );
 }
 
-function TopLegendCard({ row, rank, wide = false }) {
+function TopLegendCard({ row, rank, wide = false, center = false }) {
+  const isGold = rank === 1;
+  const frame =
+    rank === 1
+      ? 'border-amber-300/35 bg-gradient-to-br from-amber-500/12 via-slate-950 to-blue-950/35'
+      : rank === 2
+        ? 'border-slate-300/20 bg-gradient-to-br from-slate-300/8 via-slate-950 to-blue-950/20'
+        : rank === 3
+          ? 'border-orange-300/25 bg-gradient-to-br from-orange-500/10 via-slate-950 to-blue-950/20'
+          : 'border-slate-800 bg-slate-950/70';
+
   return (
-    <div className={cls('relative overflow-hidden rounded-3xl border p-4 shadow-xl transition hover:-translate-y-0.5', rank === 1 ? 'border-blue-400/35 bg-blue-500/10 shadow-blue-500/10' : 'border-slate-800 bg-slate-950/70', wide && 'md:col-span-2')}>
-      <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl" />
+    <div
+      className={cls(
+        'group relative overflow-hidden rounded-3xl border p-4 shadow-xl transition duration-200 hover:-translate-y-1',
+        frame,
+        isGold && 'shadow-[0_0_40px_rgba(245,158,11,.13)]',
+        wide && 'md:col-span-2',
+        center && 'xl:scale-105',
+      )}
+    >
+      <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-blue-500/10 blur-2xl transition group-hover:bg-blue-500/15" />
+      <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/40 to-transparent" />
       <div className="relative flex items-center gap-4">
-        <div className={cls('grid h-12 w-12 place-items-center rounded-2xl border text-xl font-black', rank === 1 ? 'border-blue-300/30 bg-blue-500/15 text-blue-200' : 'border-slate-700 bg-slate-900 text-slate-300')}>
-          {rank}
-        </div>
-        <Avatar name={row.name} size="lg" />
+        <RankBadge rank={rank} />
+        <Avatar name={row.name} size={center ? 'xl' : 'lg'} rank={rank} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-xl font-black text-white">{row.name}</div>
           <div className="truncate text-sm font-bold text-blue-300">{row.title}</div>
@@ -317,12 +472,16 @@ function HeaderControls({ active, setActive }) {
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-blue-400/25 bg-blue-500/10 text-blue-200 shadow-[0_0_30px_rgba(59,130,246,.12)]">
-            <Trophy className="h-6 w-6" />
+          <div className="relative grid h-14 w-14 place-items-center rounded-2xl border border-blue-400/25 bg-blue-500/10 text-blue-200 shadow-[0_0_40px_rgba(59,130,246,.16)]">
+            <div className="absolute inset-0 rounded-2xl bg-blue-400/10 blur-xl" />
+            <Trophy className="relative h-7 w-7" />
           </div>
           <div>
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-blue-300">
+              <Sparkles className="h-4 w-4" /> Adversary Guild
+            </div>
             <h2 className="text-3xl font-black tracking-tight text-white md:text-5xl">Hall of Fame</h2>
-            <p className="mt-1 text-sm font-semibold text-slate-400">8 variante în stilul Match History: dark, carduri, top players și achievements.</p>
+            <p className="mt-1 text-sm font-semibold text-slate-400">8 variante mai stilizate, dar încă potrivite cu Match History.</p>
           </div>
         </div>
       </div>
@@ -334,7 +493,7 @@ function HeaderControls({ active, setActive }) {
             className={cls(
               'rounded-xl border px-3 py-2 text-xs font-black transition',
               active === id
-                ? 'border-blue-400 bg-blue-500/20 text-blue-100 shadow-[0_0_24px_rgba(59,130,246,.16)]'
+                ? 'border-blue-400 bg-blue-500/20 text-blue-100 shadow-[0_0_24px_rgba(59,130,246,.2)]'
                 : 'border-slate-800 bg-slate-950/80 text-slate-500 hover:border-slate-700 hover:text-slate-300',
             )}
           >
@@ -348,16 +507,17 @@ function HeaderControls({ active, setActive }) {
 
 function EmptyState() {
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-8 text-center shadow-2xl">
+    <PremiumPanel className="p-8 text-center">
       <Trophy className="mx-auto mb-3 h-10 w-10 text-slate-600" />
       <h3 className="text-xl font-black text-white">No Hall of Fame data yet.</h3>
       <p className="mt-2 text-sm font-semibold text-slate-500">Selectează un log, o zi sau All Logs ca să fie calculate statisticile.</p>
-    </div>
+    </PremiumPanel>
   );
 }
 
 function Variant1({ data }) {
   const leader = data.rows[0];
+
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-4">
@@ -366,14 +526,18 @@ function Variant1({ data }) {
         <StatCard icon={Target} label="Guild K/D" value={data.totals.kd.toFixed(2)} sub="kills / deaths" tone="emerald" />
         <StatCard icon={CalendarDays} label="Wars" value={data.totals.wars} sub="recorded wars" tone="violet" />
       </div>
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-        <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-950 to-blue-950/40 p-6 shadow-2xl">
-          <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
+
+      <div className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
+        <PremiumPanel glow className="p-6">
+          <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
           <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
-            <Avatar name={leader.name} size="lg" />
+            <Avatar name={leader.name} size="xl" rank={1} />
             <div className="min-w-0 flex-1">
-              <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-blue-300"><Crown className="h-4 w-4" /> Featured Legend</div>
-              <div className="truncate text-4xl font-black text-white">{leader.name}</div>
+              <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+                <Crown className="h-4 w-4" /> Featured Legend
+              </div>
+              <div className="truncate text-5xl font-black text-white">{leader.name}</div>
               <div className="mt-1 text-lg font-bold text-blue-300">{leader.title}</div>
               <p className="mt-3 max-w-2xl text-sm font-semibold text-slate-400">Playerul cu cel mai mare scor calculat din killuri, K/D, streak, killfeed și participare la war-uri.</p>
             </div>
@@ -384,31 +548,34 @@ function Variant1({ data }) {
             <StatCard icon={Skull} label="Deaths" value={nf.format(leader.deaths)} tone="slate" />
             <StatCard icon={Target} label="K/D" value={leader.kd.toFixed(2)} tone="emerald" />
           </div>
-        </div>
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+        </PremiumPanel>
+
+        <PremiumPanel className="p-5">
           <SectionTitle icon={Crown} title="Top 5 Legends" action="View ranking" />
           <div className="space-y-3">{data.rows.slice(0, 5).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 1} />)}</div>
-        </div>
+        </PremiumPanel>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} />)}</div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} compact />)}</div>
     </div>
   );
 }
 
 function Variant2({ data }) {
   const podium = [data.rows[1], data.rows[0], data.rows[2]].filter(Boolean);
+
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+      <PremiumPanel className="p-5" glow>
         <SectionTitle icon={Medal} title="Top 3 Podium" action="All time" />
         <div className="grid items-end gap-4 lg:grid-cols-3">
           {podium.map((row) => {
             const rank = data.rows.findIndex((item) => item.name === row.name) + 1;
-            return <TopLegendCard key={row.name} row={row} rank={rank} wide={rank === 1} />;
+            return <TopLegendCard key={row.name} row={row} rank={rank} wide={rank === 1} center={rank === 1} />;
           })}
         </div>
-      </div>
-      <Leaderboard rows={data.rows} limit={8} />
+      </PremiumPanel>
+      <Leaderboard rows={data.rows} limit={8} title="All Legends Ranking" />
     </div>
   );
 }
@@ -416,23 +583,23 @@ function Variant2({ data }) {
 function Variant3({ data }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_.72fr]">
-      <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+      <PremiumPanel className="p-5" glow>
         <SectionTitle icon={Award} title="Achievement Wall" action="View all" />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} />)}</div>
-      </div>
+      </PremiumPanel>
       <div className="space-y-5">
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+        <PremiumPanel className="p-5">
           <SectionTitle icon={BarChart3} title="Guild Records" />
           <div className="space-y-3">
             <StatCard icon={Trophy} label="Prestige" value={shortNum(data.totals.score)} tone="blue" />
             <StatCard icon={Swords} label="Top Kill Count" value={nf.format(data.achievements[1].player?.kills || 0)} tone="rose" />
             <StatCard icon={Flame} label="Longest Streak" value={nf.format(data.achievements[3].player?.streak || 0)} tone="orange" />
           </div>
-        </div>
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+        </PremiumPanel>
+        <PremiumPanel className="p-5">
           <SectionTitle icon={Crown} title="Mini Leaderboard" />
           <div className="space-y-3">{data.rows.slice(0, 4).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 1} />)}</div>
-        </div>
+        </PremiumPanel>
       </div>
     </div>
   );
@@ -442,29 +609,37 @@ function Variant4({ data }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-5">
-        <StatCard icon={Crown} label="Total Legends" value={data.totals.players} sub="+ calculated" tone="amber" />
+        <StatCard icon={Crown} label="Total Legends" value={data.totals.players} sub="calculated" tone="amber" />
         <StatCard icon={Medal} label="Hall Score" value={shortNum(data.totals.score)} sub="guild total" tone="blue" />
         <StatCard icon={Swords} label="Record Kills" value={nf.format(data.rows[0]?.kills || 0)} sub={data.rows[0]?.name} tone="rose" />
         <StatCard icon={Target} label="Best K/D" value={data.achievements[2].value} sub={data.achievements[2].player?.name} tone="emerald" />
         <StatCard icon={Shield} label="Wars" value={data.totals.wars} sub="selected logs" tone="violet" />
       </div>
+
       <div className="grid gap-5 xl:grid-cols-[1fr_.42fr]">
         <div>
-          <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">
+          <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 shadow-xl">
             <Search className="h-4 w-4 text-slate-500" />
             <input disabled placeholder="Search players..." className="w-full bg-transparent text-sm font-bold text-slate-400 outline-none placeholder:text-slate-600" />
           </div>
-          <Leaderboard rows={data.rows} limit={10} />
+          <Leaderboard rows={data.rows} limit={10} title="Data Leaderboard" />
         </div>
         <div className="space-y-5">
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+          <PremiumPanel className="p-5">
             <SectionTitle icon={Users} title="Latest Inducted" action="View all" />
             <div className="space-y-3">{data.rows.slice(0, 5).map((row) => <TopLegendCard key={row.name} row={row} rank={data.rows.indexOf(row) + 1} />)}</div>
-          </div>
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+          </PremiumPanel>
+          <PremiumPanel className="p-5">
             <SectionTitle icon={Activity} title="Badge Summary" />
-            <div className="space-y-3">{data.achievements.slice(0, 5).map((item) => <div key={item.title} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-sm"><span className="font-bold text-slate-300">{item.title}</span><span className="font-black text-blue-300">{item.player?.name}</span></div>)}</div>
-          </div>
+            <div className="space-y-3">
+              {data.achievements.slice(0, 5).map((item) => (
+                <div key={item.title} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-sm">
+                  <span className="font-bold text-slate-300">{item.title}</span>
+                  <span className="font-black text-blue-300">{item.player?.name}</span>
+                </div>
+              ))}
+            </div>
+          </PremiumPanel>
         </div>
       </div>
     </div>
@@ -474,11 +649,12 @@ function Variant4({ data }) {
 function Variant5({ data }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[.75fr_1.25fr]">
-      <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+      <PremiumPanel className="p-5">
         <SectionTitle icon={CalendarDays} title="Legacy Timeline" action="Archive" />
         <div className="space-y-4">
           {data.months.slice(0, 6).map((month, index) => (
-            <div key={month.month} className="relative rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+            <div key={month.month} className="relative rounded-2xl border border-slate-800 bg-slate-950/80 p-4 shadow-lg">
+              <div className="absolute left-0 top-4 h-10 w-1 rounded-r-full bg-blue-500/60" />
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-black text-white">Season {month.month}</div>
@@ -494,7 +670,7 @@ function Variant5({ data }) {
             </div>
           ))}
         </div>
-      </div>
+      </PremiumPanel>
       <div className="space-y-5"><Variant1 data={data} /></div>
     </div>
   );
@@ -502,11 +678,12 @@ function Variant5({ data }) {
 
 function Variant6({ data }) {
   const leader = data.rows[0];
+
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-center shadow-2xl">
-        <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl border border-blue-400/25 bg-blue-500/10 text-3xl font-black text-blue-200 shadow-[0_0_30px_rgba(59,130,246,.12)]">{initials(leader.name)}</div>
-        <div className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-blue-300">Minimal Hall Card</div>
+      <PremiumPanel className="p-8 text-center" glow>
+        <div className="mx-auto grid h-24 w-24 place-items-center rounded-[2rem] border border-blue-400/25 bg-blue-500/10 text-4xl font-black text-blue-200 shadow-[0_0_44px_rgba(59,130,246,.18)]">{initials(leader.name)}</div>
+        <div className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-blue-300">Minimal Prestige</div>
         <div className="mt-2 text-5xl font-black text-white">{leader.name}</div>
         <div className="mt-2 text-lg font-bold text-slate-400">{leader.title}</div>
         <div className="mx-auto mt-6 grid max-w-5xl gap-3 md:grid-cols-5">
@@ -516,7 +693,7 @@ function Variant6({ data }) {
           <StatCard icon={Target} label="K/D" value={leader.kd.toFixed(2)} tone="emerald" />
           <StatCard icon={Flame} label="Streak" value={leader.streak} tone="orange" />
         </div>
-      </div>
+      </PremiumPanel>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">{data.rows.slice(1, 6).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 2} />)}</div>
     </div>
   );
@@ -528,19 +705,20 @@ function Variant7({ data }) {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         {data.achievements.map((item) => {
           const Icon = item.icon;
+          const toneInfo = getTone(item.tone);
           return (
-            <div key={item.title} className="rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-4 text-center shadow-2xl">
-              <div className={cls('mx-auto grid h-14 w-14 place-items-center rounded-2xl border', toneClasses[item.tone])}>
-                <Icon className="h-7 w-7" />
+            <div key={item.title} className="group rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-4 text-center shadow-2xl transition hover:-translate-y-1 hover:border-blue-400/30">
+              <div className={cls('mx-auto grid h-16 w-16 place-items-center rounded-2xl border shadow-lg', toneInfo.soft, toneInfo.glow)}>
+                <Icon className="h-8 w-8" />
               </div>
-              <div className="mt-3 text-sm font-black text-white">{item.title}</div>
-              <div className="mt-2 text-xl font-black text-blue-200">{item.value}</div>
+              <div className="mt-4 text-sm font-black uppercase tracking-wide text-white">{item.title}</div>
+              <div className={cls('mt-2 text-2xl font-black', toneInfo.text)}>{item.value}</div>
               <div className="mt-1 text-xs font-bold text-slate-500">{item.player?.name}</div>
             </div>
           );
         })}
       </div>
-      <Leaderboard rows={data.rows} limit={10} />
+      <Leaderboard rows={data.rows} limit={10} title="Trophy Room Ranking" />
     </div>
   );
 }
@@ -549,15 +727,15 @@ function Variant8({ data }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-5 xl:grid-cols-[.7fr_1fr_.75fr]">
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+        <PremiumPanel className="p-5">
           <SectionTitle icon={Crown} title="Top Legends" />
           <div className="space-y-3">{data.rows.slice(0, 5).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 1} />)}</div>
-        </div>
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+        </PremiumPanel>
+        <PremiumPanel className="p-5" glow>
           <SectionTitle icon={Award} title="Hall Achievements" action="View all" />
-          <div className="grid gap-3 sm:grid-cols-2">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} />)}</div>
-        </div>
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-2xl">
+          <div className="grid gap-3 sm:grid-cols-2">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} compact />)}</div>
+        </PremiumPanel>
+        <PremiumPanel className="p-5">
           <SectionTitle icon={BarChart3} title="Personal Records" />
           <div className="space-y-3">
             <StatCard icon={Trophy} label="Best Score" value={shortNum(data.rows[0]?.score)} sub={data.rows[0]?.name} tone="blue" />
@@ -565,9 +743,9 @@ function Variant8({ data }) {
             <StatCard icon={Target} label="Best K/D" value={data.achievements[2].value} sub={data.achievements[2].player?.name} tone="emerald" />
             <StatCard icon={Shield} label="Most Wars" value={data.achievements[5].value} sub={data.achievements[5].player?.name} tone="violet" />
           </div>
-        </div>
+        </PremiumPanel>
       </div>
-      <Leaderboard rows={data.rows} limit={7} />
+      <Leaderboard rows={data.rows} limit={7} title="Recent Hall Entries" />
     </div>
   );
 }
@@ -587,22 +765,24 @@ function PreviewAll({ data }) {
   return (
     <div className="min-h-screen bg-[#050b16] p-4 text-slate-100 md:p-8">
       <div className="mx-auto max-w-[1600px] space-y-10">
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-2xl">
-          <h1 className="text-4xl font-black text-white">Hall of Fame — 8 Match History Style Variants</h1>
-          <p className="mt-2 text-sm font-semibold text-slate-400">Preview mode: toate variantele sunt randate cu date demo, în același stil dark/card-based ca pagina Node Wars.</p>
-        </div>
-        {Object.entries(variants).map(([key, item]) => {
-          const Component = item.component;
-          return (
-            <section key={key} className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl border border-blue-400/25 bg-blue-500/10 text-sm font-black text-blue-100">V{key}</div>
-                <h2 className="text-2xl font-black text-white">{item.name}</h2>
-              </div>
-              <Component data={data} />
-            </section>
-          );
-        })}
+        <PageFrame>
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-2xl">
+            <h1 className="text-4xl font-black text-white">Hall of Fame — Premium Style Variants</h1>
+            <p className="mt-2 text-sm font-semibold text-slate-400">Preview mode: toate variantele sunt randate cu date demo, cu stil mai premium dar compatibil cu tema Match History.</p>
+          </div>
+          {Object.entries(variants).map(([key, item]) => {
+            const Component = item.component;
+            return (
+              <section key={key} className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl border border-blue-400/25 bg-blue-500/10 text-sm font-black text-blue-100">V{key}</div>
+                  <h2 className="text-2xl font-black text-white">{item.name}</h2>
+                </div>
+                <Component data={data} />
+              </section>
+            );
+          })}
+        </PageFrame>
       </div>
     </div>
   );
@@ -618,9 +798,9 @@ export default function HallOfFame({ stats, allTimeStats } = {}) {
   if (previewMode) return <PreviewAll data={buildHallData(demoStats)} />;
 
   return (
-    <div className="space-y-5">
+    <PageFrame>
       <HeaderControls active={active} setActive={setActive} />
       <ActiveVariant data={data} />
-    </div>
+    </PageFrame>
   );
 }
