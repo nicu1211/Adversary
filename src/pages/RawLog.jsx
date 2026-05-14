@@ -6,8 +6,13 @@ import { dateOf, parseLog, today } from '../lib/logUtils';
 
 function formatBytes(bytes) {
   if (!bytes) return '0 KB';
+
   const kb = bytes / 1024;
-  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
+
   return `${(kb / 1024).toFixed(1)} MB`;
 }
 
@@ -16,6 +21,7 @@ function cleanOcrText(text) {
     .replace(/\r/g, '')
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
+    .replace(/[|]/g, 'I')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -26,33 +32,76 @@ async function preprocessImage(file) {
   try {
     const image = await new Promise((resolve, reject) => {
       const img = new Image();
+
       img.onload = () => resolve(img);
       img.onerror = reject;
       img.src = imageUrl;
     });
 
-    const maxWidth = 2400;
-    const scale = Math.min(1, maxWidth / image.width);
+    const minWidth = 1800;
+    const maxWidth = 3200;
+
+    let scale = 1;
+
+    if (image.width < minWidth) {
+      scale = minWidth / image.width;
+    }
+
+    if (image.width * scale > maxWidth) {
+      scale = maxWidth / image.width;
+    }
+
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
 
     const canvas = document.createElement('canvas');
+
     canvas.width = width;
     canvas.height = height;
 
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const ctx = canvas.getContext('2d', {
+      willReadFrequently: true,
+    });
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, width, height);
 
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
+    const grayValues = [];
 
     for (let index = 0; index < data.length; index += 4) {
       const red = data[index];
       const green = data[index + 1];
       const blue = data[index + 2];
 
-      let gray = red * 0.299 + green * 0.587 + blue * 0.114;
-      gray = gray > 160 ? 255 : gray < 90 ? 0 : gray * 1.2;
+      const gray = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
+
+      grayValues.push(gray);
+    }
+
+    grayValues.sort((a, b) => a - b);
+
+    const low = grayValues[Math.floor(grayValues.length * 0.08)] || 0;
+    const high = grayValues[Math.floor(grayValues.length * 0.92)] || 255;
+    const range = Math.max(1, high - low);
+
+    for (let index = 0; index < data.length; index += 4) {
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+
+      let gray = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
+
+      gray = ((gray - low) / range) * 255;
+      gray = Math.max(0, Math.min(255, gray));
+
+      if (gray > 150) {
+        gray = 255;
+      } else if (gray < 90) {
+        gray = 0;
+      }
 
       data[index] = gray;
       data[index + 1] = gray;
@@ -112,6 +161,12 @@ export default function RawLog({
     }
   }, [ocrText, name, date]);
 
+  const rawLines = useMemo(() => {
+    if (!raw) return 0;
+
+    return raw.split('\n').filter((line) => line.trim()).length;
+  }, [raw]);
+
   useEffect(() => {
     return () => {
       if (ocrPreview) {
@@ -122,6 +177,7 @@ export default function RawLog({
 
   async function handleTxtUpload(event) {
     const file = event.target.files?.[0];
+
     event.target.value = '';
 
     if (!file) return;
@@ -136,6 +192,7 @@ export default function RawLog({
 
     try {
       const text = await file.text();
+
       setTxtFile(file);
       setRaw(text);
 
@@ -148,24 +205,29 @@ export default function RawLog({
     }
   }
 
-  async function handleJpegUpload(event) {
+  async function handleImageUpload(event) {
     const file = event.target.files?.[0];
+
     event.target.value = '';
 
     if (!file) return;
 
-    const isJpeg =
-      file.type === 'image/jpeg' ||
-      file.name.toLowerCase().endsWith('.jpg') ||
-      file.name.toLowerCase().endsWith('.jpeg');
+    const lowerName = file.name.toLowerCase();
 
-    if (!isJpeg) {
-      setOcrMessage('Te rog încarcă doar imagini .jpg sau .jpeg.');
+    const isImage =
+      file.type === 'image/jpeg' ||
+      file.type === 'image/png' ||
+      lowerName.endsWith('.jpg') ||
+      lowerName.endsWith('.jpeg') ||
+      lowerName.endsWith('.png');
+
+    if (!isImage) {
+      setOcrMessage('Te rog încarcă doar imagini .jpg, .jpeg sau .png.');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setOcrMessage('Imaginea este prea mare. Încarcă un JPEG sub 10 MB.');
+      setOcrMessage('Imaginea este prea mare. Încarcă o imagine sub 10 MB.');
       return;
     }
 
@@ -183,7 +245,7 @@ export default function RawLog({
     try {
       const processedImage = await preprocessImage(file);
 
-      setOcrMessage('Citesc textul din screenshot...');
+      setOcrMessage('Citesc textul din imagine...');
 
       const result = await Tesseract.recognize(processedImage, 'eng', {
         logger: (data) => {
@@ -191,13 +253,15 @@ export default function RawLog({
             setOcrProgress(Math.round((data.progress || 0) * 100));
           }
         },
+        tessedit_char_whitelist:
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
       });
 
       const extractedText = cleanOcrText(result?.data?.text);
 
       if (!extractedText) {
         setOcrMessage(
-          'OCR terminat, dar nu am găsit text. Încearcă un screenshot mai clar.',
+          'OCR terminat, dar nu am găsit text. Încearcă o imagine mai clară.',
         );
         return;
       }
@@ -206,7 +270,7 @@ export default function RawLog({
       setRaw(extractedText);
 
       if (!name || name === 'Battle log') {
-        setName(file.name.replace(/\.(jpg|jpeg)$/i, ''));
+        setName(file.name.replace(/\.(jpg|jpeg|png)$/i, ''));
       }
 
       setOcrMessage(
@@ -231,6 +295,11 @@ export default function RawLog({
     setOcrMessage('');
     setOcrProgress(0);
     setOcrBusy(false);
+  }
+
+  function useOcrText() {
+    setRaw(ocrText);
+    setOcrMessage('Textul OCR a fost pus în Raw Log. Verifică și apasă Save.');
   }
 
   return (
@@ -308,7 +377,7 @@ export default function RawLog({
             </div>
 
             {message && (
-              <p className="mb-3 rounded-xl bg-blue-500/10 p-3 text-blue-200">
+              <p className="mb-3 whitespace-pre-line rounded-xl bg-blue-500/10 p-3 text-blue-200">
                 {message}
               </p>
             )}
@@ -321,12 +390,15 @@ export default function RawLog({
                   onChange={handleTxtUpload}
                   className="hidden"
                 />
+
                 <span className="block font-black text-slate-100">
                   Upload TXT log
                 </span>
+
                 <span className="mt-1 block text-xs text-slate-400">
                   Încarcă log normal în format .txt
                 </span>
+
                 {txtFile && (
                   <span className="mt-2 block text-xs text-blue-200">
                     {txtFile.name} · {formatBytes(txtFile.size)}
@@ -337,17 +409,20 @@ export default function RawLog({
               <label className="cursor-pointer rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-sm hover:bg-blue-500/20">
                 <input
                   type="file"
-                  accept="image/jpeg,.jpg,.jpeg"
-                  onChange={handleJpegUpload}
+                  accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                  onChange={handleImageUpload}
                   disabled={ocrBusy}
                   className="hidden"
                 />
+
                 <span className="block font-black text-blue-100">
-                  Upload JPG/JPEG OCR
+                  Upload JPG/PNG OCR
                 </span>
+
                 <span className="mt-1 block text-xs text-slate-400">
-                  Încarcă screenshot, OCR-ul extrage textul
+                  Încarcă screenshot JPG/PNG, OCR-ul extrage textul
                 </span>
+
                 {ocrFile && (
                   <span className="mt-2 block text-xs text-blue-200">
                     {ocrFile.name} · {formatBytes(ocrFile.size)}
@@ -357,21 +432,25 @@ export default function RawLog({
             </div>
 
             <div className="mb-2 flex flex-wrap gap-2 text-xs text-slate-400">
-              <span className="rounded-lg bg-slate-900 px-2 py-1">
+              <span
+                className={`rounded-lg px-2 py-1 ${
+                  parsedEntries
+                    ? 'bg-emerald-500/10 text-emerald-200'
+                    : 'bg-slate-900'
+                }`}
+              >
                 Parsed entries: {parsedEntries}
               </span>
+
               <span className="rounded-lg bg-slate-900 px-2 py-1">
-                Lines:{' '}
-                {raw
-                  ? raw.split('\n').filter((line) => line.trim()).length
-                  : 0}
+                Lines: {rawLines}
               </span>
             </div>
 
             <textarea
               value={raw}
               onChange={(event) => setRaw(event.target.value)}
-              placeholder="Paste your node war log here or upload TXT/JPEG above..."
+              placeholder="Paste your node war log here or upload TXT/JPG/PNG above..."
               className="h-96 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
             />
           </Panel>
@@ -413,7 +492,7 @@ export default function RawLog({
               )}
 
               {ocrMessage && (
-                <p className="mb-3 rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
+                <p className="mb-3 whitespace-pre-line rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
                   {ocrMessage}
                 </p>
               )}
@@ -424,6 +503,7 @@ export default function RawLog({
                     <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
                       Screenshot
                     </p>
+
                     <img
                       src={ocrPreview}
                       alt="OCR upload preview"
@@ -460,7 +540,7 @@ export default function RawLog({
 
                     <button
                       type="button"
-                      onClick={() => setRaw(ocrText)}
+                      onClick={useOcrText}
                       disabled={!ocrText || ocrBusy}
                       className="mt-3 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
