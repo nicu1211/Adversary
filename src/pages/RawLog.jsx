@@ -16,7 +16,6 @@ function cleanOcrText(text) {
     .replace(/\r/g, '')
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
-    .replace(/[|]/g, 'I')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -32,7 +31,7 @@ async function preprocessImage(file) {
       img.src = imageUrl;
     });
 
-    const maxWidth = 2200;
+    const maxWidth = 2400;
     const scale = Math.min(1, maxWidth / image.width);
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
@@ -53,8 +52,7 @@ async function preprocessImage(file) {
       const blue = data[index + 2];
 
       let gray = red * 0.299 + green * 0.587 + blue * 0.114;
-
-      gray = gray > 155 ? 255 : gray < 95 ? 0 : gray * 1.25;
+      gray = gray > 160 ? 255 : gray < 90 ? 0 : gray * 1.2;
 
       data[index] = gray;
       data[index + 1] = gray;
@@ -89,6 +87,8 @@ export default function RawLog({
   deleting,
   deleteLog,
 }) {
+  const [txtFile, setTxtFile] = useState(null);
+
   const [ocrFile, setOcrFile] = useState(null);
   const [ocrPreview, setOcrPreview] = useState('');
   const [ocrText, setOcrText] = useState('');
@@ -96,13 +96,15 @@ export default function RawLog({
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
 
-  const detectedLines = useMemo(() => {
-    if (!ocrText) return 0;
-    return ocrText.split('\n').filter((line) => line.trim()).length;
-  }, [ocrText]);
+  const parsedEntries = useMemo(() => {
+    try {
+      return parseLog(raw, name, date, 'preview').length;
+    } catch {
+      return 0;
+    }
+  }, [raw, name, date]);
 
-  const detectedEntries = useMemo(() => {
-    if (!ocrText) return 0;
+  const ocrParsedEntries = useMemo(() => {
     try {
       return parseLog(ocrText, name, date, 'ocr-preview').length;
     } catch {
@@ -118,7 +120,35 @@ export default function RawLog({
     };
   }, [ocrPreview]);
 
-  async function handleOcrUpload(event) {
+  async function handleTxtUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+
+    const isTxt =
+      file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
+
+    if (!isTxt) {
+      alert('Te rog încarcă doar fișiere .txt aici.');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      setTxtFile(file);
+      setRaw(text);
+
+      if (!name || name === 'Battle log') {
+        setName(file.name.replace(/\.txt$/i, ''));
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Nu am putut citi fișierul TXT.');
+    }
+  }
+
+  async function handleJpegUpload(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
 
@@ -130,12 +160,12 @@ export default function RawLog({
       file.name.toLowerCase().endsWith('.jpeg');
 
     if (!isJpeg) {
-      setOcrMessage('Only JPG/JPEG screenshots are accepted.');
+      setOcrMessage('Te rog încarcă doar imagini .jpg sau .jpeg.');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setOcrMessage('Image is too large. Please upload a JPEG under 10 MB.');
+      setOcrMessage('Imaginea este prea mare. Încarcă un JPEG sub 10 MB.');
       return;
     }
 
@@ -146,14 +176,14 @@ export default function RawLog({
     setOcrFile(file);
     setOcrPreview(URL.createObjectURL(file));
     setOcrText('');
-    setOcrMessage('Preparing image for OCR...');
+    setOcrMessage('Pregătesc imaginea pentru OCR...');
     setOcrProgress(0);
     setOcrBusy(true);
 
     try {
       const processedImage = await preprocessImage(file);
 
-      setOcrMessage('Reading screenshot text...');
+      setOcrMessage('Citesc textul din screenshot...');
 
       const result = await Tesseract.recognize(processedImage, 'eng', {
         logger: (data) => {
@@ -163,33 +193,31 @@ export default function RawLog({
         },
       });
 
-      const extracted = cleanOcrText(result?.data?.text);
+      const extractedText = cleanOcrText(result?.data?.text);
 
-      if (!extracted) {
+      if (!extractedText) {
         setOcrMessage(
-          'OCR finished, but no text was detected. Try a clearer screenshot.',
+          'OCR terminat, dar nu am găsit text. Încearcă un screenshot mai clar.',
         );
         return;
       }
 
-      setOcrText(extracted);
-      setRaw(extracted);
+      setOcrText(extractedText);
+      setRaw(extractedText);
+
+      if (!name || name === 'Battle log') {
+        setName(file.name.replace(/\.(jpg|jpeg)$/i, ''));
+      }
+
       setOcrMessage(
-        'OCR completed. Check the extracted text below, then press Save.',
+        'OCR terminat. Verifică textul extras, corectează dacă e nevoie, apoi apasă Save.',
       );
     } catch (error) {
-      console.error('OCR failed:', error);
-      setOcrMessage(
-        `OCR failed: ${error?.message || error || 'unknown error'}`,
-      );
+      console.error(error);
+      setOcrMessage(`OCR failed: ${error?.message || 'unknown error'}`);
     } finally {
       setOcrBusy(false);
     }
-  }
-
-  function applyOcrText() {
-    setRaw(ocrText);
-    setOcrMessage('OCR text copied to the raw log field. Press Save to upload.');
   }
 
   function clearOcr() {
@@ -285,149 +313,164 @@ export default function RawLog({
               </p>
             )}
 
+            <div className="mb-3 grid gap-3 md:grid-cols-2">
+              <label className="cursor-pointer rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm hover:bg-slate-800">
+                <input
+                  type="file"
+                  accept=".txt,text/plain"
+                  onChange={handleTxtUpload}
+                  className="hidden"
+                />
+                <span className="block font-black text-slate-100">
+                  Upload TXT log
+                </span>
+                <span className="mt-1 block text-xs text-slate-400">
+                  Încarcă log normal în format .txt
+                </span>
+                {txtFile && (
+                  <span className="mt-2 block text-xs text-blue-200">
+                    {txtFile.name} · {formatBytes(txtFile.size)}
+                  </span>
+                )}
+              </label>
+
+              <label className="cursor-pointer rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-sm hover:bg-blue-500/20">
+                <input
+                  type="file"
+                  accept="image/jpeg,.jpg,.jpeg"
+                  onChange={handleJpegUpload}
+                  disabled={ocrBusy}
+                  className="hidden"
+                />
+                <span className="block font-black text-blue-100">
+                  Upload JPG/JPEG OCR
+                </span>
+                <span className="mt-1 block text-xs text-slate-400">
+                  Încarcă screenshot, OCR-ul extrage textul
+                </span>
+                {ocrFile && (
+                  <span className="mt-2 block text-xs text-blue-200">
+                    {ocrFile.name} · {formatBytes(ocrFile.size)}
+                  </span>
+                )}
+              </label>
+            </div>
+
+            <div className="mb-2 flex flex-wrap gap-2 text-xs text-slate-400">
+              <span className="rounded-lg bg-slate-900 px-2 py-1">
+                Parsed entries: {parsedEntries}
+              </span>
+              <span className="rounded-lg bg-slate-900 px-2 py-1">
+                Lines:{' '}
+                {raw
+                  ? raw.split('\n').filter((line) => line.trim()).length
+                  : 0}
+              </span>
+            </div>
+
             <textarea
               value={raw}
               onChange={(event) => setRaw(event.target.value)}
-              placeholder="Paste your node war log here..."
+              placeholder="Paste your node war log here or upload TXT/JPEG above..."
               className="h-96 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
             />
           </Panel>
 
-          <Panel>
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-black">JPEG OCR Upload</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Upload a JPG/JPEG screenshot. The extracted text will be shown
-                  for confirmation before saving.
-                </p>
-              </div>
+          {(ocrBusy || ocrMessage || ocrPreview || ocrText) && (
+            <Panel>
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-2xl font-black">OCR Preview</h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Verifică textul extras din imagine înainte de Save.
+                  </p>
+                </div>
 
-              {ocrFile && (
                 <button
                   type="button"
                   onClick={clearOcr}
                   disabled={ocrBusy}
                   className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Clear
+                  Clear OCR
                 </button>
+              </div>
+
+              {ocrBusy && (
+                <div className="mb-3">
+                  <div className="mb-2 flex justify-between text-xs font-bold text-slate-400">
+                    <span>OCR progress</span>
+                    <span>{ocrProgress}%</span>
+                  </div>
+
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-blue-500 transition-all"
+                      style={{ width: `${ocrProgress}%` }}
+                    />
+                  </div>
+                </div>
               )}
-            </div>
 
-            <label className="block cursor-pointer rounded-2xl border border-dashed border-blue-400/40 bg-blue-500/10 p-5 text-center hover:bg-blue-500/15">
-              <input
-                type="file"
-                accept="image/jpeg,.jpg,.jpeg"
-                onChange={handleOcrUpload}
-                disabled={ocrBusy}
-                className="hidden"
-              />
+              {ocrMessage && (
+                <p className="mb-3 rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
+                  {ocrMessage}
+                </p>
+              )}
 
-              <span className="block text-lg font-black text-blue-100">
-                {ocrBusy ? 'Reading screenshot...' : 'Upload JPEG screenshot'}
-              </span>
-
-              <span className="mt-1 block text-sm text-slate-400">
-                Recommended: clear screenshot, high contrast, not cropped too
-                aggressively.
-              </span>
-            </label>
-
-            {ocrFile && (
-              <div className="mt-3 rounded-xl bg-slate-950 p-3 text-sm text-slate-400">
-                <b className="text-slate-200">{ocrFile.name}</b>
-                <span> · {formatBytes(ocrFile.size)}</span>
-              </div>
-            )}
-
-            {ocrBusy && (
-              <div className="mt-3">
-                <div className="mb-2 flex justify-between text-xs font-bold text-slate-400">
-                  <span>OCR progress</span>
-                  <span>{ocrProgress}%</span>
-                </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                  <div
-                    className="h-full rounded-full bg-blue-500 transition-all"
-                    style={{ width: `${ocrProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {ocrMessage && (
-              <p className="mt-3 rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
-                {ocrMessage}
-              </p>
-            )}
-
-            {ocrPreview && (
-              <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
-                <div>
-                  <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                    Screenshot preview
-                  </p>
-                  <img
-                    src={ocrPreview}
-                    alt="OCR upload preview"
-                    className="max-h-80 w-full rounded-2xl border border-slate-800 object-contain"
-                  />
-                </div>
-
-                <div>
-                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                      Extracted text
+              {ocrPreview && (
+                <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+                  <div>
+                    <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                      Screenshot
                     </p>
+                    <img
+                      src={ocrPreview}
+                      alt="OCR upload preview"
+                      className="max-h-80 w-full rounded-2xl border border-slate-800 object-contain"
+                    />
+                  </div>
 
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                      <span className="rounded-lg bg-slate-900 px-2 py-1">
-                        Lines: {detectedLines}
-                      </span>
+                  <div>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                        Text extras
+                      </p>
+
                       <span
-                        className={`rounded-lg px-2 py-1 ${
-                          detectedEntries
+                        className={`rounded-lg px-2 py-1 text-xs ${
+                          ocrParsedEntries
                             ? 'bg-emerald-500/10 text-emerald-200'
                             : 'bg-amber-500/10 text-amber-200'
                         }`}
                       >
-                        Parsed entries: {detectedEntries}
+                        Parsed entries: {ocrParsedEntries}
                       </span>
                     </div>
-                  </div>
 
-                  <textarea
-                    value={ocrText}
-                    onChange={(event) => setOcrText(event.target.value)}
-                    placeholder="OCR result will appear here..."
-                    className="h-80 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
-                  />
+                    <textarea
+                      value={ocrText}
+                      onChange={(event) => {
+                        setOcrText(event.target.value);
+                        setRaw(event.target.value);
+                      }}
+                      placeholder="Textul extras prin OCR apare aici..."
+                      className="h-80 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
+                    />
 
-                  <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={applyOcrText}
+                      onClick={() => setRaw(ocrText)}
                       disabled={!ocrText || ocrBusy}
-                      className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-3 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Use extracted text
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setOcrText(raw)}
-                      disabled={!raw || ocrBusy}
-                      className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Copy current raw text here
+                      Use this OCR text
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
-          </Panel>
+              )}
+            </Panel>
+          )}
         </div>
 
         <Panel>
