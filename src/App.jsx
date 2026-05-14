@@ -652,11 +652,13 @@ export default function App() {
     ['nodewars', 'Node Wars'],
     ['players', 'Player Stats'],
     ['hall', 'Hall of Fame'],
-    ['raw', 'Raw Log'],
+    ['raw', 'Raw Logs'],
   ];
 
   function isMenuActive(id) {
-    return id === 'nodewars' ? page === 'nodewars' || page === 'overview' : page === id;
+    return id === 'nodewars'
+      ? page === 'nodewars' || page === 'overview'
+      : page === id;
   }
 
   function openOverviewFromMenu() {
