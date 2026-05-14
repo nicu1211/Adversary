@@ -26,7 +26,7 @@ function cleanOcrText(text) {
     .trim();
 }
 
-async function preprocessImage(file) {
+async function createOcrImageVariants(file) {
   const imageUrl = URL.createObjectURL(file);
 
   try {
@@ -38,8 +38,8 @@ async function preprocessImage(file) {
       img.src = imageUrl;
     });
 
-    const minWidth = 1800;
-    const maxWidth = 3200;
+    const minWidth = 2200;
+    const maxWidth = 4200;
 
     let scale = 1;
 
@@ -54,63 +54,117 @@ async function preprocessImage(file) {
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
 
-    const canvas = document.createElement('canvas');
+    function makeCanvas() {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
 
-    canvas.width = width;
-    canvas.height = height;
+      const ctx = canvas.getContext('2d', {
+        willReadFrequently: true,
+      });
 
-    const ctx = canvas.getContext('2d', {
-      willReadFrequently: true,
-    });
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(image, 0, 0, width, height);
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(image, 0, 0, width, height);
-
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-    const grayValues = [];
-
-    for (let index = 0; index < data.length; index += 4) {
-      const red = data[index];
-      const green = data[index + 1];
-      const blue = data[index + 2];
-
-      const gray = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
-
-      grayValues.push(gray);
+      return { canvas, ctx };
     }
 
-    grayValues.sort((a, b) => a - b);
+    function getGrayStats(data) {
+      const values = [];
 
-    const low = grayValues[Math.floor(grayValues.length * 0.08)] || 0;
-    const high = grayValues[Math.floor(grayValues.length * 0.92)] || 255;
-    const range = Math.max(1, high - low);
+      for (let index = 0; index < data.length; index += 4) {
+        const red = data[index];
+        const green = data[index + 1];
+        const blue = data[index + 2];
 
-    for (let index = 0; index < data.length; index += 4) {
-      const red = data[index];
-      const green = data[index + 1];
-      const blue = data[index + 2];
-
-      let gray = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
-
-      gray = ((gray - low) / range) * 255;
-      gray = Math.max(0, Math.min(255, gray));
-
-      if (gray > 150) {
-        gray = 255;
-      } else if (gray < 90) {
-        gray = 0;
+        values.push(Math.round(red * 0.299 + green * 0.587 + blue * 0.114));
       }
 
-      data[index] = gray;
-      data[index + 1] = gray;
-      data[index + 2] = gray;
+      values.sort((a, b) => a - b);
+
+      const low = values[Math.floor(values.length * 0.05)] || 0;
+      const high = values[Math.floor(values.length * 0.95)] || 255;
+      const middle = values[Math.floor(values.length * 0.5)] || 128;
+
+      return {
+        low,
+        high,
+        middle,
+        range: Math.max(1, high - low),
+      };
     }
 
-    ctx.putImageData(imageData, 0, 0);
+    function toDataUrl(mode) {
+      const { canvas, ctx } = makeCanvas();
 
-    return canvas.toDataURL('image/png');
+      if (mode === 'original') {
+        return canvas.toDataURL('image/png');
+      }
+
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      const stats = getGrayStats(data);
+
+      for (let index = 0; index < data.length; index += 4) {
+        const red = data[index];
+        const green = data[index + 1];
+        const blue = data[index + 2];
+
+        let gray = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
+
+        if (mode === 'contrast') {
+          gray = ((gray - stats.low) / stats.range) * 255;
+          gray = Math.max(0, Math.min(255, gray));
+        }
+
+        if (mode === 'binary') {
+          gray = ((gray - stats.low) / stats.range) * 255;
+          gray = Math.max(0, Math.min(255, gray));
+          gray = gray > stats.middle ? 255 : 0;
+        }
+
+        if (mode === 'inverted') {
+          gray = 255 - gray;
+        }
+
+        if (mode === 'soft-inverted') {
+          gray = 255 - gray;
+          gray = ((gray - stats.low) / stats.range) * 255;
+          gray = Math.max(0, Math.min(255, gray));
+        }
+
+        data[index] = gray;
+        data[index + 1] = gray;
+        data[index + 2] = gray;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      return canvas.toDataURL('image/png');
+    }
+
+    return [
+      {
+        name: 'original',
+        image: toDataUrl('original'),
+      },
+      {
+        name: 'contrast',
+        image: toDataUrl('contrast'),
+      },
+      {
+        name: 'binary',
+        image: toDataUrl('binary'),
+      },
+      {
+        name: 'inverted',
+        image: toDataUrl('inverted'),
+      },
+      {
+        name: 'soft-inverted',
+        image: toDataUrl('soft-inverted'),
+      },
+    ];
   } finally {
     URL.revokeObjectURL(imageUrl);
   }
@@ -144,6 +198,7 @@ export default function RawLog({
   const [ocrMessage, setOcrMessage] = useState('');
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrBestVariant, setOcrBestVariant] = useState('');
 
   const parsedEntries = useMemo(() => {
     try {
@@ -166,6 +221,12 @@ export default function RawLog({
 
     return raw.split('\n').filter((line) => line.trim()).length;
   }, [raw]);
+
+  const ocrLines = useMemo(() => {
+    if (!ocrText) return 0;
+
+    return ocrText.split('\n').filter((line) => line.trim()).length;
+  }, [ocrText]);
 
   useEffect(() => {
     return () => {
@@ -226,8 +287,8 @@ export default function RawLog({
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setOcrMessage('Imaginea este prea mare. Încarcă o imagine sub 10 MB.');
+    if (file.size > 15 * 1024 * 1024) {
+      setOcrMessage('Imaginea este prea mare. Încarcă o imagine sub 15 MB.');
       return;
     }
 
@@ -240,41 +301,115 @@ export default function RawLog({
     setOcrText('');
     setOcrMessage('Pregătesc imaginea pentru OCR...');
     setOcrProgress(0);
+    setOcrBestVariant('');
     setOcrBusy(true);
 
     try {
-      const processedImage = await preprocessImage(file);
+      const imageVariants = await createOcrImageVariants(file);
 
-      setOcrMessage('Citesc textul din imagine...');
+      setOcrMessage(
+        `Citesc textul din imagine... 0/${imageVariants.length} variante analizate`,
+      );
 
-      const result = await Tesseract.recognize(processedImage, 'eng', {
-        logger: (data) => {
-          if (data.status === 'recognizing text') {
-            setOcrProgress(Math.round((data.progress || 0) * 100));
-          }
-        },
-        tessedit_char_whitelist:
-          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
-      });
+      let bestText = '';
+      let bestScore = -1;
+      let bestVariant = '';
 
-      const extractedText = cleanOcrText(result?.data?.text);
+      for (let index = 0; index < imageVariants.length; index += 1) {
+        const variant = imageVariants[index];
+
+        setOcrMessage(
+          `Citesc textul din imagine... ${index + 1}/${
+            imageVariants.length
+          } · ${variant.name}`,
+        );
+
+        const result = await Tesseract.recognize(variant.image, 'eng', {
+          logger: (data) => {
+            if (data.status === 'recognizing text') {
+              const variantProgress = (index / imageVariants.length) * 100;
+              const currentProgress =
+                ((data.progress || 0) / imageVariants.length) * 100;
+
+              setOcrProgress(Math.round(variantProgress + currentProgress));
+            }
+          },
+          tessedit_pageseg_mode: '6',
+          preserve_interword_spaces: '1',
+          tessedit_char_whitelist:
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
+        });
+
+        const candidateText = cleanOcrText(result?.data?.text);
+
+        let candidateParsedEntries = 0;
+
+        try {
+          candidateParsedEntries = parseLog(
+            candidateText,
+            name,
+            date,
+            `ocr-${variant.name}`,
+          ).length;
+        } catch {
+          candidateParsedEntries = 0;
+        }
+
+        const candidateLines = candidateText
+          .split('\n')
+          .filter((line) => line.trim()).length;
+
+        const candidateLength = candidateText.length;
+
+        const killDeathLikeLines = candidateText
+          .split('\n')
+          .filter((line) => {
+            const lowerLine = line.toLowerCase();
+
+            return (
+              lowerLine.includes('kill') ||
+              lowerLine.includes('death') ||
+              lowerLine.includes('killed') ||
+              lowerLine.includes('died') ||
+              lowerLine.includes('defeated') ||
+              /\d+/.test(lowerLine)
+            );
+          }).length;
+
+        const score =
+          candidateParsedEntries * 10000 +
+          killDeathLikeLines * 350 +
+          candidateLines * 100 +
+          candidateLength;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestText = candidateText;
+          bestVariant = variant.name;
+        }
+      }
+
+      setOcrProgress(100);
+
+      const extractedText = bestText;
 
       if (!extractedText) {
         setOcrMessage(
-          'OCR terminat, dar nu am găsit text. Încearcă o imagine mai clară.',
+          'OCR terminat, dar nu am găsit text. Încearcă o imagine mai clară sau decupează doar zona logului.',
         );
         return;
       }
 
       setOcrText(extractedText);
       setRaw(extractedText);
+      setOcrBestVariant(bestVariant);
 
       if (!name || name === 'Battle log') {
         setName(file.name.replace(/\.(jpg|jpeg|png)$/i, ''));
       }
 
       setOcrMessage(
-        'OCR terminat. Verifică textul extras, corectează dacă e nevoie, apoi apasă Save.',
+        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Verifică textul extras, corectează dacă e nevoie, apoi apasă Save.`,
       );
     } catch (error) {
       console.error(error);
@@ -294,6 +429,7 @@ export default function RawLog({
     setOcrText('');
     setOcrMessage('');
     setOcrProgress(0);
+    setOcrBestVariant('');
     setOcrBusy(false);
   }
 
@@ -509,6 +645,35 @@ export default function RawLog({
                       alt="OCR upload preview"
                       className="max-h-80 w-full rounded-2xl border border-slate-800 object-contain"
                     />
+
+                    <div className="mt-3 rounded-xl bg-slate-950 p-3 text-xs text-slate-400">
+                      {ocrFile && (
+                        <p>
+                          <span className="font-bold text-slate-300">
+                            File:
+                          </span>{' '}
+                          {ocrFile.name}
+                        </p>
+                      )}
+
+                      {ocrFile && (
+                        <p>
+                          <span className="font-bold text-slate-300">
+                            Size:
+                          </span>{' '}
+                          {formatBytes(ocrFile.size)}
+                        </p>
+                      )}
+
+                      {ocrBestVariant && (
+                        <p>
+                          <span className="font-bold text-slate-300">
+                            Best OCR:
+                          </span>{' '}
+                          {ocrBestVariant}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -517,15 +682,21 @@ export default function RawLog({
                         Text extras
                       </p>
 
-                      <span
-                        className={`rounded-lg px-2 py-1 text-xs ${
-                          ocrParsedEntries
-                            ? 'bg-emerald-500/10 text-emerald-200'
-                            : 'bg-amber-500/10 text-amber-200'
-                        }`}
-                      >
-                        Parsed entries: {ocrParsedEntries}
-                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        <span
+                          className={`rounded-lg px-2 py-1 text-xs ${
+                            ocrParsedEntries
+                              ? 'bg-emerald-500/10 text-emerald-200'
+                              : 'bg-amber-500/10 text-amber-200'
+                          }`}
+                        >
+                          Parsed entries: {ocrParsedEntries}
+                        </span>
+
+                        <span className="rounded-lg bg-slate-900 px-2 py-1 text-xs text-slate-400">
+                          Lines: {ocrLines}
+                        </span>
+                      </div>
                     </div>
 
                     <textarea
