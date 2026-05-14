@@ -25,6 +25,116 @@ function cleanOcrText(text) {
     .trim();
 }
 
+function normalizeOcrNumberToken(token) {
+  const fixed = String(token || '')
+    .replace(/[OoQ]/g, '0')
+    .replace(/[Il|!]/g, '1')
+    .replace(/[Ss]/g, '5')
+    .replace(/[Bb]/g, '8');
+
+  return fixed.replace(/\D/g, '');
+}
+
+function isLikelyNumberToken(token) {
+  return Boolean(normalizeOcrNumberToken(token));
+}
+
+function parseOcrTableLine(line) {
+  const cleaned = String(line || '')
+    .replace(/[|]/g, ' ')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) return null;
+
+  const lower = cleaned.toLowerCase();
+
+  if (
+    lower.includes('family name') ||
+    lower.includes('view results') ||
+    lower.includes('node war') ||
+    lower.includes('occupation') ||
+    lower.includes('failed') ||
+    lower.includes('serendia') ||
+    lower.includes('screenshot') ||
+    lower.includes('ocr')
+  ) {
+    return null;
+  }
+
+  const tokens = cleaned.split(' ');
+  const firstNumberIndex = tokens.findIndex(isLikelyNumberToken);
+
+  if (firstNumberIndex <= 0) return null;
+
+  const familyName = tokens.slice(0, firstNumberIndex).join(' ').trim();
+
+  if (!familyName || familyName.length < 2) return null;
+
+  let numbers = tokens
+    .slice(firstNumberIndex)
+    .map(normalizeOcrNumberToken)
+    .filter(Boolean);
+
+  if (numbers.length < 7) return null;
+
+  /*
+    Dacă OCR-ul citește ultima valoare 11 ca "1 1",
+    pot apărea 8 tokenuri numerice.
+    Păstrăm primele 6 coloane și unim surplusul în ultima coloană.
+  */
+  if (numbers.length > 7) {
+    numbers = [...numbers.slice(0, 6), numbers.slice(6).join('')];
+  }
+
+  return {
+    familyName,
+    numbers: numbers.slice(0, 7),
+  };
+}
+
+function formatOcrAsResultTable(text) {
+  const rows = String(text || '')
+    .split('\n')
+    .map(parseOcrTableLine)
+    .filter(Boolean);
+
+  if (!rows.length) {
+    return '';
+  }
+
+  const tableRows = [
+    ['Family Name', 'col1', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7'],
+    ...rows.map((row) => [row.familyName, ...row.numbers]),
+  ];
+
+  const widths = tableRows[0].map((_, columnIndex) =>
+    Math.max(
+      ...tableRows.map((row) => String(row[columnIndex] || '').length),
+    ),
+  );
+
+  return tableRows
+    .map((row) =>
+      row
+        .map((cell, columnIndex) =>
+          String(cell || '').padEnd(widths[columnIndex]),
+        )
+        .join(' | ')
+        .trimEnd(),
+    )
+    .join('\n');
+}
+
+function countOcrTableRows(text) {
+  return String(text || '')
+    .split('\n')
+    .map(parseOcrTableLine)
+    .filter(Boolean).length;
+}
+
 async function createOcrImageVariants(file) {
   const imageUrl = URL.createObjectURL(file);
 
@@ -260,6 +370,7 @@ export default function RawLog({
   const [ocrFile, setOcrFile] = useState(null);
   const [ocrPreview, setOcrPreview] = useState('');
   const [ocrText, setOcrText] = useState('');
+  const [ocrRawText, setOcrRawText] = useState('');
   const [ocrMessage, setOcrMessage] = useState('');
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
@@ -293,6 +404,8 @@ export default function RawLog({
 
     return ocrText.split('\n').filter((line) => line.trim()).length;
   }, [ocrText]);
+
+  const ocrTableRows = useMemo(() => countOcrTableRows(ocrText), [ocrText]);
 
   useEffect(() => {
     return () => {
@@ -365,6 +478,7 @@ export default function RawLog({
     setOcrFile(file);
     setOcrPreview(URL.createObjectURL(file));
     setOcrText('');
+    setOcrRawText('');
     setOcrMessage('Pregătesc imaginea pentru OCR...');
     setOcrProgress(0);
     setOcrBestVariant('');
@@ -379,6 +493,7 @@ export default function RawLog({
       );
 
       let bestText = '';
+      let bestRawText = '';
       let bestScore = -1;
       let bestVariant = '';
       const candidates = [];
@@ -412,7 +527,10 @@ export default function RawLog({
             'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
         });
 
-        const candidateText = cleanOcrText(result?.data?.text);
+        const rawCandidateText = cleanOcrText(result?.data?.text);
+        const tableCandidateText = formatOcrAsResultTable(rawCandidateText);
+        const candidateText = tableCandidateText || rawCandidateText;
+        const candidateTableRows = countOcrTableRows(rawCandidateText);
 
         let candidateParsedEntries = 0;
 
@@ -457,6 +575,7 @@ export default function RawLog({
           }).length;
 
         const score =
+          candidateTableRows * 20000 +
           candidateParsedEntries * 10000 +
           numericRichLines * 600 +
           killDeathLikeLines * 350 +
@@ -466,15 +585,18 @@ export default function RawLog({
         candidates.push({
           variant: variant.name,
           text: candidateText,
+          rawText: rawCandidateText,
           score,
           parsedEntries: candidateParsedEntries,
           lines: candidateLines,
           numericRichLines,
+          tableRows: candidateTableRows,
         });
 
         if (score > bestScore) {
           bestScore = score;
           bestText = candidateText;
+          bestRawText = rawCandidateText;
           bestVariant = variant.name;
         }
       }
@@ -486,17 +608,16 @@ export default function RawLog({
       setOcrCandidates(sortedCandidates);
       setOcrProgress(100);
 
-      const extractedText = bestText;
-
-      if (!extractedText) {
+      if (!bestText) {
         setOcrMessage(
           'OCR terminat, dar nu am găsit text. Încearcă o imagine mai clară sau decupează doar zona tabelului.',
         );
         return;
       }
 
-      setOcrText(extractedText);
-      setRaw(extractedText);
+      setOcrText(bestText);
+      setOcrRawText(bestRawText);
+      setRaw(bestText);
       setOcrBestVariant(bestVariant);
 
       if (!name || name === 'Battle log') {
@@ -504,7 +625,7 @@ export default function RawLog({
       }
 
       setOcrMessage(
-        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Dacă lipsesc cifre, încearcă una dintre variantele candidate de jos.`,
+        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Rezultatul a fost formatat ca tabel: Family Name | col1 | col2 | col3 | col4 | col5 | col6 | col7.`,
       );
     } catch (error) {
       console.error(error);
@@ -522,6 +643,7 @@ export default function RawLog({
     setOcrFile(null);
     setOcrPreview('');
     setOcrText('');
+    setOcrRawText('');
     setOcrMessage('');
     setOcrProgress(0);
     setOcrBestVariant('');
@@ -536,11 +658,27 @@ export default function RawLog({
 
   function useCandidate(candidate) {
     setOcrText(candidate.text);
+    setOcrRawText(candidate.rawText || '');
     setRaw(candidate.text);
     setOcrBestVariant(candidate.variant);
     setOcrMessage(
-      `Ai selectat varianta OCR: ${candidate.variant}. Verifică textul și apasă Save.`,
+      `Ai selectat varianta OCR: ${candidate.variant}. Verifică tabelul și apasă Save.`,
     );
+  }
+
+  function reformatCurrentOcrText() {
+    const formatted = formatOcrAsResultTable(ocrRawText || ocrText);
+
+    if (!formatted) {
+      setOcrMessage(
+        'Nu am putut reformata textul OCR ca tabel. Verifică imaginea sau editează manual textul extras.',
+      );
+      return;
+    }
+
+    setOcrText(formatted);
+    setRaw(formatted);
+    setOcrMessage('Textul OCR a fost reformatat ca tabel.');
   }
 
   return (
@@ -661,7 +799,8 @@ export default function RawLog({
                 </span>
 
                 <span className="mt-1 block text-xs text-slate-400">
-                  Încarcă screenshot JPG/PNG, OCR-ul extrage textul
+                  Încarcă screenshot JPG/PNG, OCR-ul extrage textul în format
+                  tabel
                 </span>
 
                 {ocrFile && (
@@ -686,6 +825,12 @@ export default function RawLog({
               <span className="rounded-lg bg-slate-900 px-2 py-1">
                 Lines: {rawLines}
               </span>
+
+              {ocrTableRows > 0 && (
+                <span className="rounded-lg bg-blue-500/10 px-2 py-1 text-blue-200">
+                  OCR table rows: {ocrTableRows}
+                </span>
+              )}
             </div>
 
             <textarea
@@ -702,7 +847,8 @@ export default function RawLog({
                 <div>
                   <h2 className="text-2xl font-black">OCR Preview</h2>
                   <p className="mt-1 text-sm text-slate-400">
-                    Verifică textul extras din imagine înainte de Save.
+                    Rezultatul OCR este formatat ca tabel: Family Name | col1 |
+                    col2 | col3 | col4 | col5 | col6 | col7.
                   </p>
                 </div>
 
@@ -778,6 +924,15 @@ export default function RawLog({
                           {ocrBestVariant}
                         </p>
                       )}
+
+                      {ocrTableRows > 0 && (
+                        <p>
+                          <span className="font-bold text-slate-300">
+                            Table rows:
+                          </span>{' '}
+                          {ocrTableRows}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -801,6 +956,16 @@ export default function RawLog({
                         <span className="rounded-lg bg-slate-900 px-2 py-1 text-xs text-slate-400">
                           Lines: {ocrLines}
                         </span>
+
+                        <span
+                          className={`rounded-lg px-2 py-1 text-xs ${
+                            ocrTableRows
+                              ? 'bg-blue-500/10 text-blue-200'
+                              : 'bg-slate-900 text-slate-400'
+                          }`}
+                        >
+                          Table rows: {ocrTableRows}
+                        </span>
                       </div>
                     </div>
 
@@ -814,14 +979,25 @@ export default function RawLog({
                       className="h-80 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
                     />
 
-                    <button
-                      type="button"
-                      onClick={useOcrText}
-                      disabled={!ocrText || ocrBusy}
-                      className="mt-3 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Use this OCR text
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={useOcrText}
+                        disabled={!ocrText || ocrBusy}
+                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Use this OCR text
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={reformatCurrentOcrText}
+                        disabled={!ocrText || ocrBusy}
+                        className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-100 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Reformat as table
+                      </button>
+                    </div>
 
                     {ocrCandidates.length > 1 && (
                       <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-3">
@@ -852,15 +1028,16 @@ export default function RawLog({
                                   </span>
 
                                   <span className="text-slate-400">
-                                    entries {candidate.parsedEntries} · lines{' '}
+                                    table {candidate.tableRows || 0} · entries{' '}
+                                    {candidate.parsedEntries} · lines{' '}
                                     {candidate.lines} · numeric{' '}
                                     {candidate.numericRichLines}
                                   </span>
                                 </div>
 
-                                <p className="mt-2 line-clamp-2 font-mono text-[11px] text-slate-400">
-                                  {candidate.text.slice(0, 220)}
-                                </p>
+                                <pre className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap font-mono text-[11px] text-slate-400">
+                                  {candidate.text.slice(0, 260)}
+                                </pre>
                               </button>
                             );
                           })}
