@@ -4,6 +4,8 @@ import Tesseract from 'tesseract.js';
 import { Calendar, DeletePopup, Panel } from '../components/UI';
 import { dateOf, parseLog, today } from '../lib/logUtils';
 
+const OCR_COLUMNS = ['col1', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7'];
+
 function formatBytes(bytes) {
   if (!bytes) return '0 KB';
 
@@ -21,16 +23,19 @@ function cleanOcrText(text) {
     .replace(/\r/g, '')
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
+    .replace(/\u00a0/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
 function normalizeOcrNumberToken(token) {
   const fixed = String(token || '')
-    .replace(/[OoQ]/g, '0')
+    .replace(/[OoQD]/g, '0')
     .replace(/[Il|!]/g, '1')
     .replace(/[Ss]/g, '5')
-    .replace(/[Bb]/g, '8');
+    .replace(/[Bb]/g, '8')
+    .replace(/[Zz]/g, '2')
+    .replace(/[Gg]/g, '6');
 
   return fixed.replace(/\D/g, '');
 }
@@ -39,19 +44,10 @@ function isLikelyNumberToken(token) {
   return Boolean(normalizeOcrNumberToken(token));
 }
 
-function parseOcrTableLine(line) {
-  const cleaned = String(line || '')
-    .replace(/[|]/g, ' ')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
+function isBadHeaderLine(line) {
+  const lower = String(line || '').toLowerCase();
 
-  if (!cleaned) return null;
-
-  const lower = cleaned.toLowerCase();
-
-  if (
+  return (
     lower.includes('family name') ||
     lower.includes('view results') ||
     lower.includes('node war') ||
@@ -59,54 +55,71 @@ function parseOcrTableLine(line) {
     lower.includes('failed') ||
     lower.includes('serendia') ||
     lower.includes('screenshot') ||
-    lower.includes('ocr')
-  ) {
-    return null;
+    lower.includes('ocr progress') ||
+    lower.includes('upload') ||
+    lower.includes('battle log')
+  );
+}
+
+function normalizeFamilyName(name) {
+  return String(name || '')
+    .replace(/[^A-Za-z0-9_ -]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeSevenNumbers(numbers) {
+  const clean = numbers.map(String).filter((item) => item !== '');
+
+  if (clean.length >= 7) {
+    return [...clean.slice(0, 6), clean.slice(6).join('')].slice(0, 7);
   }
+
+  return [...clean, ...Array.from({ length: 7 - clean.length }, () => '')];
+}
+
+function parseOcrTableLine(line) {
+  const cleaned = String(line || '')
+    .replace(/[|]/g, ' ')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[~`]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned || isBadHeaderLine(cleaned)) return null;
 
   const tokens = cleaned.split(' ');
   const firstNumberIndex = tokens.findIndex(isLikelyNumberToken);
 
   if (firstNumberIndex <= 0) return null;
 
-  const familyName = tokens.slice(0, firstNumberIndex).join(' ').trim();
+  const familyName = normalizeFamilyName(
+    tokens.slice(0, firstNumberIndex).join(' '),
+  );
 
   if (!familyName || familyName.length < 2) return null;
 
-  let numbers = tokens
-    .slice(firstNumberIndex)
+  const rawNumberTokens = tokens.slice(firstNumberIndex);
+  const numbers = rawNumberTokens
     .map(normalizeOcrNumberToken)
     .filter(Boolean);
 
-  if (numbers.length < 7) return null;
-
-  /*
-    Dacă OCR-ul citește ultima valoare 11 ca "1 1",
-    pot apărea 8 tokenuri numerice.
-    Păstrăm primele 6 coloane și unim surplusul în ultima coloană.
-  */
-  if (numbers.length > 7) {
-    numbers = [...numbers.slice(0, 6), numbers.slice(6).join('')];
-  }
+  if (numbers.length < 2) return null;
 
   return {
     familyName,
-    numbers: numbers.slice(0, 7),
+    numbers: normalizeSevenNumbers(numbers),
+    complete: numbers.length >= 7,
+    raw: cleaned,
   };
 }
 
-function formatOcrAsResultTable(text) {
-  const rows = String(text || '')
-    .split('\n')
-    .map(parseOcrTableLine)
-    .filter(Boolean);
-
-  if (!rows.length) {
-    return '';
-  }
+function formatOcrRowsAsResultTable(rows) {
+  if (!rows.length) return '';
 
   const tableRows = [
-    ['Family Name', 'col1', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7'],
+    ['Family Name', ...OCR_COLUMNS],
     ...rows.map((row) => [row.familyName, ...row.numbers]),
   ];
 
@@ -128,11 +141,66 @@ function formatOcrAsResultTable(text) {
     .join('\n');
 }
 
-function countOcrTableRows(text) {
-  return String(text || '')
+function extractOcrTableRows(text) {
+  const lines = String(text || '')
     .split('\n')
-    .map(parseOcrTableLine)
-    .filter(Boolean).length;
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return lines.map(parseOcrTableLine).filter(Boolean);
+}
+
+function formatOcrAsResultTable(text) {
+  return formatOcrRowsAsResultTable(extractOcrTableRows(text));
+}
+
+function countOcrTableRows(text) {
+  return extractOcrTableRows(text).length;
+}
+
+function scoreOcrText(text) {
+  const rows = extractOcrTableRows(text);
+  const completeRows = rows.filter((row) => row.complete).length;
+  const incompleteRows = rows.length - completeRows;
+  const numericCells = rows.reduce(
+    (sum, row) => sum + row.numbers.filter(Boolean).length,
+    0,
+  );
+
+  return {
+    rows,
+    completeRows,
+    incompleteRows,
+    numericCells,
+    score:
+      completeRows * 30000 +
+      rows.length * 12000 +
+      numericCells * 900 +
+      String(text || '').length,
+  };
+}
+
+function mergeRowsFromCandidates(candidates) {
+  const byName = new Map();
+
+  candidates.forEach((candidate) => {
+    candidate.rows.forEach((row) => {
+      const key = row.familyName.toLowerCase();
+      const current = byName.get(key);
+
+      const rowScore =
+        row.numbers.filter(Boolean).length * 100 + (row.complete ? 1000 : 0);
+
+      if (!current || rowScore > current.score) {
+        byName.set(key, {
+          score: rowScore,
+          row,
+        });
+      }
+    });
+  });
+
+  return [...byName.values()].map((item) => item.row);
 }
 
 async function createOcrImageVariants(file) {
@@ -147,8 +215,8 @@ async function createOcrImageVariants(file) {
       img.src = imageUrl;
     });
 
-    const minWidth = 3600;
-    const maxWidth = 6200;
+    const minWidth = 4200;
+    const maxWidth = 7600;
 
     let scale = 1;
 
@@ -160,7 +228,7 @@ async function createOcrImageVariants(file) {
       scale = maxWidth / image.width;
     }
 
-    const padding = 140;
+    const padding = 180;
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
 
@@ -195,8 +263,8 @@ async function createOcrImageVariants(file) {
 
       values.sort((a, b) => a - b);
 
-      const low = values[Math.floor(values.length * 0.03)] || 0;
-      const high = values[Math.floor(values.length * 0.97)] || 255;
+      const low = values[Math.floor(values.length * 0.025)] || 0;
+      const high = values[Math.floor(values.length * 0.975)] || 255;
       const mid = values[Math.floor(values.length * 0.5)] || 128;
 
       return {
@@ -269,16 +337,16 @@ async function createOcrImageVariants(file) {
         }
 
         if (mode.includes('bright')) {
-          gray = Math.min(255, gray * 1.25 + 18);
+          gray = Math.min(255, gray * 1.3 + 22);
         }
 
         if (mode.includes('dark')) {
-          gray = Math.max(0, gray * 0.85 - 12);
+          gray = Math.max(0, gray * 0.8 - 16);
         }
 
         if (mode.includes('binary')) {
           const threshold = mode.includes('high-threshold')
-            ? stats.mid + 18
+            ? stats.mid + 20
             : stats.mid;
 
           gray = gray > threshold ? 255 : 0;
@@ -294,7 +362,7 @@ async function createOcrImageVariants(file) {
       }
 
       if (mode.includes('sharp')) {
-        sharpen(data, canvas.width, canvas.height, 0.65);
+        sharpen(data, canvas.width, canvas.height, 0.7);
       }
 
       ctx.putImageData(imageData, 0, 0);
@@ -528,9 +596,11 @@ export default function RawLog({
         });
 
         const rawCandidateText = cleanOcrText(result?.data?.text);
-        const tableCandidateText = formatOcrAsResultTable(rawCandidateText);
+        const candidateScore = scoreOcrText(rawCandidateText);
+        const tableCandidateText = formatOcrRowsAsResultTable(
+          candidateScore.rows,
+        );
         const candidateText = tableCandidateText || rawCandidateText;
-        const candidateTableRows = countOcrTableRows(rawCandidateText);
 
         let candidateParsedEntries = 0;
 
@@ -549,61 +619,42 @@ export default function RawLog({
           .split('\n')
           .filter((line) => line.trim()).length;
 
-        const candidateLength = candidateText.length;
-
-        const numericRichLines = candidateText
-          .split('\n')
-          .filter((line) => {
-            const numbers = line.match(/\d+/g) || [];
-
-            return numbers.length >= 3;
-          }).length;
-
-        const killDeathLikeLines = candidateText
-          .split('\n')
-          .filter((line) => {
-            const lowerLine = line.toLowerCase();
-
-            return (
-              lowerLine.includes('kill') ||
-              lowerLine.includes('death') ||
-              lowerLine.includes('killed') ||
-              lowerLine.includes('died') ||
-              lowerLine.includes('defeated') ||
-              /\d+/.test(lowerLine)
-            );
-          }).length;
-
-        const score =
-          candidateTableRows * 20000 +
-          candidateParsedEntries * 10000 +
-          numericRichLines * 600 +
-          killDeathLikeLines * 350 +
-          candidateLines * 100 +
-          candidateLength;
+        const candidateScoreValue =
+          candidateScore.score + candidateParsedEntries * 10000;
 
         candidates.push({
           variant: variant.name,
           text: candidateText,
           rawText: rawCandidateText,
-          score,
+          rows: candidateScore.rows,
+          score: candidateScoreValue,
           parsedEntries: candidateParsedEntries,
           lines: candidateLines,
-          numericRichLines,
-          tableRows: candidateTableRows,
+          completeRows: candidateScore.completeRows,
+          incompleteRows: candidateScore.incompleteRows,
+          numericCells: candidateScore.numericCells,
+          tableRows: candidateScore.rows.length,
         });
 
-        if (score > bestScore) {
-          bestScore = score;
+        if (candidateScoreValue > bestScore) {
+          bestScore = candidateScoreValue;
           bestText = candidateText;
           bestRawText = rawCandidateText;
           bestVariant = variant.name;
         }
       }
 
+      const mergedRows = mergeRowsFromCandidates(candidates);
+      const mergedTable = formatOcrRowsAsResultTable(mergedRows);
+
+      if (mergedTable && mergedRows.length >= countOcrTableRows(bestText)) {
+        bestText = mergedTable;
+        bestVariant = `${bestVariant} + merged rows`;
+      }
+
       const sortedCandidates = candidates
         .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
+        .slice(0, 6);
 
       setOcrCandidates(sortedCandidates);
       setOcrProgress(100);
@@ -625,7 +676,7 @@ export default function RawLog({
       }
 
       setOcrMessage(
-        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Rezultatul a fost formatat ca tabel: Family Name | col1 | col2 | col3 | col4 | col5 | col6 | col7.`,
+        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Rezultatul a fost formatat ca tabel. Dacă un rând are celule goale, completează manual valoarea din screenshot.`,
       );
     } catch (error) {
       console.error(error);
@@ -657,9 +708,12 @@ export default function RawLog({
   }
 
   function useCandidate(candidate) {
-    setOcrText(candidate.text);
+    const formatted = formatOcrRowsAsResultTable(candidate.rows || []);
+    const text = formatted || candidate.text;
+
+    setOcrText(text);
     setOcrRawText(candidate.rawText || '');
-    setRaw(candidate.text);
+    setRaw(text);
     setOcrBestVariant(candidate.variant);
     setOcrMessage(
       `Ai selectat varianta OCR: ${candidate.variant}. Verifică tabelul și apasă Save.`,
@@ -799,8 +853,8 @@ export default function RawLog({
                 </span>
 
                 <span className="mt-1 block text-xs text-slate-400">
-                  Încarcă screenshot JPG/PNG, OCR-ul extrage textul în format
-                  tabel
+                  Încarcă screenshot JPG/PNG. OCR-ul extrage tabelul cu 7
+                  coloane.
                 </span>
 
                 {ocrFile && (
@@ -847,8 +901,8 @@ export default function RawLog({
                 <div>
                   <h2 className="text-2xl font-black">OCR Preview</h2>
                   <p className="mt-1 text-sm text-slate-400">
-                    Rezultatul OCR este formatat ca tabel: Family Name | col1 |
-                    col2 | col3 | col4 | col5 | col6 | col7.
+                    Format rezultat: Family Name | col1 | col2 | col3 | col4 |
+                    col5 | col6 | col7.
                   </p>
                 </div>
 
@@ -1028,10 +1082,10 @@ export default function RawLog({
                                   </span>
 
                                   <span className="text-slate-400">
-                                    table {candidate.tableRows || 0} · entries{' '}
-                                    {candidate.parsedEntries} · lines{' '}
-                                    {candidate.lines} · numeric{' '}
-                                    {candidate.numericRichLines}
+                                    table {candidate.tableRows || 0} · complete{' '}
+                                    {candidate.completeRows || 0} · incomplete{' '}
+                                    {candidate.incompleteRows || 0} · numbers{' '}
+                                    {candidate.numericCells || 0}
                                   </span>
                                 </div>
 
