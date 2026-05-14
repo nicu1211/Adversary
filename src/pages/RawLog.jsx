@@ -21,7 +21,6 @@ function cleanOcrText(text) {
     .replace(/\r/g, '')
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
-    .replace(/[|]/g, 'I')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -38,8 +37,8 @@ async function createOcrImageVariants(file) {
       img.src = imageUrl;
     });
 
-    const minWidth = 2200;
-    const maxWidth = 4200;
+    const minWidth = 3600;
+    const maxWidth = 6200;
 
     let scale = 1;
 
@@ -51,20 +50,24 @@ async function createOcrImageVariants(file) {
       scale = maxWidth / image.width;
     }
 
+    const padding = 140;
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
 
     function makeCanvas() {
       const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+
+      canvas.width = width + padding * 2;
+      canvas.height = height + padding * 2;
 
       const ctx = canvas.getContext('2d', {
         willReadFrequently: true,
       });
 
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(image, 0, 0, width, height);
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, padding, padding, width, height);
 
       return { canvas, ctx };
     }
@@ -82,16 +85,54 @@ async function createOcrImageVariants(file) {
 
       values.sort((a, b) => a - b);
 
-      const low = values[Math.floor(values.length * 0.05)] || 0;
-      const high = values[Math.floor(values.length * 0.95)] || 255;
-      const middle = values[Math.floor(values.length * 0.5)] || 128;
+      const low = values[Math.floor(values.length * 0.03)] || 0;
+      const high = values[Math.floor(values.length * 0.97)] || 255;
+      const mid = values[Math.floor(values.length * 0.5)] || 128;
 
       return {
         low,
         high,
-        middle,
+        mid,
         range: Math.max(1, high - low),
       };
+    }
+
+    function sharpen(data, canvasWidth, canvasHeight, amount = 1) {
+      const copy = new Uint8ClampedArray(data);
+
+      const kernel = [
+        0,
+        -amount,
+        0,
+        -amount,
+        1 + 4 * amount,
+        -amount,
+        0,
+        -amount,
+        0,
+      ];
+
+      for (let y = 1; y < canvasHeight - 1; y += 1) {
+        for (let x = 1; x < canvasWidth - 1; x += 1) {
+          for (let channel = 0; channel < 3; channel += 1) {
+            let value = 0;
+            let kernelIndex = 0;
+
+            for (let ky = -1; ky <= 1; ky += 1) {
+              for (let kx = -1; kx <= 1; kx += 1) {
+                const pixelIndex =
+                  ((y + ky) * canvasWidth + (x + kx)) * 4 + channel;
+
+                value += copy[pixelIndex] * kernel[kernelIndex];
+                kernelIndex += 1;
+              }
+            }
+
+            const targetIndex = (y * canvasWidth + x) * 4 + channel;
+            data[targetIndex] = Math.max(0, Math.min(255, value));
+          }
+        }
+      }
     }
 
     function toDataUrl(mode) {
@@ -101,7 +142,7 @@ async function createOcrImageVariants(file) {
         return canvas.toDataURL('image/png');
       }
 
-      const imageData = ctx.getImageData(0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
       const stats = getGrayStats(data);
 
@@ -112,30 +153,38 @@ async function createOcrImageVariants(file) {
 
         let gray = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
 
-        if (mode === 'contrast') {
+        if (mode.includes('contrast')) {
           gray = ((gray - stats.low) / stats.range) * 255;
           gray = Math.max(0, Math.min(255, gray));
         }
 
-        if (mode === 'binary') {
-          gray = ((gray - stats.low) / stats.range) * 255;
-          gray = Math.max(0, Math.min(255, gray));
-          gray = gray > stats.middle ? 255 : 0;
+        if (mode.includes('bright')) {
+          gray = Math.min(255, gray * 1.25 + 18);
         }
 
-        if (mode === 'inverted') {
+        if (mode.includes('dark')) {
+          gray = Math.max(0, gray * 0.85 - 12);
+        }
+
+        if (mode.includes('binary')) {
+          const threshold = mode.includes('high-threshold')
+            ? stats.mid + 18
+            : stats.mid;
+
+          gray = gray > threshold ? 255 : 0;
+        }
+
+        if (mode.includes('invert')) {
           gray = 255 - gray;
-        }
-
-        if (mode === 'soft-inverted') {
-          gray = 255 - gray;
-          gray = ((gray - stats.low) / stats.range) * 255;
-          gray = Math.max(0, Math.min(255, gray));
         }
 
         data[index] = gray;
         data[index + 1] = gray;
         data[index + 2] = gray;
+      }
+
+      if (mode.includes('sharp')) {
+        sharpen(data, canvas.width, canvas.height, 0.65);
       }
 
       ctx.putImageData(imageData, 0, 0);
@@ -145,24 +194,40 @@ async function createOcrImageVariants(file) {
 
     return [
       {
-        name: 'original',
+        name: 'original-large',
         image: toDataUrl('original'),
       },
       {
-        name: 'contrast',
+        name: 'contrast-large',
         image: toDataUrl('contrast'),
       },
       {
+        name: 'contrast-sharp',
+        image: toDataUrl('contrast-sharp'),
+      },
+      {
+        name: 'bright-contrast-sharp',
+        image: toDataUrl('bright-contrast-sharp'),
+      },
+      {
+        name: 'dark-contrast-sharp',
+        image: toDataUrl('dark-contrast-sharp'),
+      },
+      {
         name: 'binary',
-        image: toDataUrl('binary'),
+        image: toDataUrl('contrast-binary'),
       },
       {
-        name: 'inverted',
-        image: toDataUrl('inverted'),
+        name: 'binary-high-threshold',
+        image: toDataUrl('contrast-binary-high-threshold'),
       },
       {
-        name: 'soft-inverted',
-        image: toDataUrl('soft-inverted'),
+        name: 'invert',
+        image: toDataUrl('invert'),
+      },
+      {
+        name: 'invert-contrast-sharp',
+        image: toDataUrl('invert-contrast-sharp'),
       },
     ];
   } finally {
@@ -199,6 +264,7 @@ export default function RawLog({
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrBestVariant, setOcrBestVariant] = useState('');
+  const [ocrCandidates, setOcrCandidates] = useState([]);
 
   const parsedEntries = useMemo(() => {
     try {
@@ -302,6 +368,7 @@ export default function RawLog({
     setOcrMessage('Pregătesc imaginea pentru OCR...');
     setOcrProgress(0);
     setOcrBestVariant('');
+    setOcrCandidates([]);
     setOcrBusy(true);
 
     try {
@@ -314,6 +381,7 @@ export default function RawLog({
       let bestText = '';
       let bestScore = -1;
       let bestVariant = '';
+      const candidates = [];
 
       for (let index = 0; index < imageVariants.length; index += 1) {
         const variant = imageVariants[index];
@@ -335,7 +403,11 @@ export default function RawLog({
             }
           },
           tessedit_pageseg_mode: '6',
+          tessedit_ocr_engine_mode: '1',
           preserve_interword_spaces: '1',
+          user_defined_dpi: '300',
+          classify_bln_numeric_mode: '1',
+          textord_heavy_nr: '1',
           tessedit_char_whitelist:
             'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
         });
@@ -361,6 +433,14 @@ export default function RawLog({
 
         const candidateLength = candidateText.length;
 
+        const numericRichLines = candidateText
+          .split('\n')
+          .filter((line) => {
+            const numbers = line.match(/\d+/g) || [];
+
+            return numbers.length >= 3;
+          }).length;
+
         const killDeathLikeLines = candidateText
           .split('\n')
           .filter((line) => {
@@ -378,9 +458,19 @@ export default function RawLog({
 
         const score =
           candidateParsedEntries * 10000 +
+          numericRichLines * 600 +
           killDeathLikeLines * 350 +
           candidateLines * 100 +
           candidateLength;
+
+        candidates.push({
+          variant: variant.name,
+          text: candidateText,
+          score,
+          parsedEntries: candidateParsedEntries,
+          lines: candidateLines,
+          numericRichLines,
+        });
 
         if (score > bestScore) {
           bestScore = score;
@@ -389,13 +479,18 @@ export default function RawLog({
         }
       }
 
+      const sortedCandidates = candidates
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5);
+
+      setOcrCandidates(sortedCandidates);
       setOcrProgress(100);
 
       const extractedText = bestText;
 
       if (!extractedText) {
         setOcrMessage(
-          'OCR terminat, dar nu am găsit text. Încearcă o imagine mai clară sau decupează doar zona logului.',
+          'OCR terminat, dar nu am găsit text. Încearcă o imagine mai clară sau decupează doar zona tabelului.',
         );
         return;
       }
@@ -409,7 +504,7 @@ export default function RawLog({
       }
 
       setOcrMessage(
-        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Verifică textul extras, corectează dacă e nevoie, apoi apasă Save.`,
+        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Dacă lipsesc cifre, încearcă una dintre variantele candidate de jos.`,
       );
     } catch (error) {
       console.error(error);
@@ -430,12 +525,22 @@ export default function RawLog({
     setOcrMessage('');
     setOcrProgress(0);
     setOcrBestVariant('');
+    setOcrCandidates([]);
     setOcrBusy(false);
   }
 
   function useOcrText() {
     setRaw(ocrText);
     setOcrMessage('Textul OCR a fost pus în Raw Log. Verifică și apasă Save.');
+  }
+
+  function useCandidate(candidate) {
+    setOcrText(candidate.text);
+    setRaw(candidate.text);
+    setOcrBestVariant(candidate.variant);
+    setOcrMessage(
+      `Ai selectat varianta OCR: ${candidate.variant}. Verifică textul și apasă Save.`,
+    );
   }
 
   return (
@@ -717,6 +822,51 @@ export default function RawLog({
                     >
                       Use this OCR text
                     </button>
+
+                    {ocrCandidates.length > 1 && (
+                      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-3">
+                        <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                          OCR variants
+                        </p>
+
+                        <div className="grid gap-2">
+                          {ocrCandidates.map((candidate) => {
+                            const active =
+                              candidate.variant === ocrBestVariant &&
+                              candidate.text === ocrText;
+
+                            return (
+                              <button
+                                key={candidate.variant}
+                                type="button"
+                                onClick={() => useCandidate(candidate)}
+                                className={`rounded-xl border p-3 text-left text-xs hover:bg-slate-900 ${
+                                  active
+                                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-100'
+                                    : 'border-slate-800 bg-slate-900/60 text-slate-300'
+                                }`}
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="font-black">
+                                    {candidate.variant}
+                                  </span>
+
+                                  <span className="text-slate-400">
+                                    entries {candidate.parsedEntries} · lines{' '}
+                                    {candidate.lines} · numeric{' '}
+                                    {candidate.numericRichLines}
+                                  </span>
+                                </div>
+
+                                <p className="mt-2 line-clamp-2 font-mono text-[11px] text-slate-400">
+                                  {candidate.text.slice(0, 220)}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
