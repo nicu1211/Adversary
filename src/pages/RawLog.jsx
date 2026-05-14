@@ -24,6 +24,7 @@ function cleanOcrText(text) {
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
     .replace(/\u00a0/g, ' ')
+    .replace(/[¦]/g, '|')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -35,7 +36,8 @@ function normalizeOcrNumberToken(token) {
     .replace(/[Ss]/g, '5')
     .replace(/[Bb]/g, '8')
     .replace(/[Zz]/g, '2')
-    .replace(/[Gg]/g, '6');
+    .replace(/[Gg]/g, '6')
+    .replace(/[Tt]/g, '7');
 
   return fixed.replace(/\D/g, '');
 }
@@ -57,7 +59,9 @@ function isBadHeaderLine(line) {
     lower.includes('screenshot') ||
     lower.includes('ocr progress') ||
     lower.includes('upload') ||
-    lower.includes('battle log')
+    lower.includes('battle log') ||
+    lower.includes('text extras') ||
+    lower.includes('parsed entries')
   );
 }
 
@@ -173,11 +177,19 @@ function scoreOcrText(text) {
     incompleteRows,
     numericCells,
     score:
-      completeRows * 30000 +
-      rows.length * 12000 +
-      numericCells * 900 +
+      completeRows * 35000 +
+      rows.length * 15000 +
+      numericCells * 1200 +
       String(text || '').length,
   };
+}
+
+function rowScore(row) {
+  return (
+    row.numbers.filter(Boolean).length * 100 +
+    (row.complete ? 1200 : 0) +
+    row.familyName.length
+  );
 }
 
 function mergeRowsFromCandidates(candidates) {
@@ -187,13 +199,11 @@ function mergeRowsFromCandidates(candidates) {
     candidate.rows.forEach((row) => {
       const key = row.familyName.toLowerCase();
       const current = byName.get(key);
+      const score = rowScore(row);
 
-      const rowScore =
-        row.numbers.filter(Boolean).length * 100 + (row.complete ? 1000 : 0);
-
-      if (!current || rowScore > current.score) {
+      if (!current || score > current.score) {
         byName.set(key, {
-          score: rowScore,
+          score,
           row,
         });
       }
@@ -201,6 +211,81 @@ function mergeRowsFromCandidates(candidates) {
   });
 
   return [...byName.values()].map((item) => item.row);
+}
+
+function wordsToLines(words) {
+  if (!Array.isArray(words) || !words.length) return '';
+
+  const goodWords = words
+    .map((word) => {
+      const text = String(word?.text || '').trim();
+
+      if (!text) return null;
+
+      const bbox = word?.bbox || {};
+      const x0 = Number(bbox.x0 ?? bbox.left ?? 0);
+      const x1 = Number(bbox.x1 ?? bbox.right ?? x0);
+      const y0 = Number(bbox.y0 ?? bbox.top ?? 0);
+      const y1 = Number(bbox.y1 ?? bbox.bottom ?? y0);
+      const confidence = Number(word?.confidence ?? 0);
+
+      if (confidence < 15) return null;
+
+      return {
+        text,
+        x0,
+        x1,
+        y0,
+        y1,
+        midY: (y0 + y1) / 2,
+        height: Math.max(1, y1 - y0),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.midY - b.midY || a.x0 - b.x0);
+
+  if (!goodWords.length) return '';
+
+  const medianHeight = [...goodWords]
+    .map((word) => word.height)
+    .sort((a, b) => a - b)[Math.floor(goodWords.length / 2)] || 18;
+
+  const rowTolerance = Math.max(10, medianHeight * 0.75);
+  const rows = [];
+
+  goodWords.forEach((word) => {
+    let targetRow = null;
+
+    for (const row of rows) {
+      if (Math.abs(row.midY - word.midY) <= rowTolerance) {
+        targetRow = row;
+        break;
+      }
+    }
+
+    if (!targetRow) {
+      targetRow = {
+        midY: word.midY,
+        words: [],
+      };
+      rows.push(targetRow);
+    }
+
+    targetRow.words.push(word);
+    targetRow.midY =
+      targetRow.words.reduce((sum, item) => sum + item.midY, 0) /
+      targetRow.words.length;
+  });
+
+  return rows
+    .sort((a, b) => a.midY - b.midY)
+    .map((row) =>
+      row.words
+        .sort((a, b) => a.x0 - b.x0)
+        .map((word) => word.text)
+        .join(' '),
+    )
+    .join('\n');
 }
 
 async function createOcrImageVariants(file) {
@@ -215,8 +300,8 @@ async function createOcrImageVariants(file) {
       img.src = imageUrl;
     });
 
-    const minWidth = 4200;
-    const maxWidth = 7600;
+    const minWidth = 4800;
+    const maxWidth = 8200;
 
     let scale = 1;
 
@@ -228,7 +313,7 @@ async function createOcrImageVariants(file) {
       scale = maxWidth / image.width;
     }
 
-    const padding = 180;
+    const padding = 220;
     const width = Math.round(image.width * scale);
     const height = Math.round(image.height * scale);
 
@@ -263,8 +348,8 @@ async function createOcrImageVariants(file) {
 
       values.sort((a, b) => a - b);
 
-      const low = values[Math.floor(values.length * 0.025)] || 0;
-      const high = values[Math.floor(values.length * 0.975)] || 255;
+      const low = values[Math.floor(values.length * 0.02)] || 0;
+      const high = values[Math.floor(values.length * 0.98)] || 255;
       const mid = values[Math.floor(values.length * 0.5)] || 128;
 
       return {
@@ -337,16 +422,16 @@ async function createOcrImageVariants(file) {
         }
 
         if (mode.includes('bright')) {
-          gray = Math.min(255, gray * 1.3 + 22);
+          gray = Math.min(255, gray * 1.35 + 25);
         }
 
         if (mode.includes('dark')) {
-          gray = Math.max(0, gray * 0.8 - 16);
+          gray = Math.max(0, gray * 0.78 - 18);
         }
 
         if (mode.includes('binary')) {
           const threshold = mode.includes('high-threshold')
-            ? stats.mid + 20
+            ? stats.mid + 22
             : stats.mid;
 
           gray = gray > threshold ? 255 : 0;
@@ -362,7 +447,7 @@ async function createOcrImageVariants(file) {
       }
 
       if (mode.includes('sharp')) {
-        sharpen(data, canvas.width, canvas.height, 0.7);
+        sharpen(data, canvas.width, canvas.height, 0.75);
       }
 
       ctx.putImageData(imageData, 0, 0);
@@ -411,6 +496,29 @@ async function createOcrImageVariants(file) {
   } finally {
     URL.revokeObjectURL(imageUrl);
   }
+}
+
+function getOcrConfigs() {
+  return [
+    {
+      name: 'block',
+      options: {
+        tessedit_pageseg_mode: '6',
+      },
+    },
+    {
+      name: 'sparse',
+      options: {
+        tessedit_pageseg_mode: '11',
+      },
+    },
+    {
+      name: 'auto',
+      options: {
+        tessedit_pageseg_mode: '3',
+      },
+    },
+  ];
 }
 
 export default function RawLog({
@@ -534,8 +642,8 @@ export default function RawLog({
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      setOcrMessage('Imaginea este prea mare. Încarcă o imagine sub 15 MB.');
+    if (file.size > 18 * 1024 * 1024) {
+      setOcrMessage('Imaginea este prea mare. Încarcă o imagine sub 18 MB.');
       return;
     }
 
@@ -555,9 +663,11 @@ export default function RawLog({
 
     try {
       const imageVariants = await createOcrImageVariants(file);
+      const ocrConfigs = getOcrConfigs();
+      const totalRuns = imageVariants.length * ocrConfigs.length;
 
       setOcrMessage(
-        `Citesc textul din imagine... 0/${imageVariants.length} variante analizate`,
+        `Citesc textul din imagine... 0/${totalRuns} variante analizate`,
       );
 
       let bestText = '';
@@ -566,81 +676,88 @@ export default function RawLog({
       let bestVariant = '';
       const candidates = [];
 
-      for (let index = 0; index < imageVariants.length; index += 1) {
-        const variant = imageVariants[index];
+      for (let variantIndex = 0; variantIndex < imageVariants.length; variantIndex += 1) {
+        const variant = imageVariants[variantIndex];
 
-        setOcrMessage(
-          `Citesc textul din imagine... ${index + 1}/${
-            imageVariants.length
-          } · ${variant.name}`,
-        );
+        for (let configIndex = 0; configIndex < ocrConfigs.length; configIndex += 1) {
+          const config = ocrConfigs[configIndex];
+          const runIndex = variantIndex * ocrConfigs.length + configIndex;
 
-        const result = await Tesseract.recognize(variant.image, 'eng', {
-          logger: (data) => {
-            if (data.status === 'recognizing text') {
-              const variantProgress = (index / imageVariants.length) * 100;
-              const currentProgress =
-                ((data.progress || 0) / imageVariants.length) * 100;
+          setOcrMessage(
+            `Citesc textul din imagine... ${runIndex + 1}/${totalRuns} · ${variant.name} · ${config.name}`,
+          );
 
-              setOcrProgress(Math.round(variantProgress + currentProgress));
-            }
-          },
-          tessedit_pageseg_mode: '6',
-          tessedit_ocr_engine_mode: '1',
-          preserve_interword_spaces: '1',
-          user_defined_dpi: '300',
-          classify_bln_numeric_mode: '1',
-          textord_heavy_nr: '1',
-          tessedit_char_whitelist:
-            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
-        });
+          const result = await Tesseract.recognize(variant.image, 'eng', {
+            logger: (data) => {
+              if (data.status === 'recognizing text') {
+                const runProgress = (runIndex / totalRuns) * 100;
+                const currentProgress = ((data.progress || 0) / totalRuns) * 100;
 
-        const rawCandidateText = cleanOcrText(result?.data?.text);
-        const candidateScore = scoreOcrText(rawCandidateText);
-        const tableCandidateText = formatOcrRowsAsResultTable(
-          candidateScore.rows,
-        );
-        const candidateText = tableCandidateText || rawCandidateText;
+                setOcrProgress(Math.round(runProgress + currentProgress));
+              }
+            },
+            ...config.options,
+            tessedit_ocr_engine_mode: '1',
+            preserve_interword_spaces: '1',
+            user_defined_dpi: '300',
+            classify_bln_numeric_mode: '1',
+            textord_heavy_nr: '1',
+            tessedit_char_whitelist:
+              'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
+          });
 
-        let candidateParsedEntries = 0;
+          const rawTextFromLines = cleanOcrText(result?.data?.text);
+          const rawTextFromWords = cleanOcrText(wordsToLines(result?.data?.words));
+          const combinedRawText = cleanOcrText(
+            [rawTextFromLines, rawTextFromWords].filter(Boolean).join('\n'),
+          );
 
-        try {
-          candidateParsedEntries = parseLog(
-            candidateText,
-            name,
-            date,
-            `ocr-${variant.name}`,
-          ).length;
-        } catch {
-          candidateParsedEntries = 0;
-        }
+          const candidateScore = scoreOcrText(combinedRawText);
+          const tableCandidateText = formatOcrRowsAsResultTable(
+            candidateScore.rows,
+          );
+          const candidateText = tableCandidateText || combinedRawText;
 
-        const candidateLines = candidateText
-          .split('\n')
-          .filter((line) => line.trim()).length;
+          let candidateParsedEntries = 0;
 
-        const candidateScoreValue =
-          candidateScore.score + candidateParsedEntries * 10000;
+          try {
+            candidateParsedEntries = parseLog(
+              candidateText,
+              name,
+              date,
+              `ocr-${variant.name}-${config.name}`,
+            ).length;
+          } catch {
+            candidateParsedEntries = 0;
+          }
 
-        candidates.push({
-          variant: variant.name,
-          text: candidateText,
-          rawText: rawCandidateText,
-          rows: candidateScore.rows,
-          score: candidateScoreValue,
-          parsedEntries: candidateParsedEntries,
-          lines: candidateLines,
-          completeRows: candidateScore.completeRows,
-          incompleteRows: candidateScore.incompleteRows,
-          numericCells: candidateScore.numericCells,
-          tableRows: candidateScore.rows.length,
-        });
+          const candidateLines = candidateText
+            .split('\n')
+            .filter((line) => line.trim()).length;
 
-        if (candidateScoreValue > bestScore) {
-          bestScore = candidateScoreValue;
-          bestText = candidateText;
-          bestRawText = rawCandidateText;
-          bestVariant = variant.name;
+          const candidateScoreValue =
+            candidateScore.score + candidateParsedEntries * 10000;
+
+          candidates.push({
+            variant: `${variant.name} · ${config.name}`,
+            text: candidateText,
+            rawText: combinedRawText,
+            rows: candidateScore.rows,
+            score: candidateScoreValue,
+            parsedEntries: candidateParsedEntries,
+            lines: candidateLines,
+            completeRows: candidateScore.completeRows,
+            incompleteRows: candidateScore.incompleteRows,
+            numericCells: candidateScore.numericCells,
+            tableRows: candidateScore.rows.length,
+          });
+
+          if (candidateScoreValue > bestScore) {
+            bestScore = candidateScoreValue;
+            bestText = candidateText;
+            bestRawText = combinedRawText;
+            bestVariant = `${variant.name} · ${config.name}`;
+          }
         }
       }
 
@@ -654,7 +771,7 @@ export default function RawLog({
 
       const sortedCandidates = candidates
         .sort((a, b) => b.score - a.score)
-        .slice(0, 6);
+        .slice(0, 8);
 
       setOcrCandidates(sortedCandidates);
       setOcrProgress(100);
@@ -676,7 +793,7 @@ export default function RawLog({
       }
 
       setOcrMessage(
-        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Rezultatul a fost formatat ca tabel. Dacă un rând are celule goale, completează manual valoarea din screenshot.`,
+        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Am folosit și reconstrucție pe rânduri după poziția cuvintelor. Verifică tabelul înainte de Save.`,
       );
     } catch (error) {
       console.error(error);
@@ -853,8 +970,7 @@ export default function RawLog({
                 </span>
 
                 <span className="mt-1 block text-xs text-slate-400">
-                  Încarcă screenshot JPG/PNG. OCR-ul extrage tabelul cu 7
-                  coloane.
+                  OCR high accuracy: text + word position rows.
                 </span>
 
                 {ocrFile && (
