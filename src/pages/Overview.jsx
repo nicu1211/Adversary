@@ -878,35 +878,45 @@ function EnemyGuilds({ guilds, events }) {
     };
   }, [chartRows]);
 
-  function channelValue(x, y, values) {
-    return x < 0 && y < 0
-      ? values[0]
-      : x < 0
-        ? values[1]
-        : y < 0
-          ? values[2]
-          : values[3];
-  }
-
   function colorize(opaque, context) {
     const value = context.raw || {};
-    const x = value.colorX / 100;
-    const y = value.colorY / 100;
-    const r = channelValue(x, y, [250, 150, 50, 0]);
-    const g = channelValue(x, y, [0, 50, 150, 250]);
-    const b = channelValue(x, y, [0, 150, 150, 250]);
-    const a = opaque ? 1 : 0.45 + 0.35 * Math.min(1, value.v / 1000);
+    const guild = value.guild || {};
+    const kd = Number(guild.kdNumber) || 0;
+
+    let r;
+    let g;
+    let b;
+
+    if (kd >= 2) {
+      r = 16;
+      g = 185;
+      b = 129;
+    } else if (kd >= 1.5) {
+      r = 59;
+      g = 130;
+      b = 246;
+    } else if (kd >= 1) {
+      r = 34;
+      g = 211;
+      b = 238;
+    } else if (kd >= 0.75) {
+      r = 251;
+      g = 191;
+      b = 36;
+    } else {
+      r = 244;
+      g = 63;
+      b = 94;
+    }
+
+    const strength = Math.min(1, Math.max(0.25, value.v / 1000));
+    const a = opaque ? 1 : 0.28 + 0.45 * strength;
 
     return `rgba(${r},${g},${b},${a})`;
   }
 
-  const bubbleData = useMemo(() => {
-    const centerX = (chartMeta.minX + chartMeta.maxX) / 2;
-    const centerY = (chartMeta.minY + chartMeta.maxY) / 2;
-    const xRange = Math.max(1, chartMeta.maxX - chartMeta.minX);
-    const yRange = Math.max(1, chartMeta.maxY - chartMeta.minY);
-
-    return {
+  const bubbleData = useMemo(
+    () => ({
       datasets: [
         {
           label: 'Enemy Guilds',
@@ -914,14 +924,13 @@ function EnemyGuilds({ guilds, events }) {
             x: guild.kills,
             y: guild.deaths,
             v: Math.max(1, (guild.kdNumber / chartMeta.maxV) * 1000),
-            colorX: ((guild.kills - centerX) / xRange) * 220,
-            colorY: ((guild.deaths - centerY) / yRange) * 220,
             guild,
           })),
         },
       ],
-    };
-  }, [chartRows, chartMeta]);
+    }),
+    [chartRows, chartMeta],
+  );
 
   const bubbleOptions = useMemo(
     () => ({
