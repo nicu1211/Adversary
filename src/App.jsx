@@ -7,25 +7,21 @@ import React, {
   useState,
 } from 'react';
 import NodeWars from './pages/NodeWars';
+import RawLog from './pages/RawLog';
 import {
   MEMBER_KEY,
   buildLogSummary,
   calculateStats,
   dateOf,
   hashLog,
-  monthDays,
   monthId,
-  monthLabel,
   normalizeLog,
   normalizeLogs,
   normalizeMembers,
   parseLog,
   readStorage,
-  scrollCls,
-  shiftMonth,
   today,
 } from './lib/logUtils';
-import { Panel } from './components/UI';
 
 const Overview = lazy(() => import('./pages/Overview'));
 const PlayerStats = lazy(() => import('./pages/PlayerStats'));
@@ -33,6 +29,8 @@ const HallOfFame = lazy(() => import('./pages/HallOfFame'));
 
 const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
+
+const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
 
 function getAdminToken() {
   let token = localStorage.getItem(ADMIN_TOKEN_KEY);
@@ -73,6 +71,7 @@ function queryString(params = {}) {
   });
 
   const text = search.toString();
+
   return text ? `?${text}` : '';
 }
 
@@ -94,6 +93,27 @@ function isRetryableError(error) {
     text.includes('504') ||
     text.includes('429')
   );
+}
+
+function getMainLogOnly(rawLog) {
+  const text = String(rawLog || '');
+
+  if (!text.includes(SECONDARY_LOG_START)) {
+    return text;
+  }
+
+  return text.split(SECONDARY_LOG_START)[0].trim();
+}
+
+function stripSecondaryFromLog(log) {
+  return {
+    ...log,
+    raw: getMainLogOnly(log.raw),
+  };
+}
+
+function stripSecondaryFromLogs(logs) {
+  return Array.isArray(logs) ? logs.map(stripSecondaryFromLog) : [];
 }
 
 async function apiGet(path, options = {}) {
@@ -178,6 +198,7 @@ async function apiWriteWithRetry(path, method, body, options = {}) {
       return await apiWrite(path, method, body, options);
     } catch (error) {
       lastError = error;
+
       const text = String(error?.message || error || '');
 
       if (
@@ -259,7 +280,7 @@ async function deleteApiLog(log) {
   }
 
   throw new Error(
-    `Delete failed.\nBackend did not accept any delete route. Last error: ${
+    `Delete failed.\nBackend did not accept any delete route.\nLast error: ${
       lastError?.message || lastError || 'unknown error'
     }`,
   );
@@ -267,281 +288,36 @@ async function deleteApiLog(log) {
 
 function PageLoader({ text = 'Loading...' }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-sm font-bold text-slate-400">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
       {text}
     </div>
   );
 }
 
-function CalendarPicker({ month, setMonth, selected, marked, onPick, footer }) {
-  return (
-    <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-950 p-3 shadow-2xl">
-      <div className="mb-3 flex items-center justify-between text-sm font-black">
-        <button
-          type="button"
-          onClick={() => setMonth(shiftMonth(month, -1))}
-          className="rounded-lg border border-slate-700 px-2 py-1 hover:bg-slate-800"
-        >
-          ‹
-        </button>
-        <span>{monthLabel(month)}</span>
-        <button
-          type="button"
-          onClick={() => setMonth(shiftMonth(month, 1))}
-          className="rounded-lg border border-slate-700 px-2 py-1 hover:bg-slate-800"
-        >
-          ›
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-black text-slate-500">
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-          <div key={day}>{day}</div>
-        ))}
-      </div>
-
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {monthDays(month).map((item) => (
-          <button
-            key={item.iso}
-            type="button"
-            onClick={() => onPick(item.iso)}
-            className={`relative h-8 rounded-lg text-xs font-black transition ${
-              selected === item.iso
-                ? 'bg-blue-500 text-white ring-2 ring-blue-300'
-                : marked.has(item.iso)
-                  ? 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/35'
-                  : item.currentMonth
-                    ? 'text-slate-300 hover:bg-slate-800'
-                    : 'text-slate-600 hover:bg-slate-900'
-            }`}
-          >
-            {item.day}
-            {marked.has(item.iso) && (
-              <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-emerald-300" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {footer && <div className="mt-3 flex gap-2">{footer}</div>}
-    </div>
-  );
-}
-
-function DeleteLogModal({ target, deleting, message, onCancel, onDelete }) {
-  if (!target) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
-        <h3 className="text-2xl font-black text-white">Delete log?</h3>
-        <p className="mt-2 text-sm text-slate-400">
-          This action permanently deletes the selected log from the database.
-        </p>
-
-        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <div className="font-black text-white">{target.name}</div>
-          <div className="mt-1 text-xs text-slate-500">
-            {dateOf(target)} {target.localOnly ? ' · local only' : ''}
-          </div>
-        </div>
-
-        {message && (
-          <pre className="mt-4 whitespace-pre-wrap rounded-2xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-300">
-            {message}
-          </pre>
-        )}
-
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={deleting}
-            className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-300 hover:bg-slate-900 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={deleting}
-            className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-black text-white hover:bg-rose-500 disabled:opacity-50"
-          >
-            {deleting ? 'Deleting...' : 'Delete permanently'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RawLogPage({
-  raw,
-  setRaw,
-  name,
-  setName,
-  date,
-  setDate,
-  logs,
-  message,
-  saveLog,
-  rawMonth,
-  setRawMonth,
-  calendarOpen,
-  setCalendarOpen,
-  markedDates,
-  deleteTarget,
-  setDeleteTarget,
-  deleting,
-  deleteLog,
-}) {
-  return (
-    <>
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-        <Panel>
-          <h2 className="mb-4 text-2xl font-black">Raw Log</h2>
-
-          <div className="mb-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Battle log name"
-              className="rounded-xl border border-slate-700 bg-slate-900 p-3"
-            />
-
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setCalendarOpen(!calendarOpen)}
-                className="w-full rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-left hover:bg-blue-500/20"
-              >
-                <span className="block text-xs font-black uppercase text-slate-500">
-                  War date
-                </span>
-                <span className="font-black text-white">{date}</span>
-              </button>
-
-              {calendarOpen && (
-                <div className="absolute left-0 top-full z-30 w-[300px]">
-                  <CalendarPicker
-                    month={rawMonth}
-                    setMonth={setRawMonth}
-                    selected={date}
-                    marked={markedDates}
-                    onPick={(nextDate) => {
-                      setDate(nextDate);
-                      setCalendarOpen(false);
-                    }}
-                    footer={
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDate(today());
-                            setCalendarOpen(false);
-                          }}
-                          className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold"
-                        >
-                          Today
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCalendarOpen(false)}
-                          className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold"
-                        >
-                          Close
-                        </button>
-                      </>
-                    }
-                  />
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={saveLog}
-              className="rounded-xl bg-blue-600 px-5 py-3 font-black text-white hover:bg-blue-500"
-            >
-              Save
-            </button>
-          </div>
-
-          {message && (
-            <pre className="mb-4 whitespace-pre-wrap rounded-2xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-300">
-              {message}
-            </pre>
-          )}
-
-          <textarea
-            value={raw}
-            onChange={(event) => setRaw(event.target.value)}
-            placeholder="Paste your node war log here..."
-            className="h-96 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
-          />
-        </Panel>
-
-        <Panel>
-          <h2 className="mb-4 text-2xl font-black">History</h2>
-          {logs.length ? (
-            <div className={`max-h-[520px] overflow-y-auto pr-2 ${scrollCls}`}>
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="mb-3 rounded-xl bg-slate-900 p-3 last:mb-0"
-                >
-                  <b>{log.name}</b>
-                  <p className="text-xs text-slate-500">
-                    {dateOf(log)} {log.localOnly ? ' · local only' : ''}
-                  </p>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(log)}
-                      className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-bold hover:bg-rose-500"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">No saved logs yet.</p>
-          )}
-        </Panel>
-      </div>
-
-      <DeleteLogModal
-        target={deleteTarget}
-        deleting={deleting}
-        message={message}
-        onCancel={() => setDeleteTarget(null)}
-        onDelete={deleteLog}
-      />
-    </>
-  );
-}
-
 export default function App() {
   const [page, setPage] = useState('nodewars');
+
   const [raw, setRaw] = useState('');
   const [name, setName] = useState('Battle log');
   const [date, setDate] = useState(today());
+
   const [nodeLogs, setNodeLogs] = useState([]);
   const [allLogs, setAllLogs] = useState(null);
   const [overviewLogs, setOverviewLogs] = useState([]);
   const [members, setMembers] = useState([]);
+
   const [periodDays, setPeriodDays] = useState(7);
   const [loadingNodeLogs, setLoadingNodeLogs] = useState(false);
   const [loadingAllLogs, setLoadingAllLogs] = useState(false);
   const [loadingOverviewLogs, setLoadingOverviewLogs] = useState(false);
+
   const [selectedDays, setSelectedDays] = useState(['current']);
   const [selectedWars, setSelectedWars] = useState(['current']);
+
   const [message, setMessage] = useState('');
   const [rawMonth, setRawMonth] = useState(monthId(new Date()));
   const [calendarOpen, setCalendarOpen] = useState(false);
+
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [nodeWarsWarning, setNodeWarsWarning] = useState('');
@@ -551,16 +327,20 @@ export default function App() {
   const loadNodeLogs = useCallback(async (nextPeriod = 7) => {
     try {
       setLoadingNodeLogs(true);
+
       const params = nextPeriod === 'all' ? { range: 'all' } : { days: nextPeriod };
       const data = await apiGet(logsPath(params));
       const normalized = normalizeLogs(data);
+
       setNodeLogs(normalized);
       setMessage('');
     } catch (error) {
       console.error('Failed to load node wars logs:', error);
       setNodeLogs([]);
       setMessage(
-        `Database load failed: ${error?.message || error || 'unknown error'}.\nNu am încărcat loguri salvate local din browser.`,
+        `Database load failed: ${
+          error?.message || error || 'unknown error'
+        }.\nNu am încărcat loguri salvate local din browser.`,
       );
     } finally {
       setLoadingNodeLogs(false);
@@ -579,15 +359,21 @@ export default function App() {
 
     try {
       setLoadingAllLogs(true);
+
       const data = await apiGet(logsPath({ range: 'all', includeRaw: 1 }));
       const normalized = normalizeLogs(data);
+
       setAllLogs(normalized);
+
       return normalized;
     } catch (error) {
       console.error('Failed to load all logs:', error);
       setMessage(
-        `Database load failed: ${error?.message || error || 'unknown error'}.\nNu am încărcat loguri salvate local din browser.`,
+        `Database load failed: ${
+          error?.message || error || 'unknown error'
+        }.\nNu am încărcat loguri salvate local din browser.`,
       );
+
       return [];
     } finally {
       setLoadingAllLogs(false);
@@ -608,13 +394,16 @@ export default function App() {
 
     try {
       setLoadingOverviewLogs(true);
+
       const loaded = await Promise.all(
         selectedRealWars.map(async (id) => {
           const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
           return normalizeLog(data);
         }),
       );
+
       const withRaw = loaded.filter((log) => Boolean(log.raw));
+
       setOverviewLogs(withRaw);
     } catch (error) {
       console.error('Failed to load overview raw logs:', error);
@@ -631,6 +420,7 @@ export default function App() {
 
   useEffect(() => {
     loadNodeLogs(7);
+
     apiGet('/api/members')
       .then((data) => {
         setMembers(normalizeMembers(data));
@@ -654,27 +444,39 @@ export default function App() {
   const all = selectedDays.includes('all');
 
   const activeLogs = useMemo(() => {
+    let baseLogs;
+
     if (current) {
-      return [{ id: 'current', name, date, raw }];
-    }
-
-    if (page === 'overview') {
-      return overviewLogs.map((log) => ({
+      baseLogs = [
+        {
+          id: 'current',
+          name,
+          date,
+          raw,
+        },
+      ];
+    } else if (page === 'overview') {
+      baseLogs = overviewLogs.map((log) => ({
         ...log,
         date: dateOf(log),
       }));
+    } else {
+      const base = all
+        ? logs
+        : logs.filter((log) => selectedDays.includes(dateOf(log)));
+
+      baseLogs = base
+        .filter(
+          (log) =>
+            selectedWars.includes('all') || selectedWars.includes(String(log.id)),
+        )
+        .map((log) => ({
+          ...log,
+          date: dateOf(log),
+        }));
     }
 
-    const base = all ? logs : logs.filter((log) => selectedDays.includes(dateOf(log)));
-
-    return base
-      .filter(
-        (log) => selectedWars.includes('all') || selectedWars.includes(String(log.id)),
-      )
-      .map((log) => ({
-        ...log,
-        date: dateOf(log),
-      }));
+    return stripSecondaryFromLogs(baseLogs);
   }, [
     current,
     page,
@@ -698,12 +500,14 @@ export default function App() {
     const sourceLogs = Array.isArray(allLogs) ? allLogs : [];
 
     return calculateStats(
-      sourceLogs
-        .filter((log) => Boolean(log.raw))
-        .map((log) => ({
-          ...log,
-          date: dateOf(log),
-        })),
+      stripSecondaryFromLogs(
+        sourceLogs
+          .filter((log) => Boolean(log.raw))
+          .map((log) => ({
+            ...log,
+            date: dateOf(log),
+          })),
+      ),
     );
   }, [page, allLogs]);
 
@@ -726,13 +530,17 @@ export default function App() {
     [logs],
   );
 
-  async function saveLog() {
-    if (!parseLog(raw, name, date, 'x').length) {
+  async function saveLog(rawOverride) {
+    const rawToSave = rawOverride == null ? raw : rawOverride;
+    const mainRawForValidation = getMainLogOnly(rawToSave);
+
+    if (!parseLog(mainRawForValidation, name, date, 'x').length) {
       setMessage('Invalid log');
       return;
     }
 
-    const localHash = hashLog(raw);
+    const localHash = hashLog(rawToSave);
+
     const duplicate = logs.find((log) => {
       if (log.hash && log.hash === localHash) return true;
       if (log.raw) return hashLog(log.raw) === localHash;
@@ -750,13 +558,20 @@ export default function App() {
       id: `${date}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: name || date,
       date,
-      raw,
+      raw: rawToSave,
       hash: localHash,
       createdAt: new Date().toISOString(),
     };
 
-    const summary = buildLogSummary(draftLog);
-    const payload = { ...draftLog, summary };
+    const summary = buildLogSummary({
+      ...draftLog,
+      raw: mainRawForValidation,
+    });
+
+    const payload = {
+      ...draftLog,
+      summary,
+    };
 
     setMessage('Saving log to database...\nattempt 1/5');
 
@@ -773,22 +588,26 @@ export default function App() {
       });
 
       setNodeLogs((currentLogs) => [savedLog, ...currentLogs]);
+
       setAllLogs((currentLogs) =>
         Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
       );
+
       setOverviewLogs((currentLogs) =>
         Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
       );
+
       setSelectedDays([savedLog.date]);
       setSelectedWars([String(savedLog.id)]);
       setMessage('Log saved to database.\nSummary calculated and saved.');
     } catch (error) {
       const text = String(error?.message || error || 'Unknown error');
+
       console.error('Database save failed:', error);
 
       if (text.includes('Duplicate log')) {
         setMessage(
-          `Database refused save: ${text}. Logul NU a fost salvat local în browser.`,
+          `Database refused save: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
         return;
       }
@@ -815,18 +634,23 @@ export default function App() {
 
     try {
       setDeleting(true);
+
       await deleteApiLog(deleteTarget);
+
       setNodeLogs((currentLogs) =>
         currentLogs.filter((log) => String(log.id) !== String(deleteTarget.id)),
       );
+
       setAllLogs((currentLogs) =>
         Array.isArray(currentLogs)
           ? currentLogs.filter((log) => String(log.id) !== String(deleteTarget.id))
           : currentLogs,
       );
+
       setOverviewLogs((currentLogs) =>
         currentLogs.filter((log) => String(log.id) !== String(deleteTarget.id)),
       );
+
       setMessage('Log deleted from database');
       setDeleteTarget(null);
     } catch (error) {
@@ -879,6 +703,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black text-white">☾ Battle Analytics</div>
+
         <div className="grid grid-cols-4 gap-2">
           {menu.map(([id, title]) => (
             <button
@@ -909,6 +734,7 @@ export default function App() {
             >
               Match History
             </button>
+
             <button
               type="button"
               onClick={openOverviewFromMenu}
@@ -927,6 +753,7 @@ export default function App() {
       <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="hidden border-r border-slate-800 bg-slate-950 p-4 lg:block">
           <h1 className="mb-6 text-2xl font-black text-white">☾ Battle Analytics</h1>
+
           <nav>
             {menu.map(([id, title]) => {
               const isNodeWars = id === 'nodewars';
@@ -958,6 +785,7 @@ export default function App() {
                       >
                         Match History
                       </button>
+
                       <button
                         type="button"
                         onClick={openOverviewFromMenu}
@@ -1036,7 +864,7 @@ export default function App() {
                 </div>
               )}
 
-              <RawLogPage
+              <RawLog
                 raw={raw}
                 setRaw={setRaw}
                 name={name}
