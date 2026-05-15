@@ -1,4 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  ArcElement,
+  Tooltip as ChartTooltip,
+  Legend,
+} from 'chart.js';
+import { PolarArea, getElementAtEvent } from 'react-chartjs-2';
 import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
@@ -7,6 +15,8 @@ import {
   calculateKillFeed,
   calculateStats,
 } from '../lib/logUtils';
+
+ChartJS.register(RadialLinearScale, ArcElement, ChartTooltip, Legend);
 
 function RankList({ title, items, valueKey }) {
   const rows = items.slice(0, 5);
@@ -135,22 +145,6 @@ function majorityGuildForKillFeed(feed, events = []) {
   })[0]?.[0];
 
   return majorityGuild || cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
-}
-
-function buildAxisTicks(min, max, count = 5) {
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
-  if (max <= min) return [Math.round(min), Math.round(max + 1)];
-
-  const values = Array.from({ length: count }, (_, index) => {
-    const ratio = count === 1 ? 0 : index / (count - 1);
-    return Math.round(min + (max - min) * ratio);
-  });
-
-  const unique = [...new Set(values)];
-
-  if (unique.length === 1) return [unique[0], unique[0] + 1];
-
-  return unique;
 }
 
 function BestOverall({
@@ -819,8 +813,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 }
 
 function EnemyGuilds({ guilds, events }) {
+  const chartRef = useRef(null);
   const [selected, setSelected] = useState(null);
-  const [hovered, setHovered] = useState(null);
 
   const rows = useMemo(
     () =>
@@ -850,146 +844,136 @@ function EnemyGuilds({ guilds, events }) {
     [guilds],
   );
 
-  const width = 1100;
-  const height = 390;
-  const pad = { top: 12, right: 14, bottom: 34, left: 48 };
+  const chartRows = rows;
 
-  const chart = useMemo(() => {
-    if (!rows.length) return null;
+  function colorForGuild(guild, alpha = 0.68) {
+    if (guild.kdNumber >= 1.5) return `rgba(59, 130, 246, ${alpha})`;
+    if (guild.kdNumber >= 1) return `rgba(34, 211, 238, ${alpha})`;
+    if (guild.kdNumber >= 0.75) return `rgba(251, 191, 36, ${alpha})`;
+    return `rgba(244, 63, 94, ${alpha})`;
+  }
 
-    const innerW = width - pad.left - pad.right;
-    const innerH = height - pad.top - pad.bottom;
+  const polarData = useMemo(
+    () => ({
+      labels: chartRows.map((guild) => guild.name),
+      datasets: [
+        {
+          label: 'Interactions',
+          data: chartRows.map((guild) => guild.totalInteractions),
+          backgroundColor: chartRows.map((guild) => colorForGuild(guild, 0.58)),
+          hoverBackgroundColor: chartRows.map((guild) =>
+            colorForGuild(guild, 0.86),
+          ),
+          borderColor: chartRows.map((guild) =>
+            guild.kdNumber >= 1
+              ? 'rgba(219, 234, 254, 0.72)'
+              : 'rgba(255, 228, 230, 0.72)',
+          ),
+          hoverBorderColor: 'rgba(255, 255, 255, 0.95)',
+          borderWidth: 1.2,
+          hoverBorderWidth: 2,
+        },
+      ],
+    }),
+    [chartRows],
+  );
 
-    const killsValues = rows.map((item) => item.kills);
-    const deathsValues = rows.map((item) => item.deaths);
+  const polarOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        animateRotate: true,
+        animateScale: true,
+      },
+      layout: {
+        padding: 8,
+      },
+      interaction: {
+        intersect: true,
+        mode: 'nearest',
+      },
+      scales: {
+        r: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(148, 163, 184, 0.13)',
+            circular: true,
+          },
+          angleLines: {
+            color: 'rgba(148, 163, 184, 0.08)',
+          },
+          ticks: {
+            display: false,
+            backdropColor: 'transparent',
+          },
+          pointLabels: {
+            display: false,
+          },
+        },
+      },
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          displayColors: true,
+          backgroundColor: 'rgba(2, 6, 23, 0.96)',
+          borderColor: 'rgba(148, 163, 184, 0.35)',
+          borderWidth: 1,
+          padding: 10,
+          titleColor: '#f8fafc',
+          bodyColor: '#cbd5e1',
+          callbacks: {
+            title: (items) => {
+              const index = items?.[0]?.dataIndex ?? 0;
+              return chartRows[index]?.name || '-';
+            },
+            label: (context) => {
+              const guild = chartRows[context.dataIndex];
 
-    const minKillsRaw = Math.min(...killsValues);
-    const maxKillsRaw = Math.max(...killsValues);
-    const minDeathsRaw = Math.min(...deathsValues);
-    const maxDeathsRaw = Math.max(...deathsValues);
-    const maxKdRaw = Math.max(1, ...rows.map((item) => item.kdNumber));
+              if (!guild) return '';
 
-    const killsRange = Math.max(1, maxKillsRaw - minKillsRaw);
-    const deathsRange = Math.max(1, maxDeathsRaw - minDeathsRaw);
-
-    const xPadding = Math.max(6, killsRange * 0.04);
-    const yPadding = Math.max(6, deathsRange * 0.06);
-
-    const xMin = Math.max(0, Math.floor(minKillsRaw - xPadding));
-    const xMax = Math.ceil(maxKillsRaw + xPadding);
-    const yMin = Math.max(0, Math.floor(minDeathsRaw - yPadding));
-    const yMax = Math.ceil(maxDeathsRaw + yPadding);
-    const maxKd = Math.max(1, Math.min(12, maxKdRaw));
-
-    function xScale(value) {
-      const range = Math.max(1, xMax - xMin);
-      return pad.left + ((Math.max(xMin, value) - xMin) / range) * innerW;
-    }
-
-    function yScale(value) {
-      const range = Math.max(1, yMax - yMin);
-      return (
-        pad.top + innerH - ((Math.max(yMin, value) - yMin) / range) * innerH
-      );
-    }
-
-    function radiusScale(value) {
-      const safe = Math.max(0, Math.min(maxKd, value));
-      const ratio = maxKd <= 0 ? 0 : safe / maxKd;
-
-      return 12 + Math.sqrt(ratio) * 14;
-    }
-
-    const duplicateGroups = rows.reduce((acc, item) => {
-      const key = `${item.kills}|${item.deaths}`;
-
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item.name);
-
-      return acc;
-    }, {});
-
-    const points = rows.slice(0, 24).map((item) => {
-      const key = `${item.kills}|${item.deaths}`;
-      const group = duplicateGroups[key] || [item.name];
-      const dupTotal = group.length;
-      const dupIndex = group.indexOf(item.name);
-
-      const baseX = xScale(item.kills);
-      const baseY = yScale(item.deaths);
-
-      let cx = baseX;
-      let cy = baseY;
-
-      if (dupTotal > 1 && dupIndex >= 0) {
-        const offsetRadius = Math.min(12, 5 + dupTotal * 1.5);
-        const angle = (Math.PI * 2 * dupIndex) / dupTotal;
-
-        cx += Math.cos(angle) * offsetRadius;
-        cy += Math.sin(angle) * offsetRadius;
-      }
-
-      return {
-        ...item,
-        cx,
-        cy,
-        baseX,
-        baseY,
-        radius: radiusScale(item.kdNumber),
-      };
-    });
-
-    return {
-      xMin,
-      xMax,
-      yMin,
-      yMax,
-      points,
-      xScale,
-      yScale,
-      xTickValues: buildAxisTicks(xMin, xMax, 5),
-      yTickValues: buildAxisTicks(yMin, yMax, 5),
-    };
-  }, [rows]);
+              return [
+                `Interactions: ${guild.totalInteractions}`,
+                `Kills: ${guild.kills}`,
+                `Deaths: ${guild.deaths}`,
+                `K/D: ${guild.kd}`,
+              ];
+            },
+          },
+        },
+      },
+    }),
+    [chartRows],
+  );
 
   const log = selected
     ? events.filter((event) => event.guild === selected.name)
     : [];
 
-  function shortName(name) {
-    const text = String(name || '-');
+  function handlePolarClick(event) {
+    if (!chartRef.current) return;
 
-    if (text.length <= 12) return text;
-    return `${text.slice(0, 8)}…${text.slice(-2)}`;
+    const elements = getElementAtEvent(chartRef.current, event);
+    const first = elements?.[0];
+
+    if (!first) return;
+
+    const guild = chartRows[first.index];
+
+    if (guild) {
+      setSelected(guild);
+    }
   }
 
-  function bubbleGradientId(guild) {
-    return guild.kdNumber >= 1 ? 'enemyBubbleBlue' : 'enemyBubbleRose';
+  function handlePolarHover(event, elements) {
+    const canvas = event?.native?.target;
+
+    if (!canvas) return;
+
+    canvas.style.cursor = elements?.length ? 'pointer' : 'default';
   }
-
-  function bubbleShadow(guild) {
-    if (guild.kdNumber >= 1) return 'rgba(96,165,250,0.22)';
-    return 'rgba(244,63,94,0.22)';
-  }
-
-  function bubbleStroke(guild) {
-    if (guild.kdNumber >= 1) return 'rgba(191,219,254,0.50)';
-    return 'rgba(253,164,175,0.50)';
-  }
-
-  const tooltipBelow = hovered ? hovered.cy < 92 : false;
-
-  const tooltipHorizontalTransform = hovered
-    ? hovered.cx < 170
-      ? '-8%'
-      : hovered.cx > width - 170
-        ? '-92%'
-        : '-50%'
-    : '-50%';
-
-  const tooltipVerticalTransform = tooltipBelow
-    ? '12px'
-    : 'calc(-100% - 12px)';
 
   return (
     <Panel cls="h-[520px]">
@@ -1002,259 +986,17 @@ function EnemyGuilds({ guilds, events }) {
           </span>
         </div>
 
-        {!chart ? (
+        {!chartRows.length ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
-          <div
-            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800"
-            onMouseLeave={() => setHovered(null)}
-          >
-            {hovered && (
-              <div
-                className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
-                style={{
-                  left: `${(hovered.cx / width) * 100}%`,
-                  top: `${(hovered.cy / height) * 100}%`,
-                  transform: `translate(${tooltipHorizontalTransform}, ${tooltipVerticalTransform})`,
-                }}
-              >
-                <p className="mb-1 font-black text-slate-100">{hovered.name}</p>
-                <p className="font-bold text-blue-300">
-                  Kills: {hovered.kills}
-                </p>
-                <p className="font-bold text-pink-300">
-                  Deaths: {hovered.deaths}
-                </p>
-                <p className="font-bold text-violet-300">K/D: {hovered.kd}</p>
-              </div>
-            )}
-
-            <svg
-              viewBox={`0 0 ${width} ${height}`}
-              className="h-full w-full"
-              role="img"
-              aria-label="Enemy Guilds bubble chart"
-            >
-              <defs>
-                <radialGradient id="enemyBubbleBlue" cx="34%" cy="28%" r="72%">
-                  <stop offset="0%" stopColor="rgba(219,234,254,0.82)" />
-                  <stop offset="25%" stopColor="rgba(125,211,252,0.66)" />
-                  <stop offset="70%" stopColor="rgba(59,130,246,0.48)" />
-                  <stop offset="100%" stopColor="rgba(37,99,235,0.34)" />
-                </radialGradient>
-
-                <radialGradient id="enemyBubbleRose" cx="34%" cy="28%" r="72%">
-                  <stop offset="0%" stopColor="rgba(255,228,230,0.82)" />
-                  <stop offset="25%" stopColor="rgba(251,113,133,0.66)" />
-                  <stop offset="70%" stopColor="rgba(244,63,94,0.48)" />
-                  <stop offset="100%" stopColor="rgba(190,18,60,0.34)" />
-                </radialGradient>
-
-                <filter
-                  id="enemyBubbleBlur"
-                  x="-60%"
-                  y="-60%"
-                  width="220%"
-                  height="220%"
-                >
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              {chart.yTickValues.map((tick) => {
-                const y = chart.yScale(tick);
-
-                return (
-                  <g key={`y-${tick}`}>
-                    <line
-                      x1={pad.left}
-                      y1={y}
-                      x2={width - pad.right}
-                      y2={y}
-                      stroke="rgba(255,255,255,0.07)"
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={pad.left - 8}
-                      y={y + 4}
-                      textAnchor="end"
-                      fontSize="10"
-                      fill="rgba(255,255,255,0.34)"
-                    >
-                      {tick}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {chart.xTickValues.map((tick) => {
-                const x = chart.xScale(tick);
-
-                return (
-                  <g key={`x-${tick}`}>
-                    <line
-                      x1={x}
-                      y1={pad.top}
-                      x2={x}
-                      y2={height - pad.bottom}
-                      stroke="rgba(255,255,255,0.055)"
-                      strokeWidth="1"
-                      strokeDasharray="3 5"
-                    />
-                    <text
-                      x={x}
-                      y={height - 10}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fill="rgba(255,255,255,0.34)"
-                    >
-                      {tick}
-                    </text>
-                  </g>
-                );
-              })}
-
-              <line
-                x1={pad.left}
-                y1={height - pad.bottom}
-                x2={width - pad.right}
-                y2={height - pad.bottom}
-                stroke="rgba(255,255,255,0.18)"
-                strokeWidth="1.4"
-              />
-
-              <line
-                x1={pad.left}
-                y1={pad.top}
-                x2={pad.left}
-                y2={height - pad.bottom}
-                stroke="rgba(255,255,255,0.18)"
-                strokeWidth="1.4"
-              />
-
-              <text
-                x={(pad.left + (width - pad.right)) / 2}
-                y={height - 1}
-                textAnchor="middle"
-                fontSize="11"
-                fontWeight="800"
-                fill="rgba(255,255,255,0.55)"
-              >
-                Kills
-              </text>
-
-              <text
-                x="16"
-                y={height / 2}
-                textAnchor="middle"
-                fontSize="11"
-                fontWeight="800"
-                fill="rgba(255,255,255,0.55)"
-                transform={`rotate(-90 16 ${height / 2})`}
-              >
-                Deaths
-              </text>
-
-              {hovered && (
-                <g pointerEvents="none">
-                  <line
-                    x1={pad.left}
-                    y1={hovered.cy}
-                    x2={width - pad.right}
-                    y2={hovered.cy}
-                    stroke="rgba(255,255,255,0.12)"
-                    strokeDasharray="4 5"
-                  />
-                  <line
-                    x1={hovered.cx}
-                    y1={pad.top}
-                    x2={hovered.cx}
-                    y2={height - pad.bottom}
-                    stroke="rgba(255,255,255,0.12)"
-                    strokeDasharray="4 5"
-                  />
-                </g>
-              )}
-
-              {chart.points.map((guild) => {
-                const fontSize =
-                  guild.radius >= 22 ? 11 : guild.radius >= 16 ? 10 : 9;
-
-                return (
-                  <g
-                    key={guild.name}
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHovered(guild)}
-                    onClick={() => setSelected(guild)}
-                  >
-                    <circle
-                      cx={guild.cx}
-                      cy={guild.cy}
-                      r={guild.radius + 5}
-                      fill={bubbleShadow(guild)}
-                      opacity="0.75"
-                      filter="url(#enemyBubbleBlur)"
-                    />
-
-                    <circle
-                      cx={guild.cx}
-                      cy={guild.cy}
-                      r={guild.radius}
-                      fill={`url(#${bubbleGradientId(guild)})`}
-                      stroke={bubbleStroke(guild)}
-                      strokeWidth="1.2"
-                      opacity="0.88"
-                    />
-
-                    <circle
-                      cx={guild.cx - guild.radius * 0.28}
-                      cy={guild.cy - guild.radius * 0.3}
-                      r={Math.max(3, guild.radius * 0.18)}
-                      fill="rgba(255,255,255,0.34)"
-                      opacity="0.7"
-                    />
-
-                    <circle
-                      cx={guild.cx + guild.radius * 0.16}
-                      cy={guild.cy + guild.radius * 0.18}
-                      r={guild.radius * 0.64}
-                      fill="transparent"
-                      stroke="rgba(255,255,255,0.16)"
-                      strokeWidth="0.8"
-                      opacity="0.65"
-                    />
-
-                    <text
-                      x={guild.cx}
-                      y={guild.cy - 2}
-                      textAnchor="middle"
-                      fontSize={fontSize}
-                      fontWeight="900"
-                      fill="rgba(248,250,252,0.94)"
-                      pointerEvents="none"
-                    >
-                      {shortName(guild.name)}
-                    </text>
-
-                    <text
-                      x={guild.cx}
-                      y={guild.cy + 11}
-                      textAnchor="middle"
-                      fontSize="9.5"
-                      fontWeight="800"
-                      fill="rgba(226,232,240,0.82)"
-                      pointerEvents="none"
-                    >
-                      KD {guild.kd}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+            <PolarArea
+              ref={chartRef}
+              data={polarData}
+              options={polarOptions}
+              onClick={handlePolarClick}
+              onHover={handlePolarHover}
+            />
           </div>
         )}
 
