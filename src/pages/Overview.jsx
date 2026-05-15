@@ -80,6 +80,26 @@ function cleanGuild(value) {
   return text;
 }
 
+function majorityGuildFromEvents(events = []) {
+  const guildCounts = {};
+
+  [...(events || [])].forEach((event) => {
+    const guild = cleanGuild(event.guild);
+
+    if (!guild) return;
+
+    guildCounts[guild] = (guildCounts[guild] || 0) + 1;
+  });
+
+  return (
+    Object.entries(guildCounts).sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+
+      return a[0].localeCompare(b[0]);
+    })[0]?.[0] || ''
+  );
+}
+
 function majorityGuildForKillFeed(feed, events = []) {
   const startSec = timeToSecondsValue(feed.start);
   const endSec = timeToSecondsValue(feed.end);
@@ -1012,7 +1032,7 @@ function KillFeedPanel({ killFeeds, events }) {
                   </p>
 
                   <p className="truncate text-[11px] font-bold text-slate-300">
-                    Against {guild}
+                    {guild}
                   </p>
                 </div>
               );
@@ -1044,7 +1064,6 @@ export default function OverviewPage({
   function buildConsecutiveFlowMarkers(events) {
     const markers = [];
     let currentType = null;
-    let currentGuild = '';
     let run = [];
     let markerAddedForRun = false;
 
@@ -1057,27 +1076,30 @@ export default function OverviewPage({
 
       if (nextType !== currentType) {
         currentType = nextType;
-        currentGuild = cleanGuild(event.guild) || '-';
         run = [event];
         markerAddedForRun = false;
       } else {
         run.push(event);
-
-        if (!cleanGuild(currentGuild) && cleanGuild(event.guild)) {
-          currentGuild = cleanGuild(event.guild);
-        }
       }
 
-      if (run.length === 10 && !markerAddedForRun) {
-        const startEvent = run[0];
+      if (run.length >= 10 && !markerAddedForRun) {
+        const windowEvents = run.slice(-10);
+        const startEvent = windowEvents[0];
+        const endEvent = windowEvents[windowEvents.length - 1];
+
+        const startSec = timeToSecondsValue(startEvent.time);
+        const endSec = timeToSecondsValue(endEvent.time);
+        const isInsideThirtySeconds = endSec - startSec <= 30;
+
+        if (!isInsideThirtySeconds) return;
+
         const markerType = currentType === 'kill' ? 'bluefeed' : 'redfeed';
         const feedLabel = currentType === 'kill' ? 'Bluefeed' : 'Redfeed';
         const markerTime = startEvent.time;
         const guild =
+          majorityGuildFromEvents(windowEvents) ||
           cleanGuild(startEvent.guild) ||
-          cleanGuild(currentGuild) ||
-          cleanGuild(run.find((item) => cleanGuild(item.guild))?.guild) ||
-          cleanGuild(event.guild) ||
+          cleanGuild(endEvent.guild) ||
           '-';
 
         markers.push({
