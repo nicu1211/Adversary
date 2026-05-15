@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
@@ -135,6 +135,22 @@ function majorityGuildForKillFeed(feed, events = []) {
   })[0]?.[0];
 
   return majorityGuild || cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
+}
+
+function buildAxisTicks(min, max, count = 5) {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+  if (max <= min) return [Math.round(min), Math.round(max + 1)];
+
+  const values = Array.from({ length: count }, (_, index) => {
+    const ratio = count === 1 ? 0 : index / (count - 1);
+    return Math.round(min + (max - min) * ratio);
+  });
+
+  const unique = [...new Set(values)];
+
+  if (unique.length === 1) return [unique[0], unique[0] + 1];
+
+  return unique;
 }
 
 function BestOverall({
@@ -802,141 +818,383 @@ function PlayerOverview({ players, streaks, feeds, events }) {
   );
 }
 
-function TopGuilds({ guilds, events }) {
+function EnemyGuilds({ guilds, events }) {
   const [selected, setSelected] = useState(null);
-  const [sort, setSort] = useState(['totalInteractions', 'desc']);
+  const [hovered, setHovered] = useState(null);
 
-  const [key, direction] = sort;
+  const rows = useMemo(
+    () =>
+      [...(guilds || [])]
+        .map((guild) => {
+          const kills = Number(guild.deaths) || 0;
+          const deaths = Number(guild.kills) || 0;
+          const totalInteractions = kills + deaths;
+          const kdNumber = deaths > 0 ? kills / deaths : kills > 0 ? kills : 0;
 
-  const rows = [...guilds]
-    .map((guild) => {
-      const kills = guild.deaths;
-      const deaths = guild.kills;
-      const totalInteractions = kills + deaths;
-      const kdNumber = deaths ? kills / deaths : kills;
+          return {
+            ...guild,
+            kills,
+            deaths,
+            totalInteractions,
+            kdNumber,
+            kd: kdNumber.toFixed(2),
+          };
+        })
+        .filter((guild) => guild.totalInteractions > 30)
+        .sort(
+          (a, b) =>
+            b.totalInteractions - a.totalInteractions ||
+            b.kdNumber - a.kdNumber ||
+            a.name.localeCompare(b.name),
+        ),
+    [guilds],
+  );
+
+  const width = 1100;
+  const height = 390;
+  const pad = { top: 12, right: 14, bottom: 34, left: 48 };
+
+  const chart = useMemo(() => {
+    if (!rows.length) return null;
+
+    const innerW = width - pad.left - pad.right;
+    const innerH = height - pad.top - pad.bottom;
+
+    const killsValues = rows.map((item) => item.kills);
+    const deathsValues = rows.map((item) => item.deaths);
+
+    const minKillsRaw = Math.min(...killsValues);
+    const maxKillsRaw = Math.max(...killsValues);
+    const minDeathsRaw = Math.min(...deathsValues);
+    const maxDeathsRaw = Math.max(...deathsValues);
+    const maxKdRaw = Math.max(1, ...rows.map((item) => item.kdNumber));
+
+    const killsRange = Math.max(1, maxKillsRaw - minKillsRaw);
+    const deathsRange = Math.max(1, maxDeathsRaw - minDeathsRaw);
+
+    const xPadding = Math.max(6, killsRange * 0.04);
+    const yPadding = Math.max(6, deathsRange * 0.06);
+
+    const xMin = Math.max(0, Math.floor(minKillsRaw - xPadding));
+    const xMax = Math.ceil(maxKillsRaw + xPadding);
+    const yMin = Math.max(0, Math.floor(minDeathsRaw - yPadding));
+    const yMax = Math.ceil(maxDeathsRaw + yPadding);
+    const maxKd = Math.max(1, Math.min(12, maxKdRaw));
+
+    function xScale(value) {
+      const range = Math.max(1, xMax - xMin);
+      return pad.left + ((Math.max(xMin, value) - xMin) / range) * innerW;
+    }
+
+    function yScale(value) {
+      const range = Math.max(1, yMax - yMin);
+      return (
+        pad.top + innerH - ((Math.max(yMin, value) - yMin) / range) * innerH
+      );
+    }
+
+    function radiusScale(value) {
+      const safe = Math.max(0, Math.min(maxKd, value));
+      const ratio = maxKd <= 0 ? 0 : safe / maxKd;
+
+      return 12 + Math.sqrt(ratio) * 14;
+    }
+
+    const duplicateGroups = rows.reduce((acc, item) => {
+      const key = `${item.kills}|${item.deaths}`;
+
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item.name);
+
+      return acc;
+    }, {});
+
+    const points = rows.slice(0, 24).map((item) => {
+      const key = `${item.kills}|${item.deaths}`;
+      const group = duplicateGroups[key] || [item.name];
+      const dupTotal = group.length;
+      const dupIndex = group.indexOf(item.name);
+
+      const baseX = xScale(item.kills);
+      const baseY = yScale(item.deaths);
+
+      let cx = baseX;
+      let cy = baseY;
+
+      if (dupTotal > 1 && dupIndex >= 0) {
+        const offsetRadius = Math.min(12, 5 + dupTotal * 1.5);
+        const angle = (Math.PI * 2 * dupIndex) / dupTotal;
+
+        cx += Math.cos(angle) * offsetRadius;
+        cy += Math.sin(angle) * offsetRadius;
+      }
 
       return {
-        ...guild,
-        kills,
-        deaths,
-        totalInteractions,
-        kdNumber,
-        kd: kdNumber.toFixed(2),
+        ...item,
+        cx,
+        cy,
+        baseX,
+        baseY,
+        radius: radiusScale(item.kdNumber),
       };
-    })
-    .sort((a, b) => {
-      const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
-      const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
-
-      if (av < bv) return direction === 'asc' ? -1 : 1;
-      if (av > bv) return direction === 'asc' ? 1 : -1;
-
-      return b.totalInteractions - a.totalInteractions || b.kills - a.kills;
     });
 
-  function flip(nextKey) {
-    setSort(
-      key === nextKey
-        ? [nextKey, direction === 'desc' ? 'asc' : 'desc']
-        : [nextKey, nextKey === 'name' ? 'asc' : 'desc'],
-    );
-  }
-
-  function Header({ id, children, className = '' }) {
-    return (
-      <th className={`py-3 ${className}`}>
-        <button
-          onClick={() => flip(id)}
-          className={
-            key === id
-              ? 'font-black text-blue-300'
-              : 'font-black hover:text-blue-300'
-          }
-        >
-          {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
-        </button>
-      </th>
-    );
-  }
+    return {
+      xMin,
+      xMax,
+      yMin,
+      yMax,
+      points,
+      xScale,
+      yScale,
+      xTickValues: buildAxisTicks(xMin, xMax, 5),
+      yTickValues: buildAxisTicks(yMin, yMax, 5),
+    };
+  }, [rows]);
 
   const log = selected
     ? events.filter((event) => event.guild === selected.name)
     : [];
 
+  function shortName(name) {
+    const text = String(name || '-');
+
+    if (text.length <= 12) return text;
+    return `${text.slice(0, 8)}…${text.slice(-2)}`;
+  }
+
+  function bubbleFill(guild) {
+    if (guild.kdNumber >= 1) return 'rgba(59, 130, 246, 0.58)';
+
+    return 'rgba(244, 63, 94, 0.58)';
+  }
+
+  function bubbleStroke(guild) {
+    if (guild.kdNumber >= 1) return 'rgba(147, 197, 253, 0.55)';
+
+    return 'rgba(251, 113, 133, 0.55)';
+  }
+
+  const tooltipBelow = hovered ? hovered.cy < 92 : false;
+
+  const tooltipHorizontalTransform = hovered
+    ? hovered.cx < 170
+      ? '-8%'
+      : hovered.cx > width - 170
+        ? '-92%'
+        : '-50%'
+    : '-50%';
+
+  const tooltipVerticalTransform = tooltipBelow
+    ? '12px'
+    : 'calc(-100% - 12px)';
+
   return (
     <Panel cls="h-[520px]">
       <div className="flex h-full flex-col">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h3 className="text-xl font-black">🛡 Top Guilds</h3>
+          <h3 className="text-xl font-black">🛡 Enemy Guilds</h3>
 
           <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
             {rows.length} guilds
           </span>
         </div>
 
-        {!rows.length ? (
+        {!chart ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
-          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
-            <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
-                  <tr>
-                    <Header id="name" className="pl-4 text-left">
-                      Guild
-                    </Header>
+          <div
+            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800"
+            onMouseLeave={() => setHovered(null)}
+          >
+            {hovered && (
+              <div
+                className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
+                style={{
+                  left: `${(hovered.cx / width) * 100}%`,
+                  top: `${(hovered.cy / height) * 100}%`,
+                  transform: `translate(${tooltipHorizontalTransform}, ${tooltipVerticalTransform})`,
+                }}
+              >
+                <p className="mb-1 font-black text-slate-100">{hovered.name}</p>
+                <p className="font-bold text-blue-300">
+                  Kills: {hovered.kills}
+                </p>
+                <p className="font-bold text-pink-300">
+                  Deaths: {hovered.deaths}
+                </p>
+                <p className="font-bold text-violet-300">K/D: {hovered.kd}</p>
+              </div>
+            )}
 
-                    <Header id="kills" className="text-center">
-                      Kills
-                    </Header>
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              className="h-full w-full"
+              role="img"
+              aria-label="Enemy Guilds bubble chart"
+            >
+              {chart.yTickValues.map((tick) => {
+                const y = chart.yScale(tick);
 
-                    <Header id="deaths" className="text-center">
-                      Deaths
-                    </Header>
-
-                    <Header id="kdNumber" className="pr-4 text-center">
-                      K/D
-                    </Header>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {rows.map((guild, index) => (
-                    <tr
-                      key={guild.name}
-                      className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
+                return (
+                  <g key={`y-${tick}`}>
+                    <line
+                      x1={pad.left}
+                      y1={y}
+                      x2={width - pad.right}
+                      y2={y}
+                      stroke="rgba(255,255,255,0.07)"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={pad.left - 8}
+                      y={y + 4}
+                      textAnchor="end"
+                      fontSize="10"
+                      fill="rgba(255,255,255,0.34)"
                     >
-                      <td className="py-3 pl-4">
-                        <button
-                          onClick={() => setSelected(guild)}
-                          className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
-                        >
-                          {index + 1}. {guild.name}
-                        </button>
-                      </td>
+                      {tick}
+                    </text>
+                  </g>
+                );
+              })}
 
-                      <td className="py-3 text-center font-black text-blue-300">
-                        {guild.kills}
-                      </td>
+              {chart.xTickValues.map((tick) => {
+                const x = chart.xScale(tick);
 
-                      <td className="py-3 text-center font-black text-pink-300">
-                        {guild.deaths}
-                      </td>
+                return (
+                  <g key={`x-${tick}`}>
+                    <line
+                      x1={x}
+                      y1={pad.top}
+                      x2={x}
+                      y2={height - pad.bottom}
+                      stroke="rgba(255,255,255,0.055)"
+                      strokeWidth="1"
+                      strokeDasharray="3 5"
+                    />
+                    <text
+                      x={x}
+                      y={height - 10}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fill="rgba(255,255,255,0.34)"
+                    >
+                      {tick}
+                    </text>
+                  </g>
+                );
+              })}
 
-                      <td
-                        className={`py-3 pr-4 text-center font-black ${
-                          Number(guild.kd) >= 1
-                            ? 'text-emerald-300'
-                            : 'text-rose-300'
-                        }`}
-                      >
-                        {guild.kd}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <line
+                x1={pad.left}
+                y1={height - pad.bottom}
+                x2={width - pad.right}
+                y2={height - pad.bottom}
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth="1.4"
+              />
+
+              <line
+                x1={pad.left}
+                y1={pad.top}
+                x2={pad.left}
+                y2={height - pad.bottom}
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth="1.4"
+              />
+
+              <text
+                x={(pad.left + (width - pad.right)) / 2}
+                y={height - 1}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="800"
+                fill="rgba(255,255,255,0.55)"
+              >
+                Kills
+              </text>
+
+              <text
+                x="16"
+                y={height / 2}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="800"
+                fill="rgba(255,255,255,0.55)"
+                transform={`rotate(-90 16 ${height / 2})`}
+              >
+                Deaths
+              </text>
+
+              {hovered && (
+                <g pointerEvents="none">
+                  <line
+                    x1={pad.left}
+                    y1={hovered.cy}
+                    x2={width - pad.right}
+                    y2={hovered.cy}
+                    stroke="rgba(255,255,255,0.12)"
+                    strokeDasharray="4 5"
+                  />
+                  <line
+                    x1={hovered.cx}
+                    y1={pad.top}
+                    x2={hovered.cx}
+                    y2={height - pad.bottom}
+                    stroke="rgba(255,255,255,0.12)"
+                    strokeDasharray="4 5"
+                  />
+                </g>
+              )}
+
+              {chart.points.map((guild) => {
+                const fontSize =
+                  guild.radius >= 22 ? 11 : guild.radius >= 16 ? 10 : 9;
+
+                return (
+                  <g
+                    key={guild.name}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHovered(guild)}
+                    onClick={() => setSelected(guild)}
+                  >
+                    <circle
+                      cx={guild.cx}
+                      cy={guild.cy}
+                      r={guild.radius}
+                      fill={bubbleFill(guild)}
+                      stroke={bubbleStroke(guild)}
+                      strokeWidth="1"
+                    />
+
+                    <text
+                      x={guild.cx}
+                      y={guild.cy - 2}
+                      textAnchor="middle"
+                      fontSize={fontSize}
+                      fontWeight="900"
+                      fill="rgba(248,250,252,0.92)"
+                      pointerEvents="none"
+                    >
+                      {shortName(guild.name)}
+                    </text>
+
+                    <text
+                      x={guild.cx}
+                      y={guild.cy + 11}
+                      textAnchor="middle"
+                      fontSize="9.5"
+                      fontWeight="800"
+                      fill="rgba(226,232,240,0.78)"
+                      pointerEvents="none"
+                    >
+                      KD {guild.kd}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
           </div>
         )}
 
@@ -1208,12 +1466,10 @@ export default function OverviewPage({
         />
       </section>
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-[1fr_0.5fr_0.5fr]">
-        <TopGuilds guilds={stats.guilds} events={stats.ev} />
+      <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel killFeeds={killFeeds} events={stats.ev} />
-
-        <div className="hidden xl:block" />
       </section>
     </>
   );
