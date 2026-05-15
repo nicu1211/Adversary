@@ -1,4 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Chart as ChartJS,
+  LinearScale,
+  PointElement,
+  Tooltip as ChartTooltip,
+  Legend,
+} from 'chart.js';
+import { Bubble, getElementAtEvent } from 'react-chartjs-2';
 import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
@@ -7,6 +15,8 @@ import {
   calculateKillFeed,
   calculateStats,
 } from '../lib/logUtils';
+
+ChartJS.register(LinearScale, PointElement, ChartTooltip, Legend);
 
 function RankList({ title, items, valueKey }) {
   const rows = items.slice(0, 5);
@@ -135,22 +145,6 @@ function majorityGuildForKillFeed(feed, events = []) {
   })[0]?.[0];
 
   return majorityGuild || cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
-}
-
-function buildAxisTicks(min, max, count = 5) {
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
-  if (max <= min) return [Math.round(min), Math.round(max + 1)];
-
-  const values = Array.from({ length: count }, (_, index) => {
-    const ratio = count === 1 ? 0 : index / (count - 1);
-    return Math.round(min + (max - min) * ratio);
-  });
-
-  const unique = [...new Set(values)];
-
-  if (unique.length === 1) return [unique[0], unique[0] + 1];
-
-  return unique;
 }
 
 function BestOverall({
@@ -819,8 +813,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 }
 
 function EnemyGuilds({ guilds, events }) {
+  const chartRef = useRef(null);
   const [selected, setSelected] = useState(null);
-  const [hovered, setHovered] = useState(null);
 
   const rows = useMemo(
     () =>
@@ -850,144 +844,227 @@ function EnemyGuilds({ guilds, events }) {
     [guilds],
   );
 
-  const width = 1100;
-  const height = 390;
-  const pad = { top: 12, right: 14, bottom: 34, left: 48 };
+  const chartRows = rows.slice(0, 32);
 
-  const chart = useMemo(() => {
-    if (!rows.length) return null;
-
-    const innerW = width - pad.left - pad.right;
-    const innerH = height - pad.top - pad.bottom;
-
-    const killsValues = rows.map((item) => item.kills);
-    const deathsValues = rows.map((item) => item.deaths);
-
-    const minKillsRaw = Math.min(...killsValues);
-    const maxKillsRaw = Math.max(...killsValues);
-    const minDeathsRaw = Math.min(...deathsValues);
-    const maxDeathsRaw = Math.max(...deathsValues);
-    const maxKdRaw = Math.max(1, ...rows.map((item) => item.kdNumber));
-
-    const killsRange = Math.max(1, maxKillsRaw - minKillsRaw);
-    const deathsRange = Math.max(1, maxDeathsRaw - minDeathsRaw);
-
-    const xPadding = Math.max(6, killsRange * 0.04);
-    const yPadding = Math.max(6, deathsRange * 0.06);
-
-    const xMin = Math.max(0, Math.floor(minKillsRaw - xPadding));
-    const xMax = Math.ceil(maxKillsRaw + xPadding);
-    const yMin = Math.max(0, Math.floor(minDeathsRaw - yPadding));
-    const yMax = Math.ceil(maxDeathsRaw + yPadding);
-    const maxKd = Math.max(1, Math.min(12, maxKdRaw));
-
-    function xScale(value) {
-      const range = Math.max(1, xMax - xMin);
-      return pad.left + ((Math.max(xMin, value) - xMin) / range) * innerW;
-    }
-
-    function yScale(value) {
-      const range = Math.max(1, yMax - yMin);
-      return (
-        pad.top + innerH - ((Math.max(yMin, value) - yMin) / range) * innerH
-      );
-    }
-
-    function radiusScale(value) {
-      const safe = Math.max(0, Math.min(maxKd, value));
-      const ratio = maxKd <= 0 ? 0 : safe / maxKd;
-
-      return 12 + Math.sqrt(ratio) * 14;
-    }
-
-    const duplicateGroups = rows.reduce((acc, item) => {
-      const key = `${item.kills}|${item.deaths}`;
-
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(item.name);
-
-      return acc;
-    }, {});
-
-    const points = rows.slice(0, 24).map((item) => {
-      const key = `${item.kills}|${item.deaths}`;
-      const group = duplicateGroups[key] || [item.name];
-      const dupTotal = group.length;
-      const dupIndex = group.indexOf(item.name);
-
-      const baseX = xScale(item.kills);
-      const baseY = yScale(item.deaths);
-
-      let cx = baseX;
-      let cy = baseY;
-
-      if (dupTotal > 1 && dupIndex >= 0) {
-        const offsetRadius = Math.min(12, 5 + dupTotal * 1.5);
-        const angle = (Math.PI * 2 * dupIndex) / dupTotal;
-
-        cx += Math.cos(angle) * offsetRadius;
-        cy += Math.sin(angle) * offsetRadius;
-      }
-
+  const chartMeta = useMemo(() => {
+    if (!chartRows.length) {
       return {
-        ...item,
-        cx,
-        cy,
-        baseX,
-        baseY,
-        radius: radiusScale(item.kdNumber),
+        minX: 0,
+        maxX: 1,
+        minY: 0,
+        maxY: 1,
+        maxV: 1,
       };
-    });
+    }
+
+    const killsValues = chartRows.map((guild) => guild.kills);
+    const deathsValues = chartRows.map((guild) => guild.deaths);
+    const kdValues = chartRows.map((guild) => guild.kdNumber);
+
+    const minKills = Math.min(...killsValues);
+    const maxKills = Math.max(...killsValues);
+    const minDeaths = Math.min(...deathsValues);
+    const maxDeaths = Math.max(...deathsValues);
+
+    const xRange = Math.max(1, maxKills - minKills);
+    const yRange = Math.max(1, maxDeaths - minDeaths);
 
     return {
-      xMin,
-      xMax,
-      yMin,
-      yMax,
-      points,
-      xScale,
-      yScale,
-      xTickValues: buildAxisTicks(xMin, xMax, 5),
-      yTickValues: buildAxisTicks(yMin, yMax, 5),
+      minX: Math.max(0, Math.floor(minKills - xRange * 0.08)),
+      maxX: Math.ceil(maxKills + xRange * 0.08),
+      minY: Math.max(0, Math.floor(minDeaths - yRange * 0.08)),
+      maxY: Math.ceil(maxDeaths + yRange * 0.08),
+      maxV: Math.max(1, ...kdValues),
     };
-  }, [rows]);
+  }, [chartRows]);
+
+  function channelValue(x, y, values) {
+    return x < 0 && y < 0
+      ? values[0]
+      : x < 0
+        ? values[1]
+        : y < 0
+          ? values[2]
+          : values[3];
+  }
+
+  function colorize(opaque, context) {
+    const value = context.raw || {};
+    const x = value.colorX / 100;
+    const y = value.colorY / 100;
+    const r = channelValue(x, y, [250, 150, 50, 0]);
+    const g = channelValue(x, y, [0, 50, 150, 250]);
+    const b = channelValue(x, y, [0, 150, 150, 250]);
+    const a = opaque ? 1 : 0.45 + 0.35 * Math.min(1, value.v / 1000);
+
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  const bubbleData = useMemo(() => {
+    const centerX = (chartMeta.minX + chartMeta.maxX) / 2;
+    const centerY = (chartMeta.minY + chartMeta.maxY) / 2;
+    const xRange = Math.max(1, chartMeta.maxX - chartMeta.minX);
+    const yRange = Math.max(1, chartMeta.maxY - chartMeta.minY);
+
+    return {
+      datasets: [
+        {
+          label: 'Enemy Guilds',
+          data: chartRows.map((guild) => ({
+            x: guild.kills,
+            y: guild.deaths,
+            v: Math.max(1, (guild.kdNumber / chartMeta.maxV) * 1000),
+            colorX: ((guild.kills - centerX) / xRange) * 220,
+            colorY: ((guild.deaths - centerY) / yRange) * 220,
+            guild,
+          })),
+        },
+      ],
+    };
+  }, [chartRows, chartMeta]);
+
+  const bubbleOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 450,
+      },
+      layout: {
+        padding: 8,
+      },
+      plugins: {
+        legend: false,
+        tooltip: {
+          enabled: true,
+          displayColors: false,
+          backgroundColor: 'rgba(2, 6, 23, 0.96)',
+          borderColor: 'rgba(148, 163, 184, 0.35)',
+          borderWidth: 1,
+          padding: 10,
+          titleColor: '#f8fafc',
+          bodyColor: '#cbd5e1',
+          callbacks: {
+            title: (items) => {
+              const guild = items?.[0]?.raw?.guild;
+
+              return guild?.name || '-';
+            },
+            label: (context) => {
+              const guild = context.raw?.guild;
+
+              if (!guild) return '';
+
+              return [
+                `Kills: ${guild.kills}`,
+                `Deaths: ${guild.deaths}`,
+                `K/D: ${guild.kd}`,
+                `Interactions: ${guild.totalInteractions}`,
+              ];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          min: chartMeta.minX,
+          max: chartMeta.maxX,
+          title: {
+            display: true,
+            text: 'Kills',
+            color: 'rgba(255,255,255,0.55)',
+            font: {
+              weight: 800,
+              size: 11,
+            },
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.055)',
+            borderColor: 'rgba(255,255,255,0.18)',
+            tickColor: 'rgba(255,255,255,0.12)',
+          },
+          ticks: {
+            color: 'rgba(255,255,255,0.34)',
+            font: {
+              size: 10,
+            },
+          },
+        },
+        y: {
+          min: chartMeta.minY,
+          max: chartMeta.maxY,
+          title: {
+            display: true,
+            text: 'Deaths',
+            color: 'rgba(255,255,255,0.55)',
+            font: {
+              weight: 800,
+              size: 11,
+            },
+          },
+          grid: {
+            color: 'rgba(255,255,255,0.07)',
+            borderColor: 'rgba(255,255,255,0.18)',
+            tickColor: 'rgba(255,255,255,0.12)',
+          },
+          ticks: {
+            color: 'rgba(255,255,255,0.34)',
+            font: {
+              size: 10,
+            },
+          },
+        },
+      },
+      elements: {
+        point: {
+          backgroundColor: colorize.bind(null, false),
+          borderColor: colorize.bind(null, true),
+          borderWidth(context) {
+            return Math.min(Math.max(1, context.datasetIndex + 1), 8);
+          },
+          hoverBackgroundColor: 'transparent',
+          hoverBorderColor(context) {
+            return colorize(true, context);
+          },
+          hoverBorderWidth(context) {
+            return Math.max(2, Math.round(8 * context.raw.v / 1000));
+          },
+          radius(context) {
+            const size = Math.min(context.chart.width, context.chart.height);
+            const base = Math.abs(context.raw.v) / 1000;
+
+            return Math.max(6, (size / 16) * base);
+          },
+        },
+      },
+    }),
+    [chartMeta],
+  );
 
   const log = selected
     ? events.filter((event) => event.guild === selected.name)
     : [];
 
-  function shortName(name) {
-    const text = String(name || '-');
+  function handleBubbleClick(event) {
+    if (!chartRef.current) return;
 
-    if (text.length <= 12) return text;
-    return `${text.slice(0, 8)}…${text.slice(-2)}`;
+    const elements = getElementAtEvent(chartRef.current, event);
+    const first = elements?.[0];
+
+    if (!first) return;
+
+    const guild = chartRows[first.index];
+
+    if (guild) setSelected(guild);
   }
 
-  function bubbleFill(guild) {
-    if (guild.kdNumber >= 1) return 'rgba(59, 130, 246, 0.58)';
+  function handleBubbleHover(event, elements) {
+    const canvas = event?.native?.target;
 
-    return 'rgba(244, 63, 94, 0.58)';
+    if (!canvas) return;
+
+    canvas.style.cursor = elements?.length ? 'pointer' : 'default';
   }
-
-  function bubbleStroke(guild) {
-    if (guild.kdNumber >= 1) return 'rgba(147, 197, 253, 0.55)';
-
-    return 'rgba(251, 113, 133, 0.55)';
-  }
-
-  const tooltipBelow = hovered ? hovered.cy < 92 : false;
-
-  const tooltipHorizontalTransform = hovered
-    ? hovered.cx < 170
-      ? '-8%'
-      : hovered.cx > width - 170
-        ? '-92%'
-        : '-50%'
-    : '-50%';
-
-  const tooltipVerticalTransform = tooltipBelow
-    ? '12px'
-    : 'calc(-100% - 12px)';
 
   return (
     <Panel cls="h-[520px]">
@@ -1000,201 +1077,17 @@ function EnemyGuilds({ guilds, events }) {
           </span>
         </div>
 
-        {!chart ? (
+        {!chartRows.length ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
-          <div
-            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800"
-            onMouseLeave={() => setHovered(null)}
-          >
-            {hovered && (
-              <div
-                className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
-                style={{
-                  left: `${(hovered.cx / width) * 100}%`,
-                  top: `${(hovered.cy / height) * 100}%`,
-                  transform: `translate(${tooltipHorizontalTransform}, ${tooltipVerticalTransform})`,
-                }}
-              >
-                <p className="mb-1 font-black text-slate-100">{hovered.name}</p>
-                <p className="font-bold text-blue-300">
-                  Kills: {hovered.kills}
-                </p>
-                <p className="font-bold text-pink-300">
-                  Deaths: {hovered.deaths}
-                </p>
-                <p className="font-bold text-violet-300">K/D: {hovered.kd}</p>
-              </div>
-            )}
-
-            <svg
-              viewBox={`0 0 ${width} ${height}`}
-              className="h-full w-full"
-              role="img"
-              aria-label="Enemy Guilds bubble chart"
-            >
-              {chart.yTickValues.map((tick) => {
-                const y = chart.yScale(tick);
-
-                return (
-                  <g key={`y-${tick}`}>
-                    <line
-                      x1={pad.left}
-                      y1={y}
-                      x2={width - pad.right}
-                      y2={y}
-                      stroke="rgba(255,255,255,0.07)"
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={pad.left - 8}
-                      y={y + 4}
-                      textAnchor="end"
-                      fontSize="10"
-                      fill="rgba(255,255,255,0.34)"
-                    >
-                      {tick}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {chart.xTickValues.map((tick) => {
-                const x = chart.xScale(tick);
-
-                return (
-                  <g key={`x-${tick}`}>
-                    <line
-                      x1={x}
-                      y1={pad.top}
-                      x2={x}
-                      y2={height - pad.bottom}
-                      stroke="rgba(255,255,255,0.055)"
-                      strokeWidth="1"
-                      strokeDasharray="3 5"
-                    />
-                    <text
-                      x={x}
-                      y={height - 10}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fill="rgba(255,255,255,0.34)"
-                    >
-                      {tick}
-                    </text>
-                  </g>
-                );
-              })}
-
-              <line
-                x1={pad.left}
-                y1={height - pad.bottom}
-                x2={width - pad.right}
-                y2={height - pad.bottom}
-                stroke="rgba(255,255,255,0.18)"
-                strokeWidth="1.4"
-              />
-
-              <line
-                x1={pad.left}
-                y1={pad.top}
-                x2={pad.left}
-                y2={height - pad.bottom}
-                stroke="rgba(255,255,255,0.18)"
-                strokeWidth="1.4"
-              />
-
-              <text
-                x={(pad.left + (width - pad.right)) / 2}
-                y={height - 1}
-                textAnchor="middle"
-                fontSize="11"
-                fontWeight="800"
-                fill="rgba(255,255,255,0.55)"
-              >
-                Kills
-              </text>
-
-              <text
-                x="16"
-                y={height / 2}
-                textAnchor="middle"
-                fontSize="11"
-                fontWeight="800"
-                fill="rgba(255,255,255,0.55)"
-                transform={`rotate(-90 16 ${height / 2})`}
-              >
-                Deaths
-              </text>
-
-              {hovered && (
-                <g pointerEvents="none">
-                  <line
-                    x1={pad.left}
-                    y1={hovered.cy}
-                    x2={width - pad.right}
-                    y2={hovered.cy}
-                    stroke="rgba(255,255,255,0.12)"
-                    strokeDasharray="4 5"
-                  />
-                  <line
-                    x1={hovered.cx}
-                    y1={pad.top}
-                    x2={hovered.cx}
-                    y2={height - pad.bottom}
-                    stroke="rgba(255,255,255,0.12)"
-                    strokeDasharray="4 5"
-                  />
-                </g>
-              )}
-
-              {chart.points.map((guild) => {
-                const fontSize =
-                  guild.radius >= 22 ? 11 : guild.radius >= 16 ? 10 : 9;
-
-                return (
-                  <g
-                    key={guild.name}
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHovered(guild)}
-                    onClick={() => setSelected(guild)}
-                  >
-                    <circle
-                      cx={guild.cx}
-                      cy={guild.cy}
-                      r={guild.radius}
-                      fill={bubbleFill(guild)}
-                      stroke={bubbleStroke(guild)}
-                      strokeWidth="1"
-                    />
-
-                    <text
-                      x={guild.cx}
-                      y={guild.cy - 2}
-                      textAnchor="middle"
-                      fontSize={fontSize}
-                      fontWeight="900"
-                      fill="rgba(248,250,252,0.92)"
-                      pointerEvents="none"
-                    >
-                      {shortName(guild.name)}
-                    </text>
-
-                    <text
-                      x={guild.cx}
-                      y={guild.cy + 11}
-                      textAnchor="middle"
-                      fontSize="9.5"
-                      fontWeight="800"
-                      fill="rgba(226,232,240,0.78)"
-                      pointerEvents="none"
-                    >
-                      KD {guild.kd}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+            <Bubble
+              ref={chartRef}
+              data={bubbleData}
+              options={bubbleOptions}
+              onClick={handleBubbleClick}
+              onHover={handleBubbleHover}
+            />
           </div>
         )}
 
