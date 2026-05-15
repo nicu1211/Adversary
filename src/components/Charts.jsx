@@ -123,12 +123,15 @@ function toSecondsFromLabel(value) {
 
   const parts = raw.split(':').map((part) => Number(part) || 0);
 
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  if (parts.length >= 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 1) {
+    return Number.isFinite(parts[0]) ? parts[0] : NaN;
+  }
 
-  const numeric = Number(raw);
+  if (parts.length === 2) {
+    return parts[0] * 3600 + parts[1] * 60;
+  }
 
-  return Number.isFinite(numeric) ? numeric : NaN;
+  return parts[0] * 3600 + parts[1] * 60 + parts[2];
 }
 
 function interpolateMarkerPosition(rows, pointsKills, pointsDeaths, markerSeconds) {
