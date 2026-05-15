@@ -183,29 +183,6 @@ export function KillDeathChart({
       };
     });
 
-    const markerPoints = markers.map((marker, markerIndex) => {
-      const markerSeconds =
-        marker.sec != null ? Number(marker.sec) || 0 : timeToSeconds(marker.time);
-      const nearestIndex = rows.reduce((bestIndex, row, rowIndex) => {
-        const currentDiff = Math.abs(timeToSeconds(row.label) - markerSeconds);
-        const bestDiff = Math.abs(timeToSeconds(rows[bestIndex].label) - markerSeconds);
-
-        return currentDiff < bestDiff ? rowIndex : bestIndex;
-      }, 0);
-
-      const basePoint = pointsKills[nearestIndex] || pointsDeaths[nearestIndex];
-      const x = basePoint?.x ?? pad.left;
-      const y = Math.max(pad.top + 12, Math.min(pointsKills[nearestIndex]?.y ?? pad.top, pointsDeaths[nearestIndex]?.y ?? pad.top) - 18);
-
-      return {
-        ...marker,
-        id: marker.id || `marker-${markerIndex}`,
-        x,
-        y,
-        nearestIndex,
-      };
-    });
-
     const yTicks = 5;
     const ticks = Array.from({ length: yTicks }, (_, i) => {
       const value = max - ((max - min) * i) / (yTicks - 1);
@@ -218,6 +195,41 @@ export function KillDeathChart({
     });
 
     const zeroY = pad.top + ((max - 0) / safeRange) * innerH;
+
+    const minTime = Math.min(...rows.map((row) => timeToSeconds(row.label)));
+    const maxTime = Math.max(...rows.map((row) => timeToSeconds(row.label)));
+    const timeRange = Math.max(1, maxTime - minTime);
+
+    const markerPoints = markers.map((marker, index) => {
+      const markerSeconds =
+        marker.sec != null ? Number(marker.sec) || 0 : timeToSeconds(marker.time);
+      const ratio =
+        maxTime === minTime
+          ? 0.5
+          : Math.min(1, Math.max(0, (markerSeconds - minTime) / timeRange));
+      const x = pad.left + ratio * innerW;
+
+      const nearestIndex = rows.reduce((bestIndex, row, rowIndex) => {
+        const currentDiff = Math.abs(timeToSeconds(row.label) - markerSeconds);
+        const bestDiff = Math.abs(timeToSeconds(rows[bestIndex].label) - markerSeconds);
+
+        return currentDiff < bestDiff ? rowIndex : bestIndex;
+      }, 0);
+
+      const nearestKillPoint = pointsKills[nearestIndex];
+      const nearestDeathPoint = pointsDeaths[nearestIndex];
+      const y = Math.max(
+        pad.top + 10,
+        Math.min(nearestKillPoint?.y ?? pad.top, nearestDeathPoint?.y ?? pad.top) - 16,
+      );
+
+      return {
+        ...marker,
+        id: marker.id || `killfeed-marker-${index}`,
+        x,
+        y,
+      };
+    });
 
     return {
       pointsKills,
@@ -238,12 +250,22 @@ export function KillDeathChart({
     );
   }
 
-  const { pointsKills, pointsDeaths, markerPoints, ticks, innerW, zeroY } = chart;
+  const {
+    pointsKills,
+    pointsDeaths,
+    markerPoints,
+    ticks,
+    innerW,
+    zeroY,
+  } = chart;
 
   const linePathKills = buildSmoothPath(pointsKills);
   const linePathDeaths = buildSmoothPath(pointsDeaths);
   const labelStep = getLabelStep(rows.length);
-  const hoveredMarker = markerPoints.find((marker) => marker.id === hoveredMarkerId);
+
+  const hoveredMarker = markerPoints.find(
+    (marker) => marker.id === hoveredMarkerId,
+  );
 
   const hovered =
     hoveredIndex == null
@@ -365,6 +387,14 @@ export function KillDeathChart({
             strokeDasharray="4 4"
           />
 
+          {topGlowAreaKills && (
+            <path d={topGlowAreaKills} fill={`url(#${uid}-kills-area)`} />
+          )}
+
+          {topGlowAreaDeaths && (
+            <path d={topGlowAreaDeaths} fill={`url(#${uid}-deaths-area)`} />
+          )}
+
           {ticks.map((tick, index) => (
             <g key={`tick-${index}`}>
               <line
@@ -418,14 +448,6 @@ export function KillDeathChart({
             );
           })}
 
-          {topGlowAreaKills && (
-            <path d={topGlowAreaKills} fill={`url(#${uid}-kills-area)`} />
-          )}
-
-          {topGlowAreaDeaths && (
-            <path d={topGlowAreaDeaths} fill={`url(#${uid}-deaths-area)`} />
-          )}
-
           <path
             d={linePathDeaths}
             fill="none"
@@ -476,7 +498,7 @@ export function KillDeathChart({
                 y1={pad.top}
                 y2={height - pad.bottom}
                 stroke="#facc15"
-                strokeOpacity="0.25"
+                strokeOpacity="0.22"
                 strokeDasharray="3 5"
               />
 
@@ -497,7 +519,7 @@ export function KillDeathChart({
               <circle
                 cx={marker.x}
                 cy={marker.y}
-                r="12"
+                r="13"
                 fill="transparent"
                 onMouseEnter={() => {
                   setHoveredMarkerId(marker.id);
@@ -557,24 +579,14 @@ export function KillDeathChart({
           })}
         </svg>
 
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-            Kills
-          </span>
-
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-pink-400" />
-            Deaths
-          </span>
-
-          {markerPoints.length > 0 && (
+        {markerPoints.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-400">
             <span className="inline-flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
               Killfeed
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Panel>
   );
