@@ -131,9 +131,7 @@ function toSecondsFromLabel(value) {
   return Number.isFinite(numeric) ? numeric : NaN;
 }
 
-function interpolateMarkerPosition(rows, pointsKills, pointsDeaths, markerTime) {
-  const markerSeconds = toSecondsFromLabel(markerTime);
-
+function interpolateMarkerPosition(rows, pointsKills, pointsDeaths, markerSeconds) {
   if (!Number.isFinite(markerSeconds)) return null;
 
   const timedRows = rows
@@ -190,21 +188,7 @@ function interpolateMarkerPosition(rows, pointsKills, pointsDeaths, markerTime) 
     }
   }
 
-  let closest = timedRows[0];
-
-  timedRows.forEach((row) => {
-    if (
-      Math.abs(row.seconds - markerSeconds) <
-      Math.abs(closest.seconds - markerSeconds)
-    ) {
-      closest = row;
-    }
-  });
-
-  return {
-    index: closest.index,
-    x: pointsKills[closest.index].x,
-  };
+  return null;
 }
 
 export function KillDeathChart({
@@ -314,11 +298,15 @@ export function KillDeathChart({
   const markerPoints = (killFeedMarkers || [])
     .map((marker, markerIndex) => {
       const markerTime = normalizeTimeKey(marker.time ?? marker.label ?? marker.start);
+      const markerSeconds = Number.isFinite(Number(marker.seconds))
+        ? Number(marker.seconds)
+        : toSecondsFromLabel(markerTime);
+
       const position = interpolateMarkerPosition(
         rows,
         pointsKills,
         pointsDeaths,
-        markerTime,
+        markerSeconds,
       );
 
       if (!position || !pointsKills[position.index] || !pointsDeaths[position.index]) {
@@ -333,12 +321,41 @@ export function KillDeathChart({
         markerIndex,
         isKillFeed: true,
         x: position.x,
-        y: Math.max(pad.top + 8, Math.min(pointKill.y, pointDeath.y) - 10),
+        baseY: Math.max(pad.top + 8, Math.min(pointKill.y, pointDeath.y) - 10),
         label: markerTime || rows[position.index].label,
         guild: marker.guild || marker.war || '-',
       };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((marker, index, markers) => {
+      const closeMarkers = markers.filter(
+        (other) => Math.abs(other.x - marker.x) < 10,
+      );
+
+      if (closeMarkers.length <= 1) {
+        return {
+          ...marker,
+          y: marker.baseY,
+        };
+      }
+
+      const localIndex = closeMarkers.findIndex(
+        (other) => other.markerIndex === marker.markerIndex,
+      );
+
+      const offsets = [0, -14, 14, -28, 28];
+
+      return {
+        ...marker,
+        y: Math.max(
+          pad.top + 8,
+          Math.min(
+            height - pad.bottom - 8,
+            marker.baseY + offsets[localIndex % offsets.length],
+          ),
+        ),
+      };
+    });
 
   const hovered =
     hoveredMarker ||
