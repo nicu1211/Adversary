@@ -73,7 +73,20 @@ function BestOverall({
     ]),
   ];
 
+  function statsHasTimeline(oneStats) {
+    if (oneStats?.hasTimeline) return true;
+
+    return (oneStats?.ev || []).some(
+      (event) =>
+        event?.hasTimestamp !== false &&
+        event?.source !== 'summary' &&
+        event?.time != null,
+    );
+  }
+
   function buildRowsFromStats(oneStats) {
+    const hasTimeline = statsHasTimeline(oneStats);
+
     const oneByName = Object.fromEntries(
       oneStats.players.map((player) => [player.name, player]),
     );
@@ -89,8 +102,8 @@ function BestOverall({
       return {
         ...fullPlayer,
         kdNumber: Number(fullPlayer.kd),
-        streak: oneStats.st[player.name] || 0,
-        feed: oneStats.fd[player.name] || 0,
+        streak: hasTimeline ? oneStats.st[player.name] || 0 : null,
+        feed: hasTimeline ? oneStats.fd[player.name] || 0 : null,
       };
     });
   }
@@ -124,6 +137,12 @@ function BestOverall({
   }
 
   function rankKillsForStats(oneStats, rows) {
+    const hasTimeline = statsHasTimeline(oneStats);
+
+    if (!hasTimeline) {
+      return rankRows(rows, 'kills', true);
+    }
+
     const reach = {};
     const run = {};
 
@@ -165,6 +184,7 @@ function BestOverall({
 
     (selectedLogs || []).forEach((log) => {
       const oneStats = calculateStats([log]);
+      const hasTimeline = statsHasTimeline(oneStats);
       const rows = buildRowsFromStats(oneStats);
 
       if (!rows.length) return;
@@ -173,8 +193,8 @@ function BestOverall({
         kills: rankKillsForStats(oneStats, rows),
         deaths: rankRows(rows, 'deaths', false),
         kd: rankRows(rows, 'kdNumber', true),
-        streak: rankRows(rows, 'streak', true),
-        feed: rankRows(rows, 'feed', true),
+        streak: hasTimeline ? rankRows(rows, 'streak', true) : {},
+        feed: hasTimeline ? rankRows(rows, 'feed', true) : {},
       };
 
       rows.forEach((player) => {
@@ -188,28 +208,40 @@ function BestOverall({
             kd: 0,
             streak: 0,
             feed: 0,
+            streakMatches: 0,
+            feedMatches: 0,
+            metricCount: 0,
           };
         }
 
         result[name].matches += 1;
+
         result[name].kills += ranks.kills[name] || 0;
         result[name].deaths += ranks.deaths[name] || 0;
         result[name].kd += ranks.kd[name] || 0;
-        result[name].streak += ranks.streak[name] || 0;
-        result[name].feed += ranks.feed[name] || 0;
+        result[name].metricCount += 3;
+
+        if (hasTimeline) {
+          result[name].streak += ranks.streak[name] || 0;
+          result[name].feed += ranks.feed[name] || 0;
+          result[name].streakMatches += 1;
+          result[name].feedMatches += 1;
+          result[name].metricCount += 2;
+        }
       });
     });
 
     return Object.fromEntries(
       Object.entries(result).map(([name, data]) => {
         const matches = Math.max(1, data.matches);
+        const metricCount = Math.max(1, data.metricCount);
 
         const averageRanks = {
           kills: data.kills / matches,
           deaths: data.deaths / matches,
           kd: data.kd / matches,
-          streak: data.streak / matches,
-          feed: data.feed / matches,
+          streak: data.streakMatches ? data.streak / data.streakMatches : null,
+          feed: data.feedMatches ? data.feed / data.feedMatches : null,
         };
 
         return [
@@ -218,12 +250,12 @@ function BestOverall({
             matches: data.matches,
             ranks: averageRanks,
             average:
-              (averageRanks.kills +
-                averageRanks.deaths +
-                averageRanks.kd +
-                averageRanks.streak +
-                averageRanks.feed) /
-              5,
+              (data.kills +
+                data.deaths +
+                data.kd +
+                (data.streakMatches ? data.streak : 0) +
+                (data.feedMatches ? data.feed : 0)) /
+              metricCount,
           },
         ];
       }),
@@ -243,8 +275,9 @@ function BestOverall({
     return {
       ...player,
       kdNumber: Number(player.kd),
-      streak: streaks[name] || 0,
-      feed: feeds[name] || 0,
+      streak:
+        averageRanks[name]?.ranks.streak == null ? null : streaks[name] || 0,
+      feed: averageRanks[name]?.ranks.feed == null ? null : feeds[name] || 0,
       average: averageRanks[name]?.average ?? 9999,
       matches: averageRanks[name]?.matches ?? 0,
       averageRankKills: averageRanks[name]?.ranks.kills ?? null,
