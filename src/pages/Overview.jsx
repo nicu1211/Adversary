@@ -975,6 +975,14 @@ export default function OverviewPage({
 }) {
   const killFeeds = calculateKillFeed(stats.ev, 10, true);
 
+  const topKillFeedMarkers = killFeeds.slice(0, 5).map((feed, index) => ({
+    id: `${feed.name || 'killfeed'}-${feed.start || index}-${feed.war || 'war'}-${index}`,
+    time: feed.start,
+    guild: feed.guild || feed.war || '-',
+    player: feed.name || '-',
+    count: Number(feed.count) || 0,
+  }));
+
   return (
     <>
       <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
@@ -1018,7 +1026,11 @@ export default function OverviewPage({
         </div>
       </header>
 
-      <KillDeathChart data={stats.line} title="▧ Global Kill/Death Timeline" />
+      <KillDeathChart
+        data={stats.line}
+        title="▧ Global Kill/Death Timeline"
+        killFeedMarkers={topKillFeedMarkers}
+      />
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[420px_1fr]">
         <BestOverall
