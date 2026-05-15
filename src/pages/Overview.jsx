@@ -810,10 +810,10 @@ function EnemyGuilds({ guilds, events }) {
     () =>
       [...(guilds || [])]
         .map((guild) => {
-          const kills = guild.deaths;
-          const deaths = guild.kills;
+          const kills = Number(guild.deaths) || 0;
+          const deaths = Number(guild.kills) || 0;
           const totalInteractions = kills + deaths;
-          const kdNumber = deaths ? kills / deaths : kills;
+          const kdNumber = deaths > 0 ? kills / deaths : kills > 0 ? kills : 0;
 
           return {
             ...guild,
@@ -828,7 +828,7 @@ function EnemyGuilds({ guilds, events }) {
         .sort(
           (a, b) =>
             b.totalInteractions - a.totalInteractions ||
-            b.kills - a.kills ||
+            b.kdNumber - a.kdNumber ||
             a.name.localeCompare(b.name),
         ),
     [guilds],
@@ -836,46 +836,106 @@ function EnemyGuilds({ guilds, events }) {
 
   const width = 820;
   const height = 390;
+  const pad = { top: 24, right: 28, bottom: 42, left: 56 };
 
-  const bubbles = useMemo(() => {
-    const max = Math.max(1, ...rows.map((guild) => guild.totalInteractions));
+  const chart = useMemo(() => {
+    if (!rows.length) return null;
 
-    const positions = [
-      [410, 185],
-      [280, 145],
-      [550, 145],
-      [250, 265],
-      [575, 265],
-      [410, 315],
-      [155, 195],
-      [675, 195],
-      [145, 310],
-      [690, 310],
-      [405, 75],
-      [285, 345],
-      [540, 345],
-      [160, 85],
-      [665, 85],
-    ];
+    const innerW = width - pad.left - pad.right;
+    const innerH = height - pad.top - pad.bottom;
 
-    return rows.slice(0, 15).map((guild, index) => {
-      const [cx, cy] = positions[index] || [
-        100 + (index % 5) * 150,
-        90 + Math.floor(index / 5) * 105,
-      ];
+    const maxKillsRaw = Math.max(1, ...rows.map((item) => item.kills));
+    const maxDeathsRaw = Math.max(1, ...rows.map((item) => item.deaths));
+    const maxKdRaw = Math.max(1, ...rows.map((item) => item.kdNumber));
 
-      const radius = 22 + Math.sqrt(guild.totalInteractions / max) * 56;
+    const xMax = Math.max(2, Math.ceil(maxKillsRaw * 1.12));
+    const yMax = Math.max(2, Math.ceil(maxDeathsRaw * 1.12));
+    const maxKd = Math.max(1, Math.min(12, maxKdRaw));
+
+    function xScale(value) {
+      return pad.left + (Math.max(0, value) / xMax) * innerW;
+    }
+
+    function yScale(value) {
+      return pad.top + innerH - (Math.max(0, value) / yMax) * innerH;
+    }
+
+    function radiusScale(value) {
+      const safe = Math.max(0, Math.min(maxKd, value));
+      const ratio = maxKd <= 0 ? 0 : safe / maxKd;
+
+      return 18 + Math.sqrt(ratio) * 24;
+    }
+
+    const duplicateGroups = rows.reduce((acc, item) => {
+      const key = `${item.kills}|${item.deaths}`;
+
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item.name);
+
+      return acc;
+    }, {});
+
+    const points = rows.slice(0, 24).map((item) => {
+      const key = `${item.kills}|${item.deaths}`;
+      const group = duplicateGroups[key] || [item.name];
+      const dupTotal = group.length;
+      const dupIndex = group.indexOf(item.name);
+
+      const baseX = xScale(item.kills);
+      const baseY = yScale(item.deaths);
+
+      let cx = baseX;
+      let cy = baseY;
+
+      if (dupTotal > 1 && dupIndex >= 0) {
+        const offsetRadius = Math.min(18, 8 + dupTotal * 2);
+        const angle = (Math.PI * 2 * dupIndex) / dupTotal;
+
+        cx += Math.cos(angle) * offsetRadius;
+        cy += Math.sin(angle) * offsetRadius;
+      }
 
       return {
-        ...guild,
+        ...item,
         cx,
         cy,
-        radius,
+        baseX,
+        baseY,
+        radius: radiusScale(item.kdNumber),
       };
     });
+
+    const xTicks = 5;
+    const yTicks = 5;
+
+    return {
+      xMax,
+      yMax,
+      points,
+      xScale,
+      yScale,
+      xTickValues: Array.from({ length: xTicks }, (_, i) =>
+        Math.round((xMax * i) / (xTicks - 1)),
+      ),
+      yTickValues: Array.from({ length: yTicks }, (_, i) =>
+        Math.round((yMax * i) / (yTicks - 1)),
+      ),
+    };
   }, [rows]);
 
-  const tooltipBelow = hovered ? hovered.cy < 90 : false;
+  const log = selected
+    ? events.filter((event) => event.guild === selected.name)
+    : [];
+
+  function shortName(name) {
+    const text = String(name || '-');
+
+    if (text.length <= 12) return text;
+    return `${text.slice(0, 8)}…${text.slice(-2)}`;
+  }
+
+  const tooltipBelow = hovered ? hovered.cy < 92 : false;
 
   const tooltipHorizontalTransform = hovered
     ? hovered.cx < 170
@@ -889,18 +949,6 @@ function EnemyGuilds({ guilds, events }) {
     ? '12px'
     : 'calc(-100% - 12px)';
 
-  const log = selected
-    ? events.filter((event) => event.guild === selected.name)
-    : [];
-
-  function shortName(name) {
-    const text = String(name || '-');
-
-    if (text.length <= 12) return text;
-
-    return `${text.slice(0, 8)}…${text.slice(-3)}`;
-  }
-
   return (
     <Panel cls="h-[520px]">
       <div className="flex h-full flex-col">
@@ -912,7 +960,7 @@ function EnemyGuilds({ guilds, events }) {
           </span>
         </div>
 
-        {!rows.length ? (
+        {!chart ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
           <div
@@ -928,27 +976,14 @@ function EnemyGuilds({ guilds, events }) {
                   transform: `translate(${tooltipHorizontalTransform}, ${tooltipVerticalTransform})`,
                 }}
               >
-                <p className="mb-1 font-black text-slate-100">
-                  {hovered.name}
-                </p>
-
+                <p className="mb-1 font-black text-slate-100">{hovered.name}</p>
                 <p className="font-bold text-blue-300">
                   Kills: {hovered.kills}
                 </p>
-
                 <p className="font-bold text-pink-300">
                   Deaths: {hovered.deaths}
                 </p>
-
-                <p
-                  className={
-                    hovered.kdNumber >= 1
-                      ? 'font-bold text-emerald-300'
-                      : 'font-bold text-rose-300'
-                  }
-                >
-                  K/D: {hovered.kd}
-                </p>
+                <p className="font-bold text-violet-300">K/D: {hovered.kd}</p>
               </div>
             )}
 
@@ -956,31 +991,74 @@ function EnemyGuilds({ guilds, events }) {
               viewBox={`0 0 ${width} ${height}`}
               className="h-full w-full"
               role="img"
-              aria-label="Enemy Guilds bubble graph"
+              aria-label="Enemy Guilds bubble chart"
             >
               <defs>
-                <radialGradient id="enemyBubbleBlue" cx="35%" cy="30%" r="75%">
-                  <stop offset="0%" stopColor="rgba(96,165,250,0.55)" />
-                  <stop offset="65%" stopColor="rgba(59,130,246,0.24)" />
-                  <stop offset="100%" stopColor="rgba(37,99,235,0.10)" />
+                <linearGradient id="enemyChartBg" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="rgba(15,23,42,0.95)" />
+                  <stop offset="50%" stopColor="rgba(17,24,39,0.88)" />
+                  <stop offset="100%" stopColor="rgba(8,15,31,0.94)" />
+                </linearGradient>
+
+                <radialGradient
+                  id="enemyChartGlow"
+                  cx="50%"
+                  cy="12%"
+                  r="85%"
+                >
+                  <stop offset="0%" stopColor="rgba(59,130,246,0.13)" />
+                  <stop offset="45%" stopColor="rgba(99,102,241,0.07)" />
+                  <stop offset="100%" stopColor="rgba(0,0,0,0)" />
                 </radialGradient>
 
-                <radialGradient id="enemyBubblePink" cx="35%" cy="30%" r="75%">
-                  <stop offset="0%" stopColor="rgba(251,113,133,0.52)" />
-                  <stop offset="65%" stopColor="rgba(244,63,94,0.24)" />
-                  <stop offset="100%" stopColor="rgba(190,18,60,0.10)" />
+                <radialGradient
+                  id="enemyBubbleGood"
+                  cx="35%"
+                  cy="28%"
+                  r="75%"
+                >
+                  <stop offset="0%" stopColor="rgba(191,219,254,0.98)" />
+                  <stop offset="18%" stopColor="rgba(125,211,252,0.92)" />
+                  <stop offset="55%" stopColor="rgba(59,130,246,0.80)" />
+                  <stop offset="100%" stopColor="rgba(37,99,235,0.50)" />
+                </radialGradient>
+
+                <radialGradient
+                  id="enemyBubbleBad"
+                  cx="35%"
+                  cy="28%"
+                  r="75%"
+                >
+                  <stop offset="0%" stopColor="rgba(253,164,175,0.98)" />
+                  <stop offset="18%" stopColor="rgba(244,114,182,0.92)" />
+                  <stop offset="55%" stopColor="rgba(236,72,153,0.80)" />
+                  <stop offset="100%" stopColor="rgba(190,24,93,0.48)" />
                 </radialGradient>
 
                 <filter
                   id="enemyBubbleGlow"
-                  x="-70%"
-                  y="-70%"
-                  width="240%"
-                  height="240%"
+                  x="-90%"
+                  y="-90%"
+                  width="280%"
+                  height="280%"
                 >
-                  <feGaussianBlur stdDeviation="7" result="blur" />
+                  <feGaussianBlur stdDeviation="10" result="blur1" />
                   <feMerge>
-                    <feMergeNode in="blur" />
+                    <feMergeNode in="blur1" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+
+                <filter
+                  id="enemyBubbleSoft"
+                  x="-90%"
+                  y="-90%"
+                  width="280%"
+                  height="280%"
+                >
+                  <feGaussianBlur stdDeviation="5" result="blur2" />
+                  <feMerge>
+                    <feMergeNode in="blur2" />
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
@@ -991,68 +1069,204 @@ function EnemyGuilds({ guilds, events }) {
                 y="0"
                 width={width}
                 height={height}
-                fill="transparent"
+                rx="18"
+                fill="url(#enemyChartBg)"
+              />
+              <rect
+                x="0"
+                y="0"
+                width={width}
+                height={height}
+                rx="18"
+                fill="url(#enemyChartGlow)"
               />
 
-              {bubbles.map((guild) => (
-                <g
-                  key={guild.name}
-                  className="cursor-pointer"
-                  onMouseEnter={() => setHovered(guild)}
-                  onClick={() => setSelected(guild)}
-                >
-                  <circle
-                    cx={guild.cx}
-                    cy={guild.cy}
-                    r={guild.radius}
-                    fill={
-                      guild.kdNumber >= 1
-                        ? 'url(#enemyBubbleBlue)'
-                        : 'url(#enemyBubblePink)'
-                    }
-                    stroke={
-                      guild.kdNumber >= 1
-                        ? 'rgba(96,165,250,0.72)'
-                        : 'rgba(251,113,133,0.72)'
-                    }
-                    strokeWidth="1.5"
-                    filter="url(#enemyBubbleGlow)"
+              {chart.yTickValues.map((tick) => {
+                const y = chart.yScale(tick);
+
+                return (
+                  <g key={`y-${tick}`}>
+                    <line
+                      x1={pad.left}
+                      y1={y}
+                      x2={width - pad.right}
+                      y2={y}
+                      stroke="rgba(255,255,255,0.07)"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={pad.left - 10}
+                      y={y + 4}
+                      textAnchor="end"
+                      fontSize="10"
+                      fill="rgba(255,255,255,0.34)"
+                    >
+                      {tick}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {chart.xTickValues.map((tick) => {
+                const x = chart.xScale(tick);
+
+                return (
+                  <g key={`x-${tick}`}>
+                    <line
+                      x1={x}
+                      y1={pad.top}
+                      x2={x}
+                      y2={height - pad.bottom}
+                      stroke="rgba(255,255,255,0.055)"
+                      strokeWidth="1"
+                      strokeDasharray="3 5"
+                    />
+                    <text
+                      x={x}
+                      y={height - 14}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fill="rgba(255,255,255,0.34)"
+                    >
+                      {tick}
+                    </text>
+                  </g>
+                );
+              })}
+
+              <line
+                x1={pad.left}
+                y1={height - pad.bottom}
+                x2={width - pad.right}
+                y2={height - pad.bottom}
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth="1.4"
+              />
+
+              <line
+                x1={pad.left}
+                y1={pad.top}
+                x2={pad.left}
+                y2={height - pad.bottom}
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth="1.4"
+              />
+
+              <text
+                x={(pad.left + (width - pad.right)) / 2}
+                y={height - 4}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="800"
+                fill="rgba(255,255,255,0.55)"
+              >
+                Kills
+              </text>
+
+              <text
+                x="16"
+                y={height / 2}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="800"
+                fill="rgba(255,255,255,0.55)"
+                transform={`rotate(-90 16 ${height / 2})`}
+              >
+                Deaths
+              </text>
+
+              {hovered && (
+                <g pointerEvents="none">
+                  <line
+                    x1={pad.left}
+                    y1={hovered.cy}
+                    x2={width - pad.right}
+                    y2={hovered.cy}
+                    stroke="rgba(255,255,255,0.12)"
+                    strokeDasharray="4 5"
                   />
-
-                  <circle
-                    cx={guild.cx - guild.radius * 0.28}
-                    cy={guild.cy - guild.radius * 0.28}
-                    r={Math.max(4, guild.radius * 0.12)}
-                    fill="rgba(255,255,255,0.18)"
+                  <line
+                    x1={hovered.cx}
+                    y1={pad.top}
+                    x2={hovered.cx}
+                    y2={height - pad.bottom}
+                    stroke="rgba(255,255,255,0.12)"
+                    strokeDasharray="4 5"
                   />
-
-                  <text
-                    x={guild.cx}
-                    y={guild.cy - 4}
-                    textAnchor="middle"
-                    fontSize={guild.radius > 55 ? 13 : 11}
-                    fontWeight="900"
-                    fill="rgba(248,250,252,0.92)"
-                  >
-                    {shortName(guild.name)}
-                  </text>
-
-                  <text
-                    x={guild.cx}
-                    y={guild.cy + 15}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fontWeight="800"
-                    fill={
-                      guild.kdNumber >= 1
-                        ? 'rgba(147,197,253,0.95)'
-                        : 'rgba(253,164,175,0.95)'
-                    }
-                  >
-                    {guild.totalInteractions}
-                  </text>
                 </g>
-              ))}
+              )}
+
+              {chart.points.map((guild) => {
+                const fillId =
+                  guild.kdNumber >= 1 ? 'enemyBubbleGood' : 'enemyBubbleBad';
+                const strokeColor =
+                  guild.kdNumber >= 1
+                    ? 'rgba(191,219,254,0.92)'
+                    : 'rgba(253,164,175,0.90)';
+
+                const fontSize =
+                  guild.radius >= 34 ? 12 : guild.radius >= 28 ? 11 : 10;
+
+                return (
+                  <g
+                    key={guild.name}
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHovered(guild)}
+                    onClick={() => setSelected(guild)}
+                  >
+                    <circle
+                      cx={guild.cx}
+                      cy={guild.cy}
+                      r={guild.radius + 4}
+                      fill={
+                        guild.kdNumber >= 1
+                          ? 'rgba(59,130,246,0.10)'
+                          : 'rgba(244,114,182,0.10)'
+                      }
+                      filter="url(#enemyBubbleGlow)"
+                    />
+
+                    <circle
+                      cx={guild.cx}
+                      cy={guild.cy}
+                      r={guild.radius}
+                      fill={`url(#${fillId})`}
+                      stroke={strokeColor}
+                      strokeWidth="1.5"
+                      filter="url(#enemyBubbleSoft)"
+                    />
+
+                    <circle
+                      cx={guild.cx - guild.radius * 0.3}
+                      cy={guild.cy - guild.radius * 0.32}
+                      r={Math.max(4, guild.radius * 0.16)}
+                      fill="rgba(255,255,255,0.26)"
+                    />
+
+                    <text
+                      x={guild.cx}
+                      y={guild.cy - 4}
+                      textAnchor="middle"
+                      fontSize={fontSize}
+                      fontWeight="900"
+                      fill="rgba(248,250,252,0.95)"
+                    >
+                      {shortName(guild.name)}
+                    </text>
+
+                    <text
+                      x={guild.cx}
+                      y={guild.cy + 12}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="800"
+                      fill="rgba(226,232,240,0.88)"
+                    >
+                      KD {guild.kd}
+                    </text>
+                  </g>
+                );
+              })}
             </svg>
           </div>
         )}
