@@ -834,9 +834,9 @@ function EnemyGuilds({ guilds, events }) {
     [guilds],
   );
 
-  const width = 820;
+  const width = 1020;
   const height = 390;
-  const pad = { top: 24, right: 28, bottom: 42, left: 56 };
+  const pad = { top: 24, right: 34, bottom: 42, left: 56 };
 
   const chart = useMemo(() => {
     if (!rows.length) return null;
@@ -1539,12 +1539,10 @@ export default function OverviewPage({
         />
       </section>
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-[1fr_0.5fr_0.5fr]">
+      <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel killFeeds={killFeeds} events={stats.ev} />
-
-        <div className="hidden xl:block" />
       </section>
     </>
   );
