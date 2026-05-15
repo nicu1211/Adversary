@@ -824,7 +824,7 @@ function EnemyGuilds({ guilds, events }) {
             kd: kdNumber.toFixed(2),
           };
         })
-        .filter((guild) => guild.totalInteractions > 0)
+        .filter((guild) => guild.totalInteractions > 30)
         .sort(
           (a, b) =>
             b.totalInteractions - a.totalInteractions ||
