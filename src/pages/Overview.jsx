@@ -68,6 +68,18 @@ function timeToSecondsValue(time) {
   return parts[0] * 3600 + parts[1] * 60 + parts[2];
 }
 
+function looksLikeDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
+}
+
+function cleanGuild(value) {
+  const text = String(value || '').trim();
+
+  if (!text || looksLikeDate(text)) return '';
+
+  return text;
+}
+
 function BestOverall({
   players,
   members,
@@ -940,30 +952,34 @@ function KillFeedPanel({ killFeeds }) {
           <p className="text-slate-500">No kill feeds yet.</p>
         ) : (
           <div className="grid gap-2">
-            {rows.map((feed, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
-              >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <b className="truncate text-sm">
-                    {index + 1}. {feed.name}
-                  </b>
+            {rows.map((feed, index) => {
+              const guild = cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
 
-                  <b className="shrink-0 text-sm text-orange-300">
-                    🔥 {feed.count}
-                  </b>
+              return (
+                <div
+                  key={index}
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
+                >
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <b className="truncate text-sm">
+                      {index + 1}. {feed.name}
+                    </b>
+
+                    <b className="shrink-0 text-sm text-orange-300">
+                      🔥 {feed.count}
+                    </b>
+                  </div>
+
+                  <p className="truncate text-[11px] text-slate-400">
+                    {feed.start}-{feed.end}
+                  </p>
+
+                  <p className="truncate text-[11px] font-bold text-slate-300">
+                    Against {guild}
+                  </p>
                 </div>
-
-                <p className="truncate text-[11px] text-slate-400">
-                  {feed.start}-{feed.end} · {feed.war}
-                </p>
-
-                <p className="truncate text-[11px] text-slate-500">
-                  {feed.victims.join(', ')}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -979,18 +995,6 @@ export default function OverviewPage({
 }) {
   const killFeeds = calculateKillFeed(stats.ev, 10, true);
   const showTimelineMarkers = (selectedLogs || []).length === 1;
-
-  function looksLikeDate(value) {
-    return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
-  }
-
-  function cleanGuild(value) {
-    const text = String(value || '').trim();
-
-    if (!text || looksLikeDate(text)) return '';
-
-    return text;
-  }
 
   function eventSortValue(event) {
     return [
@@ -1178,10 +1182,12 @@ export default function OverviewPage({
         />
       </section>
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-2">
+      <section className="grid items-stretch gap-4 xl:grid-cols-[1fr_0.5fr_0.5fr]">
         <TopGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel killFeeds={killFeeds} />
+
+        <div className="hidden xl:block" />
       </section>
     </>
   );
