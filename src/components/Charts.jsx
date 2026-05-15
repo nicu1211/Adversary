@@ -327,6 +327,7 @@ export function KillDeathChart({
         baseY: Math.max(pad.top + 8, Math.min(pointKill.y, pointDeath.y) - 10),
         label: markerTime || rows[position.index].label,
         guild: marker.guild || marker.war || '-',
+        player: marker.player || marker.name || '-',
       };
     })
     .filter(Boolean)
@@ -414,11 +415,18 @@ export function KillDeathChart({
             }}
           >
             <p className="mb-1 font-bold text-slate-200">
-              Ora: {hovered.label}
+              Time: {hovered.label}
             </p>
 
             {hovered.isKillFeed ? (
-              <p className="text-yellow-300">Guild: {hovered.guild}</p>
+              <>
+                <p className="text-yellow-300">
+                  Player: {hovered.player}
+                </p>
+                <p className="text-yellow-300">
+                  Against guild: {hovered.guild}
+                </p>
+              </>
             ) : (
               <>
                 <p className="text-emerald-300">Kills: {hovered.kills}</p>
