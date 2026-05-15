@@ -963,16 +963,18 @@ function EnemyGuilds({ guilds, events }) {
     return `${text.slice(0, 8)}…${text.slice(-2)}`;
   }
 
-  function bubbleFill(guild) {
-    if (guild.kdNumber >= 1) return 'rgba(59, 130, 246, 0.58)';
+  function bubbleGradientId(guild) {
+    return guild.kdNumber >= 1 ? 'enemyBubbleBlue' : 'enemyBubbleRose';
+  }
 
-    return 'rgba(244, 63, 94, 0.58)';
+  function bubbleShadow(guild) {
+    if (guild.kdNumber >= 1) return 'rgba(96,165,250,0.22)';
+    return 'rgba(244,63,94,0.22)';
   }
 
   function bubbleStroke(guild) {
-    if (guild.kdNumber >= 1) return 'rgba(147, 197, 253, 0.55)';
-
-    return 'rgba(251, 113, 133, 0.55)';
+    if (guild.kdNumber >= 1) return 'rgba(191,219,254,0.50)';
+    return 'rgba(253,164,175,0.50)';
   }
 
   const tooltipBelow = hovered ? hovered.cy < 92 : false;
@@ -1033,6 +1035,36 @@ function EnemyGuilds({ guilds, events }) {
               role="img"
               aria-label="Enemy Guilds bubble chart"
             >
+              <defs>
+                <radialGradient id="enemyBubbleBlue" cx="34%" cy="28%" r="72%">
+                  <stop offset="0%" stopColor="rgba(219,234,254,0.82)" />
+                  <stop offset="25%" stopColor="rgba(125,211,252,0.66)" />
+                  <stop offset="70%" stopColor="rgba(59,130,246,0.48)" />
+                  <stop offset="100%" stopColor="rgba(37,99,235,0.34)" />
+                </radialGradient>
+
+                <radialGradient id="enemyBubbleRose" cx="34%" cy="28%" r="72%">
+                  <stop offset="0%" stopColor="rgba(255,228,230,0.82)" />
+                  <stop offset="25%" stopColor="rgba(251,113,133,0.66)" />
+                  <stop offset="70%" stopColor="rgba(244,63,94,0.48)" />
+                  <stop offset="100%" stopColor="rgba(190,18,60,0.34)" />
+                </radialGradient>
+
+                <filter
+                  id="enemyBubbleBlur"
+                  x="-60%"
+                  y="-60%"
+                  width="220%"
+                  height="220%"
+                >
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
               {chart.yTickValues.map((tick) => {
                 const y = chart.yScale(tick);
 
@@ -1162,10 +1194,38 @@ function EnemyGuilds({ guilds, events }) {
                     <circle
                       cx={guild.cx}
                       cy={guild.cy}
+                      r={guild.radius + 5}
+                      fill={bubbleShadow(guild)}
+                      opacity="0.75"
+                      filter="url(#enemyBubbleBlur)"
+                    />
+
+                    <circle
+                      cx={guild.cx}
+                      cy={guild.cy}
                       r={guild.radius}
-                      fill={bubbleFill(guild)}
+                      fill={`url(#${bubbleGradientId(guild)})`}
                       stroke={bubbleStroke(guild)}
-                      strokeWidth="1"
+                      strokeWidth="1.2"
+                      opacity="0.88"
+                    />
+
+                    <circle
+                      cx={guild.cx - guild.radius * 0.28}
+                      cy={guild.cy - guild.radius * 0.3}
+                      r={Math.max(3, guild.radius * 0.18)}
+                      fill="rgba(255,255,255,0.34)"
+                      opacity="0.7"
+                    />
+
+                    <circle
+                      cx={guild.cx + guild.radius * 0.16}
+                      cy={guild.cy + guild.radius * 0.18}
+                      r={guild.radius * 0.64}
+                      fill="transparent"
+                      stroke="rgba(255,255,255,0.16)"
+                      strokeWidth="0.8"
+                      opacity="0.65"
                     />
 
                     <text
@@ -1174,7 +1234,7 @@ function EnemyGuilds({ guilds, events }) {
                       textAnchor="middle"
                       fontSize={fontSize}
                       fontWeight="900"
-                      fill="rgba(248,250,252,0.92)"
+                      fill="rgba(248,250,252,0.94)"
                       pointerEvents="none"
                     >
                       {shortName(guild.name)}
@@ -1186,7 +1246,7 @@ function EnemyGuilds({ guilds, events }) {
                       textAnchor="middle"
                       fontSize="9.5"
                       fontWeight="800"
-                      fill="rgba(226,232,240,0.78)"
+                      fill="rgba(226,232,240,0.82)"
                       pointerEvents="none"
                     >
                       KD {guild.kd}
