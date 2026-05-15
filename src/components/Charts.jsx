@@ -195,7 +195,7 @@ function interpolateMarkerPosition(rows, pointsKills, pointsDeaths, markerSecond
 }
 
 function markerColor(markerType) {
-  if (markerType === 'bluefeed') return '#22c55e';
+  if (markerType === 'bluefeed') return '#3b82f6';
   if (markerType === 'redfeed') return '#ef4444';
 
   return '#facc15';
@@ -203,11 +203,11 @@ function markerColor(markerType) {
 
 function markerTooltip(marker) {
   if (marker.markerType === 'bluefeed') {
-    return `${marker.feedLabel || 'Bluefeed'} ${marker.count || 10} against ${marker.guild || '-'}`;
+    return `${marker.feedLabel || 'Bluefeed'} against ${marker.guild || '-'}`;
   }
 
   if (marker.markerType === 'redfeed') {
-    return `${marker.feedLabel || 'Redfeed'} ${marker.count || 10} against ${marker.guild || '-'}`;
+    return `${marker.feedLabel || 'Redfeed'} against ${marker.guild || '-'}`;
   }
 
   return `${marker.player || '-'} ${marker.count || 0} killfeed against ${marker.guild || '-'}`;
