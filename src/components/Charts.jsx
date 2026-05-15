@@ -194,6 +194,25 @@ function interpolateMarkerPosition(rows, pointsKills, pointsDeaths, markerSecond
   return null;
 }
 
+function markerColor(markerType) {
+  if (markerType === 'bluefeed') return '#22c55e';
+  if (markerType === 'redfeed') return '#ef4444';
+
+  return '#facc15';
+}
+
+function markerTooltip(marker) {
+  if (marker.markerType === 'bluefeed') {
+    return `${marker.feedLabel || 'Bluefeed'} ${marker.count || 10} against ${marker.guild || '-'}`;
+  }
+
+  if (marker.markerType === 'redfeed') {
+    return `${marker.feedLabel || 'Redfeed'} ${marker.count || 10} against ${marker.guild || '-'}`;
+  }
+
+  return `${marker.player || '-'} ${marker.count || 0} killfeed against ${marker.guild || '-'}`;
+}
+
 export function KillDeathChart({
   data,
   title = '▧ Global Kill/Death Timeline',
@@ -434,8 +453,11 @@ export function KillDeathChart({
             </p>
 
             {hovered.isKillFeed ? (
-              <p className="font-bold text-yellow-300">
-                {hovered.player} {hovered.count} killfeed against {hovered.guild}
+              <p
+                className="font-bold"
+                style={{ color: markerColor(hovered.markerType) }}
+              >
+                {markerTooltip(hovered)}
               </p>
             ) : (
               <>
@@ -761,11 +783,11 @@ export function KillDeathChart({
 
           {markerPoints.map((marker) => (
             <circle
-              key={marker.id || `killfeed-marker-${marker.markerIndex}`}
+              key={marker.id || `timeline-marker-${marker.markerIndex}`}
               cx={marker.x}
               cy={marker.y}
               r="4"
-              fill="#facc15"
+              fill={markerColor(marker.markerType)}
               stroke="rgba(15,23,42,0.95)"
               strokeWidth="1.5"
               onMouseEnter={() => {
