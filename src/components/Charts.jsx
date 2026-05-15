@@ -379,6 +379,18 @@ export function KillDeathChart({
 
   const tooltipBelow = hovered ? hovered.y < 72 : false;
 
+  const tooltipHorizontalTransform = hovered
+    ? hovered.x < 150
+      ? '-8%'
+      : hovered.x > width - 150
+        ? '-92%'
+        : '-50%'
+    : '-50%';
+
+  const tooltipVerticalTransform = tooltipBelow
+    ? '12px'
+    : 'calc(-100% - 12px)';
+
   const topGlowAreaKills = pointsKills.length
     ? `${linePathKills} L ${
         pointsKills[pointsKills.length - 1].x
@@ -414,9 +426,7 @@ export function KillDeathChart({
             style={{
               left: `${(hovered.x / width) * 100}%`,
               top: `${(hovered.y / height) * 100}%`,
-              transform: tooltipBelow
-                ? 'translate(-50%, 12px)'
-                : 'translate(-50%, calc(-100% - 12px))',
+              transform: `translate(${tooltipHorizontalTransform}, ${tooltipVerticalTransform})`,
             }}
           >
             <p className="mb-1 font-bold text-slate-200">
