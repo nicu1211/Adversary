@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Calendar, DeletePopup, Panel } from '../components/UI';
 import { dateOf, parseLog, scrollCls, today } from '../lib/logUtils';
 
@@ -24,6 +24,42 @@ function cleanText(text) {
     .trim();
 }
 
+function countLines(text) {
+  return String(text || '')
+    .split('\n')
+    .filter((line) => line.trim())
+    .length;
+}
+
+function hasSecondaryLog(rawLog) {
+  const text = String(rawLog || '');
+
+  return text.includes(SECONDARY_LOG_START) && text.includes(SECONDARY_LOG_END);
+}
+
+function getMainLogOnly(rawLog) {
+  const text = String(rawLog || '');
+
+  if (!hasSecondaryLog(text)) {
+    return text;
+  }
+
+  return text.split(SECONDARY_LOG_START)[0].trim();
+}
+
+function getSecondaryLog(rawLog) {
+  const text = String(rawLog || '');
+
+  if (!hasSecondaryLog(text)) {
+    return '';
+  }
+
+  const afterStart = text.split(SECONDARY_LOG_START)[1] || '';
+  const secondary = afterStart.split(SECONDARY_LOG_END)[0] || '';
+
+  return secondary.trim();
+}
+
 function buildCombinedRawLog(mainRaw, secondaryRaw) {
   const cleanMain = cleanText(mainRaw);
   const cleanSecondary = cleanText(secondaryRaw);
@@ -39,48 +75,29 @@ function buildCombinedRawLog(mainRaw, secondaryRaw) {
     cleanSecondary,
     SECONDARY_LOG_END,
   ]
-    .filter(Boolean)
+    .filter((item) => item !== '')
     .join('\n');
 }
 
-function hasSecondaryLog(rawLog) {
-  const text = String(rawLog || '');
-
-  return text.includes(SECONDARY_LOG_START) && text.includes(SECONDARY_LOG_END);
-}
-
-function getSecondaryLog(rawLog) {
-  const text = String(rawLog || '');
-
-  if (!hasSecondaryLog(text)) return '';
-
-  const afterStart = text.split(SECONDARY_LOG_START)[1] || '';
-  const secondary = afterStart.split(SECONDARY_LOG_END)[0] || '';
-
-  return secondary.trim();
-}
-
-function getMainLogOnly(rawLog) {
-  const text = String(rawLog || '');
-
-  if (!hasSecondaryLog(text)) return text;
-
-  return text.split(SECONDARY_LOG_START)[0].trim();
-}
-
-function countLines(text) {
-  return String(text || '')
-    .split('\n')
-    .filter((line) => line.trim())
-    .length;
-}
-
-function countParsedEntries(raw, name, date) {
+function getParsedEntries(raw, name, date) {
   try {
     return parseLog(getMainLogOnly(raw), name, date, 'preview').length;
   } catch {
     return 0;
   }
+}
+
+function getSavedLogStats(log) {
+  const raw = String(log?.raw || '');
+  const mainRaw = getMainLogOnly(raw);
+  const secondaryRaw = getSecondaryLog(raw);
+
+  return {
+    mainRaw,
+    secondaryRaw,
+    mainLines: countLines(mainRaw),
+    secondaryLines: countLines(secondaryRaw),
+  };
 }
 
 export default function RawLog({
@@ -105,7 +122,7 @@ export default function RawLog({
 }) {
   const [txtFile, setTxtFile] = useState(null);
   const [secondaryRaw, setSecondaryRaw] = useState('');
-  const [pendingSave, setPendingSave] = useState(null);
+  const [savingCombined, setSavingCombined] = useState(false);
 
   const mainRawOnly = useMemo(() => getMainLogOnly(raw), [raw]);
 
@@ -119,35 +136,11 @@ export default function RawLog({
   const combinedLines = useMemo(() => countLines(combinedPreview), [combinedPreview]);
 
   const parsedEntries = useMemo(
-    () => countParsedEntries(mainRawOnly, name, date),
+    () => getParsedEntries(mainRawOnly, name, date),
     [mainRawOnly, name, date],
   );
 
-  const canSave = parsedEntries > 0 && !pendingSave;
-
-  useEffect(() => {
-    if (!pendingSave) return;
-    if (raw !== pendingSave.combinedRaw) return;
-
-    let cancelled = false;
-
-    async function runSave() {
-      try {
-        await saveLog();
-      } finally {
-        if (!cancelled) {
-          setRaw(pendingSave.originalRaw);
-          setPendingSave(null);
-        }
-      }
-    }
-
-    runSave();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pendingSave, raw, saveLog, setRaw]);
+  const canSave = parsedEntries > 0 && !savingCombined;
 
   async function handleTxtUpload(event) {
     const file = event.target.files?.[0];
@@ -155,10 +148,10 @@ export default function RawLog({
 
     if (!file) return;
 
-    const isTextFile =
+    const isTxt =
       file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
 
-    if (!isTextFile) {
+    if (!isTxt) {
       alert('Te rog încarcă doar fișiere .txt.');
       return;
     }
@@ -178,25 +171,33 @@ export default function RawLog({
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!canSave) return;
 
     const cleanSecondary = cleanText(secondaryRaw);
 
     if (!cleanSecondary) {
-      saveLog();
+      await saveLog();
       return;
     }
 
-    const originalRaw = mainRawOnly;
+    const originalRaw = raw;
     const combinedRaw = buildCombinedRawLog(mainRawOnly, cleanSecondary);
 
-    setPendingSave({
-      originalRaw,
-      combinedRaw,
-    });
+    try {
+      setSavingCombined(true);
 
-    setRaw(combinedRaw);
+      setRaw(combinedRaw);
+
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 0);
+      });
+
+      await saveLog();
+    } finally {
+      setRaw(originalRaw);
+      setSavingCombined(false);
+    }
   }
 
   function clearMainRaw() {
@@ -216,7 +217,11 @@ export default function RawLog({
     setDate(dateOf(log));
     setRaw(savedMain);
     setSecondaryRaw(savedSecondary);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
   }
 
   return (
@@ -288,7 +293,7 @@ export default function RawLog({
                 disabled={!canSave}
                 className="rounded-xl bg-blue-600 px-5 py-3 font-black hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {pendingSave ? 'Saving...' : 'Save'}
+                {savingCombined ? 'Saving...' : 'Save'}
               </button>
             </div>
 
@@ -328,7 +333,7 @@ export default function RawLog({
                 </span>
 
                 <span className="mt-1 block text-xs text-slate-400">
-                  Logul principal este cel folosit la calculele actuale.
+                  Logul principal este folosit la calculele actuale.
                 </span>
 
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -417,7 +422,7 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder="Lipește aici al doilea log, cu altă structură. Coloanele exacte le putem mapa în următorul pas."
+                  placeholder="Lipește aici al doilea log, cu altă structură. Coloanele exacte le mapăm în următorul pas."
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
 
@@ -439,7 +444,9 @@ export default function RawLog({
                   </p>
                 </div>
 
-                <pre className={`max-h-56 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-900 p-3 font-mono text-xs text-slate-300 ${scrollCls}`}>
+                <pre
+                  className={`max-h-56 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-900 p-3 font-mono text-xs text-slate-300 ${scrollCls}`}
+                >
                   {combinedPreview}
                 </pre>
               </div>
@@ -463,8 +470,7 @@ export default function RawLog({
           ) : (
             <div className={`max-h-[640px] overflow-y-auto pr-2 ${scrollCls}`}>
               {logs.map((log) => {
-                const secondarySaved = getSecondaryLog(log.raw);
-                const secondarySavedLines = countLines(secondarySaved);
+                const savedStats = getSavedLogStats(log);
 
                 return (
                   <div
@@ -480,19 +486,23 @@ export default function RawLog({
                         <p className="mt-1 text-xs text-slate-500">
                           {dateOf(log)}
                           {log.localOnly ? ' · local only' : ''}
-                          {secondarySaved ? ` · secondary ${secondarySavedLines} lines` : ''}
+                          {savedStats.secondaryRaw
+                            ? ` · secondary ${savedStats.secondaryLines} lines`
+                            : ''}
                         </p>
                       </div>
                     </div>
 
-                    {secondarySaved && (
+                    {savedStats.secondaryRaw && (
                       <details className="mt-3 rounded-lg border border-emerald-500/20 bg-slate-950 p-2">
                         <summary className="cursor-pointer text-xs font-bold text-emerald-200">
                           View secondary log
                         </summary>
 
-                        <pre className={`mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400 ${scrollCls}`}>
-                          {secondarySaved}
+                        <pre
+                          className={`mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400 ${scrollCls}`}
+                        >
+                          {savedStats.secondaryRaw}
                         </pre>
                       </details>
                     )}
