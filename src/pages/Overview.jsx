@@ -14,35 +14,39 @@ function RankList({ title, items, valueKey }) {
 
   return (
     <Panel>
-      <h3 className="mb-4 text-lg font-black">{title}</h3>
+      <h3 className="mb-4 text-xl font-black">{title}</h3>
 
       {!rows.length ? (
-        <p className="text-sm text-slate-500">No data yet.</p>
+        <p className="text-slate-500">No data yet.</p>
       ) : (
-        <div className="space-y-3">
-          {rows.map((item, index) => {
-            const value = Number(item[valueKey]) || 0;
-            const width = Math.max(5, Math.round((value / max) * 100));
+        rows.map((item, index) => {
+          const value = Number(item[valueKey]) || 0;
 
-            return (
-              <div key={`${title}-${item.name}`}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="font-bold text-slate-200">
-                    {index + 1}. {item.name}
-                  </span>
-                  <span className="font-black text-white">{value}</span>
-                </div>
+          return (
+            <div
+              key={item.name}
+              className="mb-4 grid grid-cols-[34px_1fr_55px] items-center gap-3 text-sm"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-black">
+                {index + 1}
+              </span>
 
-                <div className="h-2 rounded-full bg-slate-800">
+              <div className="min-w-0">
+                <p className="mb-2 truncate font-bold">{item.name}</p>
+                <div className="h-2.5 rounded-full bg-slate-800">
                   <div
-                    className="h-2 rounded-full bg-blue-500"
-                    style={{ width: `${width}%` }}
+                    className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-300"
+                    style={{
+                      width: `${Math.max(6, Math.round((value / max) * 100))}%`,
+                    }}
                   />
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              <b className="text-right">{value}</b>
+            </div>
+          );
+        })
       )}
     </Panel>
   );
@@ -64,28 +68,31 @@ function BestOverall({
 
   const names = [
     ...new Set([
-      ...(members || []).map((member) => member.name).filter(Boolean),
-      ...players.map((player) => player.name).filter(Boolean),
+      ...(members || []).map((member) => member.name),
+      ...players.map((player) => player.name),
     ]),
   ];
 
-  function statHasTimeline(oneStats) {
-    return Boolean(
-      oneStats?.hasTimeline ||
-        (oneStats?.ev || []).some((event) => event.hasTimestamp !== false),
-    );
-  }
-
   function buildRowsFromStats(oneStats) {
-    const hasTimeline = statHasTimeline(oneStats);
+    const oneByName = Object.fromEntries(
+      oneStats.players.map((player) => [player.name, player]),
+    );
 
-    return oneStats.players.map((player) => ({
-      ...player,
-      kdNumber: Number(player.kd) || 0,
-      streak: hasTimeline ? oneStats.st[player.name] || 0 : null,
-      feed: hasTimeline ? oneStats.fd[player.name] || 0 : null,
-      hasTimeline,
-    }));
+    return oneStats.players.map((player) => {
+      const fullPlayer = oneByName[player.name] || {
+        name: player.name,
+        kills: 0,
+        deaths: 0,
+        kd: '0.00',
+      };
+
+      return {
+        ...fullPlayer,
+        kdNumber: Number(fullPlayer.kd),
+        streak: oneStats.st[player.name] || 0,
+        feed: oneStats.fd[player.name] || 0,
+      };
+    });
   }
 
   function rankRows(rows, key, desc = true) {
@@ -95,7 +102,6 @@ function BestOverall({
 
       if (av < bv) return desc ? 1 : -1;
       if (av > bv) return desc ? -1 : 1;
-
       return 0;
     });
 
@@ -118,21 +124,13 @@ function BestOverall({
   }
 
   function rankKillsForStats(oneStats, rows) {
-    const hasTimeline = statHasTimeline(oneStats);
-
-    if (!hasTimeline) {
-      return rankRows(rows, 'kills', true);
-    }
-
     const reach = {};
     const run = {};
 
     [...(oneStats.ev || [])]
       .sort(
         (a, b) =>
-          a.date.localeCompare(b.date) ||
-          a.sec - b.sec ||
-          a.i - b.i,
+          a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i,
       )
       .filter((event) => event.type === 'kill')
       .forEach((event) => {
@@ -167,7 +165,6 @@ function BestOverall({
 
     (selectedLogs || []).forEach((log) => {
       const oneStats = calculateStats([log]);
-      const hasTimeline = statHasTimeline(oneStats);
       const rows = buildRowsFromStats(oneStats);
 
       if (!rows.length) return;
@@ -176,8 +173,8 @@ function BestOverall({
         kills: rankKillsForStats(oneStats, rows),
         deaths: rankRows(rows, 'deaths', false),
         kd: rankRows(rows, 'kdNumber', true),
-        streak: hasTimeline ? rankRows(rows, 'streak', true) : {},
-        feed: hasTimeline ? rankRows(rows, 'feed', true) : {},
+        streak: rankRows(rows, 'streak', true),
+        feed: rankRows(rows, 'feed', true),
       };
 
       rows.forEach((player) => {
@@ -191,9 +188,6 @@ function BestOverall({
             kd: 0,
             streak: 0,
             feed: 0,
-            metricCount: 0,
-            streakMatches: 0,
-            feedMatches: 0,
           };
         }
 
@@ -201,15 +195,8 @@ function BestOverall({
         result[name].kills += ranks.kills[name] || 0;
         result[name].deaths += ranks.deaths[name] || 0;
         result[name].kd += ranks.kd[name] || 0;
-        result[name].metricCount += 3;
-
-        if (hasTimeline) {
-          result[name].streak += ranks.streak[name] || 0;
-          result[name].feed += ranks.feed[name] || 0;
-          result[name].metricCount += 2;
-          result[name].streakMatches += 1;
-          result[name].feedMatches += 1;
-        }
+        result[name].streak += ranks.streak[name] || 0;
+        result[name].feed += ranks.feed[name] || 0;
       });
     });
 
@@ -221,8 +208,8 @@ function BestOverall({
           kills: data.kills / matches,
           deaths: data.deaths / matches,
           kd: data.kd / matches,
-          streak: data.streakMatches ? data.streak / data.streakMatches : null,
-          feed: data.feedMatches ? data.feed / data.feedMatches : null,
+          streak: data.streak / matches,
+          feed: data.feed / matches,
         };
 
         return [
@@ -231,12 +218,12 @@ function BestOverall({
             matches: data.matches,
             ranks: averageRanks,
             average:
-              (data.kills +
-                data.deaths +
-                data.kd +
-                (data.streakMatches ? data.streak : 0) +
-                (data.feedMatches ? data.feed : 0)) /
-              Math.max(1, data.metricCount),
+              (averageRanks.kills +
+                averageRanks.deaths +
+                averageRanks.kd +
+                averageRanks.streak +
+                averageRanks.feed) /
+              5,
           },
         ];
       }),
@@ -256,9 +243,8 @@ function BestOverall({
     return {
       ...player,
       kdNumber: Number(player.kd),
-      streak:
-        averageRanks[name]?.ranks.streak == null ? null : streaks[name] || 0,
-      feed: averageRanks[name]?.ranks.feed == null ? null : feeds[name] || 0,
+      streak: streaks[name] || 0,
+      feed: feeds[name] || 0,
       average: averageRanks[name]?.average ?? 9999,
       matches: averageRanks[name]?.matches ?? 0,
       averageRankKills: averageRanks[name]?.ranks.kills ?? null,
@@ -278,69 +264,95 @@ function BestOverall({
   }
 
   return (
-    <Panel>
-      <h3 className="mb-1 text-xl font-black">♛ Best Overall</h3>
-      <p className="mb-4 text-sm text-slate-500">
-        Average of selected match ranks
-      </p>
+    <Panel cls="h-[680px]">
+      <div className="flex h-full flex-col">
+        <h3 className="text-xl font-black">♛ Best Overall</h3>
 
-      <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search player..."
-        className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400"
-      />
+        <p className="mb-3 text-xs text-slate-400">
+          Average of selected match ranks
+        </p>
 
-      {!final.length ? (
-        <p className="text-sm text-slate-500">No players.</p>
-      ) : (
-        <div className={`max-h-[520px] space-y-3 overflow-auto pr-2 ${scrollCls}`}>
-          {final.map((player, index) => (
-            <div
-              key={player.name}
-              className="rounded-2xl border border-slate-800 bg-slate-950 p-4"
-            >
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-white">
-                    {index + 1}. {player.name}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {player.matches} wars
-                  </p>
-                </div>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search player..."
+          className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400"
+        />
 
-                <div className="text-right">
-                  <p className="text-xs text-slate-500">Avg</p>
-                  <p className="text-lg font-black text-blue-300">
+        {!final.length ? (
+          <p className="text-slate-500">No players.</p>
+        ) : (
+          <div
+            className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 ${scrollCls}`}
+          >
+            {final.map((player, index) => (
+              <div
+                key={player.name}
+                className="rounded-xl border border-slate-800 bg-slate-900/70 p-2 hover:bg-slate-900"
+              >
+                <div className="mb-1.5 flex justify-between gap-2">
+                  <b className="truncate">
+                    <span className="mr-2 text-slate-500">{index + 1}</span>
+                    {player.name}
+
+                    <span className="ml-2 text-xs font-bold text-slate-500">
+                      {player.matches} wars
+                    </span>
+                  </b>
+
+                  <span className="rounded-md border border-blue-400/20 bg-blue-500/5 px-2 py-1 text-sm font-black text-blue-300">
+                    <small className="mr-1 text-[9px] uppercase text-blue-200/80">
+                      Avg
+                    </small>
+
                     {player.average === 9999 ? '-' : player.average.toFixed(2)}
-                  </p>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1 text-center text-xs">
+                  {[
+                    [
+                      'Kills',
+                      formatAverageRank(player.averageRankKills),
+                      'text-blue-300',
+                    ],
+                    [
+                      'Deaths',
+                      formatAverageRank(player.averageRankDeaths),
+                      'text-pink-300',
+                    ],
+                    [
+                      'K/D',
+                      formatAverageRank(player.averageRankKd),
+                      'text-emerald-300',
+                    ],
+                    [
+                      'Streak',
+                      formatAverageRank(player.averageRankStreak),
+                      'text-slate-200',
+                    ],
+                    [
+                      'Feed',
+                      formatAverageRank(player.averageRankFeed),
+                      'text-orange-300',
+                    ],
+                  ].map((item) => (
+                    <div
+                      key={item[0]}
+                      className="rounded-md bg-slate-950/70 p-1"
+                    >
+                      <p className="text-slate-500">{item[0]}</p>
+                      <b className={item[2]}>
+                        {item[1] === '-' ? '-' : `#${item[1]}`}
+                      </b>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="grid grid-cols-5 gap-2 text-center text-xs">
-                {[
-                  ['Kills', formatAverageRank(player.averageRankKills), 'text-blue-300'],
-                  ['Deaths', formatAverageRank(player.averageRankDeaths), 'text-pink-300'],
-                  ['K/D', formatAverageRank(player.averageRankKd), 'text-emerald-300'],
-                  ['Streak', formatAverageRank(player.averageRankStreak), 'text-slate-200'],
-                  ['Feed', formatAverageRank(player.averageRankFeed), 'text-orange-300'],
-                ].map((item) => (
-                  <div
-                    key={`${player.name}-${item[0]}`}
-                    className="rounded-xl bg-slate-900 p-2"
-                  >
-                    <p className="text-slate-500">{item[0]}</p>
-                    <p className={`font-black ${item[2]}`}>
-                      {item[1] === '-' ? '-' : `#${item[1]}`}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -365,7 +377,6 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
       if (av < bv) return direction === 'asc' ? -1 : 1;
       if (av > bv) return direction === 'asc' ? 1 : -1;
-
       return 0;
     });
 
@@ -377,30 +388,40 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     );
   }
 
-  function Header({ id, children }) {
+  function Header({ id, children, className = '' }) {
     return (
-      <button
-        type="button"
-        onClick={() => flip(id)}
-        className={
-          key === id ? 'font-black text-blue-300' : 'font-black hover:text-blue-300'
-        }
-      >
-        {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
-      </button>
+      <th className={`py-3 ${className}`}>
+        <button
+          onClick={() => flip(id)}
+          className={
+            key === id
+              ? 'font-black text-blue-300'
+              : 'font-black hover:text-blue-300'
+          }
+        >
+          {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
+        </button>
+      </th>
     );
   }
 
   const history = selected
     ? events
         .filter(
-          (event) => event.killer === selected.name || event.victim === selected.name,
+          (event) =>
+            event.killer === selected.name || event.victim === selected.name,
         )
         .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec)
     : [];
 
-  const kills = history.filter((event) => event.killer === selected?.name).length;
-  const deaths = history.filter((event) => event.victim === selected?.name).length;
+  const kills = history.filter(
+    (event) => event.killer === selected?.name,
+  ).length;
+
+  const deaths = history.filter(
+    (event) => event.victim === selected?.name,
+  ).length;
+
   const kd = deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2);
 
   const victims = {};
@@ -411,134 +432,198 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     if (event.victim === selected?.name) add(nemesis, event.killer);
   });
 
-  const favourite = Object.entries(victims).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
-  const worst = Object.entries(nemesis).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+  const favourite =
+    Object.entries(victims).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+
+  const worst =
+    Object.entries(nemesis).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
 
   return (
-    <Panel>
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 className="text-xl font-black">♙ Player Overview</h3>
-          <p className="text-sm text-slate-500">
-            Click a player name to view kill history
-          </p>
+    <Panel cls="h-[680px]">
+      <div className="flex h-full flex-col">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-xl font-black">♙ Player Overview</h3>
+            <p className="text-xs text-slate-400">
+              Click a player name to view kill history
+            </p>
+          </div>
+
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search family name"
+            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400 md:w-64"
+          />
         </div>
 
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search family name"
-          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400 md:w-64"
-        />
-      </div>
-
-      <div className={`overflow-auto ${scrollCls}`}>
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-xs uppercase tracking-[0.18em] text-slate-500">
-            <tr>
-              <th className="p-2">
-                <Header id="name">Family</Header>
-              </th>
-              <th className="p-2 text-right">
-                <Header id="kills">Kills</Header>
-              </th>
-              <th className="p-2 text-right">
-                <Header id="deaths">Deaths</Header>
-              </th>
-              <th className="p-2 text-right">
-                <Header id="kd">K/D</Header>
-              </th>
-              <th className="p-2 text-right">
-                <Header id="streak">Killstreak</Header>
-              </th>
-              <th className="p-2 text-right">
-                <Header id="feed">KillFeed</Header>
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {rows.map((player) => (
-              <tr key={player.name} className="border-t border-slate-800">
-                <td className="p-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(player)}
-                    className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
-                  >
-                    {player.name}
-                  </button>
-                </td>
-                <td className="p-2 text-right">⚔ {player.kills}</td>
-                <td className="p-2 text-right">☠ {player.deaths}</td>
-                <td className="p-2 text-right">✺ {player.kd}</td>
-                <td className="p-2 text-right">{player.streak}</td>
-                <td className="p-2 text-right">{player.feed}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {selected && (
-        <Popup title={selected.name} close={() => setSelected(null)}>
-          <div className="grid gap-3 md:grid-cols-5">
-            <Metric label="Kills" value={kills} />
-            <Metric label="Deaths" value={deaths} />
-            <Metric label="KD" value={kd} />
-            <Metric label="Killstreak" value={streaks[selected.name] || 0} />
-            <Metric label="Killfeed" value={feeds[selected.name] || 0} />
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Panel>
-              <h4 className="font-black">Favorite victim</h4>
-              <p className="mt-2 text-2xl font-black text-emerald-300">
-                {favourite[0]}
-              </p>
-              <p className="text-sm text-slate-500">{favourite[1]} kills</p>
-            </Panel>
-
-            <Panel>
-              <h4 className="font-black">Nemesis</h4>
-              <p className="mt-2 text-2xl font-black text-rose-300">
-                {worst[0]}
-              </p>
-              <p className="text-sm text-slate-500">{worst[1]} deaths</p>
-            </Panel>
-          </div>
-
-          <div className={`mt-4 max-h-[50vh] overflow-auto ${scrollCls}`}>
-            <table className="w-full min-w-[640px] text-sm">
-              <thead className="text-left text-xs uppercase tracking-[0.18em] text-slate-500">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+          <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
-                  <th className="p-2">Time</th>
-                  <th className="p-2">Type</th>
-                  <th className="p-2">Opponent</th>
-                  <th className="p-2">Guild / War</th>
+                  <Header id="name" className="pl-4 text-left">
+                    Family
+                  </Header>
+                  <Header id="kills" className="text-right">
+                    Kills
+                  </Header>
+                  <Header id="deaths" className="text-right">
+                    Deaths
+                  </Header>
+                  <Header id="kd" className="text-right">
+                    K/D
+                  </Header>
+                  <Header id="streak" className="text-right">
+                    Killstreak
+                  </Header>
+                  <Header id="feed" className="pr-4 text-right">
+                    KillFeed
+                  </Header>
                 </tr>
               </thead>
 
               <tbody>
-                {history.map((event, index) => (
-                  <tr key={`${event.id}-${event.i}-${index}`} className="border-t border-slate-800">
-                    <td className="p-2">{event.time}</td>
-                    <td className="p-2">
-                      {event.killer === selected.name ? 'KILL' : 'DEATH'}
+                {rows.map((player) => (
+                  <tr
+                    key={player.name}
+                    className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
+                  >
+                    <td className="py-3 pl-4">
+                      <button
+                        onClick={() => setSelected(player)}
+                        className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
+                      >
+                        {player.name}
+                      </button>
                     </td>
-                    <td className="p-2">
-                      {event.killer === selected.name ? event.victim : event.killer}
+
+                    <td className="py-3 text-right font-black text-blue-300">
+                      ⚔ {player.kills}
                     </td>
-                    <td className="p-2">
-                      {event.guild} / {event.war}
+
+                    <td className="py-3 text-right font-black text-pink-300">
+                      ☠ {player.deaths}
+                    </td>
+
+                    <td className="py-3 text-right font-black text-emerald-300">
+                      ✺ {player.kd}
+                    </td>
+
+                    <td className="py-3 text-right font-black">
+                      {player.streak}
+                    </td>
+
+                    <td className="py-3 pr-4 text-right font-black text-orange-300">
+                      🔥 {player.feed}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Popup>
-      )}
+        </div>
+
+        {selected && (
+          <Popup
+            title={`${selected.name} highlights & history`}
+            close={() => setSelected(null)}
+          >
+            <div className="mb-4 flex flex-wrap gap-2 text-sm">
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Kills <b className="text-blue-300">{kills}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Deaths <b className="text-pink-300">{deaths}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                KD <b className="text-emerald-300">{kd}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Killstreak <b>{streaks[selected.name] || 0}</b>
+              </span>
+
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Killfeed{' '}
+                <b className="text-orange-300">{feeds[selected.name] || 0}</b>
+              </span>
+            </div>
+
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">
+                  Favorite victim
+                </p>
+                <p className="mt-1 font-black">{favourite[0]}</p>
+                <p className="text-sm font-bold text-blue-300">
+                  {favourite[1]} kills
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">
+                  Nemesis
+                </p>
+                <p className="mt-1 font-black">{worst[0]}</p>
+                <p className="text-sm font-bold text-pink-300">
+                  {worst[1]} deaths
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`max-h-[48vh] overflow-auto rounded-2xl border border-slate-800 ${scrollCls}`}
+            >
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
+                  <tr>
+                    <th className="py-3 pl-4 text-left">Time</th>
+                    <th className="py-3 text-left">Type</th>
+                    <th className="py-3 text-left">Opponent</th>
+                    <th className="py-3 pr-4 text-left">Guild / War</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {history.map((event, index) => (
+                    <tr
+                      key={index}
+                      className="border-t border-slate-800 bg-slate-950/30"
+                    >
+                      <td className="py-3 pl-4 font-black">{event.time}</td>
+
+                      <td className="py-3">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-black ${
+                            event.killer === selected.name
+                              ? 'bg-blue-500/15 text-blue-300'
+                              : 'bg-pink-500/15 text-pink-300'
+                          }`}
+                        >
+                          {event.killer === selected.name ? 'KILL' : 'DEATH'}
+                        </span>
+                      </td>
+
+                      <td className="py-3 font-bold">
+                        {event.killer === selected.name
+                          ? event.victim
+                          : event.killer}
+                      </td>
+
+                      <td className="py-3 pr-4 text-slate-400">
+                        {event.guild} / {event.war}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Popup>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -583,112 +668,157 @@ function TopGuilds({ guilds, events }) {
     );
   }
 
-  function Header({ id, children }) {
+  function Header({ id, children, className = '' }) {
     return (
-      <button
-        type="button"
-        onClick={() => flip(id)}
-        className={
-          key === id ? 'font-black text-blue-300' : 'font-black hover:text-blue-300'
-        }
-      >
-        {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
-      </button>
+      <th className={`py-3 ${className}`}>
+        <button
+          onClick={() => flip(id)}
+          className={
+            key === id
+              ? 'font-black text-blue-300'
+              : 'font-black hover:text-blue-300'
+          }
+        >
+          {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
+        </button>
+      </th>
     );
   }
 
-  const log = selected ? events.filter((event) => event.guild === selected.name) : [];
+  const log = selected
+    ? events.filter((event) => event.guild === selected.name)
+    : [];
 
   return (
-    <Panel>
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-xl font-black"> Top Guilds</h3>
-        <p className="text-sm text-slate-500">{rows.length} guilds</p>
-      </div>
+    <Panel cls="h-[520px]">
+      <div className="flex h-full flex-col">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h3 className="text-xl font-black">🛡 Top Guilds</h3>
 
-      {!rows.length ? (
-        <p className="text-sm text-slate-500">No guild data yet.</p>
-      ) : (
-        <div className={`overflow-auto ${scrollCls}`}>
-          <table className="w-full min-w-[620px] text-sm">
-            <thead className="text-left text-xs uppercase tracking-[0.18em] text-slate-500">
-              <tr>
-                <th className="p-2">
-                  <Header id="name">Guild</Header>
-                </th>
-                <th className="p-2 text-right">
-                  <Header id="kills">Kills</Header>
-                </th>
-                <th className="p-2 text-right">
-                  <Header id="deaths">Deaths</Header>
-                </th>
-                <th className="p-2 text-right">
-                  <Header id="kdNumber">K/D</Header>
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {rows.map((guild, index) => (
-                <tr key={guild.name} className="border-t border-slate-800">
-                  <td className="p-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelected(guild)}
-                      className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
-                    >
-                      {index + 1}. {guild.name}
-                    </button>
-                  </td>
-                  <td className="p-2 text-right">{guild.kills}</td>
-                  <td className="p-2 text-right">{guild.deaths}</td>
-                  <td
-                    className={`p-2 text-right font-black ${
-                      guild.kdNumber >= 1 ? 'text-emerald-300' : 'text-rose-300'
-                    }`}
-                  >
-                    {guild.kd}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
+            {rows.length} guilds
+          </span>
         </div>
-      )}
 
-      {selected && (
-        <Popup title={selected.name} close={() => setSelected(null)}>
-          {!log.length ? (
-            <p className="text-sm text-slate-500">No kill log found for this guild.</p>
-          ) : (
-            <div className={`max-h-[65vh] overflow-auto ${scrollCls}`}>
-              {log.map((event, index) => (
-                <div
-                  key={`${event.id}-${event.i}-${index}`}
-                  className="mb-2 rounded-xl bg-slate-950 p-3"
-                >
-                  <div className="flex justify-between text-xs text-slate-500">
-                    <span>{event.time}</span>
-                    <span>{event.date}</span>
-                  </div>
+        {!rows.length ? (
+          <p className="text-slate-500">No guild data yet.</p>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+            <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
+                  <tr>
+                    <Header id="name" className="pl-4 text-left">
+                      Guild
+                    </Header>
 
-                  <p className="mt-1 font-bold">
-                    {event.type === 'kill' ? event.killer : event.victim}{' '}
-                    {event.type === 'kill' ? 'killed' : 'died to'}{' '}
-                    <span className="text-blue-300">
-                      {event.type === 'kill' ? event.victim : event.killer}
-                    </span>
-                  </p>
+                    <Header id="kills" className="text-center">
+                      Kills
+                    </Header>
 
-                  <p className="mt-1 text-xs text-slate-500">
-                    {event.type === 'kill' ? 'OUR KILL' : 'OUR DEATH'}
-                  </p>
-                </div>
-              ))}
+                    <Header id="deaths" className="text-center">
+                      Deaths
+                    </Header>
+
+                    <Header id="kdNumber" className="pr-4 text-center">
+                      K/D
+                    </Header>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rows.map((guild, index) => (
+                    <tr
+                      key={guild.name}
+                      className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
+                    >
+                      <td className="py-3 pl-4">
+                        <button
+                          onClick={() => setSelected(guild)}
+                          className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
+                        >
+                          {index + 1}. {guild.name}
+                        </button>
+                      </td>
+
+                      <td className="py-3 text-center font-black text-blue-300">
+                        {guild.kills}
+                      </td>
+
+                      <td className="py-3 text-center font-black text-pink-300">
+                        {guild.deaths}
+                      </td>
+
+                      <td
+                        className={`py-3 pr-4 text-center font-black ${
+                          Number(guild.kd) >= 1
+                            ? 'text-emerald-300'
+                            : 'text-rose-300'
+                        }`}
+                      >
+                        {guild.kd}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </Popup>
-      )}
+          </div>
+        )}
+
+        {selected && (
+          <Popup
+            title={`${selected.name} Kill Log`}
+            close={() => setSelected(null)}
+          >
+            {!log.length ? (
+              <p className="text-slate-500">No kill log found for this guild.</p>
+            ) : (
+              <div
+                className={`max-h-[60vh] space-y-2 overflow-y-auto pr-2 ${scrollCls}`}
+              >
+                {log.map((event, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-[82px_1fr_105px] gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm"
+                  >
+                    <div>
+                      <b>{event.time}</b>
+                      <p className="text-[10px] text-slate-500">{event.date}</p>
+                    </div>
+
+                    <p className="truncate">
+                      <b
+                        className={
+                          event.type === 'kill'
+                            ? 'text-blue-300'
+                            : 'text-pink-300'
+                        }
+                      >
+                        {event.type === 'kill' ? event.killer : event.victim}
+                      </b>{' '}
+                      {event.type === 'kill' ? 'killed' : 'died to'}{' '}
+                      <b>
+                        {event.type === 'kill' ? event.victim : event.killer}
+                      </b>
+                    </p>
+
+                    <span
+                      className={
+                        event.type === 'kill'
+                          ? 'text-blue-300'
+                          : 'text-pink-300'
+                      }
+                    >
+                      {event.type === 'kill' ? 'OUR KILL' : 'OUR DEATH'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Popup>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -697,36 +827,41 @@ function KillFeedPanel({ killFeeds }) {
   const rows = killFeeds.slice(0, 5);
 
   return (
-    <Panel>
-      <h3 className="mb-4 text-xl font-black"> Kill Feed</h3>
+    <Panel cls="h-[520px]">
+      <div className="flex h-full flex-col">
+        <h3 className="mb-4 text-xl font-black">🔥 Kill Feed</h3>
 
-      {!rows.length ? (
-        <p className="text-sm text-slate-500">No kill feeds yet.</p>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((feed, index) => (
-            <div
-              key={`${feed.name}-${feed.war}-${index}`}
-              className="rounded-2xl bg-slate-950 p-4"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-black text-white">
-                  {index + 1}. {feed.name}
+        {!rows.length ? (
+          <p className="text-slate-500">No kill feeds yet.</p>
+        ) : (
+          <div className="grid gap-2">
+            {rows.map((feed, index) => (
+              <div
+                key={index}
+                className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <b className="truncate text-sm">
+                    {index + 1}. {feed.name}
+                  </b>
+
+                  <b className="shrink-0 text-sm text-orange-300">
+                    🔥 {feed.count}
+                  </b>
+                </div>
+
+                <p className="truncate text-[11px] text-slate-400">
+                  {feed.start}-{feed.end} · {feed.war}
                 </p>
-                <p className="text-xl font-black text-orange-300">{feed.count}</p>
+
+                <p className="truncate text-[11px] text-slate-500">
+                  {feed.victims.join(', ')}
+                </p>
               </div>
-
-              <p className="mt-1 text-xs text-slate-500">
-                {feed.start}-{feed.end} · {feed.war}
-              </p>
-
-              <p className="mt-2 text-sm text-slate-300">
-                {feed.victims.join(', ')}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -737,90 +872,76 @@ export default function OverviewPage({
   members,
   selectedLogs,
 }) {
-  const emptyStats = {
-    ev: [],
-    players: [],
-    guilds: [],
-    line: [],
-    kills: 0,
-    deaths: 0,
-    kd: '0.00',
-    st: {},
-    fd: {},
-    hasTimeline: false,
-    summaryOnly: false,
-  };
-
-  const safeStats =
-    stats?.ev?.length || stats?.players?.length || !selectedLogs?.length
-      ? stats || emptyStats
-      : calculateStats(selectedLogs);
-
-  const killFeeds = calculateKillFeed(safeStats.ev || [], 10, true);
-
-  const players = safeStats.players || [];
-  const guilds = safeStats.guilds || [];
-
-  const topKills = [...players].sort(
-    (a, b) => Number(b.kills) - Number(a.kills),
-  );
-
-  const topDeaths = [...players].sort(
-    (a, b) => Number(b.deaths) - Number(a.deaths),
-  );
-
-  const topKd = [...players].sort(
-    (a, b) => Number(b.kd) - Number(a.kd),
-  );
+  const killFeeds = calculateKillFeed(stats.ev, 10, true);
 
   return (
     <>
-      <div className="mb-6">
-        <h2 className="text-3xl font-black">Battle Analytics</h2>
-        <p className="text-slate-500">{label}</p>
-      </div>
+      <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
+        <div className="mb-4">
+          <h2 className="text-2xl font-black">Battle Analytics</h2>
+          <p className="text-slate-400">{label}</p>
+        </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Kills" value={safeStats.kills} />
-        <Metric label="Deaths" value={safeStats.deaths} />
-        <Metric label="K/D" value={safeStats.kd} />
-        <Metric label="Players" value={players.length} />
-      </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric
+            icon="⚔"
+            label="Total Kills"
+            value={stats.kills}
+            sub="Eliminations"
+            className="border-blue-400/25 from-blue-500/20 text-blue-300"
+          />
 
-      <div className="mb-6">
-        <KillDeathChart data={safeStats.line || []} />
-      </div>
+          <Metric
+            icon="☠"
+            label="Total Deaths"
+            value={stats.deaths}
+            sub="Deaths"
+            className="border-pink-400/25 from-pink-500/20 text-pink-300"
+          />
 
-      <div className="mb-6 grid gap-4 xl:grid-cols-3">
-        <RankList title="Top Kills" items={topKills} valueKey="kills" />
-        <RankList title="Most Deaths" items={topDeaths} valueKey="deaths" />
-        <RankList title="Best K/D" items={topKd} valueKey="kd" />
-      </div>
+          <Metric
+            icon="✦"
+            label="K/D"
+            value={stats.kd}
+            sub="Ratio"
+            className="border-violet-400/25 from-violet-500/20 text-violet-300"
+          />
 
-      <div className="mb-6">
+          <Metric
+            icon="♟"
+            label="Players"
+            value={stats.players.length}
+            sub="Active"
+            className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
+          />
+        </div>
+      </header>
+
+      <KillDeathChart data={stats.line} title="▧ Global Kill/Death Timeline" />
+
+      <section className="grid items-stretch gap-4 xl:grid-cols-[420px_1fr]">
         <BestOverall
-          players={players}
+          players={stats.players}
           members={members}
-          streaks={safeStats.st || {}}
-          feeds={safeStats.fd || {}}
-          events={safeStats.ev || []}
+          streaks={stats.st}
+          feeds={stats.fd}
+          events={stats.ev}
           selectedLogs={selectedLogs}
         />
-      </div>
 
-      <div className="mb-6">
         <PlayerOverview
-          players={players}
-          streaks={safeStats.st || {}}
-          feeds={safeStats.fd || {}}
-          events={safeStats.ev || []}
+          players={stats.players}
+          streaks={stats.st}
+          feeds={stats.fd}
+          events={stats.ev}
         />
-      </div>
+      </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <TopGuilds guilds={guilds} events={safeStats.ev || []} />
+      <section className="grid items-stretch gap-4 xl:grid-cols-2">
+        <TopGuilds guilds={stats.guilds} events={stats.ev} />
+
         <KillFeedPanel killFeeds={killFeeds} />
-      </div>
+      </section>
     </>
   );
 }
