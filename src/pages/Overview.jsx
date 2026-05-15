@@ -52,6 +52,18 @@ function RankList({ title, items, valueKey }) {
   );
 }
 
+function timeToSecondsValue(time) {
+  const parts = String(time || '00:00:00')
+    .split(':')
+    .map((part) => Number(part) || 0);
+
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+
+  return parts[0] * 3600 + parts[1] * 60 + parts[2];
+}
+
 function BestOverall({
   players,
   members,
@@ -179,22 +191,10 @@ function BestOverall({
     );
   }
 
-  function timeToSeconds(time) {
-    const parts = String(time || '00:00:00')
-      .split(':')
-      .map((part) => Number(part) || 0);
-
-    if (parts.length === 2) {
-      return parts[0] * 60 + parts[1];
-    }
-
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  }
-
   function feedTimeKey(feed) {
     return [
       feed.date || '9999-99-99',
-      String(timeToSeconds(feed.start)).padStart(8, '0'),
+      String(timeToSecondsValue(feed.start)).padStart(8, '0'),
       String(feed.id || ''),
       String(feed.name || ''),
     ].join(' ');
@@ -975,13 +975,42 @@ export default function OverviewPage({
 }) {
   const killFeeds = calculateKillFeed(stats.ev, 10, true);
 
-  const topKillFeedMarkers = killFeeds.slice(0, 5).map((feed, index) => ({
-    id: `${feed.name || 'killfeed'}-${feed.start || index}-${feed.war || 'war'}-${index}`,
-    time: feed.start,
-    guild: feed.guild || feed.war || '-',
-    player: feed.name || '-',
-    count: Number(feed.count) || 0,
-  }));
+  const topKillFeedMarkers = killFeeds.slice(0, 5).map((feed, index) => {
+    const startSec = timeToSecondsValue(feed.start);
+    const endSec = timeToSecondsValue(feed.end);
+    const victims = new Set(feed.victims || []);
+
+    const feedEvents = [...(stats.ev || [])]
+      .filter((event) => {
+        if (event.type !== 'kill') return false;
+        if (event.killer !== feed.name) return false;
+
+        if (victims.size && !victims.has(event.victim)) return false;
+
+        const eventSec = Number.isFinite(event.sec)
+          ? event.sec
+          : timeToSecondsValue(event.time);
+
+        return eventSec >= startSec && eventSec <= endSec;
+      })
+      .sort(
+        (a, b) =>
+          String(a.date || '').localeCompare(String(b.date || '')) ||
+          (Number(a.sec) || timeToSecondsValue(a.time)) -
+            (Number(b.sec) || timeToSecondsValue(b.time)) ||
+          (Number(a.i) || 0) - (Number(b.i) || 0),
+      );
+
+    const firstEvent = feedEvents[0];
+
+    return {
+      id: `${feed.name || 'killfeed'}-${firstEvent?.time || feed.start || index}-${firstEvent?.guild || feed.war || 'war'}-${index}`,
+      time: firstEvent?.time || feed.start,
+      guild: firstEvent?.guild || feed.guild || feed.war || '-',
+      player: feed.name || '-',
+      count: Number(feed.count) || 0,
+    };
+  });
 
   return (
     <>
