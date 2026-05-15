@@ -7,11 +7,13 @@
   },
   "dependencies": {
     "better-sqlite3": "latest",
+    "chart.js": "latest",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
     "lucide-react": "latest",
     "react": "latest",
+    "react-chartjs-2": "latest",
     "react-dom": "latest",
     "recharts": "latest",
     "tesseract.js": "^6.0.1"
