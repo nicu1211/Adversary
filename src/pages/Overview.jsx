@@ -878,35 +878,38 @@ function EnemyGuilds({ guilds, events }) {
     };
   }, [chartRows]);
 
-  function channelValue(x, y, values) {
-    return x < 0 && y < 0
-      ? values[0]
-      : x < 0
-        ? values[1]
-        : y < 0
-          ? values[2]
-          : values[3];
+  function kdColorChannels(kd) {
+    if (kd >= 2) {
+      return [0, 250, 250];
+    }
+
+    if (kd >= 1.5) {
+      return [50, 150, 150];
+    }
+
+    if (kd >= 1) {
+      return [0, 150, 250];
+    }
+
+    if (kd >= 0.75) {
+      return [150, 50, 150];
+    }
+
+    return [250, 0, 0];
   }
 
   function colorize(opaque, context) {
     const value = context.raw || {};
-    const x = value.colorX / 100;
-    const y = value.colorY / 100;
-    const r = channelValue(x, y, [250, 150, 50, 0]);
-    const g = channelValue(x, y, [0, 50, 150, 250]);
-    const b = channelValue(x, y, [0, 150, 150, 250]);
+    const guild = value.guild || {};
+    const kd = Number(guild.kdNumber) || 0;
+    const [r, g, b] = kdColorChannels(kd);
     const a = opaque ? 1 : 0.45 + 0.35 * Math.min(1, value.v / 1000);
 
     return `rgba(${r},${g},${b},${a})`;
   }
 
-  const bubbleData = useMemo(() => {
-    const centerX = (chartMeta.minX + chartMeta.maxX) / 2;
-    const centerY = (chartMeta.minY + chartMeta.maxY) / 2;
-    const xRange = Math.max(1, chartMeta.maxX - chartMeta.minX);
-    const yRange = Math.max(1, chartMeta.maxY - chartMeta.minY);
-
-    return {
+  const bubbleData = useMemo(
+    () => ({
       datasets: [
         {
           label: 'Enemy Guilds',
@@ -914,14 +917,13 @@ function EnemyGuilds({ guilds, events }) {
             x: guild.kills,
             y: guild.deaths,
             v: Math.max(1, (guild.kdNumber / chartMeta.maxV) * 1000),
-            colorX: ((guild.kills - centerX) / xRange) * 220,
-            colorY: ((guild.deaths - centerY) / yRange) * 220,
             guild,
           })),
         },
       ],
-    };
-  }, [chartRows, chartMeta]);
+    }),
+    [chartRows, chartMeta],
+  );
 
   const bubbleOptions = useMemo(
     () => ({
