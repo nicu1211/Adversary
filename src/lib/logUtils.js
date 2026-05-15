@@ -304,11 +304,11 @@ function parseClassicEvents(raw, name, date, id) {
 }
 
 function summaryRowsToValidationEvents(rows, name, date, id) {
-  return rows.flatMap((row, rowIndex) => {
-    const output = [];
+  const events = [];
 
+  rows.forEach((row, rowIndex) => {
     for (let i = 0; i < row.kills; i += 1) {
-      output.push({
+      events.push({
         i: rowIndex * 10000 + i,
         type: 'kill',
         time: null,
@@ -327,7 +327,7 @@ function summaryRowsToValidationEvents(rows, name, date, id) {
     }
 
     for (let i = 0; i < row.deaths; i += 1) {
-      output.push({
+      events.push({
         i: rowIndex * 10000 + row.kills + i,
         type: 'death',
         time: null,
@@ -344,9 +344,9 @@ function summaryRowsToValidationEvents(rows, name, date, id) {
         hasTimestamp: false,
       });
     }
-
-    return output;
   });
+
+  return events;
 }
 
 export function parseLog(raw, name, date, id) {
@@ -506,7 +506,7 @@ function calculateStatsFromRaw(items) {
   summaryRows.forEach((row) => {
     add(playerKills, row.player, row.kills);
     add(playerDeaths, row.player, row.deaths);
-    families[row.player] = '-';
+    families[row.player] = families[row.player] || '-';
   });
 
   const hasTimeline = classicEvents.length > 0;
