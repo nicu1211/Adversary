@@ -80,6 +80,43 @@ function cleanGuild(value) {
   return text;
 }
 
+function majorityGuildForKillFeed(feed, events = []) {
+  const startSec = timeToSecondsValue(feed.start);
+  const endSec = timeToSecondsValue(feed.end);
+  const victims = new Set(feed.victims || []);
+  const guildCounts = {};
+
+  [...(events || [])]
+    .filter((event) => {
+      if (event.type !== 'kill') return false;
+      if (event.killer !== feed.name) return false;
+
+      const eventSec = timeToSecondsValue(event.time);
+      const insideWindow =
+        eventSec >= Math.min(startSec, endSec) &&
+        eventSec <= Math.max(startSec, endSec);
+
+      const victimMatches = !victims.size || victims.has(event.victim);
+
+      return insideWindow && victimMatches;
+    })
+    .forEach((event) => {
+      const guild = cleanGuild(event.guild);
+
+      if (!guild) return;
+
+      guildCounts[guild] = (guildCounts[guild] || 0) + 1;
+    });
+
+  const majorityGuild = Object.entries(guildCounts).sort((a, b) => {
+    if (b[1] !== a[1]) return b[1] - a[1];
+
+    return a[0].localeCompare(b[0]);
+  })[0]?.[0];
+
+  return majorityGuild || cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
+}
+
 function BestOverall({
   players,
   members,
@@ -940,7 +977,7 @@ function TopGuilds({ guilds, events }) {
   );
 }
 
-function KillFeedPanel({ killFeeds }) {
+function KillFeedPanel({ killFeeds, events }) {
   const rows = killFeeds.slice(0, 5);
 
   return (
@@ -953,7 +990,7 @@ function KillFeedPanel({ killFeeds }) {
         ) : (
           <div className="grid gap-2">
             {rows.map((feed, index) => {
-              const guild = cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
+              const guild = majorityGuildForKillFeed(feed, events);
 
               return (
                 <div
@@ -1061,42 +1098,9 @@ export default function OverviewPage({
 
   const topKillFeedMarkers = showTimelineMarkers
     ? killFeeds.slice(0, 5).map((feed, index) => {
-        const startSec = timeToSecondsValue(feed.start);
-        const endSec = timeToSecondsValue(feed.end);
-        const victims = new Set(feed.victims || []);
-
-        const feedEvents = [...(stats.ev || [])]
-          .filter((event) => {
-            if (event.type !== 'kill') return false;
-            if (event.killer !== feed.name) return false;
-
-            const eventSec = timeToSecondsValue(event.time);
-            const insideWindow =
-              eventSec >= Math.min(startSec, endSec) &&
-              eventSec <= Math.max(startSec, endSec);
-
-            const victimMatches = !victims.size || victims.has(event.victim);
-
-            return insideWindow && victimMatches;
-          })
-          .sort(
-            (a, b) =>
-              String(a.date || '').localeCompare(String(b.date || '')) ||
-              timeToSecondsValue(a.time) - timeToSecondsValue(b.time) ||
-              (Number(a.i) || 0) - (Number(b.i) || 0),
-          );
-
-        const firstEvent = feedEvents[0];
-
-        const guild =
-          cleanGuild(firstEvent?.guild) ||
-          cleanGuild(feedEvents.find((event) => cleanGuild(event.guild))?.guild) ||
-          cleanGuild(feed.guild) ||
-          cleanGuild(feed.war) ||
-          '-';
-
-        const markerTime = firstEvent?.time || feed.start;
+        const markerTime = feed.start;
         const markerSeconds = timeToSecondsValue(markerTime);
+        const guild = majorityGuildForKillFeed(feed, stats.ev || []);
 
         return {
           id: `${feed.name || 'killfeed'}-${markerTime || index}-${guild}-${index}`,
@@ -1185,7 +1189,7 @@ export default function OverviewPage({
       <section className="grid items-stretch gap-4 xl:grid-cols-[1fr_0.5fr_0.5fr]">
         <TopGuilds guilds={stats.guilds} events={stats.ev} />
 
-        <KillFeedPanel killFeeds={killFeeds} />
+        <KillFeedPanel killFeeds={killFeeds} events={stats.ev} />
 
         <div className="hidden xl:block" />
       </section>
