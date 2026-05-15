@@ -978,7 +978,7 @@ export default function OverviewPage({
   selectedLogs,
 }) {
   const killFeeds = calculateKillFeed(stats.ev, 10, true);
-  const showKillFeedMarkers = (selectedLogs || []).length === 1;
+  const showTimelineMarkers = (selectedLogs || []).length === 1;
 
   function looksLikeDate(value) {
     return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
@@ -992,7 +992,69 @@ export default function OverviewPage({
     return text;
   }
 
-  const topKillFeedMarkers = showKillFeedMarkers
+  function eventSortValue(event) {
+    return [
+      String(event?.date || ''),
+      String(timeToSecondsValue(event?.time)).padStart(8, '0'),
+      String(Number(event?.i) || 0).padStart(6, '0'),
+    ].join(' ');
+  }
+
+  function buildConsecutiveFlowMarkers(events) {
+    const markers = [];
+    let currentType = null;
+    let currentGuild = '';
+    let run = [];
+    let markerAddedForRun = false;
+
+    const timelineEvents = [...(events || [])]
+      .filter((event) => event.type === 'kill' || event.type === 'death')
+      .sort((a, b) => eventSortValue(a).localeCompare(eventSortValue(b)));
+
+    timelineEvents.forEach((event) => {
+      const nextType = event.type;
+
+      if (nextType !== currentType) {
+        currentType = nextType;
+        currentGuild = cleanGuild(event.guild) || '-';
+        run = [event];
+        markerAddedForRun = false;
+      } else {
+        run.push(event);
+
+        if (!cleanGuild(currentGuild) && cleanGuild(event.guild)) {
+          currentGuild = cleanGuild(event.guild);
+        }
+      }
+
+      if (run.length === 10 && !markerAddedForRun) {
+        const markerType = currentType === 'kill' ? 'bluefeed' : 'redfeed';
+        const feedLabel = currentType === 'kill' ? 'Bluefeed' : 'Redfeed';
+        const markerTime = event.time;
+        const guild =
+          cleanGuild(event.guild) ||
+          cleanGuild(currentGuild) ||
+          cleanGuild(run.find((item) => cleanGuild(item.guild))?.guild) ||
+          '-';
+
+        markers.push({
+          id: `${markerType}-${markerTime}-${guild}-${markers.length}`,
+          markerType,
+          feedLabel,
+          time: markerTime,
+          seconds: timeToSecondsValue(markerTime),
+          guild,
+          count: 10,
+        });
+
+        markerAddedForRun = true;
+      }
+    });
+
+    return markers;
+  }
+
+  const topKillFeedMarkers = showTimelineMarkers
     ? killFeeds.slice(0, 5).map((feed, index) => {
         const startSec = timeToSecondsValue(feed.start);
         const endSec = timeToSecondsValue(feed.end);
@@ -1033,6 +1095,7 @@ export default function OverviewPage({
 
         return {
           id: `${feed.name || 'killfeed'}-${markerTime || index}-${guild}-${index}`,
+          markerType: 'killfeed',
           time: markerTime,
           seconds: markerSeconds,
           guild,
@@ -1041,6 +1104,10 @@ export default function OverviewPage({
           victims: feed.victims || [],
         };
       })
+    : [];
+
+  const flowMarkers = showTimelineMarkers
+    ? buildConsecutiveFlowMarkers(stats.ev || [])
     : [];
 
   return (
@@ -1089,7 +1156,7 @@ export default function OverviewPage({
       <KillDeathChart
         data={stats.line}
         title="▧ Global Kill/Death Timeline"
-        killFeedMarkers={topKillFeedMarkers}
+        killFeedMarkers={[...topKillFeedMarkers, ...flowMarkers]}
       />
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[420px_1fr]">
