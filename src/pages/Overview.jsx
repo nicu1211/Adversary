@@ -66,9 +66,11 @@ function getSingleMatchKillFeedMarkers(events = [], selectedLogs = []) {
 
       const startEvent = windowEvents[0];
       const endEvent = windowEvents[windowEvents.length - 1];
+
       const guilds = [
         ...new Set(windowEvents.map((event) => event.guild).filter(Boolean)),
       ];
+
       const victims = windowEvents.map((event) => event.victim).filter(Boolean);
 
       markers.push({
@@ -300,6 +302,7 @@ function BestOverall({
 
     feedDetails.forEach((feed) => {
       const current = feedMeta[feed.name];
+
       const next = {
         count: Number(feed.count) || 0,
         firstKey: feedTimeKey(feed),
