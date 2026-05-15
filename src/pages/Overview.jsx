@@ -963,6 +963,18 @@ function EnemyGuilds({ guilds, events }) {
     return `${text.slice(0, 8)}…${text.slice(-2)}`;
   }
 
+  function bubbleFill(guild) {
+    if (guild.kdNumber >= 1) return 'rgba(59, 130, 246, 0.58)';
+
+    return 'rgba(244, 63, 94, 0.58)';
+  }
+
+  function bubbleStroke(guild) {
+    if (guild.kdNumber >= 1) return 'rgba(147, 197, 253, 0.55)';
+
+    return 'rgba(251, 113, 133, 0.55)';
+  }
+
   const tooltipBelow = hovered ? hovered.cy < 92 : false;
 
   const tooltipHorizontalTransform = hovered
@@ -1021,60 +1033,6 @@ function EnemyGuilds({ guilds, events }) {
               role="img"
               aria-label="Enemy Guilds bubble chart"
             >
-              <defs>
-                <radialGradient
-                  id="enemyBubbleGood"
-                  cx="35%"
-                  cy="28%"
-                  r="75%"
-                >
-                  <stop offset="0%" stopColor="rgba(191,219,254,0.98)" />
-                  <stop offset="18%" stopColor="rgba(125,211,252,0.92)" />
-                  <stop offset="55%" stopColor="rgba(59,130,246,0.80)" />
-                  <stop offset="100%" stopColor="rgba(37,99,235,0.50)" />
-                </radialGradient>
-
-                <radialGradient
-                  id="enemyBubbleBad"
-                  cx="35%"
-                  cy="28%"
-                  r="75%"
-                >
-                  <stop offset="0%" stopColor="rgba(253,164,175,0.98)" />
-                  <stop offset="18%" stopColor="rgba(244,114,182,0.92)" />
-                  <stop offset="55%" stopColor="rgba(236,72,153,0.80)" />
-                  <stop offset="100%" stopColor="rgba(190,24,93,0.48)" />
-                </radialGradient>
-
-                <filter
-                  id="enemyBubbleGlow"
-                  x="-90%"
-                  y="-90%"
-                  width="280%"
-                  height="280%"
-                >
-                  <feGaussianBlur stdDeviation="7" result="blur1" />
-                  <feMerge>
-                    <feMergeNode in="blur1" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-
-                <filter
-                  id="enemyBubbleSoft"
-                  x="-90%"
-                  y="-90%"
-                  width="280%"
-                  height="280%"
-                >
-                  <feGaussianBlur stdDeviation="3.5" result="blur2" />
-                  <feMerge>
-                    <feMergeNode in="blur2" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
               {chart.yTickValues.map((tick) => {
                 const y = chart.yScale(tick);
 
@@ -1191,13 +1149,6 @@ function EnemyGuilds({ guilds, events }) {
               )}
 
               {chart.points.map((guild) => {
-                const fillId =
-                  guild.kdNumber >= 1 ? 'enemyBubbleGood' : 'enemyBubbleBad';
-                const strokeColor =
-                  guild.kdNumber >= 1
-                    ? 'rgba(191,219,254,0.92)'
-                    : 'rgba(253,164,175,0.90)';
-
                 const fontSize =
                   guild.radius >= 22 ? 11 : guild.radius >= 16 ? 10 : 9;
 
@@ -1211,30 +1162,10 @@ function EnemyGuilds({ guilds, events }) {
                     <circle
                       cx={guild.cx}
                       cy={guild.cy}
-                      r={guild.radius + 2}
-                      fill={
-                        guild.kdNumber >= 1
-                          ? 'rgba(59,130,246,0.08)'
-                          : 'rgba(244,114,182,0.08)'
-                      }
-                      filter="url(#enemyBubbleGlow)"
-                    />
-
-                    <circle
-                      cx={guild.cx}
-                      cy={guild.cy}
                       r={guild.radius}
-                      fill={`url(#${fillId})`}
-                      stroke={strokeColor}
-                      strokeWidth="1.4"
-                      filter="url(#enemyBubbleSoft)"
-                    />
-
-                    <circle
-                      cx={guild.cx - guild.radius * 0.28}
-                      cy={guild.cy - guild.radius * 0.28}
-                      r={Math.max(2.5, guild.radius * 0.12)}
-                      fill="rgba(255,255,255,0.24)"
+                      fill={bubbleFill(guild)}
+                      stroke={bubbleStroke(guild)}
+                      strokeWidth="1"
                     />
 
                     <text
@@ -1243,7 +1174,8 @@ function EnemyGuilds({ guilds, events }) {
                       textAnchor="middle"
                       fontSize={fontSize}
                       fontWeight="900"
-                      fill="rgba(248,250,252,0.95)"
+                      fill="rgba(248,250,252,0.92)"
+                      pointerEvents="none"
                     >
                       {shortName(guild.name)}
                     </text>
@@ -1254,7 +1186,8 @@ function EnemyGuilds({ guilds, events }) {
                       textAnchor="middle"
                       fontSize="9.5"
                       fontWeight="800"
-                      fill="rgba(226,232,240,0.88)"
+                      fill="rgba(226,232,240,0.78)"
+                      pointerEvents="none"
                     >
                       KD {guild.kd}
                     </text>
