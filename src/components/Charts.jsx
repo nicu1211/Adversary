@@ -21,6 +21,7 @@ const axisTick = {
 
 function toNumber(value) {
   const n = Number(value);
+
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -74,25 +75,36 @@ function normalizeTimelineData(data = []) {
 
     return {
       label:
-        pick(
-          item,
-          ['label', 'time', 'minute', 'slot', 'name', 'x'],
-          index + 1,
-        ) ?? index + 1,
+        pick(item, ['label', 'time', 'minute', 'slot', 'name', 'x'], index + 1) ??
+        index + 1,
       kills,
       deaths,
     };
   });
 }
 
+function timeToSeconds(value) {
+  const text = String(value || '');
+
+  if (!text.includes(':')) return Number(value) || 0;
+
+  const parts = text.split(':').map((part) => Number(part) || 0);
+
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+
+  return parts[0] * 3600 + parts[1] * 60 + parts[2];
+}
+
 function formatTickValue(value) {
   const rounded = Math.round(value);
+
   return `${rounded > 0 ? '+' : ''}${rounded}`;
 }
 
 function buildDynamicTicks(min, max) {
   const ticks = new Set([min, 0, max]);
-
   const start = Math.ceil(min / 10) * 10;
   const end = Math.floor(max / 10) * 10;
 
@@ -106,29 +118,37 @@ function buildDynamicTicks(min, max) {
 export function KillDeathChart({
   data,
   title = '▧ Global Kill/Death Timeline',
+  killFeedMarkers = [],
 }) {
   const uid = useId();
   const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [hoveredMarkerId, setHoveredMarkerId] = useState(null);
 
   const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
+  const markers = useMemo(
+    () => (Array.isArray(killFeedMarkers) ? killFeedMarkers : []),
+    [killFeedMarkers],
+  );
 
   const width = 1000;
   const height = 255;
-  const pad = { top: 18, right: 16, bottom: 30, left: 40 };
+  const pad = {
+    top: 18,
+    right: 16,
+    bottom: 30,
+    left: 40,
+  };
 
   const chart = useMemo(() => {
     if (!rows.length) return null;
 
     const innerW = width - pad.left - pad.right;
     const innerH = height - pad.top - pad.bottom;
-
     const values = rows.flatMap((row) => [row.kills, row.deaths]);
     const rawMin = Math.min(...values);
     const rawMax = Math.max(...values);
-
     const range = Math.max(1, rawMax - rawMin);
     const extra = Math.max(1, range * 0.18);
-
     const min = Math.min(0, rawMin - extra);
     const max = rawMax + extra;
     const safeRange = Math.max(1, max - min);
@@ -138,7 +158,6 @@ export function KillDeathChart({
         rows.length === 1
           ? pad.left + innerW / 2
           : pad.left + (index / (rows.length - 1)) * innerW;
-
       const y = pad.top + ((max - row.kills) / safeRange) * innerH;
 
       return {
@@ -154,7 +173,6 @@ export function KillDeathChart({
         rows.length === 1
           ? pad.left + innerW / 2
           : pad.left + (index / (rows.length - 1)) * innerW;
-
       const y = pad.top + ((max - row.deaths) / safeRange) * innerH;
 
       return {
@@ -162,6 +180,29 @@ export function KillDeathChart({
         y,
         label: row.label,
         value: row.deaths,
+      };
+    });
+
+    const markerPoints = markers.map((marker, markerIndex) => {
+      const markerSeconds =
+        marker.sec != null ? Number(marker.sec) || 0 : timeToSeconds(marker.time);
+      const nearestIndex = rows.reduce((bestIndex, row, rowIndex) => {
+        const currentDiff = Math.abs(timeToSeconds(row.label) - markerSeconds);
+        const bestDiff = Math.abs(timeToSeconds(rows[bestIndex].label) - markerSeconds);
+
+        return currentDiff < bestDiff ? rowIndex : bestIndex;
+      }, 0);
+
+      const basePoint = pointsKills[nearestIndex] || pointsDeaths[nearestIndex];
+      const x = basePoint?.x ?? pad.left;
+      const y = Math.max(pad.top + 12, Math.min(pointsKills[nearestIndex]?.y ?? pad.top, pointsDeaths[nearestIndex]?.y ?? pad.top) - 18);
+
+      return {
+        ...marker,
+        id: marker.id || `marker-${markerIndex}`,
+        x,
+        y,
+        nearestIndex,
       };
     });
 
@@ -181,240 +222,164 @@ export function KillDeathChart({
     return {
       pointsKills,
       pointsDeaths,
+      markerPoints,
       ticks,
       innerW,
       zeroY,
     };
-  }, [rows]);
+  }, [rows, markers]);
 
   if (!chart) {
     return (
       <Panel>
-        <h3 className="mb-3 text-xl font-black">{title}</h3>
-
-        <div className="flex h-[255px] items-center justify-center rounded-2xl border border-slate-800 bg-transparent text-slate-500">
-          No chart data.
-        </div>
+        <h3 className="mb-4 text-xl font-black">{title}</h3>
+        <p className="text-slate-500">No chart data.</p>
       </Panel>
     );
   }
 
-  const { pointsKills, pointsDeaths, ticks, innerW, zeroY } = chart;
+  const { pointsKills, pointsDeaths, markerPoints, ticks, innerW, zeroY } = chart;
 
   const linePathKills = buildSmoothPath(pointsKills);
   const linePathDeaths = buildSmoothPath(pointsDeaths);
   const labelStep = getLabelStep(rows.length);
+  const hoveredMarker = markerPoints.find((marker) => marker.id === hoveredMarkerId);
 
   const hovered =
     hoveredIndex == null
       ? null
       : {
           x: pointsKills[hoveredIndex].x,
-          y: Math.min(
-            pointsKills[hoveredIndex].y,
-            pointsDeaths[hoveredIndex].y,
-          ),
+          y: Math.min(pointsKills[hoveredIndex].y, pointsDeaths[hoveredIndex].y),
           label: rows[hoveredIndex].label,
           kills: rows[hoveredIndex].kills,
           deaths: rows[hoveredIndex].deaths,
         };
 
   const topGlowAreaKills = pointsKills.length
-    ? `${linePathKills} L ${
-        pointsKills[pointsKills.length - 1].x
-      } ${height - pad.bottom} L ${pointsKills[0].x} ${
+    ? `${linePathKills} L ${pointsKills[pointsKills.length - 1].x} ${
         height - pad.bottom
-      } Z`
+      } L ${pointsKills[0].x} ${height - pad.bottom} Z`
     : '';
 
   const topGlowAreaDeaths = pointsDeaths.length
-    ? `${linePathDeaths} L ${
-        pointsDeaths[pointsDeaths.length - 1].x
-      } ${height - pad.bottom} L ${pointsDeaths[0].x} ${
+    ? `${linePathDeaths} L ${pointsDeaths[pointsDeaths.length - 1].x} ${
         height - pad.bottom
-      } Z`
+      } L ${pointsDeaths[0].x} ${height - pad.bottom} Z`
     : '';
 
   return (
-    <Panel cls="overflow-hidden">
-      <div className="mb-3">
-        <h3 className="text-xl font-black">{title}</h3>
-      </div>
+    <Panel>
+      <h3 className="mb-4 text-xl font-black">{title}</h3>
 
       <div
-        className="relative overflow-hidden rounded-2xl border border-slate-800/60 bg-transparent"
-        onMouseLeave={() => setHoveredIndex(null)}
+        className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/80 p-3"
+        onMouseLeave={() => {
+          setHoveredIndex(null);
+          setHoveredMarkerId(null);
+        }}
       >
-        {hovered && (
+        {hovered && !hoveredMarker && (
           <div
-            className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
+            className="pointer-events-none absolute z-10 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl"
             style={{
-              left: `${(hovered.x / width) * 100}%`,
-              top: `${(hovered.y / height) * 100}%`,
-              transform: 'translate(-50%, calc(-100% - 12px))',
+              left: Math.min(Math.max(hovered.x + 16, 8), 760),
+              top: Math.max(8, hovered.y - 14),
             }}
           >
-            <p className="mb-1 font-bold text-slate-200">
-              Ora: {hovered.label}
+            <p className="font-black text-white">Ora: {hovered.label}</p>
+            <p className="text-blue-300">Kills: {hovered.kills}</p>
+            <p className="text-pink-300">Deaths: {hovered.deaths}</p>
+          </div>
+        )}
+
+        {hoveredMarker && (
+          <div
+            className="pointer-events-none absolute z-20 max-w-[280px] rounded-xl border border-yellow-400/50 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl"
+            style={{
+              left: Math.min(Math.max(hoveredMarker.x + 16, 8), 700),
+              top: Math.max(8, hoveredMarker.y - 22),
+            }}
+          >
+            <p className="font-black text-yellow-200">
+              🔥 Killfeed x{hoveredMarker.count}
             </p>
-            <p className="text-emerald-300">Kills: {hovered.kills}</p>
-            <p className="text-rose-300">Deaths: {hovered.deaths}</p>
+            <p className="mt-1 text-white">{hoveredMarker.player}</p>
+            <p className="text-slate-300">
+              Ora: {hoveredMarker.exactTime || hoveredMarker.time}
+              {hoveredMarker.endTime ? ` - ${hoveredMarker.endTime}` : ''}
+            </p>
+            <p className="text-yellow-100">Guild: {hoveredMarker.guild || '-'}</p>
+            {hoveredMarker.victims?.length > 0 && (
+              <p className="mt-1 truncate text-slate-400">
+                Victims: {hoveredMarker.victims.join(', ')}
+              </p>
+            )}
           </div>
         )}
 
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="block h-auto w-full"
+          className="h-[255px] w-full overflow-visible"
           role="img"
           aria-label={title}
         >
           <defs>
-            <linearGradient
-              id={`${uid}-stroke-kills`}
-              x1="0"
-              y1="0"
-              x2="1"
-              y2="0"
-            >
-              <stop offset="0%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#10b981" />
+            <linearGradient id={`${uid}-kills`} x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.95" />
             </linearGradient>
 
-            <linearGradient
-              id={`${uid}-stroke-deaths`}
-              x1="0"
-              y1="0"
-              x2="1"
-              y2="0"
-            >
-              <stop offset="0%" stopColor="#ef4444" />
-              <stop offset="100%" stopColor="#ef4444" />
+            <linearGradient id={`${uid}-deaths`} x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#ec4899" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#fb7185" stopOpacity="0.95" />
             </linearGradient>
 
-            <linearGradient
-              id={`${uid}-topGlow-kills`}
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop offset="0%" stopColor="rgba(16,185,129,0.42)" />
-              <stop offset="35%" stopColor="rgba(16,185,129,0.24)" />
-              <stop offset="70%" stopColor="rgba(16,185,129,0.10)" />
-              <stop offset="100%" stopColor="rgba(16,185,129,0)" />
+            <linearGradient id={`${uid}-kills-area`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
             </linearGradient>
 
-            <linearGradient
-              id={`${uid}-topGlow-deaths`}
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop offset="0%" stopColor="rgba(239,68,68,0.42)" />
-              <stop offset="35%" stopColor="rgba(239,68,68,0.24)" />
-              <stop offset="70%" stopColor="rgba(239,68,68,0.10)" />
-              <stop offset="100%" stopColor="rgba(239,68,68,0)" />
+            <linearGradient id={`${uid}-deaths-area`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#ec4899" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#ec4899" stopOpacity="0" />
             </linearGradient>
 
-            <filter
-              id={`${uid}-lineGlowBig-kills`}
-              x="-60%"
-              y="-60%"
-              width="220%"
-              height="220%"
-            >
-              <feGaussianBlur stdDeviation="8" result="blur1" />
+            <filter id={`${uid}-glow`} x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
               <feMerge>
-                <feMergeNode in="blur1" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-
-            <filter
-              id={`${uid}-lineGlowSoft-kills`}
-              x="-60%"
-              y="-60%"
-              width="220%"
-              height="220%"
-            >
-              <feGaussianBlur stdDeviation="4" result="blur2" />
-              <feMerge>
-                <feMergeNode in="blur2" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-
-            <filter
-              id={`${uid}-lineGlowBig-deaths`}
-              x="-60%"
-              y="-60%"
-              width="220%"
-              height="220%"
-            >
-              <feGaussianBlur stdDeviation="8" result="blur3" />
-              <feMerge>
-                <feMergeNode in="blur3" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-
-            <filter
-              id={`${uid}-lineGlowSoft-deaths`}
-              x="-60%"
-              y="-60%"
-              width="220%"
-              height="220%"
-            >
-              <feGaussianBlur stdDeviation="4" result="blur4" />
-              <feMerge>
-                <feMergeNode in="blur4" />
+                <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
 
-          {topGlowAreaKills && (
-            <path
-              d={topGlowAreaKills}
-              fill={`url(#${uid}-topGlow-kills)`}
-              opacity="1"
-            />
-          )}
-
-          {topGlowAreaDeaths && (
-            <path
-              d={topGlowAreaDeaths}
-              fill={`url(#${uid}-topGlow-deaths)`}
-              opacity="1"
-            />
-          )}
+          <rect x="0" y="0" width={width} height={height} fill="transparent" />
 
           <line
             x1={pad.left}
-            y1={zeroY}
             x2={width - pad.right}
+            y1={zeroY}
             y2={zeroY}
-            stroke="rgba(255,255,255,0.16)"
-            strokeWidth="1.4"
+            stroke="#334155"
+            strokeDasharray="4 4"
           />
 
           {ticks.map((tick, index) => (
-            <g key={`h-${index}`}>
+            <g key={`tick-${index}`}>
               <line
                 x1={pad.left}
-                y1={tick.y}
                 x2={width - pad.right}
+                y1={tick.y}
                 y2={tick.y}
-                stroke="rgba(255,255,255,0.055)"
-                strokeWidth="1"
+                stroke="#1e293b"
+                strokeDasharray={index === 0 ? '0' : '3 7'}
               />
               <text
-                x={pad.left - 8}
+                x={pad.left - 9}
                 y={tick.y + 4}
                 textAnchor="end"
-                fontSize="10"
-                fill="rgba(255,255,255,0.20)"
+                className="fill-slate-500 text-[10px]"
               >
                 {formatTickValue(tick.value)}
               </text>
@@ -426,31 +391,25 @@ export function KillDeathChart({
               rows.length === 1
                 ? pad.left + innerW / 2
                 : pad.left + (index / (rows.length - 1)) * innerW;
-
             const showLabel =
-              index === 0 ||
-              index === rows.length - 1 ||
-              index % labelStep === 0;
+              index === 0 || index === rows.length - 1 || index % labelStep === 0;
 
             return (
-              <g key={`v-${index}`}>
+              <g key={`label-${row.label}-${index}`}>
                 <line
                   x1={x}
-                  y1={pad.top}
                   x2={x}
+                  y1={pad.top}
                   y2={height - pad.bottom}
-                  stroke="rgba(255,255,255,0.04)"
-                  strokeWidth="1"
-                  strokeDasharray="2 5"
+                  stroke="#0f172a"
                 />
 
                 {showLabel && (
                   <text
                     x={x}
-                    y={height - 10}
+                    y={height - 9}
                     textAnchor="middle"
-                    fontSize="10"
-                    fill="rgba(255,255,255,0.24)"
+                    className="fill-slate-500 text-[10px]"
                   >
                     {String(row.label)}
                   </text>
@@ -459,77 +418,104 @@ export function KillDeathChart({
             );
           })}
 
-          <path
-            d={linePathKills}
-            fill="none"
-            stroke={`url(#${uid}-stroke-kills)`}
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.16"
-            filter={`url(#${uid}-lineGlowBig-kills)`}
-          />
+          {topGlowAreaKills && (
+            <path d={topGlowAreaKills} fill={`url(#${uid}-kills-area)`} />
+          )}
+
+          {topGlowAreaDeaths && (
+            <path d={topGlowAreaDeaths} fill={`url(#${uid}-deaths-area)`} />
+          )}
 
           <path
-            d={linePathKills}
+            d={linePathDeaths}
             fill="none"
-            stroke={`url(#${uid}-stroke-kills)`}
-            strokeWidth="5"
+            stroke={`url(#${uid}-deaths)`}
+            strokeWidth="3"
             strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.28"
-            filter={`url(#${uid}-lineGlowSoft-kills)`}
+            filter={`url(#${uid}-glow)`}
           />
 
           <path
             d={linePathKills}
             fill="none"
-            stroke={`url(#${uid}-stroke-kills)`}
-            strokeWidth="1.6"
+            stroke={`url(#${uid}-kills)`}
+            strokeWidth="3"
             strokeLinecap="round"
-            strokeLinejoin="round"
+            filter={`url(#${uid}-glow)`}
           />
 
-          <path
-            d={linePathDeaths}
-            fill="none"
-            stroke={`url(#${uid}-stroke-deaths)`}
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.16"
-            filter={`url(#${uid}-lineGlowBig-deaths)`}
-          />
+          {pointsDeaths.map((point, index) => (
+            <circle
+              key={`death-point-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r={hoveredIndex === index ? 4.5 : 3}
+              fill="#fb7185"
+              stroke="#0f172a"
+              strokeWidth="1.5"
+            />
+          ))}
 
-          <path
-            d={linePathDeaths}
-            fill="none"
-            stroke={`url(#${uid}-stroke-deaths)`}
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.28"
-            filter={`url(#${uid}-lineGlowSoft-deaths)`}
-          />
+          {pointsKills.map((point, index) => (
+            <circle
+              key={`kill-point-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r={hoveredIndex === index ? 4.5 : 3}
+              fill="#22d3ee"
+              stroke="#0f172a"
+              strokeWidth="1.5"
+            />
+          ))}
 
-          <path
-            d={linePathDeaths}
-            fill="none"
-            stroke={`url(#${uid}-stroke-deaths)`}
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {markerPoints.map((marker) => (
+            <g key={marker.id}>
+              <line
+                x1={marker.x}
+                x2={marker.x}
+                y1={pad.top}
+                y2={height - pad.bottom}
+                stroke="#facc15"
+                strokeOpacity="0.25"
+                strokeDasharray="3 5"
+              />
 
-          {hovered && (
+              <circle
+                cx={marker.x}
+                cy={marker.y}
+                r={hoveredMarkerId === marker.id ? 7 : 5}
+                fill="#facc15"
+                stroke="#78350f"
+                strokeWidth="2"
+                filter={`url(#${uid}-glow)`}
+                onMouseEnter={() => {
+                  setHoveredMarkerId(marker.id);
+                  setHoveredIndex(null);
+                }}
+              />
+
+              <circle
+                cx={marker.x}
+                cy={marker.y}
+                r="12"
+                fill="transparent"
+                onMouseEnter={() => {
+                  setHoveredMarkerId(marker.id);
+                  setHoveredIndex(null);
+                }}
+              />
+            </g>
+          ))}
+
+          {hovered && !hoveredMarker && (
             <line
               x1={hovered.x}
-              y1={pad.top}
               x2={hovered.x}
+              y1={pad.top}
               y2={height - pad.bottom}
-              stroke="rgba(255,255,255,0.12)"
-              strokeWidth="1"
-              strokeDasharray="3 5"
+              stroke="#94a3b8"
+              strokeOpacity="0.45"
+              strokeDasharray="4 6"
             />
           )}
 
@@ -538,40 +524,57 @@ export function KillDeathChart({
               rows.length === 1
                 ? pad.left + innerW / 2
                 : pad.left + (index / (rows.length - 1)) * innerW;
-
             const prevX =
               index === 0
                 ? pad.left
                 : rows.length === 1
                   ? pad.left
                   : pad.left + ((index - 1) / (rows.length - 1)) * innerW;
-
             const nextX =
               index === rows.length - 1
                 ? width - pad.right
                 : rows.length === 1
                   ? width - pad.right
                   : pad.left + ((index + 1) / (rows.length - 1)) * innerW;
-
             const startX = index === 0 ? pad.left : (prevX + currentX) / 2;
             const endX =
-              index === rows.length - 1
-                ? width - pad.right
-                : (currentX + nextX) / 2;
+              index === rows.length - 1 ? width - pad.right : (currentX + nextX) / 2;
 
             return (
               <rect
-                key={`hover-${index}`}
+                key={`hover-${row.label}-${index}`}
                 x={startX}
                 y={pad.top}
-                width={Math.max(12, endX - startX)}
-                height={height - pad.top - pad.bottom}
+                width={Math.max(1, endX - startX)}
+                height={height - pad.bottom - pad.top}
                 fill="transparent"
-                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseEnter={() => {
+                  setHoveredIndex(index);
+                  setHoveredMarkerId(null);
+                }}
               />
             );
           })}
         </svg>
+
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-400">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+            Kills
+          </span>
+
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-pink-400" />
+            Deaths
+          </span>
+
+          {markerPoints.length > 0 && (
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+              Killfeed
+            </span>
+          )}
+        </div>
       </div>
     </Panel>
   );
@@ -579,11 +582,11 @@ export function KillDeathChart({
 
 function SummaryChip({ label, value, colorClass }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 shadow-lg backdrop-blur-xl">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+    <div className={`rounded-2xl border bg-slate-950/60 px-4 py-3 ${colorClass}`}>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
         {label}
       </p>
-      <p className={`text-sm font-black ${colorClass}`}>{value}</p>
+      <p className="mt-1 text-2xl font-black">{value}</p>
     </div>
   );
 }
@@ -591,24 +594,18 @@ function SummaryChip({ label, value, colorClass }) {
 function PerformanceTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
 
-  const map = Object.fromEntries(
-    payload.map((item) => [item.dataKey, item.value]),
-  );
-
+  const map = Object.fromEntries(payload.map((item) => [item.dataKey, item.value]));
   const deaths =
     map.deathsNegative != null
       ? Math.abs(Number(map.deathsNegative) || 0)
       : map.deaths ?? 0;
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
-      <p className="mb-2 text-sm font-black text-white">{label}</p>
-
-      <div className="space-y-1.5 text-sm">
-        <p className="font-bold text-emerald-300">Kills : {map.kills ?? 0}</p>
-        <p className="font-bold text-rose-300">Deaths : {deaths}</p>
-        <p className="font-bold text-blue-300">K/D : {map.avgKd ?? 0}</p>
-      </div>
+    <div className="rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-xl">
+      <p className="font-black text-white">{label}</p>
+      <p className="text-blue-300">Kills : {map.kills ?? 0}</p>
+      <p className="text-pink-300">Deaths : {deaths}</p>
+      <p className="text-emerald-300">K/D : {map.avgKd ?? 0}</p>
     </div>
   );
 }
@@ -626,11 +623,9 @@ export function PerformanceChart({ data }) {
     const avgKills =
       data.reduce((sum, item) => sum + (Number(item.avgKills) || 0), 0) /
       data.length;
-
     const avgDeaths =
       data.reduce((sum, item) => sum + (Number(item.avgDeaths) || 0), 0) /
       data.length;
-
     const avgKd =
       data.reduce((sum, item) => sum + (Number(item.avgKd) || 0), 0) /
       data.length;
@@ -658,7 +653,6 @@ export function PerformanceChart({ data }) {
       1,
       ...performanceData.map((item) => Number(item.kills) || 0),
     );
-
     const maxDeaths = Math.max(
       1,
       ...performanceData.map((item) =>
@@ -681,7 +675,6 @@ export function PerformanceChart({ data }) {
     const leftMin = battleDomain.min;
     const leftMax = battleDomain.max;
     const leftRange = Math.max(1, leftMax - leftMin);
-
     const zeroPosition = Math.min(
       0.95,
       Math.max(0.05, (0 - leftMin) / leftRange),
@@ -693,18 +686,15 @@ export function PerformanceChart({ data }) {
       0.25,
       ...values.map((value) => Math.max(0, 1 - value)),
     );
-
     const upperDeviation = Math.max(
       0.25,
       ...values.map((value) => Math.max(0, value - 1)),
     );
-
     const scale = Math.max(
       lowerDeviation / zeroPosition,
       upperDeviation / (1 - zeroPosition),
       0.5,
     );
-
     const lower = zeroPosition * scale;
     const upper = (1 - zeroPosition) * scale;
 
@@ -713,219 +703,90 @@ export function PerformanceChart({ data }) {
 
   return (
     <Panel>
-      <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-2xl font-black">Performance</h2>
-          <p className="text-sm text-slate-400">
+          <h3 className="text-xl font-black">Performance</h3>
+          <p className="text-sm text-slate-500">
             Daily performance with kills, deaths and average K/D
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2">
           <SummaryChip
-            label="Average Kills"
+            label="Avg kills"
             value={summary.avgKills}
-            colorClass="text-emerald-300"
+            colorClass="border-blue-400/20 text-blue-300"
           />
-
           <SummaryChip
-            label="Average Deaths"
+            label="Avg deaths"
             value={summary.avgDeaths}
-            colorClass="text-rose-300"
+            colorClass="border-pink-400/20 text-pink-300"
           />
-
           <SummaryChip
-            label="Average K/D"
+            label="Avg K/D"
             value={summary.avgKd}
-            colorClass="text-blue-300"
+            colorClass="border-emerald-400/20 text-emerald-300"
           />
         </div>
       </div>
 
-      <div className="h-[320px] sm:h-[360px] [&_*:focus]:outline-none">
-        <ResponsiveContainer>
-          <ComposedChart
-            data={performanceData}
-            stackOffset="sign"
-            barCategoryGap="48%"
-            barGap={0}
-            barSize={19}
-            margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
-          >
-            <defs>
-              <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.98} />
-                <stop offset="100%" stopColor="#10b981" stopOpacity={0.82} />
-              </linearGradient>
-
-              <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.98} />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0.82} />
-              </linearGradient>
-
-              <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(96,165,250,0.92)" />
-                <stop offset="22%" stopColor="rgba(96,165,250,0.72)" />
-                <stop offset="45%" stopColor="rgba(96,165,250,0.48)" />
-                <stop offset="70%" stopColor="rgba(96,165,250,0.24)" />
-                <stop offset="100%" stopColor="rgba(96,165,250,0.02)" />
-              </linearGradient>
-
-              <filter
-                id="avgKdGlowBig"
-                x="-80%"
-                y="-80%"
-                width="260%"
-                height="260%"
-              >
-                <feGaussianBlur stdDeviation="12" result="blur1" />
-                <feMerge>
-                  <feMergeNode in="blur1" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-
-              <filter
-                id="avgKdGlowSoft"
-                x="-70%"
-                y="-70%"
-                width="240%"
-                height="240%"
-              >
-                <feGaussianBlur stdDeviation="6" result="blur2" />
-                <feMerge>
-                  <feMergeNode in="blur2" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            <CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false} />
-
-            <XAxis
-              dataKey="time"
-              tick={axisTick}
-              angle={-35}
-              textAnchor="end"
-              height={55}
-            />
-
+      <div className="h-[320px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={performanceData} margin={{ top: 12, right: 22, left: 0, bottom: 0 }}>
+            <CartesianGrid stroke="#1e293b" strokeDasharray="3 5" />
+            <XAxis dataKey="date" tick={axisTick} tickLine={false} axisLine={false} />
             <YAxis
-              yAxisId="left"
-              tick={axisTick}
-              allowDecimals={false}
-              domain={[battleDomain.min, battleDomain.max]}
+              yAxisId="battle"
               ticks={battleTicks}
-              tickFormatter={(value) => value}
-            />
-
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={false}
-              axisLine={false}
+              domain={[battleDomain.min, battleDomain.max]}
+              tick={axisTick}
               tickLine={false}
-              width={0}
-              allowDecimals
-              domain={avgKdDomain}
+              axisLine={false}
             />
-
+            <YAxis
+              yAxisId="kd"
+              orientation="right"
+              domain={avgKdDomain}
+              tick={axisTick}
+              tickLine={false}
+              axisLine={false}
+            />
             <Tooltip content={<PerformanceTooltip />} cursor={false} />
             <Legend />
-
-            <ReferenceLine
-              yAxisId="left"
-              y={0}
-              stroke="rgba(255,255,255,.24)"
-              strokeWidth={1.5}
-            />
-
-            <ReferenceLine yAxisId="right" y={1} stroke="transparent" />
-
+            <ReferenceLine yAxisId="battle" y={0} stroke="#475569" strokeDasharray="4 4" />
             <Bar
-              yAxisId="left"
+              yAxisId="battle"
               dataKey="kills"
               name="Kills"
-              stackId="battle"
-              fill="url(#perfBarKills)"
-              radius={[0, 0, 0, 0]}
-              activeBar={false}
+              fill="#3b82f6"
+              radius={[8, 8, 0, 0]}
+              maxBarSize={34}
             />
-
-            <Area
-              yAxisId="right"
-              type="monotone"
-              dataKey="avgKd"
-              name=""
-              stroke="none"
-              fill="url(#avgKdFill)"
-              legendType="none"
-              activeDot={false}
-              isAnimationActive
-              baseValue={1}
-            />
-
-            <RechartsLine
-              yAxisId="right"
-              type="monotone"
-              dataKey="avgKd"
-              name=""
-              stroke="#60a5fa"
-              strokeWidth={12}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={0.24}
-              filter="url(#avgKdGlowBig)"
-              dot={false}
-              activeDot={false}
-              legendType="none"
-              isAnimationActive
-            />
-
-            <RechartsLine
-              yAxisId="right"
-              type="monotone"
-              dataKey="avgKd"
-              name=""
-              stroke="#60a5fa"
-              strokeWidth={6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={0.36}
-              filter="url(#avgKdGlowSoft)"
-              dot={false}
-              activeDot={false}
-              legendType="none"
-              isAnimationActive
-            />
-
-            <RechartsLine
-              yAxisId="right"
-              type="monotone"
-              dataKey="avgKd"
-              name="K/D"
-              stroke="#60a5fa"
-              strokeWidth={1.6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              dot={false}
-              activeDot={{
-                r: 4,
-                fill: '#60a5fa',
-                stroke: '#dbeafe',
-                strokeWidth: 1.5,
-              }}
-              isAnimationActive
-            />
-
             <Bar
-              yAxisId="left"
+              yAxisId="battle"
               dataKey="deathsNegative"
               name="Deaths"
-              stackId="battle"
-              fill="url(#perfBarDeaths)"
-              radius={[0, 0, 0, 0]}
-              activeBar={false}
+              fill="#ec4899"
+              radius={[0, 0, 8, 8]}
+              maxBarSize={34}
+            />
+            <RechartsLine
+              yAxisId="kd"
+              type="monotone"
+              dataKey="avgKd"
+              name="Average K/D"
+              stroke="#10b981"
+              strokeWidth={3}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+            />
+            <Area
+              yAxisId="kd"
+              type="monotone"
+              dataKey="avgKd"
+              fill="#10b981"
+              fillOpacity={0.08}
+              stroke="none"
             />
           </ComposedChart>
         </ResponsiveContainer>
