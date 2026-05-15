@@ -131,6 +131,82 @@ function toSecondsFromLabel(value) {
   return Number.isFinite(numeric) ? numeric : NaN;
 }
 
+function interpolateMarkerPosition(rows, pointsKills, pointsDeaths, markerTime) {
+  const markerSeconds = toSecondsFromLabel(markerTime);
+
+  if (!Number.isFinite(markerSeconds)) return null;
+
+  const timedRows = rows
+    .map((row, index) => ({
+      index,
+      seconds: toSecondsFromLabel(row.label),
+    }))
+    .filter((row) => Number.isFinite(row.seconds))
+    .sort((a, b) => a.seconds - b.seconds);
+
+  if (!timedRows.length) return null;
+
+  if (markerSeconds <= timedRows[0].seconds) {
+    const index = timedRows[0].index;
+
+    return {
+      index,
+      x: pointsKills[index].x,
+    };
+  }
+
+  if (markerSeconds >= timedRows[timedRows.length - 1].seconds) {
+    const index = timedRows[timedRows.length - 1].index;
+
+    return {
+      index,
+      x: pointsKills[index].x,
+    };
+  }
+
+  for (let i = 0; i < timedRows.length - 1; i += 1) {
+    const current = timedRows[i];
+    const next = timedRows[i + 1];
+
+    if (markerSeconds >= current.seconds && markerSeconds <= next.seconds) {
+      const range = Math.max(1, next.seconds - current.seconds);
+      const ratio = (markerSeconds - current.seconds) / range;
+
+      const currentPoint = pointsKills[current.index];
+      const nextPoint = pointsKills[next.index];
+
+      const x = currentPoint.x + (nextPoint.x - currentPoint.x) * ratio;
+
+      const nearestIndex =
+        Math.abs(markerSeconds - current.seconds) <=
+        Math.abs(markerSeconds - next.seconds)
+          ? current.index
+          : next.index;
+
+      return {
+        index: nearestIndex,
+        x,
+      };
+    }
+  }
+
+  let closest = timedRows[0];
+
+  timedRows.forEach((row) => {
+    if (
+      Math.abs(row.seconds - markerSeconds) <
+      Math.abs(closest.seconds - markerSeconds)
+    ) {
+      closest = row;
+    }
+  });
+
+  return {
+    index: closest.index,
+    x: pointsKills[closest.index].x,
+  };
+}
+
 export function KillDeathChart({
   data,
   title = '▧ Global Kill/Death Timeline',
@@ -238,43 +314,27 @@ export function KillDeathChart({
   const markerPoints = (killFeedMarkers || [])
     .map((marker, markerIndex) => {
       const markerTime = normalizeTimeKey(marker.time ?? marker.label ?? marker.start);
-      const markerSeconds = toSecondsFromLabel(markerTime);
-
-      let bestIndex = rows.findIndex(
-        (row) => normalizeTimeKey(row.label) === markerTime,
+      const position = interpolateMarkerPosition(
+        rows,
+        pointsKills,
+        pointsDeaths,
+        markerTime,
       );
 
-      if (bestIndex < 0 && Number.isFinite(markerSeconds)) {
-        let bestDistance = Infinity;
-
-        rows.forEach((row, rowIndex) => {
-          const rowSeconds = toSecondsFromLabel(row.label);
-
-          if (!Number.isFinite(rowSeconds)) return;
-
-          const distance = Math.abs(rowSeconds - markerSeconds);
-
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            bestIndex = rowIndex;
-          }
-        });
-      }
-
-      if (bestIndex < 0 || !pointsKills[bestIndex] || !pointsDeaths[bestIndex]) {
+      if (!position || !pointsKills[position.index] || !pointsDeaths[position.index]) {
         return null;
       }
 
-      const pointKill = pointsKills[bestIndex];
-      const pointDeath = pointsDeaths[bestIndex];
+      const pointKill = pointsKills[position.index];
+      const pointDeath = pointsDeaths[position.index];
 
       return {
         ...marker,
         markerIndex,
         isKillFeed: true,
-        x: pointKill.x,
+        x: position.x,
         y: Math.max(pad.top + 8, Math.min(pointKill.y, pointDeath.y) - 10),
-        label: markerTime || rows[bestIndex].label,
+        label: markerTime || rows[position.index].label,
         guild: marker.guild || marker.war || '-',
       };
     })
