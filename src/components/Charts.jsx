@@ -125,6 +125,7 @@ export function KillDeathChart({
   const [hoveredMarkerId, setHoveredMarkerId] = useState(null);
 
   const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
+
   const markers = useMemo(
     () => (Array.isArray(killFeedMarkers) ? killFeedMarkers : []),
     [killFeedMarkers],
@@ -203,10 +204,12 @@ export function KillDeathChart({
     const markerPoints = markers.map((marker, index) => {
       const markerSeconds =
         marker.sec != null ? Number(marker.sec) || 0 : timeToSeconds(marker.time);
+
       const ratio =
         maxTime === minTime
           ? 0.5
           : Math.min(1, Math.max(0, (markerSeconds - minTime) / timeRange));
+
       const x = pad.left + ratio * innerW;
 
       const nearestIndex = rows.reduce((bestIndex, row, rowIndex) => {
@@ -218,6 +221,7 @@ export function KillDeathChart({
 
       const nearestKillPoint = pointsKills[nearestIndex];
       const nearestDeathPoint = pointsDeaths[nearestIndex];
+
       const y = Math.max(
         pad.top + 10,
         Math.min(nearestKillPoint?.y ?? pad.top, nearestDeathPoint?.y ?? pad.top) - 16,
@@ -490,45 +494,6 @@ export function KillDeathChart({
             />
           ))}
 
-          {markerPoints.map((marker) => (
-            <g key={marker.id}>
-              <line
-                x1={marker.x}
-                x2={marker.x}
-                y1={pad.top}
-                y2={height - pad.bottom}
-                stroke="#facc15"
-                strokeOpacity="0.22"
-                strokeDasharray="3 5"
-              />
-
-              <circle
-                cx={marker.x}
-                cy={marker.y}
-                r={hoveredMarkerId === marker.id ? 7 : 5}
-                fill="#facc15"
-                stroke="#78350f"
-                strokeWidth="2"
-                filter={`url(#${uid}-glow)`}
-                onMouseEnter={() => {
-                  setHoveredMarkerId(marker.id);
-                  setHoveredIndex(null);
-                }}
-              />
-
-              <circle
-                cx={marker.x}
-                cy={marker.y}
-                r="13"
-                fill="transparent"
-                onMouseEnter={() => {
-                  setHoveredMarkerId(marker.id);
-                  setHoveredIndex(null);
-                }}
-              />
-            </g>
-          ))}
-
           {hovered && !hoveredMarker && (
             <line
               x1={hovered.x}
@@ -577,6 +542,45 @@ export function KillDeathChart({
               />
             );
           })}
+
+          {markerPoints.map((marker) => (
+            <g key={marker.id}>
+              <line
+                x1={marker.x}
+                x2={marker.x}
+                y1={pad.top}
+                y2={height - pad.bottom}
+                stroke="#facc15"
+                strokeOpacity="0.22"
+                strokeDasharray="3 5"
+              />
+
+              <circle
+                cx={marker.x}
+                cy={marker.y}
+                r={hoveredMarkerId === marker.id ? 7 : 5}
+                fill="#facc15"
+                stroke="#78350f"
+                strokeWidth="2"
+                filter={`url(#${uid}-glow)`}
+                onMouseEnter={() => {
+                  setHoveredMarkerId(marker.id);
+                  setHoveredIndex(null);
+                }}
+              />
+
+              <circle
+                cx={marker.x}
+                cy={marker.y}
+                r="13"
+                fill="transparent"
+                onMouseEnter={() => {
+                  setHoveredMarkerId(marker.id);
+                  setHoveredIndex(null);
+                }}
+              />
+            </g>
+          ))}
         </svg>
 
         {markerPoints.length > 0 && (
@@ -744,7 +748,10 @@ export function PerformanceChart({ data }) {
 
       <div className="h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={performanceData} margin={{ top: 12, right: 22, left: 0, bottom: 0 }}>
+          <ComposedChart
+            data={performanceData}
+            margin={{ top: 12, right: 22, left: 0, bottom: 0 }}
+          >
             <CartesianGrid stroke="#1e293b" strokeDasharray="3 5" />
             <XAxis dataKey="date" tick={axisTick} tickLine={false} axisLine={false} />
             <YAxis
