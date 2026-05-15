@@ -153,6 +153,8 @@ function normalizeSummary(summary) {
         : [],
     st: summary.st || {},
     fd: summary.fd || {},
+    hasTimeline: Boolean(summary.hasTimeline),
+    summaryOnly: Boolean(summary.summaryOnly),
     calculatedAt: summary.calculatedAt || summary.calculated_at || null,
   };
 }
@@ -234,6 +236,7 @@ function parseClassicEventLine(line, index, name, date, id) {
           date,
           id,
           source: 'classic',
+          hasTimestamp: true,
         }
       : null;
   }
@@ -257,6 +260,7 @@ function parseClassicEventLine(line, index, name, date, id) {
           date,
           id,
           source: 'classic',
+          hasTimestamp: true,
         }
       : null;
   }
@@ -291,61 +295,58 @@ function parseSummaryRows(raw) {
     .filter(Boolean);
 }
 
-function summaryRowsToEvents(rows, name, date, id) {
-  const events = [];
-  let eventIndex = 0;
-
-  rows.forEach((row, rowIndex) => {
-    for (let killIndex = 0; killIndex < row.kills; killIndex += 1) {
-      events.push({
-        i: eventIndex,
-        type: 'kill',
-        time: minuteLabel(eventIndex),
-        sec: eventIndex,
-        killer: row.player,
-        victim: `Unknown_${rowIndex}_${killIndex}`,
-        guild: 'Manual Summary',
-        kf: '-',
-        vf: '-',
-        war: name,
-        date,
-        id,
-        source: 'summary',
-      });
-
-      eventIndex += 1;
-    }
-
-    for (let deathIndex = 0; deathIndex < row.deaths; deathIndex += 1) {
-      events.push({
-        i: eventIndex,
-        type: 'death',
-        time: minuteLabel(eventIndex),
-        sec: eventIndex,
-        killer: `Unknown_${rowIndex}_${deathIndex}`,
-        victim: row.player,
-        guild: 'Manual Summary',
-        kf: '-',
-        vf: '-',
-        war: name,
-        date,
-        id,
-        source: 'summary',
-      });
-
-      eventIndex += 1;
-    }
-  });
-
-  return events;
+function parseClassicEvents(raw, name, date, id) {
+  return cleanLog(raw)
+    .split(NL)
+    .map((line, index) => parseClassicEventLine(line, index, name, date, id))
+    .filter(Boolean)
+    .sort((a, b) => a.sec - b.sec || a.i - b.i);
 }
 
-function parseSummaryLog(raw, name, date, id) {
-  const rows = parseSummaryRows(raw);
+function summaryRowsToValidationEvents(rows, name, date, id) {
+  return rows.flatMap((row, rowIndex) => {
+    const output = [];
 
-  if (!rows.length) return [];
+    for (let i = 0; i < row.kills; i += 1) {
+      output.push({
+        i: rowIndex * 10000 + i,
+        type: 'kill',
+        time: null,
+        sec: 0,
+        killer: row.player,
+        victim: `Unknown_${rowIndex}_${i}`,
+        guild: '',
+        kf: '-',
+        vf: '-',
+        war: name,
+        date,
+        id,
+        source: 'summary',
+        hasTimestamp: false,
+      });
+    }
 
-  return summaryRowsToEvents(rows, name, date, id);
+    for (let i = 0; i < row.deaths; i += 1) {
+      output.push({
+        i: rowIndex * 10000 + row.kills + i,
+        type: 'death',
+        time: null,
+        sec: 0,
+        killer: `Unknown_${rowIndex}_${i}`,
+        victim: row.player,
+        guild: '',
+        kf: '-',
+        vf: '-',
+        war: name,
+        date,
+        id,
+        source: 'summary',
+        hasTimestamp: false,
+      });
+    }
+
+    return output;
+  });
 }
 
 export function parseLog(raw, name, date, id) {
@@ -353,13 +354,9 @@ export function parseLog(raw, name, date, id) {
 
   if (!cleaned) return [];
 
-  const lines = cleaned.split(NL);
-
-  const classicEvents = lines
-    .map((line, index) => parseClassicEventLine(line, index, name, date, id))
-    .filter(Boolean);
-
-  const summaryEvents = parseSummaryLog(cleaned, name, date, id);
+  const classicEvents = parseClassicEvents(cleaned, name, date, id);
+  const summaryRows = parseSummaryRows(cleaned);
+  const summaryEvents = summaryRowsToValidationEvents(summaryRows, name, date, id);
 
   return [...classicEvents, ...summaryEvents].sort(
     (a, b) => a.sec - b.sec || a.i - b.i,
@@ -370,16 +367,16 @@ export function calculateStreaks(events) {
   const current = {};
   const best = {};
 
-  events.forEach((event) => {
-    if (event.source === 'summary') return;
-
-    if (event.type === 'kill') {
-      current[event.killer] = (current[event.killer] || 0) + 1;
-      best[event.killer] = Math.max(best[event.killer] || 0, current[event.killer]);
-    } else {
-      current[event.victim] = 0;
-    }
-  });
+  events
+    .filter((event) => event.hasTimestamp !== false && event.source !== 'summary')
+    .forEach((event) => {
+      if (event.type === 'kill') {
+        current[event.killer] = (current[event.killer] || 0) + 1;
+        best[event.killer] = Math.max(best[event.killer] || 0, current[event.killer]);
+      } else {
+        current[event.victim] = 0;
+      }
+    });
 
   return best;
 }
@@ -388,7 +385,12 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
   const byPlayerAndWar = {};
 
   events
-    .filter((event) => event.type === 'kill' && event.source !== 'summary')
+    .filter(
+      (event) =>
+        event.type === 'kill' &&
+        event.hasTimestamp !== false &&
+        event.source !== 'summary',
+    )
     .forEach((event) => {
       const key = `${event.killer}@@${event.id}`;
 
@@ -442,11 +444,20 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
 }
 
 function calculateStatsFromRaw(items) {
-  const events = items
-    .flatMap((log) => parseLog(log.raw, log.name, log.date, log.id))
+  const classicEvents = items
+    .flatMap((log) => parseClassicEvents(log.raw, log.name, log.date, log.id))
     .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i);
 
-  if (!events.length) {
+  const summaryRows = items.flatMap((log) =>
+    parseSummaryRows(log.raw).map((row) => ({
+      ...row,
+      date: log.date,
+      id: log.id,
+      war: log.name,
+    })),
+  );
+
+  if (!classicEvents.length && !summaryRows.length) {
     return {
       ev: [],
       players: [],
@@ -457,6 +468,8 @@ function calculateStatsFromRaw(items) {
       kd: '0.00',
       st: {},
       fd: {},
+      hasTimeline: false,
+      summaryOnly: false,
     };
   }
 
@@ -467,35 +480,17 @@ function calculateStatsFromRaw(items) {
   const guildDeaths = {};
   const minutes = {};
 
-  events.forEach((event) => {
-    const killerIsUnknown = String(event.killer || '').startsWith('Unknown_');
-    const victimIsUnknown = String(event.victim || '').startsWith('Unknown_');
-
+  classicEvents.forEach((event) => {
     if (event.type === 'kill') {
-      if (!killerIsUnknown) {
-        add(playerKills, event.killer);
-      }
-
-      if (event.guild && event.guild !== 'Manual Summary') {
-        add(guildKills, event.guild);
-      }
+      add(playerKills, event.killer);
+      add(guildKills, event.guild);
     } else {
-      if (!victimIsUnknown) {
-        add(playerDeaths, event.victim);
-      }
-
-      if (event.guild && event.guild !== 'Manual Summary') {
-        add(guildDeaths, event.guild);
-      }
+      add(playerDeaths, event.victim);
+      add(guildDeaths, event.guild);
     }
 
-    if (!killerIsUnknown) {
-      families[event.killer] = event.kf || families[event.killer] || '-';
-    }
-
-    if (!victimIsUnknown) {
-      families[event.victim] = event.vf || families[event.victim] || '-';
-    }
+    families[event.killer] = event.kf;
+    families[event.victim] = event.vf;
 
     const minute = minuteLabel(Math.floor(event.sec / 60) * 60);
 
@@ -508,34 +503,45 @@ function calculateStatsFromRaw(items) {
     minutes[minute][event.type === 'kill' ? 'kills' : 'deaths'] += 1;
   });
 
-  const first = Math.min(...events.map((event) => event.sec));
-  const last = Math.max(...events.map((event) => event.sec));
+  summaryRows.forEach((row) => {
+    add(playerKills, row.player, row.kills);
+    add(playerDeaths, row.player, row.deaths);
+    families[row.player] = '-';
+  });
+
+  const hasTimeline = classicEvents.length > 0;
+  const summaryOnly = summaryRows.length > 0 && classicEvents.length === 0;
   const line = [];
 
-  for (
-    let t = Math.floor(first / 60) * 60;
-    t <= Math.floor(last / 60) * 60;
-    t += 60
-  ) {
-    line.push(
-      minutes[minuteLabel(t)] || {
-        time: minuteLabel(t),
-        kills: 0,
-        deaths: 0,
-      },
-    );
+  if (hasTimeline) {
+    const first = Math.min(...classicEvents.map((event) => event.sec));
+    const last = Math.max(...classicEvents.map((event) => event.sec));
+
+    for (
+      let t = Math.floor(first / 60) * 60;
+      t <= Math.floor(last / 60) * 60;
+      t += 60
+    ) {
+      line.push(
+        minutes[minuteLabel(t)] || {
+          time: minuteLabel(t),
+          kills: 0,
+          deaths: 0,
+        },
+      );
+    }
   }
 
   const players = [
     ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
   ]
-    .map((player) => {
-      const kills = playerKills[player] || 0;
-      const deaths = playerDeaths[player] || 0;
+    .map((name) => {
+      const kills = playerKills[name] || 0;
+      const deaths = playerDeaths[name] || 0;
 
       return {
-        name: player,
-        family: families[player] || '-',
+        name,
+        family: families[name] || '-',
         kills,
         deaths,
         kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
@@ -545,31 +551,38 @@ function calculateStatsFromRaw(items) {
 
   const guilds = [
     ...new Set([...Object.keys(guildKills), ...Object.keys(guildDeaths)]),
-  ].map((guild) => {
-    const kills = guildKills[guild] || 0;
-    const deaths = guildDeaths[guild] || 0;
+  ].map((name) => {
+    const kills = guildKills[name] || 0;
+    const deaths = guildDeaths[name] || 0;
 
     return {
-      name: guild,
+      name,
       kills,
       deaths,
       kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
     };
   });
 
-  const kills = events.filter((event) => event.type === 'kill').length;
-  const deaths = events.filter((event) => event.type === 'death').length;
+  const kills =
+    classicEvents.filter((event) => event.type === 'kill').length +
+    summaryRows.reduce((sum, row) => sum + row.kills, 0);
+
+  const deaths =
+    classicEvents.filter((event) => event.type === 'death').length +
+    summaryRows.reduce((sum, row) => sum + row.deaths, 0);
 
   return {
-    ev: events,
+    ev: classicEvents,
     players,
     guilds,
     line,
     kills,
     deaths,
     kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
-    st: calculateStreaks(events),
-    fd: calculateKillFeed(events),
+    st: hasTimeline ? calculateStreaks(classicEvents) : {},
+    fd: hasTimeline ? calculateKillFeed(classicEvents) : {},
+    hasTimeline,
+    summaryOnly,
   };
 }
 
@@ -585,12 +598,17 @@ function mergeStatsFromSummaries(items) {
 
   let kills = 0;
   let deaths = 0;
+  let hasTimeline = false;
+  let summaryOnly = false;
 
   items.forEach((log) => {
     const summary = getLogSummary(log);
 
     kills += Number(summary.kills) || 0;
     deaths += Number(summary.deaths) || 0;
+
+    if (summary.hasTimeline) hasTimeline = true;
+    if (summary.summaryOnly) summaryOnly = true;
 
     summary.players.forEach((player) => {
       add(playerKills, player.name, Number(player.kills) || 0);
@@ -605,60 +623,58 @@ function mergeStatsFromSummaries(items) {
       add(guildDeaths, guild.name, Number(guild.deaths) || 0);
     });
 
-    summary.line.forEach((point) => {
-      const key = `${log.date || dateOf(log)} ${point.time}`;
+    if (summary.hasTimeline) {
+      summary.line.forEach((point) => {
+        const key = `${log.date || dateOf(log)} ${point.time}`;
 
-      lineMap[key] ||= {
-        time: point.time,
-        kills: 0,
-        deaths: 0,
-      };
+        lineMap[key] ||= {
+          time: point.time,
+          kills: 0,
+          deaths: 0,
+        };
 
-      lineMap[key].kills += Number(point.kills) || 0;
-      lineMap[key].deaths += Number(point.deaths) || 0;
-    });
+        lineMap[key].kills += Number(point.kills) || 0;
+        lineMap[key].deaths += Number(point.deaths) || 0;
+      });
 
-    Object.entries(summary.st || {}).forEach(([player, value]) => {
-      st[player] = Math.max(Number(st[player]) || 0, Number(value) || 0);
-    });
+      Object.entries(summary.st || {}).forEach(([name, value]) => {
+        st[name] = Math.max(Number(st[name]) || 0, Number(value) || 0);
+      });
 
-    Object.entries(summary.fd || {}).forEach(([player, value]) => {
-      fd[player] = Math.max(Number(fd[player]) || 0, Number(value) || 0);
-    });
+      Object.entries(summary.fd || {}).forEach(([name, value]) => {
+        fd[name] = Math.max(Number(fd[name]) || 0, Number(value) || 0);
+      });
+    }
   });
 
   const players = [
     ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
   ]
-    .map((player) => {
-      const killsForPlayer = playerKills[player] || 0;
-      const deathsForPlayer = playerDeaths[player] || 0;
+    .map((name) => {
+      const pk = playerKills[name] || 0;
+      const pd = playerDeaths[name] || 0;
 
       return {
-        name: player,
-        family: playerFamilies[player] || '-',
-        kills: killsForPlayer,
-        deaths: deathsForPlayer,
-        kd: deathsForPlayer
-          ? (killsForPlayer / deathsForPlayer).toFixed(2)
-          : killsForPlayer.toFixed(2),
+        name,
+        family: playerFamilies[name] || '-',
+        kills: pk,
+        deaths: pd,
+        kd: pd ? (pk / pd).toFixed(2) : pk.toFixed(2),
       };
     })
     .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
 
   const guilds = [
     ...new Set([...Object.keys(guildKills), ...Object.keys(guildDeaths)]),
-  ].map((guild) => {
-    const guildKillsCount = guildKills[guild] || 0;
-    const guildDeathsCount = guildDeaths[guild] || 0;
+  ].map((name) => {
+    const gk = guildKills[name] || 0;
+    const gd = guildDeaths[name] || 0;
 
     return {
-      name: guild,
-      kills: guildKillsCount,
-      deaths: guildDeathsCount,
-      kd: guildDeathsCount
-        ? (guildKillsCount / guildDeathsCount).toFixed(2)
-        : guildKillsCount.toFixed(2),
+      name,
+      kills: gk,
+      deaths: gd,
+      kd: gd ? (gk / gd).toFixed(2) : gk.toFixed(2),
     };
   });
 
@@ -674,6 +690,8 @@ function mergeStatsFromSummaries(items) {
     kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
     st,
     fd,
+    hasTimeline,
+    summaryOnly: summaryOnly && !hasTimeline,
   };
 }
 
@@ -691,6 +709,8 @@ export function calculateStats(items) {
       kd: '0.00',
       st: {},
       fd: {},
+      hasTimeline: false,
+      summaryOnly: false,
     };
   }
 
@@ -736,11 +756,13 @@ export function buildLogSummary(log) {
     playersCount: stats.players.length,
     players: stats.players,
     guilds: stats.guilds,
-    line: stats.line,
+    line: stats.hasTimeline ? stats.line : [],
     topEnemies,
     enemyNames: stats.guilds.map((guild) => guild.name).filter(Boolean),
-    st: stats.st,
-    fd: stats.fd,
+    st: stats.hasTimeline ? stats.st : {},
+    fd: stats.hasTimeline ? stats.fd : {},
+    hasTimeline: stats.hasTimeline,
+    summaryOnly: stats.summaryOnly,
     calculatedAt: new Date().toISOString(),
   };
 }
@@ -763,6 +785,8 @@ export function getLogSummary(log) {
       enemyNames: [],
       st: {},
       fd: {},
+      hasTimeline: false,
+      summaryOnly: false,
     });
   }
 
@@ -785,5 +809,7 @@ export function buildNodeWarRow(log) {
       summary.enemyNames?.length > 0
         ? summary.enemyNames
         : (summary.guilds || []).map((guild) => guild.name).filter(Boolean),
+    hasTimeline: Boolean(summary.hasTimeline),
+    summaryOnly: Boolean(summary.summaryOnly),
   };
 }
