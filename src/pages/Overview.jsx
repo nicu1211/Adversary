@@ -1,12 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
-import {
-  Chart as ChartJS,
-  RadialLinearScale,
-  ArcElement,
-  Tooltip as ChartTooltip,
-  Legend,
-} from 'chart.js';
-import { PolarArea, getElementAtEvent } from 'react-chartjs-2';
+import React, { useState } from 'react';
 import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
@@ -15,8 +7,6 @@ import {
   calculateKillFeed,
   calculateStats,
 } from '../lib/logUtils';
-
-ChartJS.register(RadialLinearScale, ArcElement, ChartTooltip, Legend);
 
 function RankList({ title, items, valueKey }) {
   const rows = items.slice(0, 5);
@@ -812,191 +802,141 @@ function PlayerOverview({ players, streaks, feeds, events }) {
   );
 }
 
-function EnemyGuilds({ guilds, events }) {
-  const chartRef = useRef(null);
+function TopGuilds({ guilds, events }) {
   const [selected, setSelected] = useState(null);
+  const [sort, setSort] = useState(['totalInteractions', 'desc']);
 
-  const rows = useMemo(
-    () =>
-      [...(guilds || [])]
-        .map((guild) => {
-          const kills = Number(guild.deaths) || 0;
-          const deaths = Number(guild.kills) || 0;
-          const totalInteractions = kills + deaths;
-          const kdNumber = deaths > 0 ? kills / deaths : kills > 0 ? kills : 0;
+  const [key, direction] = sort;
 
-          return {
-            ...guild,
-            kills,
-            deaths,
-            totalInteractions,
-            kdNumber,
-            kd: kdNumber.toFixed(2),
-          };
-        })
-        .filter((guild) => guild.totalInteractions > 30)
-        .sort(
-          (a, b) =>
-            b.totalInteractions - a.totalInteractions ||
-            b.kdNumber - a.kdNumber ||
-            a.name.localeCompare(b.name),
-        ),
-    [guilds],
-  );
+  const rows = [...guilds]
+    .map((guild) => {
+      const kills = guild.deaths;
+      const deaths = guild.kills;
+      const totalInteractions = kills + deaths;
+      const kdNumber = deaths ? kills / deaths : kills;
 
-  const chartRows = rows;
+      return {
+        ...guild,
+        kills,
+        deaths,
+        totalInteractions,
+        kdNumber,
+        kd: kdNumber.toFixed(2),
+      };
+    })
+    .sort((a, b) => {
+      const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
+      const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
 
-  function colorForGuild(guild, alpha = 0.68) {
-    if (guild.kdNumber >= 1.5) return `rgba(59, 130, 246, ${alpha})`;
-    if (guild.kdNumber >= 1) return `rgba(34, 211, 238, ${alpha})`;
-    if (guild.kdNumber >= 0.75) return `rgba(251, 191, 36, ${alpha})`;
-    return `rgba(244, 63, 94, ${alpha})`;
+      if (av < bv) return direction === 'asc' ? -1 : 1;
+      if (av > bv) return direction === 'asc' ? 1 : -1;
+
+      return b.totalInteractions - a.totalInteractions || b.kills - a.kills;
+    });
+
+  function flip(nextKey) {
+    setSort(
+      key === nextKey
+        ? [nextKey, direction === 'desc' ? 'asc' : 'desc']
+        : [nextKey, nextKey === 'name' ? 'asc' : 'desc'],
+    );
   }
 
-  const polarData = useMemo(
-    () => ({
-      labels: chartRows.map((guild) => guild.name),
-      datasets: [
-        {
-          label: 'Interactions',
-          data: chartRows.map((guild) => guild.totalInteractions),
-          backgroundColor: chartRows.map((guild) => colorForGuild(guild, 0.58)),
-          hoverBackgroundColor: chartRows.map((guild) =>
-            colorForGuild(guild, 0.86),
-          ),
-          borderColor: chartRows.map((guild) =>
-            guild.kdNumber >= 1
-              ? 'rgba(219, 234, 254, 0.72)'
-              : 'rgba(255, 228, 230, 0.72)',
-          ),
-          hoverBorderColor: 'rgba(255, 255, 255, 0.95)',
-          borderWidth: 1.2,
-          hoverBorderWidth: 2,
-        },
-      ],
-    }),
-    [chartRows],
-  );
-
-  const polarOptions = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        animateRotate: true,
-        animateScale: true,
-      },
-      layout: {
-        padding: 8,
-      },
-      interaction: {
-        intersect: true,
-        mode: 'nearest',
-      },
-      scales: {
-        r: {
-          beginAtZero: true,
-          grid: {
-            color: 'rgba(148, 163, 184, 0.13)',
-            circular: true,
-          },
-          angleLines: {
-            color: 'rgba(148, 163, 184, 0.08)',
-          },
-          ticks: {
-            display: false,
-            backdropColor: 'transparent',
-          },
-          pointLabels: {
-            display: false,
-          },
-        },
-      },
-      plugins: {
-        legend: {
-          display: false,
-        },
-        tooltip: {
-          displayColors: true,
-          backgroundColor: 'rgba(2, 6, 23, 0.96)',
-          borderColor: 'rgba(148, 163, 184, 0.35)',
-          borderWidth: 1,
-          padding: 10,
-          titleColor: '#f8fafc',
-          bodyColor: '#cbd5e1',
-          callbacks: {
-            title: (items) => {
-              const index = items?.[0]?.dataIndex ?? 0;
-              return chartRows[index]?.name || '-';
-            },
-            label: (context) => {
-              const guild = chartRows[context.dataIndex];
-
-              if (!guild) return '';
-
-              return [
-                `Interactions: ${guild.totalInteractions}`,
-                `Kills: ${guild.kills}`,
-                `Deaths: ${guild.deaths}`,
-                `K/D: ${guild.kd}`,
-              ];
-            },
-          },
-        },
-      },
-    }),
-    [chartRows],
-  );
+  function Header({ id, children, className = '' }) {
+    return (
+      <th className={`py-3 ${className}`}>
+        <button
+          onClick={() => flip(id)}
+          className={
+            key === id
+              ? 'font-black text-blue-300'
+              : 'font-black hover:text-blue-300'
+          }
+        >
+          {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
+        </button>
+      </th>
+    );
+  }
 
   const log = selected
     ? events.filter((event) => event.guild === selected.name)
     : [];
 
-  function handlePolarClick(event) {
-    if (!chartRef.current) return;
-
-    const elements = getElementAtEvent(chartRef.current, event);
-    const first = elements?.[0];
-
-    if (!first) return;
-
-    const guild = chartRows[first.index];
-
-    if (guild) {
-      setSelected(guild);
-    }
-  }
-
-  function handlePolarHover(event, elements) {
-    const canvas = event?.native?.target;
-
-    if (!canvas) return;
-
-    canvas.style.cursor = elements?.length ? 'pointer' : 'default';
-  }
-
   return (
     <Panel cls="h-[520px]">
       <div className="flex h-full flex-col">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h3 className="text-xl font-black">🛡 Enemy Guilds</h3>
+          <h3 className="text-xl font-black">🛡 Top Guilds</h3>
 
           <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
             {rows.length} guilds
           </span>
         </div>
 
-        {!chartRows.length ? (
+        {!rows.length ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
-            <PolarArea
-              ref={chartRef}
-              data={polarData}
-              options={polarOptions}
-              onClick={handlePolarClick}
-              onHover={handlePolarHover}
-            />
+          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+            <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
+                  <tr>
+                    <Header id="name" className="pl-4 text-left">
+                      Guild
+                    </Header>
+
+                    <Header id="kills" className="text-center">
+                      Kills
+                    </Header>
+
+                    <Header id="deaths" className="text-center">
+                      Deaths
+                    </Header>
+
+                    <Header id="kdNumber" className="pr-4 text-center">
+                      K/D
+                    </Header>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rows.map((guild, index) => (
+                    <tr
+                      key={guild.name}
+                      className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
+                    >
+                      <td className="py-3 pl-4">
+                        <button
+                          onClick={() => setSelected(guild)}
+                          className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
+                        >
+                          {index + 1}. {guild.name}
+                        </button>
+                      </td>
+
+                      <td className="py-3 text-center font-black text-blue-300">
+                        {guild.kills}
+                      </td>
+
+                      <td className="py-3 text-center font-black text-pink-300">
+                        {guild.deaths}
+                      </td>
+
+                      <td
+                        className={`py-3 pr-4 text-center font-black ${
+                          Number(guild.kd) >= 1
+                            ? 'text-emerald-300'
+                            : 'text-rose-300'
+                        }`}
+                      >
+                        {guild.kd}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -1268,10 +1208,12 @@ export default function OverviewPage({
         />
       </section>
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
+      <section className="grid items-stretch gap-4 xl:grid-cols-[1fr_0.5fr_0.5fr]">
+        <TopGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel killFeeds={killFeeds} events={stats.ev} />
+
+        <div className="hidden xl:block" />
       </section>
     </>
   );
