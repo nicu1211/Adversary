@@ -179,6 +179,74 @@ function BestOverall({
     );
   }
 
+  function timeToSeconds(time) {
+    const parts = String(time || '00:00:00')
+      .split(':')
+      .map((part) => Number(part) || 0);
+
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+
+  function feedTimeKey(feed) {
+    return [
+      feed.date || '9999-99-99',
+      String(timeToSeconds(feed.start)).padStart(8, '0'),
+      String(feed.id || ''),
+      String(feed.name || ''),
+    ].join(' ');
+  }
+
+  function rankFeedForStats(oneStats, rows) {
+    const hasTimeline = statsHasTimeline(oneStats);
+
+    if (!hasTimeline) return {};
+
+    const feedDetails = calculateKillFeed(oneStats.ev || [], 10, true);
+    const feedMeta = {};
+
+    feedDetails.forEach((feed) => {
+      const current = feedMeta[feed.name];
+      const next = {
+        count: Number(feed.count) || 0,
+        firstKey: feedTimeKey(feed),
+      };
+
+      if (
+        !current ||
+        next.count > current.count ||
+        (next.count === current.count && next.firstKey < current.firstKey)
+      ) {
+        feedMeta[feed.name] = next;
+      }
+    });
+
+    return Object.fromEntries(
+      [...rows]
+        .sort((a, b) => {
+          const aFeed = feedMeta[a.name] || {
+            count: Number(a.feed) || 0,
+            firstKey: '9999-99-99 99999999',
+          };
+
+          const bFeed = feedMeta[b.name] || {
+            count: Number(b.feed) || 0,
+            firstKey: '9999-99-99 99999999',
+          };
+
+          return (
+            bFeed.count - aFeed.count ||
+            aFeed.firstKey.localeCompare(bFeed.firstKey) ||
+            a.name.localeCompare(b.name)
+          );
+        })
+        .map((player, index) => [player.name, index + 1]),
+    );
+  }
+
   function calculateAverageRanksFromSelectedLogs() {
     const result = {};
 
@@ -194,7 +262,7 @@ function BestOverall({
         deaths: rankRows(rows, 'deaths', false),
         kd: rankRows(rows, 'kdNumber', true),
         streak: hasTimeline ? rankRows(rows, 'streak', true) : {},
-        feed: hasTimeline ? rankRows(rows, 'feed', true) : {},
+        feed: hasTimeline ? rankFeedForStats(oneStats, rows) : {},
       };
 
       rows.forEach((player) => {
