@@ -122,7 +122,7 @@ export default function RawLog({
 }) {
   const [txtFile, setTxtFile] = useState(null);
   const [secondaryRaw, setSecondaryRaw] = useState('');
-  const [savingCombined, setSavingCombined] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const mainRawOnly = useMemo(() => getMainLogOnly(raw), [raw]);
 
@@ -140,7 +140,7 @@ export default function RawLog({
     [mainRawOnly, name, date],
   );
 
-  const canSave = parsedEntries > 0 && !savingCombined;
+  const canSave = parsedEntries > 0 && !saving;
 
   async function handleTxtUpload(event) {
     const file = event.target.files?.[0];
@@ -175,28 +175,15 @@ export default function RawLog({
     if (!canSave) return;
 
     const cleanSecondary = cleanText(secondaryRaw);
-
-    if (!cleanSecondary) {
-      await saveLog();
-      return;
-    }
-
-    const originalRaw = raw;
-    const combinedRaw = buildCombinedRawLog(mainRawOnly, cleanSecondary);
+    const rawToSave = cleanSecondary
+      ? buildCombinedRawLog(mainRawOnly, cleanSecondary)
+      : mainRawOnly;
 
     try {
-      setSavingCombined(true);
-
-      setRaw(combinedRaw);
-
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, 0);
-      });
-
-      await saveLog();
+      setSaving(true);
+      await saveLog(rawToSave);
     } finally {
-      setRaw(originalRaw);
-      setSavingCombined(false);
+      setSaving(false);
     }
   }
 
@@ -293,7 +280,7 @@ export default function RawLog({
                 disabled={!canSave}
                 className="rounded-xl bg-blue-600 px-5 py-3 font-black hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {savingCombined ? 'Saving...' : 'Save'}
+                {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
 
