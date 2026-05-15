@@ -1028,13 +1028,15 @@ export default function OverviewPage({
       }
 
       if (run.length === 10 && !markerAddedForRun) {
+        const startEvent = run[0];
         const markerType = currentType === 'kill' ? 'bluefeed' : 'redfeed';
         const feedLabel = currentType === 'kill' ? 'Bluefeed' : 'Redfeed';
-        const markerTime = event.time;
+        const markerTime = startEvent.time;
         const guild =
-          cleanGuild(event.guild) ||
+          cleanGuild(startEvent.guild) ||
           cleanGuild(currentGuild) ||
           cleanGuild(run.find((item) => cleanGuild(item.guild))?.guild) ||
+          cleanGuild(event.guild) ||
           '-';
 
         markers.push({
@@ -1044,7 +1046,6 @@ export default function OverviewPage({
           time: markerTime,
           seconds: timeToSecondsValue(markerTime),
           guild,
-          count: 10,
         });
 
         markerAddedForRun = true;
