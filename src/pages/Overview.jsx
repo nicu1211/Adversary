@@ -974,13 +974,16 @@ export default function OverviewPage({
   selectedLogs,
 }) {
   const killFeeds = calculateKillFeed(stats.ev, 10, true);
+  const showKillFeedMarkers = (selectedLogs || []).length === 1;
 
   function toEventSeconds(event) {
+    const byTime = timeToSecondsValue(event?.time);
+
+    if (Number.isFinite(byTime)) return byTime;
+
     const numericSec = Number(event?.sec);
 
-    if (Number.isFinite(numericSec)) return numericSec;
-
-    return timeToSecondsValue(event?.time);
+    return Number.isFinite(numericSec) ? numericSec : 0;
   }
 
   function looksLikeDate(value) {
@@ -995,73 +998,75 @@ export default function OverviewPage({
     return text;
   }
 
-  const topKillFeedMarkers = killFeeds.slice(0, 5).map((feed, index) => {
-    const startSec = timeToSecondsValue(feed.start);
-    const endSec = timeToSecondsValue(feed.end);
-    const victims = new Set(feed.victims || []);
+  const topKillFeedMarkers = showKillFeedMarkers
+    ? killFeeds.slice(0, 5).map((feed, index) => {
+        const startSec = timeToSecondsValue(feed.start);
+        const endSec = timeToSecondsValue(feed.end);
+        const victims = new Set(feed.victims || []);
 
-    const strictEvents = [...(stats.ev || [])]
-      .filter((event) => {
-        if (event.type !== 'kill') return false;
-        if (event.killer !== feed.name) return false;
-
-        const eventSec = toEventSeconds(event);
-        const insideWindow =
-          eventSec >= Math.min(startSec, endSec) &&
-          eventSec <= Math.max(startSec, endSec);
-
-        const victimMatches = !victims.size || victims.has(event.victim);
-
-        return insideWindow && victimMatches;
-      })
-      .sort(
-        (a, b) =>
-          String(a.date || '').localeCompare(String(b.date || '')) ||
-          toEventSeconds(a) - toEventSeconds(b) ||
-          (Number(a.i) || 0) - (Number(b.i) || 0),
-      );
-
-    const looseEvents = strictEvents.length
-      ? strictEvents
-      : [...(stats.ev || [])]
+        const strictEvents = [...(stats.ev || [])]
           .filter((event) => {
             if (event.type !== 'kill') return false;
             if (event.killer !== feed.name) return false;
 
             const eventSec = toEventSeconds(event);
+            const insideWindow =
+              eventSec >= Math.min(startSec, endSec) &&
+              eventSec <= Math.max(startSec, endSec);
 
-            return Math.abs(eventSec - startSec) <= 15;
+            const victimMatches = !victims.size || victims.has(event.victim);
+
+            return insideWindow && victimMatches;
           })
           .sort(
             (a, b) =>
-              Math.abs(toEventSeconds(a) - startSec) -
-                Math.abs(toEventSeconds(b) - startSec) ||
+              String(a.date || '').localeCompare(String(b.date || '')) ||
+              toEventSeconds(a) - toEventSeconds(b) ||
               (Number(a.i) || 0) - (Number(b.i) || 0),
           );
 
-    const feedEvents = looseEvents.length ? looseEvents : strictEvents;
-    const firstEvent = feedEvents[0];
+        const looseEvents = strictEvents.length
+          ? strictEvents
+          : [...(stats.ev || [])]
+              .filter((event) => {
+                if (event.type !== 'kill') return false;
+                if (event.killer !== feed.name) return false;
 
-    const guild =
-      cleanGuild(firstEvent?.guild) ||
-      cleanGuild(feedEvents.find((event) => cleanGuild(event.guild))?.guild) ||
-      cleanGuild(feed.guild) ||
-      cleanGuild(feed.war) ||
-      '-';
+                const eventSec = toEventSeconds(event);
 
-    const markerTime = firstEvent?.time || feed.start;
-    const markerSeconds = firstEvent ? toEventSeconds(firstEvent) : startSec;
+                return Math.abs(eventSec - startSec) <= 15;
+              })
+              .sort(
+                (a, b) =>
+                  Math.abs(toEventSeconds(a) - startSec) -
+                    Math.abs(toEventSeconds(b) - startSec) ||
+                  (Number(a.i) || 0) - (Number(b.i) || 0),
+              );
 
-    return {
-      id: `${feed.name || 'killfeed'}-${markerTime || index}-${guild}-${index}`,
-      time: markerTime,
-      seconds: markerSeconds,
-      guild,
-      player: feed.name || '-',
-      count: Number(feed.count) || 0,
-      victims: feed.victims || [],
-    };
-  });
+        const feedEvents = looseEvents.length ? looseEvents : strictEvents;
+        const firstEvent = feedEvents[0];
+
+        const guild =
+          cleanGuild(firstEvent?.guild) ||
+          cleanGuild(feedEvents.find((event) => cleanGuild(event.guild))?.guild) ||
+          cleanGuild(feed.guild) ||
+          cleanGuild(feed.war) ||
+          '-';
+
+        const markerTime = firstEvent?.time || feed.start;
+        const markerSeconds = timeToSecondsValue(markerTime);
+
+        return {
+          id: `${feed.name || 'killfeed'}-${markerTime || index}-${guild}-${index}`,
+          time: markerTime,
+          seconds: markerSeconds,
+          guild,
+          player: feed.name || '-',
+          count: Number(feed.count) || 0,
+          victims: feed.victims || [],
+        };
+      })
+    : [];
 
   return (
     <>
