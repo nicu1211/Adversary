@@ -1,12 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Tesseract from 'tesseract.js';
 import { Calendar, DeletePopup, Panel } from '../components/UI';
-import { dateOf, parseLog, today } from '../lib/logUtils';
+import { dateOf, parseLog, scrollCls, today } from '../lib/logUtils';
 
-const OCR_COLUMNS = ['col1', 'col2', 'col3', 'col4', 'col5', 'col6', 'col7'];
-
-const EXTRA_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
-const EXTRA_LOG_END = '===== ADVERSARY_SECONDARY_LOG_END =====';
+const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
+const SECONDARY_LOG_END = '===== ADVERSARY_SECONDARY_LOG_END =====';
 
 function formatBytes(bytes) {
   if (!bytes) return '0 KB';
@@ -20,525 +17,70 @@ function formatBytes(bytes) {
   return `${(kb / 1024).toFixed(1)} MB`;
 }
 
-function cleanOcrText(text) {
+function cleanText(text) {
   return String(text || '')
-    .replace(/\r/g, '')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/\u00a0/g, ' ')
-    .replace(/[¦]/g, '|')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
     .trim();
 }
 
-function normalizeOcrNumberToken(token) {
-  const fixed = String(token || '')
-    .replace(/[OoQD]/g, '0')
-    .replace(/[Il|!]/g, '1')
-    .replace(/[Ss]/g, '5')
-    .replace(/[Bb]/g, '8')
-    .replace(/[Zz]/g, '2')
-    .replace(/[Gg]/g, '6')
-    .replace(/[Tt]/g, '7');
+function buildCombinedRawLog(mainRaw, secondaryRaw) {
+  const cleanMain = cleanText(mainRaw);
+  const cleanSecondary = cleanText(secondaryRaw);
 
-  return fixed.replace(/\D/g, '');
-}
-
-function isLikelyNumberToken(token) {
-  return Boolean(normalizeOcrNumberToken(token));
-}
-
-function isBadHeaderLine(line) {
-  const lower = String(line || '').toLowerCase();
-
-  return (
-    lower.includes('family name') ||
-    lower.includes('view results') ||
-    lower.includes('node war') ||
-    lower.includes('occupation') ||
-    lower.includes('failed') ||
-    lower.includes('serendia') ||
-    lower.includes('screenshot') ||
-    lower.includes('ocr progress') ||
-    lower.includes('upload') ||
-    lower.includes('battle log') ||
-    lower.includes('text extras') ||
-    lower.includes('parsed entries')
-  );
-}
-
-function normalizeFamilyName(name) {
-  return String(name || '')
-    .replace(/[^A-Za-z0-9_ -]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function normalizeSevenNumbers(numbers) {
-  const clean = numbers.map(String).filter((item) => item !== '');
-
-  if (clean.length >= 7) {
-    return [...clean.slice(0, 6), clean.slice(6).join('')].slice(0, 7);
+  if (!cleanSecondary) {
+    return cleanMain;
   }
 
-  return [...clean, ...Array.from({ length: 7 - clean.length }, () => '')];
-}
-
-function parseOcrTableLine(line) {
-  const cleaned = String(line || '')
-    .replace(/[|]/g, ' ')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/[~`]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!cleaned || isBadHeaderLine(cleaned)) return null;
-
-  const tokens = cleaned.split(' ');
-  const firstNumberIndex = tokens.findIndex(isLikelyNumberToken);
-
-  if (firstNumberIndex <= 0) return null;
-
-  const familyName = normalizeFamilyName(tokens.slice(0, firstNumberIndex).join(' '));
-
-  if (!familyName || familyName.length < 2) return null;
-
-  const rawNumberTokens = tokens.slice(firstNumberIndex);
-  const numbers = rawNumberTokens.map(normalizeOcrNumberToken).filter(Boolean);
-
-  if (numbers.length < 2) return null;
-
-  return {
-    familyName,
-    numbers: normalizeSevenNumbers(numbers),
-    complete: numbers.length >= 7,
-    raw: cleaned,
-  };
-}
-
-function formatOcrRowsAsResultTable(rows) {
-  if (!rows.length) return '';
-
-  const tableRows = [
-    ['Family Name', ...OCR_COLUMNS],
-    ...rows.map((row) => [row.familyName, ...row.numbers]),
-  ];
-
-  const widths = tableRows[0].map((_, columnIndex) =>
-    Math.max(...tableRows.map((row) => String(row[columnIndex] || '').length)),
-  );
-
-  return tableRows
-    .map((row) =>
-      row
-        .map((cell, columnIndex) => String(cell || '').padEnd(widths[columnIndex]))
-        .join(' | ')
-        .trimEnd(),
-    )
-    .join('\n');
-}
-
-function extractOcrTableRows(text) {
-  const lines = String(text || '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  return lines.map(parseOcrTableLine).filter(Boolean);
-}
-
-function formatOcrAsResultTable(text) {
-  return formatOcrRowsAsResultTable(extractOcrTableRows(text));
-}
-
-function countOcrTableRows(text) {
-  return extractOcrTableRows(text).length;
-}
-
-function scoreOcrText(text) {
-  const rows = extractOcrTableRows(text);
-  const completeRows = rows.filter((row) => row.complete).length;
-  const incompleteRows = rows.length - completeRows;
-  const numericCells = rows.reduce(
-    (sum, row) => sum + row.numbers.filter(Boolean).length,
-    0,
-  );
-
-  return {
-    rows,
-    completeRows,
-    incompleteRows,
-    numericCells,
-    score:
-      completeRows * 35000 +
-      rows.length * 15000 +
-      numericCells * 1200 +
-      String(text || '').length,
-  };
-}
-
-function rowScore(row) {
-  return (
-    row.numbers.filter(Boolean).length * 100 +
-    (row.complete ? 1200 : 0) +
-    row.familyName.length
-  );
-}
-
-function mergeRowsFromCandidates(candidates) {
-  const byName = new Map();
-
-  candidates.forEach((candidate) => {
-    candidate.rows.forEach((row) => {
-      const key = row.familyName.toLowerCase();
-      const current = byName.get(key);
-      const score = rowScore(row);
-
-      if (!current || score > current.score) {
-        byName.set(key, {
-          score,
-          row,
-        });
-      }
-    });
-  });
-
-  return [...byName.values()].map((item) => item.row);
-}
-
-function wordsToLines(words) {
-  if (!Array.isArray(words) || !words.length) return '';
-
-  const goodWords = words
-    .map((word) => {
-      const text = String(word?.text || '').trim();
-
-      if (!text) return null;
-
-      const bbox = word?.bbox || {};
-      const x0 = Number(bbox.x0 ?? bbox.left ?? 0);
-      const x1 = Number(bbox.x1 ?? bbox.right ?? x0);
-      const y0 = Number(bbox.y0 ?? bbox.top ?? 0);
-      const y1 = Number(bbox.y1 ?? bbox.bottom ?? y0);
-      const confidence = Number(word?.confidence ?? 0);
-
-      if (confidence < 15) return null;
-
-      return {
-        text,
-        x0,
-        x1,
-        y0,
-        y1,
-        midY: (y0 + y1) / 2,
-        height: Math.max(1, y1 - y0),
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.midY - b.midY || a.x0 - b.x0);
-
-  if (!goodWords.length) return '';
-
-  const medianHeight =
-    [...goodWords]
-      .map((word) => word.height)
-      .sort((a, b) => a - b)[Math.floor(goodWords.length / 2)] || 18;
-
-  const rowTolerance = Math.max(10, medianHeight * 0.75);
-  const rows = [];
-
-  goodWords.forEach((word) => {
-    let targetRow = null;
-
-    for (const row of rows) {
-      if (Math.abs(row.midY - word.midY) <= rowTolerance) {
-        targetRow = row;
-        break;
-      }
-    }
-
-    if (!targetRow) {
-      targetRow = {
-        midY: word.midY,
-        words: [],
-      };
-      rows.push(targetRow);
-    }
-
-    targetRow.words.push(word);
-    targetRow.midY =
-      targetRow.words.reduce((sum, item) => sum + item.midY, 0) /
-      targetRow.words.length;
-  });
-
-  return rows
-    .sort((a, b) => a.midY - b.midY)
-    .map((row) =>
-      row.words
-        .sort((a, b) => a.x0 - b.x0)
-        .map((word) => word.text)
-        .join(' '),
-    )
-    .join('\n');
-}
-
-async function createOcrImageVariants(file) {
-  const imageUrl = URL.createObjectURL(file);
-
-  try {
-    const image = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = imageUrl;
-    });
-
-    const minWidth = 4800;
-    const maxWidth = 8200;
-    let scale = 1;
-
-    if (image.width < minWidth) {
-      scale = minWidth / image.width;
-    }
-
-    if (image.width * scale > maxWidth) {
-      scale = maxWidth / image.width;
-    }
-
-    const padding = 220;
-    const width = Math.round(image.width * scale);
-    const height = Math.round(image.height * scale);
-
-    function makeCanvas() {
-      const canvas = document.createElement('canvas');
-      canvas.width = width + padding * 2;
-      canvas.height = height + padding * 2;
-
-      const ctx = canvas.getContext('2d', {
-        willReadFrequently: true,
-      });
-
-      ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = '#111827';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image, padding, padding, width, height);
-
-      return {
-        canvas,
-        ctx,
-      };
-    }
-
-    function getGrayStats(data) {
-      const values = [];
-
-      for (let index = 0; index < data.length; index += 4) {
-        const red = data[index];
-        const green = data[index + 1];
-        const blue = data[index + 2];
-        values.push(Math.round(red * 0.299 + green * 0.587 + blue * 0.114));
-      }
-
-      values.sort((a, b) => a - b);
-
-      const low = values[Math.floor(values.length * 0.02)] || 0;
-      const high = values[Math.floor(values.length * 0.98)] || 255;
-      const mid = values[Math.floor(values.length * 0.5)] || 128;
-
-      return {
-        low,
-        high,
-        mid,
-        range: Math.max(1, high - low),
-      };
-    }
-
-    function sharpen(data, canvasWidth, canvasHeight, amount = 1) {
-      const copy = new Uint8ClampedArray(data);
-      const kernel = [
-        0,
-        -amount,
-        0,
-        -amount,
-        1 + 4 * amount,
-        -amount,
-        0,
-        -amount,
-        0,
-      ];
-
-      for (let y = 1; y < canvasHeight - 1; y += 1) {
-        for (let x = 1; x < canvasWidth - 1; x += 1) {
-          for (let channel = 0; channel < 3; channel += 1) {
-            let value = 0;
-            let kernelIndex = 0;
-
-            for (let ky = -1; ky <= 1; ky += 1) {
-              for (let kx = -1; kx <= 1; kx += 1) {
-                const pixelIndex =
-                  ((y + ky) * canvasWidth + (x + kx)) * 4 + channel;
-                value += copy[pixelIndex] * kernel[kernelIndex];
-                kernelIndex += 1;
-              }
-            }
-
-            const targetIndex = (y * canvasWidth + x) * 4 + channel;
-            data[targetIndex] = Math.max(0, Math.min(255, value));
-          }
-        }
-      }
-    }
-
-    function toDataUrl(mode) {
-      const { canvas, ctx } = makeCanvas();
-
-      if (mode === 'original') {
-        return canvas.toDataURL('image/png');
-      }
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      const stats = getGrayStats(data);
-
-      for (let index = 0; index < data.length; index += 4) {
-        const red = data[index];
-        const green = data[index + 1];
-        const blue = data[index + 2];
-
-        let gray = Math.round(red * 0.299 + green * 0.587 + blue * 0.114);
-
-        if (mode.includes('contrast')) {
-          gray = ((gray - stats.low) / stats.range) * 255;
-          gray = Math.max(0, Math.min(255, gray));
-        }
-
-        if (mode.includes('bright')) {
-          gray = Math.min(255, gray * 1.35 + 25);
-        }
-
-        if (mode.includes('dark')) {
-          gray = Math.max(0, gray * 0.78 - 18);
-        }
-
-        if (mode.includes('binary')) {
-          const threshold = mode.includes('high-threshold')
-            ? stats.mid + 22
-            : stats.mid;
-
-          gray = gray > threshold ? 255 : 0;
-        }
-
-        if (mode.includes('invert')) {
-          gray = 255 - gray;
-        }
-
-        data[index] = gray;
-        data[index + 1] = gray;
-        data[index + 2] = gray;
-      }
-
-      if (mode.includes('sharp')) {
-        sharpen(data, canvas.width, canvas.height, 0.75);
-      }
-
-      ctx.putImageData(imageData, 0, 0);
-
-      return canvas.toDataURL('image/png');
-    }
-
-    return [
-      {
-        name: 'original-large',
-        image: toDataUrl('original'),
-      },
-      {
-        name: 'contrast-large',
-        image: toDataUrl('contrast'),
-      },
-      {
-        name: 'contrast-sharp',
-        image: toDataUrl('contrast-sharp'),
-      },
-      {
-        name: 'bright-contrast-sharp',
-        image: toDataUrl('bright-contrast-sharp'),
-      },
-      {
-        name: 'dark-contrast-sharp',
-        image: toDataUrl('dark-contrast-sharp'),
-      },
-      {
-        name: 'binary',
-        image: toDataUrl('contrast-binary'),
-      },
-      {
-        name: 'binary-high-threshold',
-        image: toDataUrl('contrast-binary-high-threshold'),
-      },
-      {
-        name: 'invert',
-        image: toDataUrl('invert'),
-      },
-      {
-        name: 'invert-contrast-sharp',
-        image: toDataUrl('invert-contrast-sharp'),
-      },
-    ];
-  } finally {
-    URL.revokeObjectURL(imageUrl);
-  }
-}
-
-function getOcrConfigs() {
   return [
-    {
-      name: 'block',
-      options: {
-        tessedit_pageseg_mode: '6',
-      },
-    },
-    {
-      name: 'sparse',
-      options: {
-        tessedit_pageseg_mode: '11',
-      },
-    },
-    {
-      name: 'auto',
-      options: {
-        tessedit_pageseg_mode: '3',
-      },
-    },
-  ];
-}
-
-function buildCombinedRaw(primaryRaw, secondaryRaw) {
-  const main = String(primaryRaw || '').trimEnd();
-  const secondary = String(secondaryRaw || '').trim();
-
-  if (!secondary) return main;
-
-  return [
-    main,
+    cleanMain,
     '',
-    EXTRA_LOG_START,
-    secondary,
-    EXTRA_LOG_END,
+    SECONDARY_LOG_START,
+    cleanSecondary,
+    SECONDARY_LOG_END,
   ]
-    .filter((part) => part !== '')
+    .filter(Boolean)
     .join('\n');
 }
 
-function extractSecondaryRaw(savedRaw) {
-  const text = String(savedRaw || '');
+function hasSecondaryLog(rawLog) {
+  const text = String(rawLog || '');
 
-  if (!text.includes(EXTRA_LOG_START)) return '';
+  return text.includes(SECONDARY_LOG_START) && text.includes(SECONDARY_LOG_END);
+}
 
-  const afterStart = text.split(EXTRA_LOG_START)[1] || '';
-  const secondary = afterStart.split(EXTRA_LOG_END)[0] || '';
+function getSecondaryLog(rawLog) {
+  const text = String(rawLog || '');
+
+  if (!hasSecondaryLog(text)) return '';
+
+  const afterStart = text.split(SECONDARY_LOG_START)[1] || '';
+  const secondary = afterStart.split(SECONDARY_LOG_END)[0] || '';
 
   return secondary.trim();
+}
+
+function getMainLogOnly(rawLog) {
+  const text = String(rawLog || '');
+
+  if (!hasSecondaryLog(text)) return text;
+
+  return text.split(SECONDARY_LOG_START)[0].trim();
+}
+
+function countLines(text) {
+  return String(text || '')
+    .split('\n')
+    .filter((line) => line.trim())
+    .length;
+}
+
+function countParsedEntries(raw, name, date) {
+  try {
+    return parseLog(getMainLogOnly(raw), name, date, 'preview').length;
+  } catch {
+    return 0;
+  }
 }
 
 export default function RawLog({
@@ -563,76 +105,29 @@ export default function RawLog({
 }) {
   const [txtFile, setTxtFile] = useState(null);
   const [secondaryRaw, setSecondaryRaw] = useState('');
-  const [pendingCombinedSave, setPendingCombinedSave] = useState(null);
+  const [pendingSave, setPendingSave] = useState(null);
 
-  const [ocrFile, setOcrFile] = useState(null);
-  const [ocrPreview, setOcrPreview] = useState('');
-  const [ocrText, setOcrText] = useState('');
-  const [ocrRawText, setOcrRawText] = useState('');
-  const [ocrMessage, setOcrMessage] = useState('');
-  const [ocrBusy, setOcrBusy] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrBestVariant, setOcrBestVariant] = useState('');
-  const [ocrCandidates, setOcrCandidates] = useState([]);
-
-  const parsedEntries = useMemo(() => {
-    try {
-      return parseLog(raw, name, date, 'preview').length;
-    } catch {
-      return 0;
-    }
-  }, [raw, name, date]);
-
-  const secondaryLines = useMemo(() => {
-    if (!secondaryRaw) return 0;
-
-    return secondaryRaw.split('\n').filter((line) => line.trim()).length;
-  }, [secondaryRaw]);
+  const mainRawOnly = useMemo(() => getMainLogOnly(raw), [raw]);
 
   const combinedPreview = useMemo(
-    () => buildCombinedRaw(raw, secondaryRaw),
-    [raw, secondaryRaw],
+    () => buildCombinedRawLog(mainRawOnly, secondaryRaw),
+    [mainRawOnly, secondaryRaw],
   );
 
-  const combinedLines = useMemo(() => {
-    if (!combinedPreview) return 0;
+  const mainLines = useMemo(() => countLines(mainRawOnly), [mainRawOnly]);
+  const secondaryLines = useMemo(() => countLines(secondaryRaw), [secondaryRaw]);
+  const combinedLines = useMemo(() => countLines(combinedPreview), [combinedPreview]);
 
-    return combinedPreview.split('\n').filter((line) => line.trim()).length;
-  }, [combinedPreview]);
+  const parsedEntries = useMemo(
+    () => countParsedEntries(mainRawOnly, name, date),
+    [mainRawOnly, name, date],
+  );
 
-  const ocrParsedEntries = useMemo(() => {
-    try {
-      return parseLog(ocrText, name, date, 'ocr-preview').length;
-    } catch {
-      return 0;
-    }
-  }, [ocrText, name, date]);
-
-  const rawLines = useMemo(() => {
-    if (!raw) return 0;
-
-    return raw.split('\n').filter((line) => line.trim()).length;
-  }, [raw]);
-
-  const ocrLines = useMemo(() => {
-    if (!ocrText) return 0;
-
-    return ocrText.split('\n').filter((line) => line.trim()).length;
-  }, [ocrText]);
-
-  const ocrTableRows = useMemo(() => countOcrTableRows(ocrText), [ocrText]);
+  const canSave = parsedEntries > 0 && !pendingSave;
 
   useEffect(() => {
-    return () => {
-      if (ocrPreview) {
-        URL.revokeObjectURL(ocrPreview);
-      }
-    };
-  }, [ocrPreview]);
-
-  useEffect(() => {
-    if (!pendingCombinedSave) return;
-    if (raw !== pendingCombinedSave.combinedRaw) return;
+    if (!pendingSave) return;
+    if (raw !== pendingSave.combinedRaw) return;
 
     let cancelled = false;
 
@@ -641,8 +136,8 @@ export default function RawLog({
         await saveLog();
       } finally {
         if (!cancelled) {
-          setRaw(pendingCombinedSave.originalRaw);
-          setPendingCombinedSave(null);
+          setRaw(pendingSave.originalRaw);
+          setPendingSave(null);
         }
       }
     }
@@ -652,7 +147,7 @@ export default function RawLog({
     return () => {
       cancelled = true;
     };
-  }, [pendingCombinedSave, raw, saveLog, setRaw]);
+  }, [pendingSave, raw, saveLog, setRaw]);
 
   async function handleTxtUpload(event) {
     const file = event.target.files?.[0];
@@ -660,17 +155,19 @@ export default function RawLog({
 
     if (!file) return;
 
-    const isTxt = file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
+    const isTextFile =
+      file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
 
-    if (!isTxt) {
-      alert('Te rog încarcă doar fișiere .txt aici.');
+    if (!isTextFile) {
+      alert('Te rog încarcă doar fișiere .txt.');
       return;
     }
 
     try {
       const text = await file.text();
+
       setTxtFile(file);
-      setRaw(text);
+      setRaw(cleanText(text));
 
       if (!name || name === 'Battle log') {
         setName(file.name.replace(/\.txt$/i, ''));
@@ -681,237 +178,20 @@ export default function RawLog({
     }
   }
 
-  async function handleImageUpload(event) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-
-    if (!file) return;
-
-    const lowerName = file.name.toLowerCase();
-    const isImage =
-      file.type === 'image/jpeg' ||
-      file.type === 'image/png' ||
-      lowerName.endsWith('.jpg') ||
-      lowerName.endsWith('.jpeg') ||
-      lowerName.endsWith('.png');
-
-    if (!isImage) {
-      setOcrMessage('Te rog încarcă doar imagini .jpg, .jpeg sau .png.');
-      return;
-    }
-
-    if (file.size > 18 * 1024 * 1024) {
-      setOcrMessage('Imaginea este prea mare.\nÎncarcă o imagine sub 18 MB.');
-      return;
-    }
-
-    if (ocrPreview) {
-      URL.revokeObjectURL(ocrPreview);
-    }
-
-    setOcrFile(file);
-    setOcrPreview(URL.createObjectURL(file));
-    setOcrText('');
-    setOcrRawText('');
-    setOcrMessage('Pregătesc imaginea pentru OCR...');
-    setOcrProgress(0);
-    setOcrBestVariant('');
-    setOcrCandidates([]);
-    setOcrBusy(true);
-
-    try {
-      const imageVariants = await createOcrImageVariants(file);
-      const ocrConfigs = getOcrConfigs();
-      const totalRuns = imageVariants.length * ocrConfigs.length;
-
-      setOcrMessage(`Citesc textul din imagine...\n0/${totalRuns} variante analizate`);
-
-      let bestText = '';
-      let bestRawText = '';
-      let bestScore = -1;
-      let bestVariant = '';
-      const candidates = [];
-
-      for (let variantIndex = 0; variantIndex < imageVariants.length; variantIndex += 1) {
-        const variant = imageVariants[variantIndex];
-
-        for (let configIndex = 0; configIndex < ocrConfigs.length; configIndex += 1) {
-          const config = ocrConfigs[configIndex];
-          const runIndex = variantIndex * ocrConfigs.length + configIndex;
-
-          setOcrMessage(
-            `Citesc textul din imagine...\n${runIndex + 1}/${totalRuns} · ${variant.name} · ${config.name}`,
-          );
-
-          const result = await Tesseract.recognize(variant.image, 'eng', {
-            logger: (data) => {
-              if (data.status === 'recognizing text') {
-                const runProgress = (runIndex / totalRuns) * 100;
-                const currentProgress = ((data.progress || 0) / totalRuns) * 100;
-                setOcrProgress(Math.round(runProgress + currentProgress));
-              }
-            },
-            ...config.options,
-            tessedit_ocr_engine_mode: '1',
-            preserve_interword_spaces: '1',
-            user_defined_dpi: '300',
-            classify_bln_numeric_mode: '1',
-            textord_heavy_nr: '1',
-            tessedit_char_whitelist:
-              'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[](){}<>:;.,+-_/\\|!?@#$%^&*=\'" ~',
-          });
-
-          const rawTextFromLines = cleanOcrText(result?.data?.text);
-          const rawTextFromWords = cleanOcrText(wordsToLines(result?.data?.words));
-          const combinedRawText = cleanOcrText(
-            [rawTextFromLines, rawTextFromWords].filter(Boolean).join('\n'),
-          );
-
-          const candidateScore = scoreOcrText(combinedRawText);
-          const tableCandidateText = formatOcrRowsAsResultTable(candidateScore.rows);
-          const candidateText = tableCandidateText || combinedRawText;
-
-          let candidateParsedEntries = 0;
-
-          try {
-            candidateParsedEntries = parseLog(
-              candidateText,
-              name,
-              date,
-              `ocr-${variant.name}-${config.name}`,
-            ).length;
-          } catch {
-            candidateParsedEntries = 0;
-          }
-
-          const candidateLines = candidateText
-            .split('\n')
-            .filter((line) => line.trim()).length;
-
-          const candidateScoreValue = candidateScore.score + candidateParsedEntries * 10000;
-
-          candidates.push({
-            variant: `${variant.name} · ${config.name}`,
-            text: candidateText,
-            rawText: combinedRawText,
-            rows: candidateScore.rows,
-            score: candidateScoreValue,
-            parsedEntries: candidateParsedEntries,
-            lines: candidateLines,
-            completeRows: candidateScore.completeRows,
-            incompleteRows: candidateScore.incompleteRows,
-            numericCells: candidateScore.numericCells,
-            tableRows: candidateScore.rows.length,
-          });
-
-          if (candidateScoreValue > bestScore) {
-            bestScore = candidateScoreValue;
-            bestText = candidateText;
-            bestRawText = combinedRawText;
-            bestVariant = `${variant.name} · ${config.name}`;
-          }
-        }
-      }
-
-      const mergedRows = mergeRowsFromCandidates(candidates);
-      const mergedTable = formatOcrRowsAsResultTable(mergedRows);
-
-      if (mergedTable && mergedRows.length >= countOcrTableRows(bestText)) {
-        bestText = mergedTable;
-        bestVariant = `${bestVariant} + merged rows`;
-      }
-
-      const sortedCandidates = candidates.sort((a, b) => b.score - a.score).slice(0, 8);
-
-      setOcrCandidates(sortedCandidates);
-      setOcrProgress(100);
-
-      if (!bestText) {
-        setOcrMessage(
-          'OCR terminat, dar nu am găsit text.\nÎncearcă o imagine mai clară sau decupează doar zona tabelului.',
-        );
-        return;
-      }
-
-      setOcrText(bestText);
-      setOcrRawText(bestRawText);
-      setRaw(bestText);
-      setOcrBestVariant(bestVariant);
-
-      if (!name || name === 'Battle log') {
-        setName(file.name.replace(/\.(jpg|jpeg|png)$/i, ''));
-      }
-
-      setOcrMessage(
-        `OCR terminat. Cea mai bună variantă: ${bestVariant}. Am folosit și reconstrucție pe rânduri după poziția cuvintelor.\nVerifică tabelul înainte de Save.`,
-      );
-    } catch (error) {
-      console.error(error);
-      setOcrMessage(`OCR failed: ${error?.message || 'unknown error'}`);
-    } finally {
-      setOcrBusy(false);
-    }
-  }
-
-  function clearOcr() {
-    if (ocrPreview) {
-      URL.revokeObjectURL(ocrPreview);
-    }
-
-    setOcrFile(null);
-    setOcrPreview('');
-    setOcrText('');
-    setOcrRawText('');
-    setOcrMessage('');
-    setOcrProgress(0);
-    setOcrBestVariant('');
-    setOcrCandidates([]);
-    setOcrBusy(false);
-  }
-
-  function useOcrText() {
-    setRaw(ocrText);
-    setOcrMessage('Textul OCR a fost pus în Raw Log.\nVerifică și apasă Save.');
-  }
-
-  function useCandidate(candidate) {
-    const formatted = formatOcrRowsAsResultTable(candidate.rows || []);
-    const text = formatted || candidate.text;
-
-    setOcrText(text);
-    setOcrRawText(candidate.rawText || '');
-    setRaw(text);
-    setOcrBestVariant(candidate.variant);
-    setOcrMessage(`Ai selectat varianta OCR: ${candidate.variant}.\nVerifică tabelul și apasă Save.`);
-  }
-
-  function reformatCurrentOcrText() {
-    const formatted = formatOcrAsResultTable(ocrRawText || ocrText);
-
-    if (!formatted) {
-      setOcrMessage(
-        'Nu am putut reformata textul OCR ca tabel. Verifică imaginea sau editează manual textul extras.',
-      );
-      return;
-    }
-
-    setOcrText(formatted);
-    setRaw(formatted);
-    setOcrMessage('Textul OCR a fost reformatat ca tabel.');
-  }
-
   function handleSave() {
-    const cleanSecondary = secondaryRaw.trim();
+    if (!canSave) return;
+
+    const cleanSecondary = cleanText(secondaryRaw);
 
     if (!cleanSecondary) {
       saveLog();
       return;
     }
 
-    const originalRaw = raw;
-    const combinedRaw = buildCombinedRaw(raw, cleanSecondary);
+    const originalRaw = mainRawOnly;
+    const combinedRaw = buildCombinedRawLog(mainRawOnly, cleanSecondary);
 
-    setPendingCombinedSave({
+    setPendingSave({
       originalRaw,
       combinedRaw,
     });
@@ -919,24 +199,40 @@ export default function RawLog({
     setRaw(combinedRaw);
   }
 
+  function clearMainRaw() {
+    setRaw('');
+    setTxtFile(null);
+  }
+
   function clearSecondaryRaw() {
     setSecondaryRaw('');
   }
 
+  function loadSavedLogIntoEditor(log) {
+    const savedMain = getMainLogOnly(log.raw);
+    const savedSecondary = getSecondaryLog(log.raw);
+
+    setName(log.name || 'Battle log');
+    setDate(dateOf(log));
+    setRaw(savedMain);
+    setSecondaryRaw(savedSecondary);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   return (
     <>
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <Panel>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+            <div className="mb-4 flex flex-col gap-3 xl:flex-row">
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Battle log name"
-                className="rounded-xl border border-slate-700 bg-slate-900 p-3"
+                className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm outline-none focus:border-blue-400"
               />
 
-              <div className="relative">
+              <div className="relative min-w-[220px]">
                 <button
                   type="button"
                   onClick={() => setCalendarOpen(!calendarOpen)}
@@ -953,10 +249,10 @@ export default function RawLog({
                     <Calendar
                       month={rawMonth}
                       setMonth={setRawMonth}
-                      value={date}
-                      markedDates={markedDates}
-                      onPick={(pickedDate) => {
-                        setDate(pickedDate);
+                      selected={date}
+                      marked={markedDates}
+                      onPick={(nextDate) => {
+                        setDate(nextDate);
                         setCalendarOpen(false);
                       }}
                       footer={
@@ -967,14 +263,15 @@ export default function RawLog({
                               setDate(today());
                               setCalendarOpen(false);
                             }}
-                            className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold"
+                            className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold hover:bg-slate-900"
                           >
                             Today
                           </button>
+
                           <button
                             type="button"
                             onClick={() => setCalendarOpen(false)}
-                            className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold"
+                            className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold hover:bg-slate-900"
                           >
                             Close
                           </button>
@@ -988,10 +285,10 @@ export default function RawLog({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={Boolean(pendingCombinedSave)}
+                disabled={!canSave}
                 className="rounded-xl bg-blue-600 px-5 py-3 font-black hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {pendingCombinedSave ? 'Saving...' : 'Save'}
+                {pendingSave ? 'Saving...' : 'Save'}
               </button>
             </div>
 
@@ -1002,12 +299,22 @@ export default function RawLog({
             )}
 
             <div className="mb-4 grid gap-3 md:grid-cols-3">
-              <label className="cursor-pointer rounded-2xl border border-slate-700 bg-slate-900 p-4 hover:bg-slate-800">
-                <input type="file" accept=".txt,text/plain" className="hidden" onChange={handleTxtUpload} />
-                <span className="block text-sm font-black text-white">Upload TXT log</span>
-                <span className="mt-1 block text-xs text-slate-400">
-                  Încarcă log normal în format .txt
+              <label className="cursor-pointer rounded-2xl border border-slate-700 bg-slate-900 p-4 transition hover:bg-slate-800">
+                <input
+                  type="file"
+                  accept=".txt,text/plain"
+                  className="hidden"
+                  onChange={handleTxtUpload}
+                />
+
+                <span className="block text-sm font-black text-white">
+                  Upload TXT log
                 </span>
+
+                <span className="mt-1 block text-xs text-slate-400">
+                  Încarcă logul normal în format .txt.
+                </span>
+
                 {txtFile && (
                   <span className="mt-2 block text-xs text-blue-200">
                     {txtFile.name} · {formatBytes(txtFile.size)}
@@ -1015,52 +322,51 @@ export default function RawLog({
                 )}
               </label>
 
-              <label className="cursor-pointer rounded-2xl border border-slate-700 bg-slate-900 p-4 hover:bg-slate-800">
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-                <span className="block text-sm font-black text-white">Upload JPG/PNG OCR</span>
-                <span className="mt-1 block text-xs text-slate-400">
-                  OCR high accuracy: text + word position rows.
+              <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4">
+                <span className="block text-sm font-black text-white">
+                  Main log status
                 </span>
-                {ocrFile && (
-                  <span className="mt-2 block text-xs text-blue-200">
-                    {ocrFile.name} · {formatBytes(ocrFile.size)}
+
+                <span className="mt-1 block text-xs text-slate-400">
+                  Logul principal este cel folosit la calculele actuale.
+                </span>
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-lg bg-slate-950 px-2 py-1 text-xs text-slate-300">
+                    Lines: {mainLines}
                   </span>
-                )}
-              </label>
+
+                  <span
+                    className={`rounded-lg px-2 py-1 text-xs ${
+                      parsedEntries > 0
+                        ? 'bg-emerald-500/10 text-emerald-200'
+                        : 'bg-amber-500/10 text-amber-200'
+                    }`}
+                  >
+                    Parsed: {parsedEntries}
+                  </span>
+                </div>
+              </div>
 
               <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
                 <span className="block text-sm font-black text-emerald-100">
                   Secondary manual log
                 </span>
-                <span className="mt-1 block text-xs text-emerald-200/80">
-                  Se salvează împreună cu logul TXT/OCR, separat între markere.
-                </span>
-                <span className="mt-2 block text-xs text-emerald-100">
-                  Lines: {secondaryLines} · Combined lines: {combinedLines}
-                </span>
-              </div>
-            </div>
 
-            <div className="mb-2 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-lg bg-slate-900 px-2 py-1 text-slate-400">
-                Parsed entries: {parsedEntries}
-              </span>
-              <span className="rounded-lg bg-slate-900 px-2 py-1 text-slate-400">
-                Main lines: {rawLines}
-              </span>
-              <span className="rounded-lg bg-emerald-500/10 px-2 py-1 text-emerald-200">
-                Secondary lines: {secondaryLines}
-              </span>
-              {ocrTableRows > 0 && (
-                <span className="rounded-lg bg-blue-500/10 px-2 py-1 text-blue-200">
-                  OCR table rows: {ocrTableRows}
+                <span className="mt-1 block text-xs text-emerald-200/80">
+                  Al doilea format se salvează împreună cu logul principal.
                 </span>
-              )}
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
+                    Lines: {secondaryLines}
+                  </span>
+
+                  <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
+                    Total: {combinedLines}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-4 xl:grid-cols-2">
@@ -1069,15 +375,27 @@ export default function RawLog({
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
                     Main Raw Log
                   </p>
-                  <span className="text-xs text-slate-500">TXT/OCR normal</span>
+
+                  <button
+                    type="button"
+                    onClick={clearMainRaw}
+                    disabled={!mainRawOnly}
+                    className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-bold text-slate-300 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Clear
+                  </button>
                 </div>
 
                 <textarea
-                  value={raw}
+                  value={mainRawOnly}
                   onChange={(event) => setRaw(event.target.value)}
-                  placeholder="Paste your node war log here or upload TXT/JPG/PNG above..."
-                  className="h-96 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
+                  placeholder="Paste your normal node war log here or upload a .txt file..."
+                  className="h-96 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-blue-400"
                 />
+
+                <p className="mt-2 text-xs text-slate-500">
+                  Formatul actual acceptat rămâne cel normal, de tip kill/death log.
+                </p>
               </div>
 
               <div>
@@ -1099,9 +417,13 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder="Lipește aici al doilea log, cu format diferit. Coloanele exacte le vom mapa în pasul următor."
+                  placeholder="Lipește aici al doilea log, cu altă structură. Coloanele exacte le putem mapa în următorul pas."
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
+
+                <p className="mt-2 text-xs text-slate-500">
+                  Acest text este păstrat separat în raw log între markere speciale.
+                </p>
               </div>
             </div>
 
@@ -1111,208 +433,26 @@ export default function RawLog({
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
                     Combined save preview
                   </p>
+
                   <p className="text-xs text-slate-400">
-                    La Save se salvează main log + secondary log în același raw.
+                    La Save se salvează Main Raw Log + Secondary Manual Log.
                   </p>
                 </div>
 
-                <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-900 p-3 font-mono text-xs text-slate-300">
+                <pre className={`max-h-56 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-900 p-3 font-mono text-xs text-slate-300 ${scrollCls}`}>
                   {combinedPreview}
                 </pre>
               </div>
             )}
-          </Panel>
 
-          {(ocrBusy || ocrMessage || ocrPreview || ocrText) && (
-            <Panel>
-              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="text-2xl font-black">OCR Preview</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Format rezultat: Family Name | col1 | col2 | col3 | col4 | col5 | col6 | col7.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={clearOcr}
-                  disabled={ocrBusy}
-                  className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Clear OCR
-                </button>
+            {!canSave && (
+              <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                Pentru Save, logul principal trebuie să conțină cel puțin o linie validă
+                de kill/death. Secondary Manual Log poate fi completat separat, dar nu
+                validează singur salvarea.
               </div>
-
-              {ocrBusy && (
-                <div className="mb-3">
-                  <div className="mb-2 flex justify-between text-xs font-bold text-slate-400">
-                    <span>OCR progress</span>
-                    <span>{ocrProgress}%</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className="h-full rounded-full bg-blue-500 transition-all"
-                      style={{ width: `${ocrProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {ocrMessage && (
-                <p className="mb-3 whitespace-pre-line rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
-                  {ocrMessage}
-                </p>
-              )}
-
-              {ocrPreview && (
-                <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-                  <div>
-                    <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                      Screenshot
-                    </p>
-
-                    <img
-                      src={ocrPreview}
-                      alt="OCR upload preview"
-                      className="max-h-80 w-full rounded-2xl border border-slate-800 object-contain"
-                    />
-
-                    <div className="mt-3 rounded-xl bg-slate-950 p-3 text-xs text-slate-400">
-                      {ocrFile && (
-                        <p>
-                          <span className="font-bold text-slate-300">File:</span> {ocrFile.name}
-                        </p>
-                      )}
-                      {ocrFile && (
-                        <p>
-                          <span className="font-bold text-slate-300">Size:</span>{' '}
-                          {formatBytes(ocrFile.size)}
-                        </p>
-                      )}
-                      {ocrBestVariant && (
-                        <p>
-                          <span className="font-bold text-slate-300">Best OCR:</span>{' '}
-                          {ocrBestVariant}
-                        </p>
-                      )}
-                      {ocrTableRows > 0 && (
-                        <p>
-                          <span className="font-bold text-slate-300">Table rows:</span>{' '}
-                          {ocrTableRows}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                        Text extras
-                      </p>
-
-                      <div className="flex flex-wrap gap-2">
-                        <span
-                          className={`rounded-lg px-2 py-1 text-xs ${
-                            ocrParsedEntries
-                              ? 'bg-emerald-500/10 text-emerald-200'
-                              : 'bg-amber-500/10 text-amber-200'
-                          }`}
-                        >
-                          Parsed entries: {ocrParsedEntries}
-                        </span>
-
-                        <span className="rounded-lg bg-slate-900 px-2 py-1 text-xs text-slate-400">
-                          Lines: {ocrLines}
-                        </span>
-
-                        <span
-                          className={`rounded-lg px-2 py-1 text-xs ${
-                            ocrTableRows
-                              ? 'bg-blue-500/10 text-blue-200'
-                              : 'bg-slate-900 text-slate-400'
-                          }`}
-                        >
-                          Table rows: {ocrTableRows}
-                        </span>
-                      </div>
-                    </div>
-
-                    <textarea
-                      value={ocrText}
-                      onChange={(event) => {
-                        setOcrText(event.target.value);
-                        setRaw(event.target.value);
-                      }}
-                      placeholder="Textul extras prin OCR apare aici..."
-                      className="h-80 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm"
-                    />
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={useOcrText}
-                        disabled={!ocrText || ocrBusy}
-                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Use this OCR text
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={reformatCurrentOcrText}
-                        disabled={!ocrText || ocrBusy}
-                        className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-100 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Reformat as table
-                      </button>
-                    </div>
-
-                    {ocrCandidates.length > 1 && (
-                      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-3">
-                        <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                          OCR variants
-                        </p>
-
-                        <div className="grid gap-2">
-                          {ocrCandidates.map((candidate) => {
-                            const active =
-                              candidate.variant === ocrBestVariant && candidate.text === ocrText;
-
-                            return (
-                              <button
-                                key={candidate.variant}
-                                type="button"
-                                onClick={() => useCandidate(candidate)}
-                                className={`rounded-xl border p-3 text-left text-xs hover:bg-slate-900 ${
-                                  active
-                                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-100'
-                                    : 'border-slate-800 bg-slate-900/60 text-slate-300'
-                                }`}
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <span className="font-black">{candidate.variant}</span>
-                                  <span className="text-slate-400">
-                                    table {candidate.tableRows || 0} · complete{' '}
-                                    {candidate.completeRows || 0} · incomplete{' '}
-                                    {candidate.incompleteRows || 0} · numbers{' '}
-                                    {candidate.numericCells || 0}
-                                  </span>
-                                </div>
-
-                                <pre className="mt-2 max-h-20 overflow-hidden whitespace-pre-wrap font-mono text-[11px] text-slate-400">
-                                  {candidate.text.slice(0, 260)}
-                                </pre>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Panel>
-          )}
+            )}
+          </Panel>
         </div>
 
         <Panel>
@@ -1321,33 +461,43 @@ export default function RawLog({
           {!logs.length ? (
             <p className="text-sm text-slate-500">No saved logs yet.</p>
           ) : (
-            <div className="max-h-[520px] overflow-y-auto pr-2 [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80 [&::-webkit-scrollbar-thumb:hover]:bg-slate-600">
+            <div className={`max-h-[640px] overflow-y-auto pr-2 ${scrollCls}`}>
               {logs.map((log) => {
-                const secondarySaved = extractSecondaryRaw(log.raw);
+                const secondarySaved = getSecondaryLog(log.raw);
+                const secondarySavedLines = countLines(secondarySaved);
 
                 return (
-                  <div key={log.id} className="mb-3 rounded-xl bg-slate-900 p-3 last:mb-0">
-                    <b>{log.name}</b>
+                  <div
+                    key={log.id}
+                    className="mb-3 rounded-xl bg-slate-900 p-3 last:mb-0"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <b className="block truncate text-sm text-white">
+                          {log.name}
+                        </b>
 
-                    <p className="text-xs text-slate-500">
-                      {dateOf(log)}
-                      {log.localOnly ? ' · local only' : ''}
-                      {secondarySaved ? ' · secondary log saved' : ''}
-                    </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {dateOf(log)}
+                          {log.localOnly ? ' · local only' : ''}
+                          {secondarySaved ? ` · secondary ${secondarySavedLines} lines` : ''}
+                        </p>
+                      </div>
+                    </div>
 
                     {secondarySaved && (
-                      <details className="mt-2 rounded-lg border border-emerald-500/20 bg-slate-950 p-2">
+                      <details className="mt-3 rounded-lg border border-emerald-500/20 bg-slate-950 p-2">
                         <summary className="cursor-pointer text-xs font-bold text-emerald-200">
                           View secondary log
                         </summary>
 
-                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400">
+                        <pre className={`mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400 ${scrollCls}`}>
                           {secondarySaved}
                         </pre>
                       </details>
                     )}
 
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(log)}
@@ -1362,6 +512,14 @@ export default function RawLog({
                         className="rounded-lg border border-rose-500/50 bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-100 hover:bg-rose-500/20"
                       >
                         Delete merged
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => loadSavedLogIntoEditor(log)}
+                        className="rounded-lg border border-slate-700 px-3 py-1 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                      >
+                        Load
                       </button>
                     </div>
                   </div>
