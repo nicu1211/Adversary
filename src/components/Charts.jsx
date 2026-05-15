@@ -328,6 +328,7 @@ export function KillDeathChart({
         label: markerTime || rows[position.index].label,
         guild: marker.guild || marker.war || '-',
         player: marker.player || marker.name || '-',
+        count: Number(marker.count) || 0,
       };
     })
     .filter(Boolean)
@@ -419,14 +420,9 @@ export function KillDeathChart({
             </p>
 
             {hovered.isKillFeed ? (
-              <>
-                <p className="text-yellow-300">
-                  Player: {hovered.player}
-                </p>
-                <p className="text-yellow-300">
-                  Against guild: {hovered.guild}
-                </p>
-              </>
+              <p className="font-bold text-yellow-300">
+                {hovered.player} {hovered.count} killfeed against {hovered.guild}
+              </p>
             ) : (
               <>
                 <p className="text-emerald-300">Kills: {hovered.kills}</p>
