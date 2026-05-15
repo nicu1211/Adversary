@@ -137,6 +137,22 @@ function majorityGuildForKillFeed(feed, events = []) {
   return majorityGuild || cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
 }
 
+function buildAxisTicks(min, max, count = 5) {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+  if (max <= min) return [Math.round(min), Math.round(max + 1)];
+
+  const values = Array.from({ length: count }, (_, index) => {
+    const ratio = count === 1 ? 0 : index / (count - 1);
+    return Math.round(min + (max - min) * ratio);
+  });
+
+  const unique = [...new Set(values)];
+
+  if (unique.length === 1) return [unique[0], unique[0] + 1];
+
+  return unique;
+}
+
 function BestOverall({
   players,
   members,
@@ -834,9 +850,9 @@ function EnemyGuilds({ guilds, events }) {
     [guilds],
   );
 
-  const width = 1020;
+  const width = 1100;
   const height = 390;
-  const pad = { top: 24, right: 34, bottom: 42, left: 56 };
+  const pad = { top: 12, right: 14, bottom: 34, left: 48 };
 
   const chart = useMemo(() => {
     if (!rows.length) return null;
@@ -844,27 +860,44 @@ function EnemyGuilds({ guilds, events }) {
     const innerW = width - pad.left - pad.right;
     const innerH = height - pad.top - pad.bottom;
 
-    const maxKillsRaw = Math.max(1, ...rows.map((item) => item.kills));
-    const maxDeathsRaw = Math.max(1, ...rows.map((item) => item.deaths));
+    const killsValues = rows.map((item) => item.kills);
+    const deathsValues = rows.map((item) => item.deaths);
+
+    const minKillsRaw = Math.min(...killsValues);
+    const maxKillsRaw = Math.max(...killsValues);
+    const minDeathsRaw = Math.min(...deathsValues);
+    const maxDeathsRaw = Math.max(...deathsValues);
     const maxKdRaw = Math.max(1, ...rows.map((item) => item.kdNumber));
 
-    const xMax = Math.max(2, Math.ceil(maxKillsRaw * 1.12));
-    const yMax = Math.max(2, Math.ceil(maxDeathsRaw * 1.12));
+    const killsRange = Math.max(1, maxKillsRaw - minKillsRaw);
+    const deathsRange = Math.max(1, maxDeathsRaw - minDeathsRaw);
+
+    const xPadding = Math.max(6, killsRange * 0.04);
+    const yPadding = Math.max(6, deathsRange * 0.06);
+
+    const xMin = Math.max(0, Math.floor(minKillsRaw - xPadding));
+    const xMax = Math.ceil(maxKillsRaw + xPadding);
+    const yMin = Math.max(0, Math.floor(minDeathsRaw - yPadding));
+    const yMax = Math.ceil(maxDeathsRaw + yPadding);
     const maxKd = Math.max(1, Math.min(12, maxKdRaw));
 
     function xScale(value) {
-      return pad.left + (Math.max(0, value) / xMax) * innerW;
+      const range = Math.max(1, xMax - xMin);
+      return pad.left + ((Math.max(xMin, value) - xMin) / range) * innerW;
     }
 
     function yScale(value) {
-      return pad.top + innerH - (Math.max(0, value) / yMax) * innerH;
+      const range = Math.max(1, yMax - yMin);
+      return (
+        pad.top + innerH - ((Math.max(yMin, value) - yMin) / range) * innerH
+      );
     }
 
     function radiusScale(value) {
       const safe = Math.max(0, Math.min(maxKd, value));
       const ratio = maxKd <= 0 ? 0 : safe / maxKd;
 
-      return 18 + Math.sqrt(ratio) * 24;
+      return 12 + Math.sqrt(ratio) * 14;
     }
 
     const duplicateGroups = rows.reduce((acc, item) => {
@@ -889,7 +922,7 @@ function EnemyGuilds({ guilds, events }) {
       let cy = baseY;
 
       if (dupTotal > 1 && dupIndex >= 0) {
-        const offsetRadius = Math.min(18, 8 + dupTotal * 2);
+        const offsetRadius = Math.min(12, 5 + dupTotal * 1.5);
         const angle = (Math.PI * 2 * dupIndex) / dupTotal;
 
         cx += Math.cos(angle) * offsetRadius;
@@ -906,21 +939,16 @@ function EnemyGuilds({ guilds, events }) {
       };
     });
 
-    const xTicks = 5;
-    const yTicks = 5;
-
     return {
+      xMin,
       xMax,
+      yMin,
       yMax,
       points,
       xScale,
       yScale,
-      xTickValues: Array.from({ length: xTicks }, (_, i) =>
-        Math.round((xMax * i) / (xTicks - 1)),
-      ),
-      yTickValues: Array.from({ length: yTicks }, (_, i) =>
-        Math.round((yMax * i) / (yTicks - 1)),
-      ),
+      xTickValues: buildAxisTicks(xMin, xMax, 5),
+      yTickValues: buildAxisTicks(yMin, yMax, 5),
     };
   }, [rows]);
 
@@ -964,7 +992,7 @@ function EnemyGuilds({ guilds, events }) {
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
           <div
-            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/30"
+            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800"
             onMouseLeave={() => setHovered(null)}
           >
             {hovered && (
@@ -994,23 +1022,6 @@ function EnemyGuilds({ guilds, events }) {
               aria-label="Enemy Guilds bubble chart"
             >
               <defs>
-                <linearGradient id="enemyChartBg" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="rgba(15,23,42,0.95)" />
-                  <stop offset="50%" stopColor="rgba(17,24,39,0.88)" />
-                  <stop offset="100%" stopColor="rgba(8,15,31,0.94)" />
-                </linearGradient>
-
-                <radialGradient
-                  id="enemyChartGlow"
-                  cx="50%"
-                  cy="12%"
-                  r="85%"
-                >
-                  <stop offset="0%" stopColor="rgba(59,130,246,0.13)" />
-                  <stop offset="45%" stopColor="rgba(99,102,241,0.07)" />
-                  <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-                </radialGradient>
-
                 <radialGradient
                   id="enemyBubbleGood"
                   cx="35%"
@@ -1042,7 +1053,7 @@ function EnemyGuilds({ guilds, events }) {
                   width="280%"
                   height="280%"
                 >
-                  <feGaussianBlur stdDeviation="10" result="blur1" />
+                  <feGaussianBlur stdDeviation="7" result="blur1" />
                   <feMerge>
                     <feMergeNode in="blur1" />
                     <feMergeNode in="SourceGraphic" />
@@ -1056,30 +1067,13 @@ function EnemyGuilds({ guilds, events }) {
                   width="280%"
                   height="280%"
                 >
-                  <feGaussianBlur stdDeviation="5" result="blur2" />
+                  <feGaussianBlur stdDeviation="3.5" result="blur2" />
                   <feMerge>
                     <feMergeNode in="blur2" />
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
               </defs>
-
-              <rect
-                x="0"
-                y="0"
-                width={width}
-                height={height}
-                rx="18"
-                fill="url(#enemyChartBg)"
-              />
-              <rect
-                x="0"
-                y="0"
-                width={width}
-                height={height}
-                rx="18"
-                fill="url(#enemyChartGlow)"
-              />
 
               {chart.yTickValues.map((tick) => {
                 const y = chart.yScale(tick);
@@ -1095,7 +1089,7 @@ function EnemyGuilds({ guilds, events }) {
                       strokeWidth="1"
                     />
                     <text
-                      x={pad.left - 10}
+                      x={pad.left - 8}
                       y={y + 4}
                       textAnchor="end"
                       fontSize="10"
@@ -1123,7 +1117,7 @@ function EnemyGuilds({ guilds, events }) {
                     />
                     <text
                       x={x}
-                      y={height - 14}
+                      y={height - 10}
                       textAnchor="middle"
                       fontSize="10"
                       fill="rgba(255,255,255,0.34)"
@@ -1154,7 +1148,7 @@ function EnemyGuilds({ guilds, events }) {
 
               <text
                 x={(pad.left + (width - pad.right)) / 2}
-                y={height - 4}
+                y={height - 1}
                 textAnchor="middle"
                 fontSize="11"
                 fontWeight="800"
@@ -1205,7 +1199,7 @@ function EnemyGuilds({ guilds, events }) {
                     : 'rgba(253,164,175,0.90)';
 
                 const fontSize =
-                  guild.radius >= 34 ? 12 : guild.radius >= 28 ? 11 : 10;
+                  guild.radius >= 22 ? 11 : guild.radius >= 16 ? 10 : 9;
 
                 return (
                   <g
@@ -1217,11 +1211,11 @@ function EnemyGuilds({ guilds, events }) {
                     <circle
                       cx={guild.cx}
                       cy={guild.cy}
-                      r={guild.radius + 4}
+                      r={guild.radius + 2}
                       fill={
                         guild.kdNumber >= 1
-                          ? 'rgba(59,130,246,0.10)'
-                          : 'rgba(244,114,182,0.10)'
+                          ? 'rgba(59,130,246,0.08)'
+                          : 'rgba(244,114,182,0.08)'
                       }
                       filter="url(#enemyBubbleGlow)"
                     />
@@ -1232,20 +1226,20 @@ function EnemyGuilds({ guilds, events }) {
                       r={guild.radius}
                       fill={`url(#${fillId})`}
                       stroke={strokeColor}
-                      strokeWidth="1.5"
+                      strokeWidth="1.4"
                       filter="url(#enemyBubbleSoft)"
                     />
 
                     <circle
-                      cx={guild.cx - guild.radius * 0.3}
-                      cy={guild.cy - guild.radius * 0.32}
-                      r={Math.max(4, guild.radius * 0.16)}
-                      fill="rgba(255,255,255,0.26)"
+                      cx={guild.cx - guild.radius * 0.28}
+                      cy={guild.cy - guild.radius * 0.28}
+                      r={Math.max(2.5, guild.radius * 0.12)}
+                      fill="rgba(255,255,255,0.24)"
                     />
 
                     <text
                       x={guild.cx}
-                      y={guild.cy - 4}
+                      y={guild.cy - 2}
                       textAnchor="middle"
                       fontSize={fontSize}
                       fontWeight="900"
@@ -1256,9 +1250,9 @@ function EnemyGuilds({ guilds, events }) {
 
                     <text
                       x={guild.cx}
-                      y={guild.cy + 12}
+                      y={guild.cy + 11}
                       textAnchor="middle"
-                      fontSize="10"
+                      fontSize="9.5"
                       fontWeight="800"
                       fill="rgba(226,232,240,0.88)"
                     >
