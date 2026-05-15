@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
@@ -802,72 +802,110 @@ function PlayerOverview({ players, streaks, feeds, events }) {
   );
 }
 
-function TopGuilds({ guilds, events }) {
+function EnemyGuilds({ guilds, events }) {
   const [selected, setSelected] = useState(null);
-  const [sort, setSort] = useState(['totalInteractions', 'desc']);
+  const [hovered, setHovered] = useState(null);
 
-  const [key, direction] = sort;
+  const rows = useMemo(
+    () =>
+      [...(guilds || [])]
+        .map((guild) => {
+          const kills = guild.deaths;
+          const deaths = guild.kills;
+          const totalInteractions = kills + deaths;
+          const kdNumber = deaths ? kills / deaths : kills;
 
-  const rows = [...guilds]
-    .map((guild) => {
-      const kills = guild.deaths;
-      const deaths = guild.kills;
-      const totalInteractions = kills + deaths;
-      const kdNumber = deaths ? kills / deaths : kills;
+          return {
+            ...guild,
+            kills,
+            deaths,
+            totalInteractions,
+            kdNumber,
+            kd: kdNumber.toFixed(2),
+          };
+        })
+        .filter((guild) => guild.totalInteractions > 0)
+        .sort(
+          (a, b) =>
+            b.totalInteractions - a.totalInteractions ||
+            b.kills - a.kills ||
+            a.name.localeCompare(b.name),
+        ),
+    [guilds],
+  );
+
+  const width = 820;
+  const height = 390;
+
+  const bubbles = useMemo(() => {
+    const max = Math.max(1, ...rows.map((guild) => guild.totalInteractions));
+
+    const positions = [
+      [410, 185],
+      [280, 145],
+      [550, 145],
+      [250, 265],
+      [575, 265],
+      [410, 315],
+      [155, 195],
+      [675, 195],
+      [145, 310],
+      [690, 310],
+      [405, 75],
+      [285, 345],
+      [540, 345],
+      [160, 85],
+      [665, 85],
+    ];
+
+    return rows.slice(0, 15).map((guild, index) => {
+      const [cx, cy] = positions[index] || [
+        100 + (index % 5) * 150,
+        90 + Math.floor(index / 5) * 105,
+      ];
+
+      const radius = 22 + Math.sqrt(guild.totalInteractions / max) * 56;
 
       return {
         ...guild,
-        kills,
-        deaths,
-        totalInteractions,
-        kdNumber,
-        kd: kdNumber.toFixed(2),
+        cx,
+        cy,
+        radius,
       };
-    })
-    .sort((a, b) => {
-      const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
-      const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
-
-      if (av < bv) return direction === 'asc' ? -1 : 1;
-      if (av > bv) return direction === 'asc' ? 1 : -1;
-
-      return b.totalInteractions - a.totalInteractions || b.kills - a.kills;
     });
+  }, [rows]);
 
-  function flip(nextKey) {
-    setSort(
-      key === nextKey
-        ? [nextKey, direction === 'desc' ? 'asc' : 'desc']
-        : [nextKey, nextKey === 'name' ? 'asc' : 'desc'],
-    );
-  }
+  const tooltipBelow = hovered ? hovered.cy < 90 : false;
 
-  function Header({ id, children, className = '' }) {
-    return (
-      <th className={`py-3 ${className}`}>
-        <button
-          onClick={() => flip(id)}
-          className={
-            key === id
-              ? 'font-black text-blue-300'
-              : 'font-black hover:text-blue-300'
-          }
-        >
-          {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
-        </button>
-      </th>
-    );
-  }
+  const tooltipHorizontalTransform = hovered
+    ? hovered.cx < 170
+      ? '-8%'
+      : hovered.cx > width - 170
+        ? '-92%'
+        : '-50%'
+    : '-50%';
+
+  const tooltipVerticalTransform = tooltipBelow
+    ? '12px'
+    : 'calc(-100% - 12px)';
 
   const log = selected
     ? events.filter((event) => event.guild === selected.name)
     : [];
 
+  function shortName(name) {
+    const text = String(name || '-');
+
+    if (text.length <= 12) return text;
+
+    return `${text.slice(0, 8)}…${text.slice(-3)}`;
+  }
+
   return (
     <Panel cls="h-[520px]">
       <div className="flex h-full flex-col">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h3 className="text-xl font-black">🛡 Top Guilds</h3>
+          <h3 className="text-xl font-black">🛡 Enemy Guilds</h3>
 
           <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
             {rows.length} guilds
@@ -877,66 +915,145 @@ function TopGuilds({ guilds, events }) {
         {!rows.length ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
-          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
-            <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
-                  <tr>
-                    <Header id="name" className="pl-4 text-left">
-                      Guild
-                    </Header>
+          <div
+            className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/30"
+            onMouseLeave={() => setHovered(null)}
+          >
+            {hovered && (
+              <div
+                className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
+                style={{
+                  left: `${(hovered.cx / width) * 100}%`,
+                  top: `${(hovered.cy / height) * 100}%`,
+                  transform: `translate(${tooltipHorizontalTransform}, ${tooltipVerticalTransform})`,
+                }}
+              >
+                <p className="mb-1 font-black text-slate-100">
+                  {hovered.name}
+                </p>
 
-                    <Header id="kills" className="text-center">
-                      Kills
-                    </Header>
+                <p className="font-bold text-blue-300">
+                  Kills: {hovered.kills}
+                </p>
 
-                    <Header id="deaths" className="text-center">
-                      Deaths
-                    </Header>
+                <p className="font-bold text-pink-300">
+                  Deaths: {hovered.deaths}
+                </p>
 
-                    <Header id="kdNumber" className="pr-4 text-center">
-                      K/D
-                    </Header>
-                  </tr>
-                </thead>
+                <p
+                  className={
+                    hovered.kdNumber >= 1
+                      ? 'font-bold text-emerald-300'
+                      : 'font-bold text-rose-300'
+                  }
+                >
+                  K/D: {hovered.kd}
+                </p>
+              </div>
+            )}
 
-                <tbody>
-                  {rows.map((guild, index) => (
-                    <tr
-                      key={guild.name}
-                      className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
-                    >
-                      <td className="py-3 pl-4">
-                        <button
-                          onClick={() => setSelected(guild)}
-                          className="max-w-[220px] truncate rounded-full border border-blue-400/20 bg-blue-500/5 px-3 py-1 text-left font-bold hover:border-blue-300 hover:bg-blue-500/15 hover:text-blue-300"
-                        >
-                          {index + 1}. {guild.name}
-                        </button>
-                      </td>
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              className="h-full w-full"
+              role="img"
+              aria-label="Enemy Guilds bubble graph"
+            >
+              <defs>
+                <radialGradient id="enemyBubbleBlue" cx="35%" cy="30%" r="75%">
+                  <stop offset="0%" stopColor="rgba(96,165,250,0.55)" />
+                  <stop offset="65%" stopColor="rgba(59,130,246,0.24)" />
+                  <stop offset="100%" stopColor="rgba(37,99,235,0.10)" />
+                </radialGradient>
 
-                      <td className="py-3 text-center font-black text-blue-300">
-                        {guild.kills}
-                      </td>
+                <radialGradient id="enemyBubblePink" cx="35%" cy="30%" r="75%">
+                  <stop offset="0%" stopColor="rgba(251,113,133,0.52)" />
+                  <stop offset="65%" stopColor="rgba(244,63,94,0.24)" />
+                  <stop offset="100%" stopColor="rgba(190,18,60,0.10)" />
+                </radialGradient>
 
-                      <td className="py-3 text-center font-black text-pink-300">
-                        {guild.deaths}
-                      </td>
+                <filter
+                  id="enemyBubbleGlow"
+                  x="-70%"
+                  y="-70%"
+                  width="240%"
+                  height="240%"
+                >
+                  <feGaussianBlur stdDeviation="7" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
 
-                      <td
-                        className={`py-3 pr-4 text-center font-black ${
-                          Number(guild.kd) >= 1
-                            ? 'text-emerald-300'
-                            : 'text-rose-300'
-                        }`}
-                      >
-                        {guild.kd}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <rect
+                x="0"
+                y="0"
+                width={width}
+                height={height}
+                fill="transparent"
+              />
+
+              {bubbles.map((guild) => (
+                <g
+                  key={guild.name}
+                  className="cursor-pointer"
+                  onMouseEnter={() => setHovered(guild)}
+                  onClick={() => setSelected(guild)}
+                >
+                  <circle
+                    cx={guild.cx}
+                    cy={guild.cy}
+                    r={guild.radius}
+                    fill={
+                      guild.kdNumber >= 1
+                        ? 'url(#enemyBubbleBlue)'
+                        : 'url(#enemyBubblePink)'
+                    }
+                    stroke={
+                      guild.kdNumber >= 1
+                        ? 'rgba(96,165,250,0.72)'
+                        : 'rgba(251,113,133,0.72)'
+                    }
+                    strokeWidth="1.5"
+                    filter="url(#enemyBubbleGlow)"
+                  />
+
+                  <circle
+                    cx={guild.cx - guild.radius * 0.28}
+                    cy={guild.cy - guild.radius * 0.28}
+                    r={Math.max(4, guild.radius * 0.12)}
+                    fill="rgba(255,255,255,0.18)"
+                  />
+
+                  <text
+                    x={guild.cx}
+                    y={guild.cy - 4}
+                    textAnchor="middle"
+                    fontSize={guild.radius > 55 ? 13 : 11}
+                    fontWeight="900"
+                    fill="rgba(248,250,252,0.92)"
+                  >
+                    {shortName(guild.name)}
+                  </text>
+
+                  <text
+                    x={guild.cx}
+                    y={guild.cy + 15}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight="800"
+                    fill={
+                      guild.kdNumber >= 1
+                        ? 'rgba(147,197,253,0.95)'
+                        : 'rgba(253,164,175,0.95)'
+                    }
+                  >
+                    {guild.totalInteractions}
+                  </text>
+                </g>
+              ))}
+            </svg>
           </div>
         )}
 
@@ -1209,7 +1326,7 @@ export default function OverviewPage({
       </section>
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[1fr_0.5fr_0.5fr]">
-        <TopGuilds guilds={stats.guilds} events={stats.ev} />
+        <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel killFeeds={killFeeds} events={stats.ev} />
 
