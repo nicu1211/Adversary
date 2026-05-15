@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Panel, Metric, Popup } from '../components/UI';
 import { KillDeathChart } from '../components/Charts';
 import {
@@ -7,98 +7,6 @@ import {
   calculateKillFeed,
   calculateStats,
 } from '../lib/logUtils';
-
-function secondsToTime(seconds) {
-  const safeSeconds = Math.max(0, Number(seconds) || 0);
-  const h = Math.floor(safeSeconds / 3600);
-  const m = Math.floor((safeSeconds % 3600) / 60);
-  const s = safeSeconds % 60;
-
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(
-    s,
-  ).padStart(2, '0')}`;
-}
-
-function minuteLabelFromSeconds(seconds) {
-  const safeSeconds = Math.max(0, Number(seconds) || 0);
-  const h = Math.floor(safeSeconds / 3600);
-  const m = Math.floor((safeSeconds % 3600) / 60);
-
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function getSingleMatchKillFeedMarkers(events = [], selectedLogs = []) {
-  if (!Array.isArray(selectedLogs) || selectedLogs.length !== 1) return [];
-
-  const validEvents = [...(events || [])]
-    .filter(
-      (event) =>
-        event.type === 'kill' &&
-        event.source !== 'summary' &&
-        event.hasTimestamp !== false,
-    )
-    .sort(
-      (a, b) =>
-        String(a.date || '').localeCompare(String(b.date || '')) ||
-        (Number(a.sec) || 0) - (Number(b.sec) || 0) ||
-        (Number(a.i) || 0) - (Number(b.i) || 0),
-    );
-
-  const byPlayer = {};
-
-  validEvents.forEach((event) => {
-    (byPlayer[event.killer] ||= []).push(event);
-  });
-
-  const markers = [];
-
-  Object.entries(byPlayer).forEach(([player, list]) => {
-    let left = 0;
-
-    for (let right = 0; right < list.length; right += 1) {
-      while ((Number(list[right].sec) || 0) - (Number(list[left].sec) || 0) > 10) {
-        left += 1;
-      }
-
-      const windowEvents = list.slice(left, right + 1);
-
-      if (windowEvents.length < 2) continue;
-
-      const startEvent = windowEvents[0];
-      const endEvent = windowEvents[windowEvents.length - 1];
-
-      const guilds = [
-        ...new Set(windowEvents.map((event) => event.guild).filter(Boolean)),
-      ];
-
-      const victims = windowEvents.map((event) => event.victim).filter(Boolean);
-
-      markers.push({
-        id: `${player}-${startEvent.id}-${startEvent.i}-${endEvent.i}`,
-        time: minuteLabelFromSeconds(startEvent.sec),
-        exactTime: startEvent.time || secondsToTime(startEvent.sec),
-        endTime: endEvent.time || secondsToTime(endEvent.sec),
-        sec: Number(startEvent.sec) || 0,
-        player,
-        count: windowEvents.length,
-        guild: guilds.join(', ') || '-',
-        victims,
-      });
-    }
-  });
-
-  const unique = new Map();
-
-  markers.forEach((marker) => {
-    const key = `${marker.player}-${marker.sec}-${marker.count}-${marker.victims.join('|')}`;
-
-    if (!unique.has(key)) {
-      unique.set(key, marker);
-    }
-  });
-
-  return [...unique.values()].sort((a, b) => a.sec - b.sec || b.count - a.count);
-}
 
 function RankList({ title, items, valueKey }) {
   const rows = items.slice(0, 5);
@@ -302,7 +210,6 @@ function BestOverall({
 
     feedDetails.forEach((feed) => {
       const current = feedMeta[feed.name];
-
       const next = {
         count: Number(feed.count) || 0,
         firstKey: feedTimeKey(feed),
@@ -1066,24 +973,7 @@ export default function OverviewPage({
   members,
   selectedLogs,
 }) {
-  const safeStats = stats || {
-    ev: [],
-    players: [],
-    guilds: [],
-    line: [],
-    kills: 0,
-    deaths: 0,
-    kd: '0.00',
-    st: {},
-    fd: {},
-  };
-
-  const killFeeds = calculateKillFeed(safeStats.ev || [], 10, true);
-
-  const killFeedMarkers = useMemo(
-    () => getSingleMatchKillFeedMarkers(safeStats.ev || [], selectedLogs || []),
-    [safeStats.ev, selectedLogs],
-  );
+  const killFeeds = calculateKillFeed(stats.ev, 10, true);
 
   return (
     <>
@@ -1097,7 +987,7 @@ export default function OverviewPage({
           <Metric
             icon="⚔"
             label="Total Kills"
-            value={safeStats.kills}
+            value={stats.kills}
             sub="Eliminations"
             className="border-blue-400/25 from-blue-500/20 text-blue-300"
           />
@@ -1105,7 +995,7 @@ export default function OverviewPage({
           <Metric
             icon="☠"
             label="Total Deaths"
-            value={safeStats.deaths}
+            value={stats.deaths}
             sub="Deaths"
             className="border-pink-400/25 from-pink-500/20 text-pink-300"
           />
@@ -1113,7 +1003,7 @@ export default function OverviewPage({
           <Metric
             icon="✦"
             label="K/D"
-            value={safeStats.kd}
+            value={stats.kd}
             sub="Ratio"
             className="border-violet-400/25 from-violet-500/20 text-violet-300"
           />
@@ -1121,39 +1011,35 @@ export default function OverviewPage({
           <Metric
             icon="♟"
             label="Players"
-            value={(safeStats.players || []).length}
+            value={stats.players.length}
             sub="Active"
             className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
           />
         </div>
       </header>
 
-      <KillDeathChart
-        data={safeStats.line || []}
-        title="▧ Global Kill/Death Timeline"
-        killFeedMarkers={killFeedMarkers}
-      />
+      <KillDeathChart data={stats.line} title="▧ Global Kill/Death Timeline" />
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[420px_1fr]">
         <BestOverall
-          players={safeStats.players || []}
+          players={stats.players}
           members={members}
-          streaks={safeStats.st || {}}
-          feeds={safeStats.fd || {}}
-          events={safeStats.ev || []}
+          streaks={stats.st}
+          feeds={stats.fd}
+          events={stats.ev}
           selectedLogs={selectedLogs}
         />
 
         <PlayerOverview
-          players={safeStats.players || []}
-          streaks={safeStats.st || {}}
-          feeds={safeStats.fd || {}}
-          events={safeStats.ev || []}
+          players={stats.players}
+          streaks={stats.st}
+          feeds={stats.fd}
+          events={stats.ev}
         />
       </section>
 
       <section className="grid items-stretch gap-4 xl:grid-cols-2">
-        <TopGuilds guilds={safeStats.guilds || []} events={safeStats.ev || []} />
+        <TopGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel killFeeds={killFeeds} />
       </section>
