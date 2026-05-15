@@ -103,12 +103,42 @@ function buildDynamicTicks(min, max) {
   return [...ticks].sort((a, b) => a - b);
 }
 
+function normalizeTimeKey(value) {
+  const raw = String(value ?? '').trim();
+
+  if (!raw) return '';
+
+  const parts = raw.split(':').map((part) => part.padStart(2, '0'));
+
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]}:${parts[1]}`;
+
+  return `${parts[0]}:${parts[1]}:${parts[2]}`;
+}
+
+function toSecondsFromLabel(value) {
+  const raw = String(value ?? '').trim();
+
+  if (!raw) return NaN;
+
+  const parts = raw.split(':').map((part) => Number(part) || 0);
+
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length >= 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+
+  const numeric = Number(raw);
+
+  return Number.isFinite(numeric) ? numeric : NaN;
+}
+
 export function KillDeathChart({
   data,
   title = '▧ Global Kill/Death Timeline',
+  killFeedMarkers = [],
 }) {
   const uid = useId();
   const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [hoveredMarker, setHoveredMarker] = useState(null);
 
   const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
 
@@ -205,8 +235,54 @@ export function KillDeathChart({
   const linePathDeaths = buildSmoothPath(pointsDeaths);
   const labelStep = getLabelStep(rows.length);
 
+  const markerPoints = (killFeedMarkers || [])
+    .map((marker, markerIndex) => {
+      const markerTime = normalizeTimeKey(marker.time ?? marker.label ?? marker.start);
+      const markerSeconds = toSecondsFromLabel(markerTime);
+
+      let bestIndex = rows.findIndex(
+        (row) => normalizeTimeKey(row.label) === markerTime,
+      );
+
+      if (bestIndex < 0 && Number.isFinite(markerSeconds)) {
+        let bestDistance = Infinity;
+
+        rows.forEach((row, rowIndex) => {
+          const rowSeconds = toSecondsFromLabel(row.label);
+
+          if (!Number.isFinite(rowSeconds)) return;
+
+          const distance = Math.abs(rowSeconds - markerSeconds);
+
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = rowIndex;
+          }
+        });
+      }
+
+      if (bestIndex < 0 || !pointsKills[bestIndex] || !pointsDeaths[bestIndex]) {
+        return null;
+      }
+
+      const pointKill = pointsKills[bestIndex];
+      const pointDeath = pointsDeaths[bestIndex];
+
+      return {
+        ...marker,
+        markerIndex,
+        isKillFeed: true,
+        x: pointKill.x,
+        y: Math.max(pad.top + 8, Math.min(pointKill.y, pointDeath.y) - 10),
+        label: markerTime || rows[bestIndex].label,
+        guild: marker.guild || marker.war || '-',
+      };
+    })
+    .filter(Boolean);
+
   const hovered =
-    hoveredIndex == null
+    hoveredMarker ||
+    (hoveredIndex == null
       ? null
       : {
           x: pointsKills[hoveredIndex].x,
@@ -217,7 +293,7 @@ export function KillDeathChart({
           label: rows[hoveredIndex].label,
           kills: rows[hoveredIndex].kills,
           deaths: rows[hoveredIndex].deaths,
-        };
+        });
 
   const topGlowAreaKills = pointsKills.length
     ? `${linePathKills} L ${
@@ -243,7 +319,10 @@ export function KillDeathChart({
 
       <div
         className="relative overflow-hidden rounded-2xl border border-slate-800/60 bg-transparent"
-        onMouseLeave={() => setHoveredIndex(null)}
+        onMouseLeave={() => {
+          setHoveredIndex(null);
+          setHoveredMarker(null);
+        }}
       >
         {hovered && (
           <div
@@ -257,8 +336,15 @@ export function KillDeathChart({
             <p className="mb-1 font-bold text-slate-200">
               Ora: {hovered.label}
             </p>
-            <p className="text-emerald-300">Kills: {hovered.kills}</p>
-            <p className="text-rose-300">Deaths: {hovered.deaths}</p>
+
+            {hovered.isKillFeed ? (
+              <p className="text-yellow-300">Guild: {hovered.guild}</p>
+            ) : (
+              <>
+                <p className="text-emerald-300">Kills: {hovered.kills}</p>
+                <p className="text-rose-300">Deaths: {hovered.deaths}</p>
+              </>
+            )}
           </div>
         )}
 
@@ -567,10 +653,29 @@ export function KillDeathChart({
                 width={Math.max(12, endX - startX)}
                 height={height - pad.top - pad.bottom}
                 fill="transparent"
-                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseEnter={() => {
+                  setHoveredIndex(index);
+                  setHoveredMarker(null);
+                }}
               />
             );
           })}
+
+          {markerPoints.map((marker) => (
+            <circle
+              key={marker.id || `killfeed-marker-${marker.markerIndex}`}
+              cx={marker.x}
+              cy={marker.y}
+              r="4"
+              fill="#facc15"
+              stroke="rgba(15,23,42,0.95)"
+              strokeWidth="1.5"
+              onMouseEnter={() => {
+                setHoveredMarker(marker);
+                setHoveredIndex(null);
+              }}
+            />
+          ))}
         </svg>
       </div>
     </Panel>
