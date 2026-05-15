@@ -53,12 +53,16 @@ function RankList({ title, items, valueKey }) {
 }
 
 function timeToSecondsValue(time) {
-  const parts = String(time || '00:00:00')
-    .split(':')
-    .map((part) => Number(part) || 0);
+  const raw = String(time || '').trim();
+
+  if (!raw) return 0;
+
+  const parts = raw.split(':').map((part) => Number(part) || 0);
+
+  if (parts.length === 1) return parts[0];
 
   if (parts.length === 2) {
-    return parts[0] * 60 + parts[1];
+    return parts[0] * 3600 + parts[1] * 60;
   }
 
   return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -976,16 +980,6 @@ export default function OverviewPage({
   const killFeeds = calculateKillFeed(stats.ev, 10, true);
   const showKillFeedMarkers = (selectedLogs || []).length === 1;
 
-  function toEventSeconds(event) {
-    const byTime = timeToSecondsValue(event?.time);
-
-    if (Number.isFinite(byTime)) return byTime;
-
-    const numericSec = Number(event?.sec);
-
-    return Number.isFinite(numericSec) ? numericSec : 0;
-  }
-
   function looksLikeDate(value) {
     return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
   }
@@ -1004,12 +998,12 @@ export default function OverviewPage({
         const endSec = timeToSecondsValue(feed.end);
         const victims = new Set(feed.victims || []);
 
-        const strictEvents = [...(stats.ev || [])]
+        const feedEvents = [...(stats.ev || [])]
           .filter((event) => {
             if (event.type !== 'kill') return false;
             if (event.killer !== feed.name) return false;
 
-            const eventSec = toEventSeconds(event);
+            const eventSec = timeToSecondsValue(event.time);
             const insideWindow =
               eventSec >= Math.min(startSec, endSec) &&
               eventSec <= Math.max(startSec, endSec);
@@ -1021,29 +1015,10 @@ export default function OverviewPage({
           .sort(
             (a, b) =>
               String(a.date || '').localeCompare(String(b.date || '')) ||
-              toEventSeconds(a) - toEventSeconds(b) ||
+              timeToSecondsValue(a.time) - timeToSecondsValue(b.time) ||
               (Number(a.i) || 0) - (Number(b.i) || 0),
           );
 
-        const looseEvents = strictEvents.length
-          ? strictEvents
-          : [...(stats.ev || [])]
-              .filter((event) => {
-                if (event.type !== 'kill') return false;
-                if (event.killer !== feed.name) return false;
-
-                const eventSec = toEventSeconds(event);
-
-                return Math.abs(eventSec - startSec) <= 15;
-              })
-              .sort(
-                (a, b) =>
-                  Math.abs(toEventSeconds(a) - startSec) -
-                    Math.abs(toEventSeconds(b) - startSec) ||
-                  (Number(a.i) || 0) - (Number(b.i) || 0),
-              );
-
-        const feedEvents = looseEvents.length ? looseEvents : strictEvents;
         const firstEvent = feedEvents[0];
 
         const guild =
