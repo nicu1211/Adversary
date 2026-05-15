@@ -284,69 +284,68 @@ function parseSummaryLine(line) {
   };
 }
 
-function summaryRowToEvents(row, rowIndex, name, date, id) {
+function parseSummaryRows(raw) {
+  return cleanLog(raw)
+    .split(NL)
+    .map(parseSummaryLine)
+    .filter(Boolean);
+}
+
+function summaryRowsToEvents(rows, name, date, id) {
   const events = [];
-  const safePlayer = row.player;
-  let eventIndex = rowIndex * 100000;
+  let eventIndex = 0;
 
-  for (let killIndex = 0; killIndex < row.kills; killIndex += 1) {
-    const sec = eventIndex;
+  rows.forEach((row, rowIndex) => {
+    for (let killIndex = 0; killIndex < row.kills; killIndex += 1) {
+      events.push({
+        i: eventIndex,
+        type: 'kill',
+        time: minuteLabel(eventIndex),
+        sec: eventIndex,
+        killer: row.player,
+        victim: `Unknown_${rowIndex}_${killIndex}`,
+        guild: 'Manual Summary',
+        kf: '-',
+        vf: '-',
+        war: name,
+        date,
+        id,
+        source: 'summary',
+      });
 
-    events.push({
-      i: eventIndex,
-      type: 'kill',
-      time: minuteLabel(sec),
-      sec,
-      killer: safePlayer,
-      victim: `Unknown_${rowIndex}_${killIndex}`,
-      guild: 'Manual Summary',
-      kf: '-',
-      vf: '-',
-      war: name,
-      date,
-      id,
-      source: 'summary',
-    });
+      eventIndex += 1;
+    }
 
-    eventIndex += 1;
-  }
+    for (let deathIndex = 0; deathIndex < row.deaths; deathIndex += 1) {
+      events.push({
+        i: eventIndex,
+        type: 'death',
+        time: minuteLabel(eventIndex),
+        sec: eventIndex,
+        killer: `Unknown_${rowIndex}_${deathIndex}`,
+        victim: row.player,
+        guild: 'Manual Summary',
+        kf: '-',
+        vf: '-',
+        war: name,
+        date,
+        id,
+        source: 'summary',
+      });
 
-  for (let deathIndex = 0; deathIndex < row.deaths; deathIndex += 1) {
-    const sec = eventIndex;
-
-    events.push({
-      i: eventIndex,
-      type: 'death',
-      time: minuteLabel(sec),
-      sec,
-      killer: `Unknown_${rowIndex}_${deathIndex}`,
-      victim: safePlayer,
-      guild: 'Manual Summary',
-      kf: '-',
-      vf: '-',
-      war: name,
-      date,
-      id,
-      source: 'summary',
-    });
-
-    eventIndex += 1;
-  }
+      eventIndex += 1;
+    }
+  });
 
   return events;
 }
 
 function parseSummaryLog(raw, name, date, id) {
-  const rows = cleanLog(raw)
-    .split(NL)
-    .map(parseSummaryLine)
-    .filter(Boolean);
+  const rows = parseSummaryRows(raw);
 
   if (!rows.length) return [];
 
-  return rows.flatMap((row, rowIndex) =>
-    summaryRowToEvents(row, rowIndex, name, date, id),
-  );
+  return summaryRowsToEvents(rows, name, date, id);
 }
 
 export function parseLog(raw, name, date, id) {
@@ -362,17 +361,9 @@ export function parseLog(raw, name, date, id) {
 
   const summaryEvents = parseSummaryLog(cleaned, name, date, id);
 
-  if (!classicEvents.length && summaryEvents.length) {
-    return summaryEvents.sort((a, b) => a.sec - b.sec || a.i - b.i);
-  }
-
-  if (classicEvents.length && summaryEvents.length) {
-    return [...classicEvents, ...summaryEvents].sort(
-      (a, b) => a.sec - b.sec || a.i - b.i,
-    );
-  }
-
-  return classicEvents.sort((a, b) => a.sec - b.sec || a.i - b.i);
+  return [...classicEvents, ...summaryEvents].sort(
+    (a, b) => a.sec - b.sec || a.i - b.i,
+  );
 }
 
 export function calculateStreaks(events) {
@@ -477,26 +468,33 @@ function calculateStatsFromRaw(items) {
   const minutes = {};
 
   events.forEach((event) => {
+    const killerIsUnknown = String(event.killer || '').startsWith('Unknown_');
+    const victimIsUnknown = String(event.victim || '').startsWith('Unknown_');
+
     if (event.type === 'kill') {
-      add(playerKills, event.killer);
+      if (!killerIsUnknown) {
+        add(playerKills, event.killer);
+      }
 
       if (event.guild && event.guild !== 'Manual Summary') {
         add(guildKills, event.guild);
       }
     } else {
-      add(playerDeaths, event.victim);
+      if (!victimIsUnknown) {
+        add(playerDeaths, event.victim);
+      }
 
       if (event.guild && event.guild !== 'Manual Summary') {
         add(guildDeaths, event.guild);
       }
     }
 
-    if (!String(event.killer || '').startsWith('Unknown_')) {
-      families[event.killer] = event.kf;
+    if (!killerIsUnknown) {
+      families[event.killer] = event.kf || families[event.killer] || '-';
     }
 
-    if (!String(event.victim || '').startsWith('Unknown_')) {
-      families[event.victim] = event.vf;
+    if (!victimIsUnknown) {
+      families[event.victim] = event.vf || families[event.victim] || '-';
     }
 
     const minute = minuteLabel(Math.floor(event.sec / 60) * 60);
@@ -531,7 +529,6 @@ function calculateStatsFromRaw(items) {
   const players = [
     ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
   ]
-    .filter((player) => !String(player || '').startsWith('Unknown_'))
     .map((player) => {
       const kills = playerKills[player] || 0;
       const deaths = playerDeaths[player] || 0;
@@ -599,7 +596,8 @@ function mergeStatsFromSummaries(items) {
       add(playerKills, player.name, Number(player.kills) || 0);
       add(playerDeaths, player.name, Number(player.deaths) || 0);
 
-      playerFamilies[player.name] = player.family || playerFamilies[player.name] || '-';
+      playerFamilies[player.name] =
+        player.family || playerFamilies[player.name] || '-';
     });
 
     summary.guilds.forEach((guild) => {
