@@ -971,7 +971,9 @@ export default function PlayerStats({ stats }) {
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
       <PlayerSelect
-        players={stats.players}
+        players={[...stats.players].sort((a, b) =>
+          String(a.name || '').localeCompare(String(b.name || '')),
+        )}
         value={player}
         onChange={setPlayer}
       />
