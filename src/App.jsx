@@ -735,11 +735,12 @@ export default function App() {
   }
 
   function openOverviewFromMenu() {
+    const allSavedLogsSelected = selectedWars.includes('all');
     const selectedRealWars = selectedWars.filter(
       (id) => id !== 'all' && id !== 'current',
     );
 
-    if (!selectedRealWars.length) {
+    if (!allSavedLogsSelected && !selectedRealWars.length) {
       setNodeWarsWarning('No node war selected.\nSelect at least one war first.');
       setPage('nodewars');
       return;
