@@ -1,5 +1,8 @@
 const NL = String.fromCharCode(10);
 
+const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
+const SECONDARY_LOG_END = '===== ADVERSARY_SECONDARY_LOG_END =====';
+
 export const LOG_KEY = 'bdo_logs_v10';
 export const MEMBER_KEY = 'bdo_members_v10';
 
@@ -128,6 +131,8 @@ export function dateOf(log) {
 function normalizeSummary(summary) {
   if (!summary || typeof summary !== 'object') return null;
 
+  const secondary = summary.secondary || summary.secondaryStats || null;
+
   return {
     version: summary.version || 1,
     kills: Number(summary.kills) || 0,
@@ -153,6 +158,7 @@ function normalizeSummary(summary) {
         : [],
     st: summary.st || {},
     fd: summary.fd || {},
+    secondary,
     hasTimeline: Boolean(summary.hasTimeline),
     summaryOnly: Boolean(summary.summaryOnly),
     calculatedAt: summary.calculatedAt || summary.calculated_at || null,
@@ -200,6 +206,181 @@ export function normalizeLogs(data) {
 
 export function normalizeMembers(data) {
   return Array.isArray(data) ? data : data?.members || data?.data || [];
+}
+
+
+function splitRawLogSections(raw) {
+  const text = String(raw || '');
+
+  if (!text.includes(SECONDARY_LOG_START) || !text.includes(SECONDARY_LOG_END)) {
+    return {
+      mainRaw: text,
+      secondaryRaw: '',
+    };
+  }
+
+  const mainRaw = text.split(SECONDARY_LOG_START)[0] || '';
+  const afterStart = text.split(SECONDARY_LOG_START)[1] || '';
+  const secondaryRaw = afterStart.split(SECONDARY_LOG_END)[0] || '';
+
+  return {
+    mainRaw: mainRaw.trim(),
+    secondaryRaw: secondaryRaw.trim(),
+  };
+}
+
+function parseSecondaryNumber(value) {
+  const raw = String(value || '').trim();
+
+  if (!raw) return 0;
+
+  const multiplier = /m\s*$/i.test(raw)
+    ? 1000000
+    : /k\s*$/i.test(raw)
+      ? 1000
+      : 1;
+
+  const cleaned = raw
+    .replace(/\s+/g, '')
+    .replace(/[kKmM]$/g, '')
+    .replace(/(?<=\d)[,.](?=\d{3}(\D|$))/g, '')
+    .replace(',', '.');
+
+  const number = Number(cleaned.replace(/[^\d.-]/g, ''));
+
+  return Number.isFinite(number) ? number * multiplier : 0;
+}
+
+function isSecondaryNumber(value) {
+  const raw = String(value || '').trim();
+
+  return /^[-+]?\d[\d\s.,]*(?:[kKmM])?$/.test(raw);
+}
+
+function splitSecondaryColumns(line) {
+  const text = String(line || '').trim();
+
+  if (!text) return [];
+
+  const separatorCandidates = [
+    text.split(/\t+/),
+    text.split(/\s*\|\s*/),
+    text.split(/\s*;\s*/),
+  ].filter((parts) => parts.length > 1);
+
+  const bestSeparated = separatorCandidates
+    .map((parts) => parts.map((part) => part.trim()).filter(Boolean))
+    .sort((a, b) => b.length - a.length)[0];
+
+  if (bestSeparated?.length > 1) return bestSeparated;
+
+  const multiSpace = text.split(/\s{2,}/).map((part) => part.trim()).filter(Boolean);
+
+  if (multiSpace.length > 1) return multiSpace;
+
+  return text.split(/\s+/).map((part) => part.trim()).filter(Boolean);
+}
+
+function normalizeSecondaryPlayerName(parts) {
+  const name = parts.join(' ').replace(/^[-#•\d.\s]+/, '').trim();
+
+  if (!name || isSecondaryNumber(name)) return '';
+
+  const lower = name.toLowerCase();
+
+  if (
+    lower.includes('kill') ||
+    lower.includes('death') ||
+    lower.includes('damage') ||
+    lower.includes('streak') ||
+    lower.includes('total') ||
+    lower.includes('fort') ||
+    lower.includes('cc')
+  ) {
+    return '';
+  }
+
+  return name;
+}
+
+function parseSecondaryLine(line, index) {
+  const columns = splitSecondaryColumns(line);
+
+  if (columns.length < 2) return null;
+
+  const firstNumberIndex = columns.findIndex(isSecondaryNumber);
+
+  if (firstNumberIndex < 0) return null;
+
+  const numericColumns = columns.slice(firstNumberIndex).filter(isSecondaryNumber);
+
+  if (numericColumns.length < 2) return null;
+
+  const player = normalizeSecondaryPlayerName(columns.slice(0, firstNumberIndex));
+  const kills = Math.round(parseSecondaryNumber(numericColumns[0]));
+  const deaths = Math.round(parseSecondaryNumber(numericColumns[1]));
+  const killStreak = Math.round(parseSecondaryNumber(numericColumns[2]));
+  const damageDealt = Math.round(parseSecondaryNumber(numericColumns[3]));
+  const damageTaken = Math.round(parseSecondaryNumber(numericColumns[4]));
+  const ccHits = Math.round(parseSecondaryNumber(numericColumns[5]));
+  const fortDamage = Math.round(parseSecondaryNumber(numericColumns[8]));
+
+  if (
+    kills === 0 &&
+    deaths === 0 &&
+    killStreak === 0 &&
+    damageDealt === 0 &&
+    damageTaken === 0 &&
+    ccHits === 0 &&
+    fortDamage === 0
+  ) {
+    return null;
+  }
+
+  return {
+    player,
+    kills,
+    deaths,
+    killStreak,
+    damageDealt,
+    damageTaken,
+    ccHits,
+    fortDamage,
+    line: index + 1,
+  };
+}
+
+export function parseSecondaryRows(raw) {
+  const { secondaryRaw } = splitRawLogSections(raw);
+  const source = secondaryRaw || String(raw || '');
+
+  return cleanLog(source)
+    .split(NL)
+    .map(parseSecondaryLine)
+    .filter(Boolean);
+}
+
+function secondaryRowsTotals(rows) {
+  return rows.reduce(
+    (totals, row) => ({
+      kills: totals.kills + (Number(row.kills) || 0),
+      deaths: totals.deaths + (Number(row.deaths) || 0),
+      killStreak: Math.max(totals.killStreak, Number(row.killStreak) || 0),
+      damageDealt: totals.damageDealt + (Number(row.damageDealt) || 0),
+      damageTaken: totals.damageTaken + (Number(row.damageTaken) || 0),
+      ccHits: totals.ccHits + (Number(row.ccHits) || 0),
+      fortDamage: totals.fortDamage + (Number(row.fortDamage) || 0),
+    }),
+    {
+      kills: 0,
+      deaths: 0,
+      killStreak: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+    },
+  );
 }
 
 function parseClassicEventLine(line, index, name, date, id) {
@@ -350,13 +531,29 @@ function summaryRowsToValidationEvents(rows, name, date, id) {
 }
 
 export function parseLog(raw, name, date, id) {
-  const cleaned = cleanLog(raw);
+  const { mainRaw, secondaryRaw } = splitRawLogSections(raw);
+  const cleanedMain = cleanLog(mainRaw);
+  const cleanedSecondary = cleanLog(secondaryRaw);
 
-  if (!cleaned) return [];
+  if (!cleanedMain && !cleanedSecondary) return [];
 
-  const classicEvents = parseClassicEvents(cleaned, name, date, id);
-  const summaryRows = parseSummaryRows(cleaned);
-  const summaryEvents = summaryRowsToValidationEvents(summaryRows, name, date, id);
+  const classicEvents = parseClassicEvents(cleanedMain, name, date, id);
+  const summaryRows = parseSummaryRows(cleanedMain);
+  const secondaryRows = parseSecondaryRows(secondaryRaw);
+  const secondarySummaryRows = secondaryRows
+    .filter((row) => row.player)
+    .map((row) => ({
+      player: row.player,
+      kills: row.kills,
+      deaths: row.deaths,
+    }));
+
+  const summaryEvents = summaryRowsToValidationEvents(
+    [...summaryRows, ...secondarySummaryRows],
+    name,
+    date,
+    id,
+  );
 
   return [...classicEvents, ...summaryEvents].sort(
     (a, b) => a.sec - b.sec || a.i - b.i,
@@ -444,12 +641,23 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
 }
 
 function calculateStatsFromRaw(items) {
-  const classicEvents = items
-    .flatMap((log) => parseClassicEvents(log.raw, log.name, log.date, log.id))
+  const normalizedItems = items.map((log) => {
+    const sections = splitRawLogSections(log.raw);
+
+    return {
+      ...log,
+      raw: String(log.raw || ''),
+      mainRaw: sections.mainRaw,
+      secondaryRaw: sections.secondaryRaw,
+    };
+  });
+
+  const classicEvents = normalizedItems
+    .flatMap((log) => parseClassicEvents(log.mainRaw, log.name, log.date, log.id))
     .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i);
 
-  const summaryRows = items.flatMap((log) =>
-    parseSummaryRows(log.raw).map((row) => ({
+  const summaryRows = normalizedItems.flatMap((log) =>
+    parseSummaryRows(log.mainRaw).map((row) => ({
       ...row,
       date: log.date,
       id: log.id,
@@ -457,7 +665,16 @@ function calculateStatsFromRaw(items) {
     })),
   );
 
-  if (!classicEvents.length && !summaryRows.length) {
+  const secondaryRows = normalizedItems.flatMap((log) =>
+    parseSecondaryRows(log.secondaryRaw).map((row) => ({
+      ...row,
+      date: log.date,
+      id: log.id,
+      war: log.name,
+    })),
+  );
+
+  if (!classicEvents.length && !summaryRows.length && !secondaryRows.length) {
     return {
       ev: [],
       players: [],
@@ -468,6 +685,10 @@ function calculateStatsFromRaw(items) {
       kd: '0.00',
       st: {},
       fd: {},
+      secondary: {
+        rows: [],
+        totals: secondaryRowsTotals([]),
+      },
       hasTimeline: false,
       summaryOnly: false,
     };
@@ -479,13 +700,18 @@ function calculateStatsFromRaw(items) {
   const guildKills = {};
   const guildDeaths = {};
   const minutes = {};
+  const classicPlayerKills = {};
+  const classicPlayerDeaths = {};
+  const secondaryByPlayer = {};
 
   classicEvents.forEach((event) => {
     if (event.type === 'kill') {
       add(playerKills, event.killer);
+      add(classicPlayerKills, event.killer);
       add(guildKills, event.guild);
     } else {
       add(playerDeaths, event.victim);
+      add(classicPlayerDeaths, event.victim);
       add(guildDeaths, event.guild);
     }
 
@@ -509,8 +735,41 @@ function calculateStatsFromRaw(items) {
     families[row.player] = families[row.player] || '-';
   });
 
+  secondaryRows.forEach((row) => {
+    if (!row.player) return;
+
+    const current = secondaryByPlayer[row.player] || {
+      player: row.player,
+      kills: 0,
+      deaths: 0,
+      killStreak: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+    };
+
+    secondaryByPlayer[row.player] = {
+      ...current,
+      kills: current.kills + (Number(row.kills) || 0),
+      deaths: current.deaths + (Number(row.deaths) || 0),
+      killStreak: Math.max(current.killStreak, Number(row.killStreak) || 0),
+      damageDealt: current.damageDealt + (Number(row.damageDealt) || 0),
+      damageTaken: current.damageTaken + (Number(row.damageTaken) || 0),
+      ccHits: current.ccHits + (Number(row.ccHits) || 0),
+      fortDamage: current.fortDamage + (Number(row.fortDamage) || 0),
+    };
+  });
+
+  Object.values(secondaryByPlayer).forEach((row) => {
+    playerKills[row.player] = Number(row.kills) || 0;
+    playerDeaths[row.player] = Number(row.deaths) || 0;
+    families[row.player] = families[row.player] || '-';
+  });
+
   const hasTimeline = classicEvents.length > 0;
-  const summaryOnly = summaryRows.length > 0 && classicEvents.length === 0;
+  const summaryOnly =
+    (summaryRows.length > 0 || secondaryRows.length > 0) && classicEvents.length === 0;
   const line = [];
 
   if (hasTimeline) {
@@ -532,10 +791,16 @@ function calculateStatsFromRaw(items) {
     }
   }
 
+  const secondaryPlayerNames = new Set(Object.keys(secondaryByPlayer));
+  const secondaryTotals = secondaryRowsTotals(secondaryRows);
+  const hasNamedSecondaryRows = secondaryPlayerNames.size > 0;
+  const hasSecondaryRows = secondaryRows.length > 0;
+
   const players = [
     ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
   ]
     .map((name) => {
+      const secondary = secondaryByPlayer[name] || null;
       const kills = playerKills[name] || 0;
       const deaths = playerDeaths[name] || 0;
 
@@ -545,6 +810,15 @@ function calculateStatsFromRaw(items) {
         kills,
         deaths,
         kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+        ...(secondary
+          ? {
+              killStreak: secondary.killStreak,
+              damageDealt: secondary.damageDealt,
+              damageTaken: secondary.damageTaken,
+              ccHits: secondary.ccHits,
+              fortDamage: secondary.fortDamage,
+            }
+          : {}),
       };
     })
     .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
@@ -563,13 +837,41 @@ function calculateStatsFromRaw(items) {
     };
   });
 
-  const kills =
-    classicEvents.filter((event) => event.type === 'kill').length +
-    summaryRows.reduce((sum, row) => sum + row.kills, 0);
+  const classicKills = classicEvents.filter((event) => event.type === 'kill').length;
+  const classicDeaths = classicEvents.filter((event) => event.type === 'death').length;
+  const summaryKills = summaryRows.reduce((sum, row) => sum + row.kills, 0);
+  const summaryDeaths = summaryRows.reduce((sum, row) => sum + row.deaths, 0);
 
-  const deaths =
-    classicEvents.filter((event) => event.type === 'death').length +
-    summaryRows.reduce((sum, row) => sum + row.deaths, 0);
+  const classicExtraKills = hasNamedSecondaryRows
+    ? Object.entries(classicPlayerKills).reduce(
+        (sum, [player, value]) =>
+          secondaryPlayerNames.has(player) ? sum : sum + (Number(value) || 0),
+        0,
+      )
+    : 0;
+
+  const classicExtraDeaths = hasNamedSecondaryRows
+    ? Object.entries(classicPlayerDeaths).reduce(
+        (sum, [player, value]) =>
+          secondaryPlayerNames.has(player) ? sum : sum + (Number(value) || 0),
+        0,
+      )
+    : 0;
+
+  const kills = hasSecondaryRows
+    ? secondaryTotals.kills + classicExtraKills + summaryKills
+    : classicKills + summaryKills;
+
+  const deaths = hasSecondaryRows
+    ? secondaryTotals.deaths + classicExtraDeaths + summaryDeaths
+    : classicDeaths + summaryDeaths;
+
+  const classicStreaks = hasTimeline ? calculateStreaks(classicEvents) : {};
+  const st = { ...classicStreaks };
+
+  Object.values(secondaryByPlayer).forEach((row) => {
+    st[row.player] = Math.max(Number(st[row.player]) || 0, Number(row.killStreak) || 0);
+  });
 
   return {
     ev: classicEvents,
@@ -579,8 +881,12 @@ function calculateStatsFromRaw(items) {
     kills,
     deaths,
     kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
-    st: hasTimeline ? calculateStreaks(classicEvents) : {},
+    st,
     fd: hasTimeline ? calculateKillFeed(classicEvents) : {},
+    secondary: {
+      rows: secondaryRows,
+      totals: secondaryTotals,
+    },
     hasTimeline,
     summaryOnly,
   };
@@ -595,6 +901,16 @@ function mergeStatsFromSummaries(items) {
   const lineMap = {};
   const st = {};
   const fd = {};
+  const secondaryByPlayer = {};
+  const secondaryTotals = {
+    kills: 0,
+    deaths: 0,
+    killStreak: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    ccHits: 0,
+    fortDamage: 0,
+  };
 
   let kills = 0;
   let deaths = 0;
@@ -616,7 +932,44 @@ function mergeStatsFromSummaries(items) {
 
       playerFamilies[player.name] =
         player.family || playerFamilies[player.name] || '-';
+
+      if (
+        player.killStreak != null ||
+        player.damageDealt != null ||
+        player.damageTaken != null ||
+        player.ccHits != null ||
+        player.fortDamage != null
+      ) {
+        const current = secondaryByPlayer[player.name] || {
+          killStreak: 0,
+          damageDealt: 0,
+          damageTaken: 0,
+          ccHits: 0,
+          fortDamage: 0,
+        };
+
+        secondaryByPlayer[player.name] = {
+          killStreak: Math.max(current.killStreak, Number(player.killStreak) || 0),
+          damageDealt: current.damageDealt + (Number(player.damageDealt) || 0),
+          damageTaken: current.damageTaken + (Number(player.damageTaken) || 0),
+          ccHits: current.ccHits + (Number(player.ccHits) || 0),
+          fortDamage: current.fortDamage + (Number(player.fortDamage) || 0),
+        };
+      }
     });
+
+    if (summary.secondary?.totals) {
+      secondaryTotals.kills += Number(summary.secondary.totals.kills) || 0;
+      secondaryTotals.deaths += Number(summary.secondary.totals.deaths) || 0;
+      secondaryTotals.killStreak = Math.max(
+        secondaryTotals.killStreak,
+        Number(summary.secondary.totals.killStreak) || 0,
+      );
+      secondaryTotals.damageDealt += Number(summary.secondary.totals.damageDealt) || 0;
+      secondaryTotals.damageTaken += Number(summary.secondary.totals.damageTaken) || 0;
+      secondaryTotals.ccHits += Number(summary.secondary.totals.ccHits) || 0;
+      secondaryTotals.fortDamage += Number(summary.secondary.totals.fortDamage) || 0;
+    }
 
     summary.guilds.forEach((guild) => {
       add(guildKills, guild.name, Number(guild.kills) || 0);
@@ -637,14 +990,15 @@ function mergeStatsFromSummaries(items) {
         lineMap[key].deaths += Number(point.deaths) || 0;
       });
 
-      Object.entries(summary.st || {}).forEach(([name, value]) => {
-        st[name] = Math.max(Number(st[name]) || 0, Number(value) || 0);
-      });
-
-      Object.entries(summary.fd || {}).forEach(([name, value]) => {
-        fd[name] = Math.max(Number(fd[name]) || 0, Number(value) || 0);
-      });
     }
+
+    Object.entries(summary.st || {}).forEach(([name, value]) => {
+      st[name] = Math.max(Number(st[name]) || 0, Number(value) || 0);
+    });
+
+    Object.entries(summary.fd || {}).forEach(([name, value]) => {
+      fd[name] = Math.max(Number(fd[name]) || 0, Number(value) || 0);
+    });
   });
 
   const players = [
@@ -654,12 +1008,23 @@ function mergeStatsFromSummaries(items) {
       const pk = playerKills[name] || 0;
       const pd = playerDeaths[name] || 0;
 
+      const secondary = secondaryByPlayer[name] || null;
+
       return {
         name,
         family: playerFamilies[name] || '-',
         kills: pk,
         deaths: pd,
         kd: pd ? (pk / pd).toFixed(2) : pk.toFixed(2),
+        ...(secondary
+          ? {
+              killStreak: secondary.killStreak,
+              damageDealt: secondary.damageDealt,
+              damageTaken: secondary.damageTaken,
+              ccHits: secondary.ccHits,
+              fortDamage: secondary.fortDamage,
+            }
+          : {}),
       };
     })
     .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
@@ -690,6 +1055,10 @@ function mergeStatsFromSummaries(items) {
     kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
     st,
     fd,
+    secondary: {
+      rows: [],
+      totals: secondaryTotals,
+    },
     hasTimeline,
     summaryOnly: summaryOnly && !hasTimeline,
   };
@@ -709,6 +1078,7 @@ export function calculateStats(items) {
       kd: '0.00',
       st: {},
       fd: {},
+      secondary: { rows: [], totals: secondaryRowsTotals([]) },
       hasTimeline: false,
       summaryOnly: false,
     };
@@ -759,8 +1129,9 @@ export function buildLogSummary(log) {
     line: stats.hasTimeline ? stats.line : [],
     topEnemies,
     enemyNames: stats.guilds.map((guild) => guild.name).filter(Boolean),
-    st: stats.hasTimeline ? stats.st : {},
+    st: stats.st || {},
     fd: stats.hasTimeline ? stats.fd : {},
+    secondary: stats.secondary,
     hasTimeline: stats.hasTimeline,
     summaryOnly: stats.summaryOnly,
     calculatedAt: new Date().toISOString(),
@@ -785,6 +1156,7 @@ export function getLogSummary(log) {
       enemyNames: [],
       st: {},
       fd: {},
+      secondary: { rows: [], totals: secondaryRowsTotals([]) },
       hasTimeline: false,
       summaryOnly: false,
     });
