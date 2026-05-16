@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
   Activity,
   CalendarDays,
-  Gauge,
   ChevronDown,
   Crosshair,
   Search,
@@ -149,6 +148,7 @@ function PeriodSelect({ value, onChange, loading = false }) {
   const [open, setOpen] = useState(false);
 
   const options = [
+    { value: 7, label: 'Last 7 Days' },
     { value: 30, label: 'Last 30 Days' },
     { value: 'all', label: 'All Time' },
   ];
@@ -540,6 +540,48 @@ function KillsDeathsTrend({ rows }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+
+          {safeKills.map((value, index) => {
+            const x =
+              safeKills.length === 1
+                ? width / 2
+                : (index / (safeKills.length - 1)) * width;
+
+            const y = bottom - ((Number(value) || 0) / max) * height;
+
+            return (
+              <circle
+                key={`kills-${value}-${index}`}
+                cx={x}
+                cy={y}
+                r="2.3"
+                fill="rgb(15 23 42)"
+                stroke="rgb(52 211 153)"
+                strokeWidth="1.8"
+              />
+            );
+          })}
+
+          {safeDeaths.map((value, index) => {
+            const x =
+              safeDeaths.length === 1
+                ? width / 2
+                : (index / (safeDeaths.length - 1)) * width;
+
+            const y = bottom - ((Number(value) || 0) / max) * height;
+
+            return (
+              <circle
+                key={`deaths-${value}-${index}`}
+                cx={x}
+                cy={y}
+                r="2.3"
+                fill="rgb(15 23 42)"
+                stroke="rgb(251 113 133)"
+                strokeWidth="1.8"
+              />
+            );
+          })}
         </svg>
       </div>
     </div>
@@ -550,7 +592,7 @@ function KillsDeathsTrend({ rows }) {
 export default function NodeWars({
   logs,
   loading = false,
-  periodDays = 30,
+  periodDays = 7,
   onPeriodChange = () => {},
   setPage,
   setSelectedDays,
@@ -685,15 +727,17 @@ export default function NodeWars({
 
   const visibleIds = rows.map((row) => String(row.id));
 
+  const allSavedLogsSelected = selectedWars.includes('all');
+
   const selectedRealWars = selectedWars.filter(
     (id) => id !== 'all' && id !== 'current',
   );
 
-  const hasAnySelection = selectedRealWars.length > 0;
+  const hasAnySelection = allSavedLogsSelected || selectedRealWars.length > 0;
 
-  const selectedVisibleCount = visibleIds.filter((id) =>
-    selectedRealWars.includes(id),
-  ).length;
+  const selectedVisibleCount = allSavedLogsSelected
+    ? visibleIds.length
+    : visibleIds.filter((id) => selectedRealWars.includes(id)).length;
 
   const totals = useMemo(() => {
     const kills = rows.reduce((sum, row) => sum + row.kills, 0);
@@ -748,11 +792,11 @@ export default function NodeWars({
     }
 
     setSelectedDays(['all']);
-    setSelectedWars(visibleIds);
+    setSelectedWars(['all']);
   }
 
   function openSelectedOverview() {
-    if (selectedRealWars.length === 0) {
+    if (!allSavedLogsSelected && selectedRealWars.length === 0) {
       clearExternalWarning();
       setWarning('No node war selected. Select at least one war first.');
       return;
@@ -901,7 +945,7 @@ export default function NodeWars({
             barClass={
               Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'
             }
-            icon={<Gauge size={20} className="text-cyan-300" />}
+            icon={<Activity size={20} className="text-cyan-300" />}
           />
 
           <KillsDeathsTrend rows={rows} />
@@ -922,7 +966,7 @@ export default function NodeWars({
           ) : (
             rows.map((row, index) => {
               const id = String(row.id);
-              const checked = selectedRealWars.includes(id);
+              const checked = allSavedLogsSelected || selectedRealWars.includes(id);
 
               return (
                 <WarCard
