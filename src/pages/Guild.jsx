@@ -144,6 +144,18 @@ function getTierByScore(value) {
   return 'D';
 }
 
+function getRankedTier(index, total) {
+  const tiers = ['S', 'A', 'B', 'C', 'D'];
+
+  if (!total) return 'D';
+
+  if (total < tiers.length) {
+    return tiers[Math.min(index, tiers.length - 1)];
+  }
+
+  return tiers[Math.min(tiers.length - 1, Math.floor((index * tiers.length) / total))];
+}
+
 function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
   const kdScore = Math.min(3, Math.max(0, kdNumber)) / 3 * 45;
   const deathVolumeScore = Math.min(400, Math.max(0, deaths)) / 400 * 25;
@@ -156,7 +168,7 @@ function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: '80+ score',
+    range: 'Top score',
     className:
       'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
@@ -164,7 +176,7 @@ const enemyTierMeta = {
   },
   A: {
     label: 'A',
-    range: '65 - 79 score',
+    range: 'High score',
     className:
       'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
@@ -172,7 +184,7 @@ const enemyTierMeta = {
   },
   B: {
     label: 'B',
-    range: '50 - 64 score',
+    range: 'Mid score',
     className:
       'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
@@ -180,7 +192,7 @@ const enemyTierMeta = {
   },
   C: {
     label: 'C',
-    range: '35 - 49 score',
+    range: 'Low score',
     className:
       'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
@@ -188,7 +200,7 @@ const enemyTierMeta = {
   },
   D: {
     label: 'D',
-    range: '< 35 score',
+    range: 'Lowest score',
     className:
       'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
@@ -292,7 +304,6 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
         matches,
         kdNumber,
       });
-      const tier = getTierByScore(score);
 
       return {
         name: guild.name,
@@ -302,7 +313,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
         kdNumber,
         matches,
         score,
-        tier,
+        tier: 'D',
       };
     })
     .filter((guild) => guild.name && guild.totalInteractions >= 30)
@@ -315,11 +326,18 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
         a.name.localeCompare(b.name),
     );
 
-  return ['S', 'A', 'B', 'C', 'D'].map((tier) => ({
-    tier,
-    meta: enemyTierMeta[tier],
-    guilds: rows.filter((guild) => guild.tier === tier),
+  const rankedRows = rows.map((guild, index) => ({
+    ...guild,
+    tier: getRankedTier(index, rows.length),
   }));
+
+  return ['S', 'A', 'B', 'C', 'D']
+    .map((tier) => ({
+      tier,
+      meta: enemyTierMeta[tier],
+      guilds: rankedRows.filter((guild) => guild.tier === tier),
+    }))
+    .filter((group) => group.guilds.length > 0);
 }
 
 function topBy(rows, key, limit = 6) {
@@ -377,6 +395,7 @@ function buildGuildData(stats, logs) {
     fortDamage,
     avgKills: matches ? kills / matches : 0,
     avgDeaths: matches ? deaths / matches : 0,
+    avgKd: matches ? kd(kills / matches, deaths / matches) : ratio,
     avgDamage: secondaryAverageMatches ? damageDealt / secondaryAverageMatches : 0,
     avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
     topKillers: topBy(enrichedPlayers, 'kills', 6),
@@ -478,22 +497,22 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
           style={{ width: `${width}%` }}
         />
 
-        <div className="pointer-events-none absolute left-1/2 top-0 z-20 w-max max-w-[260px] -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-2xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-[11px] font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
-          <div className="grid grid-cols-4 gap-2 text-center">
+        <div className="pointer-events-none absolute left-1/2 top-0 z-20 w-max max-w-[340px] -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
+          <div className="grid grid-cols-4 gap-3 text-center">
             <div>
-              <p className="text-[8px] uppercase tracking-wider text-blue-300/80">M</p>
+              <p className="text-[9px] uppercase tracking-wider text-blue-300/80">M</p>
               <p>{compact(guild.matches, 0)}</p>
             </div>
             <div>
-              <p className="text-[8px] uppercase tracking-wider text-emerald-300/80">K</p>
+              <p className="text-[9px] uppercase tracking-wider text-emerald-300/80">K</p>
               <p>{compact(guild.deaths)}</p>
             </div>
             <div>
-              <p className="text-[8px] uppercase tracking-wider text-rose-300/80">D</p>
+              <p className="text-[9px] uppercase tracking-wider text-rose-300/80">D</p>
               <p>{compact(guild.kills)}</p>
             </div>
             <div>
-              <p className="text-[8px] uppercase tracking-wider text-cyan-300/80">K/D</p>
+              <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">K/D</p>
               <p>{decimal(guild.kdNumber)}</p>
             </div>
           </div>
@@ -515,7 +534,7 @@ function EnemyGuildTierList({ groups }) {
       <SectionTitle
         icon={Trophy}
         title="Enemy Guild Tier List"
-        sub="Last 45 days · minimum 30 K+D · score uses matches, deaths, kills and enemy K/D"
+        sub="Last 45 days · minimum 30 K+D · tiers ranked by score"
       />
 
       {!hasGuilds ? (
@@ -582,9 +601,10 @@ function Arsenal({ data }) {
 
       <Panel>
         <SectionTitle icon={Activity} title="Averages" sub="Per saved match" />
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
           <MetricCard icon={Swords} label="Avg Kills" value={compact(data.avgKills)} sub="Per match" tone="emerald" />
           <MetricCard icon={Skull} label="Avg Deaths" value={compact(data.avgDeaths)} sub="Per match" tone="rose" />
+          <MetricCard icon={Gauge} label="Avg K/D" value={decimal(data.avgKd)} sub="Per match" tone="blue" />
           <MetricCard icon={Zap} label="Avg Damage" value={compact(data.avgDamage)} sub="Per match" tone="amber" />
         </div>
       </Panel>
