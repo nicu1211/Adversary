@@ -298,7 +298,6 @@ export default function App() {
   const [page, setPage] = useState('nodewars');
 
   const [raw, setRaw] = useState('');
-  const [name, setName] = useState('Battle log');
   const [date, setDate] = useState(today());
 
   const [nodeLogs, setNodeLogs] = useState([]);
@@ -306,7 +305,7 @@ export default function App() {
   const [overviewLogs, setOverviewLogs] = useState([]);
   const [members, setMembers] = useState([]);
 
-  const [periodDays, setPeriodDays] = useState(7);
+  const [periodDays, setPeriodDays] = useState(30);
   const [loadingNodeLogs, setLoadingNodeLogs] = useState(false);
   const [loadingAllLogs, setLoadingAllLogs] = useState(false);
   const [loadingOverviewLogs, setLoadingOverviewLogs] = useState(false);
@@ -324,7 +323,7 @@ export default function App() {
 
   const logs = allLogs || nodeLogs;
 
-  const loadNodeLogs = useCallback(async (nextPeriod = 7) => {
+  const loadNodeLogs = useCallback(async (nextPeriod = 30) => {
     try {
       setLoadingNodeLogs(true);
 
@@ -419,7 +418,7 @@ export default function App() {
   }, [page, selectedWars]);
 
   useEffect(() => {
-    loadNodeLogs(7);
+    loadNodeLogs(30);
 
     apiGet('/api/members')
       .then((data) => {
@@ -450,7 +449,7 @@ export default function App() {
       baseLogs = [
         {
           id: 'current',
-          name,
+          name: date,
           date,
           raw,
         },
@@ -485,7 +484,6 @@ export default function App() {
     logs,
     selectedDays,
     selectedWars,
-    name,
     date,
     raw,
   ]);
@@ -534,7 +532,7 @@ export default function App() {
     const rawToSave = rawOverride == null ? raw : rawOverride;
     const mainRawForValidation = getMainLogOnly(rawToSave);
 
-    if (!parseLog(mainRawForValidation, name, date, 'x').length) {
+    if (!parseLog(mainRawForValidation, date, date, 'x').length) {
       setMessage('Invalid log');
       return;
     }
@@ -556,7 +554,7 @@ export default function App() {
 
     const draftLog = {
       id: `${date}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: name || date,
+      name: date,
       date,
       raw: rawToSave,
       hash: localHash,
@@ -867,8 +865,6 @@ export default function App() {
               <RawLog
                 raw={raw}
                 setRaw={setRaw}
-                name={name}
-                setName={setName}
                 date={date}
                 setDate={setDate}
                 logs={rawHistoryLogs}
