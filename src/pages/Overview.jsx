@@ -949,6 +949,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 function EnemyGuilds({ guilds, events }) {
   const chartRef = useRef(null);
   const [selected, setSelected] = useState(null);
+  const [guildListOpen, setGuildListOpen] = useState(false);
+  const [chartGuildFilter, setChartGuildFilter] = useState('');
 
   const rows = useMemo(
     () =>
@@ -978,7 +980,13 @@ function EnemyGuilds({ guilds, events }) {
     [guilds],
   );
 
-  const chartRows = rows.slice(0, 32);
+  const visibleRows = useMemo(() => {
+    if (!chartGuildFilter) return rows;
+
+    return rows.filter((guild) => guild.name === chartGuildFilter);
+  }, [rows, chartGuildFilter]);
+
+  const chartRows = visibleRows.slice(0, 32);
 
   const chartMeta = useMemo(() => {
     if (!chartRows.length) {
@@ -1207,9 +1215,14 @@ function EnemyGuilds({ guilds, events }) {
         <div className="mb-4 flex items-start justify-between gap-3">
           <h3 className="text-xl font-black">🛡 Enemy Guilds</h3>
 
-          <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
+          <button
+            type="button"
+            onClick={() => setGuildListOpen(true)}
+            className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300 transition hover:border-blue-400/60 hover:bg-slate-800 hover:text-blue-100"
+            title="Show enemy guilds"
+          >
             {rows.length} guilds
-          </span>
+          </button>
         </div>
 
         {!chartRows.length ? (
@@ -1224,6 +1237,64 @@ function EnemyGuilds({ guilds, events }) {
               onHover={handleBubbleHover}
             />
           </div>
+        )}
+
+
+
+        {guildListOpen && (
+          <Popup title="Enemy Guilds" close={() => setGuildListOpen(false)}>
+            {!rows.length ? (
+              <p className="text-slate-500">No guild data yet.</p>
+            ) : (
+              <div
+                className={`max-h-[60vh] space-y-2 overflow-y-auto pr-2 ${scrollCls}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChartGuildFilter('');
+                    setGuildListOpen(false);
+                    setSelected(null);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                    !chartGuildFilter
+                      ? 'border-blue-400/40 bg-blue-500/15 text-blue-100'
+                      : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-blue-400/40 hover:bg-slate-800/90 hover:text-blue-100'
+                  }`}
+                >
+                  <span className="font-black">All guilds</span>
+                  <span className="text-xs font-bold text-slate-400">
+                    {rows.length} guilds
+                  </span>
+                </button>
+
+                {rows.map((guild) => (
+                  <button
+                    key={guild.name}
+                    type="button"
+                    onClick={() => {
+                      setChartGuildFilter(guild.name);
+                      setGuildListOpen(false);
+                      setSelected(null);
+                    }}
+                    className={`grid w-full grid-cols-[1fr_auto] gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                      chartGuildFilter === guild.name
+                        ? 'border-blue-400/40 bg-blue-500/15 text-blue-100'
+                        : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-blue-400/40 hover:bg-slate-800/90 hover:text-blue-100'
+                    }`}
+                  >
+                    <span className="min-w-0 truncate font-black">
+                      {guild.name}
+                    </span>
+
+                    <span className="text-right text-xs font-bold text-slate-400">
+                      {guild.totalInteractions} interactions · K/D {guild.kd}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Popup>
         )}
 
         {selected && (
