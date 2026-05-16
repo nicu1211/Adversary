@@ -680,7 +680,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
   function Header({ id, children, className = '' }) {
     return (
-      <th className={`py-3 ${className}`}>
+      <th className={`py-2 ${className}`}>
         <button
           onClick={() => flip(id)}
           className={
@@ -749,7 +749,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
         <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
           <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
                   <Header id="name" className="pl-4 text-left">
@@ -791,48 +791,48 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                     key={player.name}
                     className="border-t border-slate-800 bg-slate-950/30 hover:bg-slate-900/50"
                   >
-                    <td className="py-3 pl-4">
+                    <td className="py-2 pl-3">
                       <button
                         onClick={() => setSelected(player)}
-                        className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
+                        className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
                       >
                         {player.name}
                       </button>
                     </td>
 
-                    <td className="py-3 text-right font-black text-blue-300">
+                    <td className="py-2 text-right font-black text-blue-300">
                       ⚔ {player.kills}
                     </td>
 
-                    <td className="py-3 text-right font-black text-pink-300">
+                    <td className="py-2 text-right font-black text-pink-300">
                       ☠ {player.deaths}
                     </td>
 
-                    <td className="py-3 text-right font-black text-emerald-300">
+                    <td className="py-2 text-right font-black text-emerald-300">
                       ✺ {player.kd}
                     </td>
 
-                    <td className="py-3 text-right font-black">
+                    <td className="py-2 text-right font-black">
                       {player.streak}
                     </td>
 
-                    <td className="py-3 text-right font-black text-orange-300">
+                    <td className="py-2 text-right font-black text-orange-300">
                       🔥 {player.feed}
                     </td>
 
-                    <td className="py-3 text-right font-black text-cyan-300">
+                    <td className="py-2 text-right font-black text-cyan-300">
                       {formatNumber(player.damageDealt)}
                     </td>
 
-                    <td className="py-3 text-right font-black text-rose-300">
+                    <td className="py-2 text-right font-black text-rose-300">
                       {formatNumber(player.damageTaken)}
                     </td>
 
-                    <td className="py-3 text-right font-black text-violet-300">
+                    <td className="py-2 text-right font-black text-violet-300">
                       {formatNumber(player.ccHits)}
                     </td>
 
-                    <td className="py-3 pr-4 text-right font-black text-amber-300">
+                    <td className="py-2 pr-3 text-right font-black text-amber-300">
                       {formatNumber(player.fortDamage)}
                     </td>
                   </tr>
@@ -895,7 +895,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
             <div
               className={`max-h-[48vh] overflow-auto rounded-2xl border border-slate-800 ${scrollCls}`}
             >
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
                   <tr>
                     <th className="py-3 pl-4 text-left">Time</th>
@@ -1476,7 +1476,7 @@ export default function OverviewPage({
         killFeedMarkers={[...topKillFeedMarkers, ...flowMarkers]}
       />
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-[420px_1fr]">
+      <section className="grid items-stretch gap-4 xl:grid-cols-[520px_minmax(0,1fr)]">
         <BestOverall
           players={stats.players}
           members={members}
