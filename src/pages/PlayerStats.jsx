@@ -984,7 +984,7 @@ export default function PlayerStats({ stats }) {
               label="Kills"
               value={selectedStats.kills}
               sub={player}
-              className="border-blue-400/25 from-blue-500/20 text-blue-300"
+              className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
             />
 
             <Metric
@@ -1000,7 +1000,7 @@ export default function PlayerStats({ stats }) {
               label="K/D"
               value={selectedStats.kd}
               sub="Overall ratio"
-              className="border-violet-400/25 from-violet-500/20 text-violet-300"
+              className="border-blue-400/25 from-blue-500/20 text-blue-300"
             />
 
             <Metric
@@ -1016,7 +1016,7 @@ export default function PlayerStats({ stats }) {
               label="Average Rank"
               value={selectedStats.averageRank || '0.00'}
               sub=""
-              className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
+              className="border-violet-400/25 from-violet-500/20 text-violet-300"
             />
           </div>
 
