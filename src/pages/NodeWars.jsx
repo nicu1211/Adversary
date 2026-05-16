@@ -2,12 +2,15 @@ import React, { useMemo, useState } from 'react';
 import {
   Activity,
   CalendarDays,
+  Castle,
   ChevronDown,
   Crosshair,
   Search,
+  Shield,
   Skull,
   Swords,
   Users,
+  Zap,
 } from 'lucide-react';
 
 import { Panel } from '../components/UI';
@@ -99,6 +102,25 @@ function formatWarTime(row) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function compactNumber(value, digits = 1) {
+  const number = Number(value) || 0;
+  const abs = Math.abs(number);
+
+  function format(divisor, suffix) {
+    const compact = number / divisor;
+    const decimals = Math.abs(compact) >= 10 || Number.isInteger(compact) ? 0 : digits;
+
+    return `${compact.toFixed(decimals).replace(/\.0$/, '')}${suffix}`;
+  }
+
+  if (abs >= 1_000_000_000_000) return format(1_000_000_000_000, 'T');
+  if (abs >= 1_000_000_000) return format(1_000_000_000, 'B');
+  if (abs >= 1_000_000) return format(1_000_000, 'M');
+  if (abs >= 1_000) return format(1_000, 'K');
+
+  return number.toLocaleString('en-US');
 }
 
 function accentByIndex(index) {
@@ -380,7 +402,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
             <div className="mt-2.5 h-px bg-slate-800/80" />
 
-            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
               <WarMetric
                 label="Players"
                 value={row.players}
@@ -406,6 +428,34 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                 value={row.kd}
                 valueClass={kdNumber >= 1 ? 'text-emerald-400' : 'text-rose-400'}
                 icon={<Crosshair size={17} className="text-lime-300" />}
+              />
+
+              <WarMetric
+                label="Damage"
+                value={compactNumber(row.damageDealt)}
+                valueClass="text-amber-300"
+                icon={<Zap size={17} className="text-amber-300" />}
+              />
+
+              <WarMetric
+                label="Taken"
+                value={compactNumber(row.damageTaken)}
+                valueClass="text-pink-300"
+                icon={<Shield size={17} className="text-pink-300" />}
+              />
+
+              <WarMetric
+                label="CC Hits"
+                value={compactNumber(row.ccHits)}
+                valueClass="text-cyan-300"
+                icon={<Activity size={17} className="text-cyan-300" />}
+              />
+
+              <WarMetric
+                label="Fort"
+                value={compactNumber(row.fortDamage)}
+                valueClass="text-violet-300"
+                icon={<Castle size={17} className="text-violet-300" />}
               />
             </div>
           </div>
@@ -717,6 +767,26 @@ export default function NodeWars({
         bv = Number(b.kdNumber) || 0;
       }
 
+      if (sort.key === 'damageDealt') {
+        av = Number(a.damageDealt) || 0;
+        bv = Number(b.damageDealt) || 0;
+      }
+
+      if (sort.key === 'damageTaken') {
+        av = Number(a.damageTaken) || 0;
+        bv = Number(b.damageTaken) || 0;
+      }
+
+      if (sort.key === 'ccHits') {
+        av = Number(a.ccHits) || 0;
+        bv = Number(b.ccHits) || 0;
+      }
+
+      if (sort.key === 'fortDamage') {
+        av = Number(a.fortDamage) || 0;
+        bv = Number(b.fortDamage) || 0;
+      }
+
       if (av === bv) {
         return String(b.date).localeCompare(String(a.date));
       }
@@ -742,12 +812,29 @@ export default function NodeWars({
   const totals = useMemo(() => {
     const kills = rows.reduce((sum, row) => sum + row.kills, 0);
     const deaths = rows.reduce((sum, row) => sum + row.deaths, 0);
+    const damageDealt = rows.reduce(
+      (sum, row) => sum + (Number(row.damageDealt) || 0),
+      0,
+    );
+    const damageTaken = rows.reduce(
+      (sum, row) => sum + (Number(row.damageTaken) || 0),
+      0,
+    );
+    const ccHits = rows.reduce((sum, row) => sum + (Number(row.ccHits) || 0), 0);
+    const fortDamage = rows.reduce(
+      (sum, row) => sum + (Number(row.fortDamage) || 0),
+      0,
+    );
 
     return {
       matches: rows.length,
       kills,
       deaths,
       kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+      damageDealt,
+      damageTaken,
+      ccHits,
+      fortDamage,
     };
   }, [rows]);
 
@@ -846,6 +933,20 @@ export default function NodeWars({
                 onSort={toggleSort}
               />
               <SortHeader id="kd" label="K/D" sort={sort} onSort={toggleSort} />
+              <SortHeader
+                id="damageDealt"
+                label="Damage"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortHeader
+                id="damageTaken"
+                label="Taken"
+                sort={sort}
+                onSort={toggleSort}
+              />
+              <SortHeader id="ccHits" label="CC" sort={sort} onSort={toggleSort} />
+              <SortHeader id="fortDamage" label="Fort" sort={sort} onSort={toggleSort} />
             </div>
           </div>
 
@@ -911,7 +1012,7 @@ export default function NodeWars({
         )}
 
         {/* SUMMARY */}
-        <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-[repeat(4,minmax(130px,1fr))_minmax(220px,1.25fr)]">
+        <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-2 xl:grid-cols-[repeat(8,minmax(112px,1fr))_minmax(220px,1.25fr)]">
           <SummaryStat
             label="Total Matches"
             value={totals.matches}
@@ -946,6 +1047,38 @@ export default function NodeWars({
               Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'
             }
             icon={<Activity size={20} className="text-cyan-300" />}
+          />
+
+          <SummaryStat
+            label="Damage"
+            value={compactNumber(totals.damageDealt)}
+            valueClass="text-amber-300"
+            barClass="bg-amber-300"
+            icon={<Zap size={20} className="text-amber-300" />}
+          />
+
+          <SummaryStat
+            label="Damage Taken"
+            value={compactNumber(totals.damageTaken)}
+            valueClass="text-pink-300"
+            barClass="bg-pink-300"
+            icon={<Shield size={20} className="text-pink-300" />}
+          />
+
+          <SummaryStat
+            label="CC Hits"
+            value={compactNumber(totals.ccHits)}
+            valueClass="text-cyan-300"
+            barClass="bg-cyan-300"
+            icon={<Activity size={20} className="text-cyan-300" />}
+          />
+
+          <SummaryStat
+            label="Fort Damage"
+            value={compactNumber(totals.fortDamage)}
+            valueClass="text-violet-300"
+            barClass="bg-violet-300"
+            icon={<Castle size={20} className="text-violet-300" />}
           />
 
           <KillsDeathsTrend rows={rows} />
