@@ -231,6 +231,10 @@ function BestOverall({
     return output;
   }
 
+  function hasAnyValue(rows, key) {
+    return rows.some((player) => Number(player[key]) || 0);
+  }
+
   function rankKillsForStats(oneStats, rows) {
     const hasTimeline = statsHasTimeline(oneStats);
 
@@ -340,12 +344,21 @@ function BestOverall({
 
       if (!rows.length) return;
 
+      const hasDamageDealt = hasAnyValue(rows, 'damageDealt');
+      const hasDamageTaken = hasAnyValue(rows, 'damageTaken');
+      const hasCcHits = hasAnyValue(rows, 'ccHits');
+      const hasFortDamage = hasAnyValue(rows, 'fortDamage');
+
       const ranks = {
         kills: rankKillsForStats(oneStats, rows),
         deaths: rankRows(rows, 'deaths', false),
         kd: rankRows(rows, 'kdNumber', true),
         streak: hasTimeline ? rankRows(rows, 'streak', true) : {},
         feed: hasTimeline ? rankFeedForStats(oneStats, rows) : {},
+        damageDealt: hasDamageDealt ? rankRows(rows, 'damageDealt', true) : {},
+        damageTaken: hasDamageTaken ? rankRows(rows, 'damageTaken', false) : {},
+        ccHits: hasCcHits ? rankRows(rows, 'ccHits', true) : {},
+        fortDamage: hasFortDamage ? rankRows(rows, 'fortDamage', true) : {},
       };
 
       rows.forEach((player) => {
@@ -359,8 +372,16 @@ function BestOverall({
             kd: 0,
             streak: 0,
             feed: 0,
+            damageDealt: 0,
+            damageTaken: 0,
+            ccHits: 0,
+            fortDamage: 0,
             streakMatches: 0,
             feedMatches: 0,
+            damageDealtMatches: 0,
+            damageTakenMatches: 0,
+            ccHitsMatches: 0,
+            fortDamageMatches: 0,
             metricCount: 0,
           };
         }
@@ -379,6 +400,30 @@ function BestOverall({
           result[name].feedMatches += 1;
           result[name].metricCount += 2;
         }
+
+        if (hasDamageDealt) {
+          result[name].damageDealt += ranks.damageDealt[name] || 0;
+          result[name].damageDealtMatches += 1;
+          result[name].metricCount += 1;
+        }
+
+        if (hasDamageTaken) {
+          result[name].damageTaken += ranks.damageTaken[name] || 0;
+          result[name].damageTakenMatches += 1;
+          result[name].metricCount += 1;
+        }
+
+        if (hasCcHits) {
+          result[name].ccHits += ranks.ccHits[name] || 0;
+          result[name].ccHitsMatches += 1;
+          result[name].metricCount += 1;
+        }
+
+        if (hasFortDamage) {
+          result[name].fortDamage += ranks.fortDamage[name] || 0;
+          result[name].fortDamageMatches += 1;
+          result[name].metricCount += 1;
+        }
       });
     });
 
@@ -393,6 +438,16 @@ function BestOverall({
           kd: data.kd / matches,
           streak: data.streakMatches ? data.streak / data.streakMatches : null,
           feed: data.feedMatches ? data.feed / data.feedMatches : null,
+          damageDealt: data.damageDealtMatches
+            ? data.damageDealt / data.damageDealtMatches
+            : null,
+          damageTaken: data.damageTakenMatches
+            ? data.damageTaken / data.damageTakenMatches
+            : null,
+          ccHits: data.ccHitsMatches ? data.ccHits / data.ccHitsMatches : null,
+          fortDamage: data.fortDamageMatches
+            ? data.fortDamage / data.fortDamageMatches
+            : null,
         };
 
         return [
@@ -405,7 +460,11 @@ function BestOverall({
                 data.deaths +
                 data.kd +
                 (data.streakMatches ? data.streak : 0) +
-                (data.feedMatches ? data.feed : 0)) /
+                (data.feedMatches ? data.feed : 0) +
+                (data.damageDealtMatches ? data.damageDealt : 0) +
+                (data.damageTakenMatches ? data.damageTaken : 0) +
+                (data.ccHitsMatches ? data.ccHits : 0) +
+                (data.fortDamageMatches ? data.fortDamage : 0)) /
               metricCount,
           },
         ];
@@ -436,6 +495,10 @@ function BestOverall({
       averageRankKd: averageRanks[name]?.ranks.kd ?? null,
       averageRankStreak: averageRanks[name]?.ranks.streak ?? null,
       averageRankFeed: averageRanks[name]?.ranks.feed ?? null,
+      averageRankDamageDealt: averageRanks[name]?.ranks.damageDealt ?? null,
+      averageRankDamageTaken: averageRanks[name]?.ranks.damageTaken ?? null,
+      averageRankCcHits: averageRanks[name]?.ranks.ccHits ?? null,
+      averageRankFortDamage: averageRanks[name]?.ranks.fortDamage ?? null,
     };
   });
 
@@ -493,7 +556,7 @@ function BestOverall({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-5 gap-1 text-center text-xs">
+                <div className="grid grid-cols-3 gap-1 text-center text-xs sm:grid-cols-5 xl:grid-cols-9">
                   {[
                     [
                       'Kills',
@@ -519,6 +582,26 @@ function BestOverall({
                       'Feed',
                       formatAverageRank(player.averageRankFeed),
                       'text-orange-300',
+                    ],
+                    [
+                      'Dmg',
+                      formatAverageRank(player.averageRankDamageDealt),
+                      'text-cyan-300',
+                    ],
+                    [
+                      'Taken',
+                      formatAverageRank(player.averageRankDamageTaken),
+                      'text-rose-300',
+                    ],
+                    [
+                      'CC',
+                      formatAverageRank(player.averageRankCcHits),
+                      'text-violet-300',
+                    ],
+                    [
+                      'Fort',
+                      formatAverageRank(player.averageRankFortDamage),
+                      'text-amber-300',
                     ],
                   ].map((item) => (
                     <div
@@ -549,7 +632,22 @@ function PlayerOverview({ players, streaks, feeds, events }) {
   const [key, direction] = sort;
 
   function formatNumber(value) {
-    return new Intl.NumberFormat('en-US').format(Number(value) || 0);
+    const number = Number(value) || 0;
+    const abs = Math.abs(number);
+
+    const formatCompact = (divisor, suffix) => {
+      const compact = number / divisor;
+      const decimals = Math.abs(compact) >= 10 || Number.isInteger(compact) ? 0 : 1;
+
+      return `${compact.toFixed(decimals).replace(/\.0$/, '')}${suffix}`;
+    };
+
+    if (abs >= 1_000_000_000_000) return formatCompact(1_000_000_000_000, 'T');
+    if (abs >= 1_000_000_000) return formatCompact(1_000_000_000, 'B');
+    if (abs >= 1_000_000) return formatCompact(1_000_000, 'M');
+    if (abs >= 1_000) return formatCompact(1_000, 'K');
+
+    return new Intl.NumberFormat('en-US').format(number);
   }
 
   const rows = players
