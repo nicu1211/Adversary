@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Activity,
   CalendarDays,
+  Gauge,
   ChevronDown,
   Crosshair,
   Search,
@@ -148,7 +149,6 @@ function PeriodSelect({ value, onChange, loading = false }) {
   const [open, setOpen] = useState(false);
 
   const options = [
-    { value: 7, label: 'Last 7 Days' },
     { value: 30, label: 'Last 30 Days' },
     { value: 'all', label: 'All Time' },
   ];
@@ -540,48 +540,6 @@ function KillsDeathsTrend({ rows }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-
-          {safeKills.map((value, index) => {
-            const x =
-              safeKills.length === 1
-                ? width / 2
-                : (index / (safeKills.length - 1)) * width;
-
-            const y = bottom - ((Number(value) || 0) / max) * height;
-
-            return (
-              <circle
-                key={`kills-${value}-${index}`}
-                cx={x}
-                cy={y}
-                r="2.3"
-                fill="rgb(15 23 42)"
-                stroke="rgb(52 211 153)"
-                strokeWidth="1.8"
-              />
-            );
-          })}
-
-          {safeDeaths.map((value, index) => {
-            const x =
-              safeDeaths.length === 1
-                ? width / 2
-                : (index / (safeDeaths.length - 1)) * width;
-
-            const y = bottom - ((Number(value) || 0) / max) * height;
-
-            return (
-              <circle
-                key={`deaths-${value}-${index}`}
-                cx={x}
-                cy={y}
-                r="2.3"
-                fill="rgb(15 23 42)"
-                stroke="rgb(251 113 133)"
-                strokeWidth="1.8"
-              />
-            );
-          })}
         </svg>
       </div>
     </div>
@@ -592,7 +550,7 @@ function KillsDeathsTrend({ rows }) {
 export default function NodeWars({
   logs,
   loading = false,
-  periodDays = 7,
+  periodDays = 30,
   onPeriodChange = () => {},
   setPage,
   setSelectedDays,
@@ -943,7 +901,7 @@ export default function NodeWars({
             barClass={
               Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'
             }
-            icon={<Activity size={20} className="text-cyan-300" />}
+            icon={<Gauge size={20} className="text-cyan-300" />}
           />
 
           <KillsDeathsTrend rows={rows} />
