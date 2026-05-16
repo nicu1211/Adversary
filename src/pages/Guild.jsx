@@ -133,101 +133,185 @@ function cleanGuildName(value) {
   return text;
 }
 
-function getTierByKd(value) {
-  const kdNumber = num(value);
+function getTierByScore(value) {
+  const score = num(value);
 
-  if (kdNumber >= 2) return 'S';
-  if (kdNumber >= 1.5) return 'A';
-  if (kdNumber >= 1) return 'B';
-  if (kdNumber >= 0.75) return 'C';
+  if (score >= 80) return 'S';
+  if (score >= 65) return 'A';
+  if (score >= 50) return 'B';
+  if (score >= 35) return 'C';
 
   return 'D';
+}
+
+function enemyGuildScore({ kills, deaths, matches, totalInteractions, kdNumber }) {
+  const kdScore = Math.min(3, Math.max(0, kdNumber)) / 3 * 45;
+  const killVolumeScore = Math.min(400, Math.max(0, kills)) / 400 * 20;
+  const matchVolumeScore = Math.min(30, Math.max(0, matches)) / 30 * 20;
+  const survivalScore = totalInteractions
+    ? Math.max(0, (kills - deaths) / totalInteractions) * 15
+    : 0;
+
+  return Math.round((kdScore + killVolumeScore + matchVolumeScore + survivalScore) * 10) / 10;
 }
 
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: '2.00+ K/D',
+    range: '80+ score',
     className:
       'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
+    tone: 'amber',
   },
   A: {
     label: 'A',
-    range: '1.50 - 1.99 K/D',
+    range: '65 - 79 score',
     className:
       'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
+    tone: 'emerald',
   },
   B: {
     label: 'B',
-    range: '1.00 - 1.49 K/D',
+    range: '50 - 64 score',
     className:
       'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
+    tone: 'blue',
   },
   C: {
     label: 'C',
-    range: '0.75 - 0.99 K/D',
+    range: '35 - 49 score',
     className:
       'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
+    tone: 'violet',
   },
   D: {
     label: 'D',
-    range: '< 0.75 K/D',
+    range: '< 35 score',
     className:
       'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
+    tone: 'rose',
   },
 };
 
-function buildEnemyGuildTiers(stats = {}) {
-  const guilds = Array.isArray(stats?.guilds) ? stats.guilds : [];
-  const events = Array.isArray(stats?.ev) ? stats.ev : [];
-  const guildMatches = {};
+function getLogTime(log) {
+  const raw =
+    log?.date ||
+    log?.warDate ||
+    log?.war_date ||
+    log?.createdAt ||
+    log?.created_at ||
+    log?.created ||
+    '';
+  const parsed = new Date(raw).getTime();
 
-  events.forEach((event) => {
-    const guildName = cleanGuildName(event?.guild);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
 
-    if (!guildName) return;
+function getLatestLogTime(logs = []) {
+  const times = logs.map(getLogTime).filter((time) => time > 0);
 
-    guildMatches[guildName] ||= new Set();
-    guildMatches[guildName].add(
-      String(event?.id || event?.war || event?.date || `${event?.date || ''}-${event?.time || ''}`),
-    );
+  return times.length ? Math.max(...times) : Date.now();
+}
+
+function getSimpleSummary(log) {
+  return log?.summary || log?.stats || log?.analytics || {};
+}
+
+function buildEnemyGuildTiers(stats = {}, logs = []) {
+  const latestTime = getLatestLogTime(logs);
+  const cutoffTime = latestTime - 60 * 24 * 60 * 60 * 1000;
+  const byGuild = {};
+
+  (logs || []).forEach((log) => {
+    const logTime = getLogTime(log);
+
+    if (!logTime || logTime < cutoffTime) return;
+
+    const summary = getSimpleSummary(log);
+    const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
+    const matchId = String(log?.id || log?.date || log?.name || logTime);
+
+    guilds.forEach((guild) => {
+      const name = cleanGuildName(guild?.name);
+
+      if (!name) return;
+
+      byGuild[name] ||= {
+        name,
+        kills: 0,
+        deaths: 0,
+        matchIds: new Set(),
+      };
+
+      byGuild[name].kills += num(guild?.kills);
+      byGuild[name].deaths += num(guild?.deaths);
+      byGuild[name].matchIds.add(matchId);
+    });
   });
 
-  const rows = guilds
+  if (!Object.keys(byGuild).length) {
+    const events = Array.isArray(stats?.ev) ? stats.ev : [];
+    const eventTimes = events
+      .map((event) => new Date(event?.date || '').getTime())
+      .filter((time) => time > 0);
+    const eventLatestTime = eventTimes.length ? Math.max(...eventTimes) : Date.now();
+    const eventCutoffTime = eventLatestTime - 60 * 24 * 60 * 60 * 1000;
+
+    events.forEach((event) => {
+      const guildName = cleanGuildName(event?.guild);
+      const eventTime = new Date(event?.date || '').getTime();
+
+      if (!guildName || !eventTime || eventTime < eventCutoffTime) return;
+
+      byGuild[guildName] ||= {
+        name: guildName,
+        kills: 0,
+        deaths: 0,
+        matchIds: new Set(),
+      };
+
+      if (event.type === 'kill') byGuild[guildName].kills += 1;
+      if (event.type === 'death') byGuild[guildName].deaths += 1;
+      byGuild[guildName].matchIds.add(String(event?.id || event?.date || guildName));
+    });
+  }
+
+  const rows = Object.values(byGuild)
     .map((guild) => {
-      const name = cleanGuildName(guild?.name);
-      const kills = num(guild?.deaths);
-      const deaths = num(guild?.kills);
+      const kills = num(guild.kills);
+      const deaths = num(guild.deaths);
+      const matches = guild.matchIds?.size || 0;
       const totalInteractions = kills + deaths;
       const kdNumber = deaths > 0 ? kills / deaths : kills > 0 ? kills : 0;
-      const matches = Math.max(
-        1,
-        guildMatches[name]?.size ||
-          num(guild?.matches) ||
-          num(guild?.wars) ||
-          num(guild?.totalMatches) ||
-          0,
-      );
-      const tier = getTierByKd(kdNumber);
+      const score = enemyGuildScore({
+        kills,
+        deaths,
+        matches,
+        totalInteractions,
+        kdNumber,
+      });
+      const tier = getTierByScore(score);
 
       return {
-        name,
+        name: guild.name,
         kills,
         deaths,
         totalInteractions,
         kdNumber,
         matches,
+        score,
         tier,
       };
     })
-    .filter((guild) => guild.name && guild.totalInteractions > 0)
+    .filter((guild) => guild.name && guild.totalInteractions >= 30)
     .sort(
       (a, b) =>
+        b.score - a.score ||
         b.kdNumber - a.kdNumber ||
         b.totalInteractions - a.totalInteractions ||
         a.name.localeCompare(b.name),
@@ -299,7 +383,7 @@ function buildGuildData(stats, logs) {
     avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
-    enemyTierGroups: buildEnemyGuildTiers(stats),
+    enemyTierGroups: buildEnemyGuildTiers(stats, logs),
   };
 }
 
@@ -366,30 +450,57 @@ function SectionTitle({ icon: Icon, title, sub }) {
 }
 
 
-function EnemyGuildTierCard({ guild }) {
+function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
+  const width = maxScore
+    ? Math.max(5, Math.min(100, (num(guild.score) / maxScore) * 100))
+    : 0;
+
+  const colors = {
+    blue: 'from-blue-500 to-sky-300',
+    emerald: 'from-emerald-500 to-lime-300',
+    amber: 'from-amber-500 to-yellow-300',
+    rose: 'from-rose-500 to-red-300',
+    violet: 'from-violet-500 to-fuchsia-300',
+  };
+
   return (
-    <div className="group min-w-[190px] flex-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-3 shadow-xl transition hover:border-blue-400/35 hover:bg-slate-900/90">
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 shadow-xl">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <p className="min-w-0 truncate text-sm font-black text-white" title={guild.name}>
           {guild.name}
         </p>
-        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-black text-slate-300">
-          {decimal(guild.kdNumber)} K/D
+        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-black text-slate-300">
+          {decimal(guild.score, 1)} score
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-xl border border-emerald-400/10 bg-emerald-500/10 px-2 py-2">
-          <p className="text-[9px] font-black uppercase tracking-wider text-emerald-300/80">Kills</p>
-          <p className="text-sm font-black text-emerald-100">{compact(guild.kills)}</p>
+      <div className="mb-2 h-2 rounded-full bg-slate-900/90">
+        <div
+          className={cls('h-2 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+
+      <div className="grid grid-cols-5 gap-1 text-center">
+        <div className="rounded-xl border border-blue-400/10 bg-blue-500/10 px-1.5 py-1.5">
+          <p className="text-[8px] font-black uppercase tracking-wider text-blue-300/80">M</p>
+          <p className="text-xs font-black text-blue-100">{compact(guild.matches, 0)}</p>
         </div>
-        <div className="rounded-xl border border-rose-400/10 bg-rose-500/10 px-2 py-2">
-          <p className="text-[9px] font-black uppercase tracking-wider text-rose-300/80">Deaths</p>
-          <p className="text-sm font-black text-rose-100">{compact(guild.deaths)}</p>
+        <div className="rounded-xl border border-emerald-400/10 bg-emerald-500/10 px-1.5 py-1.5">
+          <p className="text-[8px] font-black uppercase tracking-wider text-emerald-300/80">K</p>
+          <p className="text-xs font-black text-emerald-100">{compact(guild.kills)}</p>
         </div>
-        <div className="rounded-xl border border-blue-400/10 bg-blue-500/10 px-2 py-2">
-          <p className="text-[9px] font-black uppercase tracking-wider text-blue-300/80">Matches</p>
-          <p className="text-sm font-black text-blue-100">{compact(guild.matches, 0)}</p>
+        <div className="rounded-xl border border-rose-400/10 bg-rose-500/10 px-1.5 py-1.5">
+          <p className="text-[8px] font-black uppercase tracking-wider text-rose-300/80">D</p>
+          <p className="text-xs font-black text-rose-100">{compact(guild.deaths)}</p>
+        </div>
+        <div className="rounded-xl border border-cyan-400/10 bg-cyan-500/10 px-1.5 py-1.5">
+          <p className="text-[8px] font-black uppercase tracking-wider text-cyan-300/80">K/D</p>
+          <p className="text-xs font-black text-cyan-100">{decimal(guild.kdNumber)}</p>
+        </div>
+        <div className="rounded-xl border border-violet-400/10 bg-violet-500/10 px-1.5 py-1.5">
+          <p className="text-[8px] font-black uppercase tracking-wider text-violet-300/80">INT</p>
+          <p className="text-xs font-black text-violet-100">{compact(guild.totalInteractions)}</p>
         </div>
       </div>
     </div>
@@ -398,18 +509,22 @@ function EnemyGuildTierCard({ guild }) {
 
 function EnemyGuildTierList({ groups }) {
   const hasGuilds = groups.some((group) => group.guilds.length > 0);
+  const maxScore = Math.max(
+    1,
+    ...groups.flatMap((group) => group.guilds.map((guild) => num(guild.score))),
+  );
 
   return (
     <Panel>
       <SectionTitle
         icon={Trophy}
         title="Enemy Guild Tier List"
-        sub="Based on K/D against each enemy guild"
+        sub="Last 60 days only · minimum 30 total interactions · score uses matches, kills, deaths and K/D"
       />
 
       {!hasGuilds ? (
         <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
-          No enemy guild data yet.
+          No enemy guild reached 30 interactions in the last 60 days.
         </p>
       ) : (
         <div className="space-y-3">
@@ -434,9 +549,14 @@ function EnemyGuildTierList({ groups }) {
               </div>
 
               {group.guilds.length ? (
-                <div className="flex flex-wrap gap-3">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {group.guilds.map((guild) => (
-                    <EnemyGuildTierCard key={guild.name} guild={guild} />
+                    <GuildTierProgressRow
+                      key={guild.name}
+                      guild={guild}
+                      maxScore={maxScore}
+                      tone={group.meta.tone}
+                    />
                   ))}
                 </div>
               ) : (
