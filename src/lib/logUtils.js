@@ -254,7 +254,17 @@ function parseSecondaryNumber(value) {
 function isSecondaryNumber(value) {
   const raw = String(value || '').trim();
 
-  return /^[-+]?\d[\d\s.,]*(?:[kKmM])?$/.test(raw);
+  if (!raw || !/\d/.test(raw)) return false;
+
+  const withoutUnitSuffix = raw.replace(/[kKmM]\s*$/g, '').trim();
+
+  if (/[A-Za-z]/.test(withoutUnitSuffix)) return false;
+
+  const cleaned = raw
+    .replace(/[^\d\s.,+\-kKmM]/g, '')
+    .trim();
+
+  return /^[-+]?\d[\d\s.,]*(?:[kKmM])?$/.test(cleaned);
 }
 
 function splitSecondaryColumns(line) {
@@ -735,11 +745,11 @@ function calculateStatsFromRaw(items) {
     families[row.player] = families[row.player] || '-';
   });
 
-  secondaryRows.forEach((row) => {
-    if (!row.player) return;
+  function mergeSecondaryRow(playerName, row) {
+    if (!playerName) return;
 
-    const current = secondaryByPlayer[row.player] || {
-      player: row.player,
+    const current = secondaryByPlayer[playerName] || {
+      player: playerName,
       kills: 0,
       deaths: 0,
       killStreak: 0,
@@ -749,7 +759,7 @@ function calculateStatsFromRaw(items) {
       fortDamage: 0,
     };
 
-    secondaryByPlayer[row.player] = {
+    secondaryByPlayer[playerName] = {
       ...current,
       kills: current.kills + (Number(row.kills) || 0),
       deaths: current.deaths + (Number(row.deaths) || 0),
@@ -759,6 +769,97 @@ function calculateStatsFromRaw(items) {
       ccHits: current.ccHits + (Number(row.ccHits) || 0),
       fortDamage: current.fortDamage + (Number(row.fortDamage) || 0),
     };
+  }
+
+  function buildBasePlayersForSecondary(row) {
+    const byPlayer = {};
+
+    classicEvents
+      .filter((event) => event.id === row.id)
+      .forEach((event) => {
+        const name = event.type === 'kill' ? event.killer : event.victim;
+
+        if (!name) return;
+
+        byPlayer[name] ||= {
+          name,
+          kills: 0,
+          deaths: 0,
+        };
+
+        byPlayer[name][event.type === 'kill' ? 'kills' : 'deaths'] += 1;
+      });
+
+    summaryRows
+      .filter((summaryRow) => summaryRow.id === row.id)
+      .forEach((summaryRow) => {
+        byPlayer[summaryRow.player] ||= {
+          name: summaryRow.player,
+          kills: 0,
+          deaths: 0,
+        };
+
+        byPlayer[summaryRow.player].kills += Number(summaryRow.kills) || 0;
+        byPlayer[summaryRow.player].deaths += Number(summaryRow.deaths) || 0;
+      });
+
+    const scopedPlayers = Object.values(byPlayer);
+
+    if (scopedPlayers.length) {
+      return scopedPlayers.sort(
+        (a, b) => b.kills - a.kills || a.deaths - b.deaths || a.name.localeCompare(b.name),
+      );
+    }
+
+    return [
+      ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
+    ]
+      .map((name) => ({
+        name,
+        kills: playerKills[name] || 0,
+        deaths: playerDeaths[name] || 0,
+      }))
+      .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths || a.name.localeCompare(b.name));
+  }
+
+  const assignedSecondaryPlayers = new Set();
+  const unnamedSecondaryCounters = {};
+
+  secondaryRows.forEach((row) => {
+    if (row.player) {
+      mergeSecondaryRow(row.player, row);
+      assignedSecondaryPlayers.add(`${row.id}:${row.player}`);
+      return;
+    }
+
+    const candidates = buildBasePlayersForSecondary(row).filter(
+      (candidate) => !assignedSecondaryPlayers.has(`${row.id}:${candidate.name}`),
+    );
+
+    const exactMatches = candidates.filter(
+      (candidate) =>
+        Number(candidate.kills) === Number(row.kills) &&
+        Number(candidate.deaths) === Number(row.deaths),
+    );
+
+    const killMatches = candidates.filter(
+      (candidate) => Number(candidate.kills) === Number(row.kills),
+    );
+
+    const counterKey = String(row.id || row.date || 'secondary');
+    const fallbackIndex = unnamedSecondaryCounters[counterKey] || 0;
+    unnamedSecondaryCounters[counterKey] = fallbackIndex + 1;
+
+    const target =
+      exactMatches[0] ||
+      (killMatches.length === 1 ? killMatches[0] : null) ||
+      candidates[fallbackIndex] ||
+      candidates[0];
+
+    if (!target?.name) return;
+
+    mergeSecondaryRow(target.name, row);
+    assignedSecondaryPlayers.add(`${row.id}:${target.name}`);
   });
 
   Object.values(secondaryByPlayer).forEach((row) => {
