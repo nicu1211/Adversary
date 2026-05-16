@@ -136,24 +136,13 @@ function cleanGuildName(value) {
 function getTierByScore(value) {
   const score = num(value);
 
-  if (score >= 80) return 'S';
-  if (score >= 65) return 'A';
-  if (score >= 50) return 'B';
-  if (score >= 35) return 'C';
+  if (score >= 50) return 'S';
+  if (score >= 40) return 'A';
+  if (score >= 30) return 'B';
+  if (score >= 20) return 'C';
+  if (score >= 15) return 'D';
 
-  return 'D';
-}
-
-function getRankedTier(index, total) {
-  const tiers = ['S', 'A', 'B', 'C', 'D'];
-
-  if (!total) return 'D';
-
-  if (total < tiers.length) {
-    return tiers[Math.min(index, tiers.length - 1)];
-  }
-
-  return tiers[Math.min(tiers.length - 1, Math.floor((index * tiers.length) / total))];
+  return 'Trash';
 }
 
 function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
@@ -168,7 +157,7 @@ function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: 'Top score',
+    range: '50+ score',
     className:
       'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
@@ -176,7 +165,7 @@ const enemyTierMeta = {
   },
   A: {
     label: 'A',
-    range: 'High score',
+    range: '40 - 50 score',
     className:
       'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
@@ -184,7 +173,7 @@ const enemyTierMeta = {
   },
   B: {
     label: 'B',
-    range: 'Mid score',
+    range: '30 - 40 score',
     className:
       'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
@@ -192,7 +181,7 @@ const enemyTierMeta = {
   },
   C: {
     label: 'C',
-    range: 'Low score',
+    range: '20 - 30 score',
     className:
       'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
@@ -200,11 +189,19 @@ const enemyTierMeta = {
   },
   D: {
     label: 'D',
-    range: 'Lowest score',
+    range: '15 - 20 score',
     className:
       'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
     tone: 'rose',
+  },
+  Trash: {
+    label: 'Trash',
+    range: 'Under 15 score',
+    className:
+      'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
+    badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
+    tone: 'slate',
   },
 };
 
@@ -326,16 +323,16 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
         a.name.localeCompare(b.name),
     );
 
-  const rankedRows = rows.map((guild, index) => ({
+  const tieredRows = rows.map((guild) => ({
     ...guild,
-    tier: getRankedTier(index, rows.length),
+    tier: getTierByScore(guild.score),
   }));
 
-  return ['S', 'A', 'B', 'C', 'D']
+  return ['S', 'A', 'B', 'C', 'D', 'Trash']
     .map((tier) => ({
       tier,
       meta: enemyTierMeta[tier],
-      guilds: rankedRows.filter((guild) => guild.tier === tier),
+      guilds: tieredRows.filter((guild) => guild.tier === tier),
     }))
     .filter((group) => group.guilds.length > 0);
 }
@@ -478,6 +475,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
     amber: 'from-amber-500 to-yellow-300',
     rose: 'from-rose-500 to-red-300',
     violet: 'from-violet-500 to-fuchsia-300',
+    slate: 'from-slate-500 to-slate-300',
   };
 
   return (
@@ -523,6 +521,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
 }
 
 function EnemyGuildTierList({ groups }) {
+  const scrollClass = '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80';
   const hasGuilds = groups.some((group) => group.guilds.length > 0);
   const maxScore = Math.max(
     1,
@@ -534,7 +533,7 @@ function EnemyGuildTierList({ groups }) {
       <SectionTitle
         icon={Trophy}
         title="Enemy Guild Tier List"
-        sub="Last 45 days · minimum 30 K+D · tiers ranked by score"
+        sub="Last 45 days · minimum 30 K+D · S 50+ · A 40-50 · B 30-40 · C 20-30 · D 15-20 · Trash <15"
       />
 
       {!hasGuilds ? (
@@ -564,7 +563,12 @@ function EnemyGuildTierList({ groups }) {
               </div>
 
               {group.guilds.length ? (
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <div
+                  className={cls(
+                    'grid gap-2 sm:grid-cols-2 xl:grid-cols-4',
+                    group.guilds.length > 16 && `max-h-[330px] overflow-y-auto pr-1 ${scrollClass}`,
+                  )}
+                >
                   {group.guilds.map((guild) => (
                     <GuildTierProgressRow
                       key={guild.name}
