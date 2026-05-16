@@ -72,6 +72,56 @@ function uniqueLogCount(logs = [], stats = {}) {
   return fromEvents.size;
 }
 
+function hasSecondaryTotals(stats = {}) {
+  const totals = stats?.secondary?.totals || {};
+
+  return (
+    num(totals.damageDealt) > 0 ||
+    num(totals.damageTaken) > 0 ||
+    num(totals.ccHits) > 0 ||
+    num(totals.fortDamage) > 0
+  );
+}
+
+function uniqueSecondaryLogCount(logs = [], stats = {}) {
+  const secondaryRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+
+  const fromRows = new Set(
+    secondaryRows
+      .map((row, index) =>
+        String(row?.id || row?.date || row?.war || row?.logId || index),
+      )
+      .filter(Boolean),
+  );
+
+  if (fromRows.size) return fromRows.size;
+
+  const fromLogs = new Set(
+    (logs || [])
+      .filter((log) => {
+        const raw = String(log?.raw || '');
+        const summary = log?.summary || log?.stats || log?.analytics || {};
+        const summaryTotals = summary?.secondary?.totals || {};
+
+        return (
+          raw.includes('ADVERSARY_SECONDARY_LOG_START') ||
+          num(summaryTotals.damageDealt) > 0 ||
+          num(summaryTotals.damageTaken) > 0 ||
+          num(summaryTotals.ccHits) > 0 ||
+          num(summaryTotals.fortDamage) > 0
+        );
+      })
+      .map((log) => String(log?.id || log?.date || log?.name || ''))
+      .filter(Boolean),
+  );
+
+  if (fromLogs.size) return fromLogs.size;
+
+  return hasSecondaryTotals(stats) ? 1 : 0;
+}
+
 function topBy(rows, key, limit = 6) {
   return [...(rows || [])]
     .filter((row) => num(row?.[key]) > 0)
@@ -82,6 +132,8 @@ function topBy(rows, key, limit = 6) {
 function buildGuildData(stats, logs) {
   const players = Array.isArray(stats?.players) ? stats.players : [];
   const matches = uniqueLogCount(logs, stats);
+  const secondaryMatches = uniqueSecondaryLogCount(logs, stats);
+  const secondaryAverageMatches = secondaryMatches || matches;
 
   const kills = num(stats?.kills);
   const deaths = num(stats?.deaths);
@@ -125,8 +177,8 @@ function buildGuildData(stats, logs) {
     fortDamage,
     avgKills: matches ? kills / matches : 0,
     avgDeaths: matches ? deaths / matches : 0,
-    avgDamage: matches ? damageDealt / matches : 0,
-    avgFortDamage: matches ? fortDamage / matches : 0,
+    avgDamage: secondaryAverageMatches ? damageDealt / secondaryAverageMatches : 0,
+    avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
   };
