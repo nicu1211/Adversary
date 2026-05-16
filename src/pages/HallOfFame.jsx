@@ -27,9 +27,25 @@ function num(value) {
 
 function shortNum(value) {
   const valueNumber = num(value);
-  if (valueNumber >= 1_000_000) return `${(valueNumber / 1_000_000).toFixed(1)}M`;
-  if (valueNumber >= 1_000) return `${(valueNumber / 1_000).toFixed(1)}K`;
-  return nf.format(valueNumber);
+  const abs = Math.abs(valueNumber);
+
+  if (abs >= 1_000_000_000_000) {
+    return `${(valueNumber / 1_000_000_000_000).toFixed(1).replace(/\.0$/, '')}T`;
+  }
+
+  if (abs >= 1_000_000_000) {
+    return `${(valueNumber / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+  }
+
+  if (abs >= 1_000_000) {
+    return `${(valueNumber / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+
+  if (abs >= 1_000) {
+    return `${(valueNumber / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  }
+
+  return nf.format(Math.round(valueNumber));
 }
 
 function cls(...items) {
@@ -123,10 +139,24 @@ function buildHallData(stats) {
       const ratio = kd(kills, deaths);
       const streak = num(safe.st?.[player.name]);
       const feed = num(safe.fd?.[player.name]);
+      const damageDealt = num(player.damageDealt);
+      const damageTaken = num(player.damageTaken);
+      const ccHits = num(player.ccHits);
+      const fortDamage = num(player.fortDamage);
       const wars = warsByPlayer[player.name]?.size || 0;
       const score = Math.max(
         0,
-        Math.round(kills * 3 + ratio * 420 + streak * 90 + feed * 120 + wars * 60 - deaths * 0.7),
+        Math.round(
+          kills * 3 +
+            ratio * 420 +
+            streak * 90 +
+            feed * 120 +
+            wars * 60 +
+            damageDealt / 2_000_000 +
+            fortDamage / 1_000_000 +
+            ccHits * 8 -
+            deaths * 0.7,
+        ),
       );
 
       let title = 'Guild Veteran';
@@ -136,7 +166,21 @@ function buildHallData(stats) {
       if (feed >= 7) title = 'Killfeed Master';
       if (wars >= 8) title = 'Siege Veteran';
 
-      return { ...player, kills, deaths, kd: ratio, streak, feed, wars, score, title };
+      return {
+        ...player,
+        kills,
+        deaths,
+        kd: ratio,
+        streak,
+        feed,
+        wars,
+        damageDealt,
+        damageTaken,
+        ccHits,
+        fortDamage,
+        score,
+        title,
+      };
     })
     .sort((a, b) => b.score - a.score || b.kills - a.kills || a.name.localeCompare(b.name));
 
@@ -173,6 +217,14 @@ function buildHallData(stats) {
     rows,
     achievements,
     months,
+    topKillers: [...rows]
+      .filter((row) => row.kills > 0)
+      .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
+      .slice(0, 6),
+    topDamagePlayers: [...rows]
+      .filter((row) => row.damageDealt > 0)
+      .sort((a, b) => b.damageDealt - a.damageDealt || a.name.localeCompare(b.name))
+      .slice(0, 6),
     totals: {
       kills: num(safe.kills) || rows.reduce((sum, row) => sum + row.kills, 0),
       deaths: num(safe.deaths) || rows.reduce((sum, row) => sum + row.deaths, 0),
@@ -180,6 +232,7 @@ function buildHallData(stats) {
       players: rows.length,
       wars: totalWars,
       score: rows.reduce((sum, row) => sum + row.score, 0),
+      damageDealt: rows.reduce((sum, row) => sum + row.damageDealt, 0),
     },
   };
 }
@@ -515,6 +568,76 @@ function EmptyState() {
   );
 }
 
+function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
+  const width = max ? Math.max(5, Math.min(100, (num(value) / max) * 100)) : 0;
+  const colors = {
+    blue: 'from-blue-500 to-sky-300',
+    emerald: 'from-emerald-500 to-lime-300',
+    amber: 'from-amber-500 to-yellow-300',
+    rose: 'from-rose-500 to-red-300',
+  };
+
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
+        <span className="truncate text-slate-200">{label}</span>
+        <span className="shrink-0 text-slate-400">{right ?? shortNum(value)}</span>
+      </div>
+      <div className="h-2 rounded-full bg-slate-900/90">
+        <div className={cls('h-2 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)} style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function ArsenalOutputPanel({ data }) {
+  const maxKills = Math.max(1, ...data.topKillers.map((player) => player.kills));
+  const maxDamage = Math.max(1, ...data.topDamagePlayers.map((player) => player.damageDealt));
+
+  return (
+    <PremiumPanel className="p-5">
+      <SectionTitle icon={BarChart3} title="Arsenal Output" action="Hall V1" />
+      <div className="grid gap-5 md:grid-cols-2">
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Kill Leaders</p>
+          {data.topKillers.length ? (
+            data.topKillers.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.kills}
+                max={maxKills}
+                right={shortNum(player.kills)}
+                tone="emerald"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kill leaders yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Damage Leaders</p>
+          {data.topDamagePlayers.length ? (
+            data.topDamagePlayers.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.damageDealt}
+                max={maxDamage}
+                right={shortNum(player.damageDealt)}
+                tone="amber"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No secondary damage data yet.</p>
+          )}
+        </div>
+      </div>
+    </PremiumPanel>
+  );
+}
+
 function Variant1({ data }) {
   const leader = data.rows[0];
 
@@ -555,6 +678,8 @@ function Variant1({ data }) {
           <div className="space-y-3">{data.rows.slice(0, 5).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 1} />)}</div>
         </PremiumPanel>
       </div>
+
+      <ArsenalOutputPanel data={data} />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} compact />)}</div>
     </div>
