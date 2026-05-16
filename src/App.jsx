@@ -26,6 +26,7 @@ import {
 const Overview = lazy(() => import('./pages/Overview'));
 const PlayerStats = lazy(() => import('./pages/PlayerStats'));
 const HallOfFame = lazy(() => import('./pages/HallOfFame'));
+const Guild = lazy(() => import('./pages/Guild'));
 
 const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
@@ -495,7 +496,7 @@ export default function App() {
   }, [loadNodeLogs]);
 
   useEffect(() => {
-    if (page === 'players' || page === 'hall' || page === 'raw') {
+    if (page === 'players' || page === 'hall' || page === 'raw' || page === 'guild') {
       loadAllLogs();
     }
   }, [page, loadAllLogs]);
@@ -556,7 +557,7 @@ export default function App() {
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
   const allTimeStats = useMemo(() => {
-    if (page !== 'players' && page !== 'hall') {
+    if (page !== 'players' && page !== 'hall' && page !== 'guild') {
       return calculateStats([]);
     }
 
@@ -580,6 +581,12 @@ export default function App() {
 
   const hallOfFameReady =
     page !== 'hall' ||
+    (Array.isArray(allLogs) &&
+      allLogs.length > 0 &&
+      allLogs.some((log) => Boolean(log.raw)));
+
+  const guildReady =
+    page !== 'guild' ||
     (Array.isArray(allLogs) &&
       allLogs.length > 0 &&
       allLogs.some((log) => Boolean(log.raw)));
@@ -724,6 +731,7 @@ export default function App() {
   }
 
   const menu = [
+    ['guild', 'Guild'],
     ['nodewars', 'Node Wars'],
     ['players', 'Player Stats'],
     ['hall', 'Hall of Fame'],
@@ -763,7 +771,7 @@ export default function App() {
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black text-white">☾ Battle Analytics</div>
 
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {menu.map(([id, title]) => (
             <button
               key={id}
@@ -865,6 +873,16 @@ export default function App() {
         </aside>
 
         <main className="min-w-0 p-3 sm:p-5 lg:p-6">
+          {page === 'guild' && (
+            <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
+              {!guildReady || loadingAllLogs ? (
+                <PageLoader text="Loading all logs for Guild..." />
+              ) : (
+                <Guild stats={allTimeStats} logs={Array.isArray(allLogs) ? allLogs : []} />
+              )}
+            </Suspense>
+          )}
+
           {page === 'nodewars' && (
             <NodeWars
               logs={nodeLogs}
