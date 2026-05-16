@@ -1242,9 +1242,35 @@ export function calculateStats(items) {
   }
 
   const logsWithRaw = logs.filter((log) => Boolean(log.raw));
+  const logsWithoutRaw = logs.filter((log) => !log.raw);
+
+  if (logsWithRaw.length > 0 && !logsWithoutRaw.length) {
+    return calculateStatsFromRaw(logsWithRaw);
+  }
 
   if (logsWithRaw.length > 0) {
-    return calculateStatsFromRaw(logsWithRaw);
+    const rawStats = calculateStatsFromRaw(logsWithRaw);
+    const summaryStats = mergeStatsFromSummaries(logsWithoutRaw);
+
+    const merged = mergeStatsFromSummaries([
+      {
+        id: '__raw_stats__',
+        date: logsWithRaw[0]?.date || today(),
+        summary: rawStats,
+      },
+      {
+        id: '__summary_stats__',
+        date: logsWithoutRaw[0]?.date || today(),
+        summary: summaryStats,
+      },
+    ]);
+
+    return {
+      ...merged,
+      ev: rawStats.ev || [],
+      hasTimeline: Boolean(rawStats.hasTimeline || summaryStats.hasTimeline),
+      summaryOnly: Boolean(summaryStats.summaryOnly && !rawStats.hasTimeline),
+    };
   }
 
   return mergeStatsFromSummaries(logs);
