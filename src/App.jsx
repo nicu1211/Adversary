@@ -382,31 +382,71 @@ export default function App() {
   const loadOverviewLogs = useCallback(async () => {
     if (page !== 'overview') return;
 
-    const selectedRealWars = selectedWars.filter(
-      (id) => id !== 'all' && id !== 'current',
-    );
+    const availableLogs = Array.isArray(nodeLogs) ? nodeLogs : [];
+    const allAvailableLogs = Array.isArray(allLogs) ? allLogs : [];
+    const sourceLogs = [...availableLogs, ...allAvailableLogs];
 
-    if (!selectedRealWars.length) {
+    const selectedRealWars = selectedWars.includes('all')
+      ? availableLogs
+          .map((log) => String(log.id))
+          .filter((id) => id && id !== 'current' && id !== 'all')
+      : selectedWars.filter((id) => id !== 'all' && id !== 'current');
+
+    const uniqueSelectedWars = [...new Set(selectedRealWars)];
+
+    if (!uniqueSelectedWars.length) {
       setOverviewLogs([]);
       return;
     }
 
+    const fallbackById = new Map(
+      sourceLogs.map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
+    );
+
     try {
       setLoadingOverviewLogs(true);
 
-      const loaded = await Promise.all(
-        selectedRealWars.map(async (id) => {
+      const loaded = await Promise.allSettled(
+        uniqueSelectedWars.map(async (id) => {
           const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
           return normalizeLog(data);
         }),
       );
 
-      const withRaw = loaded.filter((log) => Boolean(log.raw));
+      const rawById = new Map();
 
-      setOverviewLogs(withRaw);
+      loaded.forEach((result) => {
+        if (result.status !== 'fulfilled') return;
+
+        const log = result.value;
+        const id = String(log.id);
+
+        if (!id || !log.raw) return;
+
+        rawById.set(id, {
+          ...log,
+          date: dateOf(log),
+        });
+      });
+
+      const selectedLogsWithFallback = uniqueSelectedWars
+        .map((id) => rawById.get(String(id)) || fallbackById.get(String(id)))
+        .filter(Boolean);
+
+      setOverviewLogs(selectedLogsWithFallback);
+
+      const failedCount = uniqueSelectedWars.length - rawById.size;
+
+      if (failedCount > 0) {
+        console.warn(
+          `Overview loaded ${rawById.size}/${uniqueSelectedWars.length} raw log(s). Falling back to saved summaries for ${failedCount} log(s).`,
+        );
+      }
     } catch (error) {
       console.error('Failed to load overview raw logs:', error);
-      setOverviewLogs([]);
+      setOverviewLogs(
+        uniqueSelectedWars.map((id) => fallbackById.get(String(id))).filter(Boolean),
+      );
       setMessage(
         `Failed to load selected raw logs: ${
           error?.message || error || 'unknown error'
@@ -415,7 +455,7 @@ export default function App() {
     } finally {
       setLoadingOverviewLogs(false);
     }
-  }, [page, selectedWars]);
+  }, [page, selectedWars, nodeLogs, allLogs]);
 
   useEffect(() => {
     loadNodeLogs(30);
