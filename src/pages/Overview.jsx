@@ -18,6 +18,25 @@ import {
 
 ChartJS.register(LinearScale, PointElement, ChartTooltip, Legend);
 
+function compactNumber(value, digits = 1) {
+  const number = Number(value) || 0;
+  const abs = Math.abs(number);
+
+  function format(divisor, suffix) {
+    const compact = number / divisor;
+    const decimals = Math.abs(compact) >= 10 || Number.isInteger(compact) ? 0 : digits;
+
+    return `${compact.toFixed(decimals).replace(/\.0$/, '')}${suffix}`;
+  }
+
+  if (abs >= 1_000_000_000_000) return format(1_000_000_000_000, 'T');
+  if (abs >= 1_000_000_000) return format(1_000_000_000, 'B');
+  if (abs >= 1_000_000) return format(1_000_000, 'M');
+  if (abs >= 1_000) return format(1_000, 'K');
+
+  return number.toLocaleString('en-US');
+}
+
 function RankList({ title, items, valueKey }) {
   const rows = items.slice(0, 5);
   const max = Math.max(1, ...rows.map((x) => Number(x[valueKey]) || 0));
@@ -1593,6 +1612,27 @@ export default function OverviewPage({
     ? buildConsecutiveFlowMarkers(stats.ev || [])
     : [];
 
+  const playerSecondaryTotals = (stats.players || []).reduce(
+    (totals, player) => ({
+      damageDealt:
+        totals.damageDealt + (Number(player.damageDealt) || 0),
+      damageTaken:
+        totals.damageTaken + (Number(player.damageTaken) || 0),
+      ccHits: totals.ccHits + (Number(player.ccHits) || 0),
+      fortDamage: totals.fortDamage + (Number(player.fortDamage) || 0),
+    }),
+    { damageDealt: 0, damageTaken: 0, ccHits: 0, fortDamage: 0 },
+  );
+
+  const secondaryTotals = stats.secondary?.totals || {};
+  const damageDealt =
+    Number(secondaryTotals.damageDealt) || playerSecondaryTotals.damageDealt || 0;
+  const damageTaken =
+    Number(secondaryTotals.damageTaken) || playerSecondaryTotals.damageTaken || 0;
+  const ccHits = Number(secondaryTotals.ccHits) || playerSecondaryTotals.ccHits || 0;
+  const fortDamage =
+    Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0;
+
   return (
     <>
       <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
@@ -1601,7 +1641,7 @@ export default function OverviewPage({
           <p className="text-slate-400">{label}</p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
           <Metric
             icon="⚔"
             label="Total Kills"
@@ -1632,6 +1672,38 @@ export default function OverviewPage({
             value={stats.players.length}
             sub="Active"
             className="border-blue-400/25 from-blue-500/20 text-blue-300"
+          />
+
+          <Metric
+            icon="⚡"
+            label="Damage"
+            value={compactNumber(damageDealt)}
+            sub="Dealt"
+            className="border-amber-400/25 from-amber-500/20 text-amber-300"
+          />
+
+          <Metric
+            icon="🛡"
+            label="Damage Taken"
+            value={compactNumber(damageTaken)}
+            sub="Taken"
+            className="border-pink-400/25 from-pink-500/20 text-pink-300"
+          />
+
+          <Metric
+            icon="◎"
+            label="CC Hits"
+            value={compactNumber(ccHits)}
+            sub="Control"
+            className="border-cyan-400/25 from-cyan-500/20 text-cyan-300"
+          />
+
+          <Metric
+            icon="♜"
+            label="Fort Damage"
+            value={compactNumber(fortDamage)}
+            sub="Structure"
+            className="border-violet-400/25 from-violet-500/20 text-violet-300"
           />
         </div>
       </header>
