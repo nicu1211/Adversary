@@ -548,11 +548,19 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
   const [key, direction] = sort;
 
+  function formatNumber(value) {
+    return new Intl.NumberFormat('en-US').format(Number(value) || 0);
+  }
+
   const rows = players
     .map((player) => ({
       ...player,
       streak: streaks[player.name] || 0,
       feed: feeds[player.name] || 0,
+      damageDealt: Number(player.damageDealt) || 0,
+      damageTaken: Number(player.damageTaken) || 0,
+      ccHits: Number(player.ccHits) || 0,
+      fortDamage: Number(player.fortDamage) || 0,
     }))
     .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => {
@@ -661,8 +669,20 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                   <Header id="streak" className="text-right">
                     Killstreak
                   </Header>
-                  <Header id="feed" className="pr-4 text-right">
+                  <Header id="feed" className="text-right">
                     KillFeed
+                  </Header>
+                  <Header id="damageDealt" className="text-right">
+                    Damage Dealt
+                  </Header>
+                  <Header id="damageTaken" className="text-right">
+                    Damage Taken
+                  </Header>
+                  <Header id="ccHits" className="text-right">
+                    CC Hits
+                  </Header>
+                  <Header id="fortDamage" className="pr-4 text-right">
+                    Damage to Fort
                   </Header>
                 </tr>
               </thead>
@@ -698,8 +718,24 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                       {player.streak}
                     </td>
 
-                    <td className="py-3 pr-4 text-right font-black text-orange-300">
+                    <td className="py-3 text-right font-black text-orange-300">
                       🔥 {player.feed}
+                    </td>
+
+                    <td className="py-3 text-right font-black text-cyan-300">
+                      {formatNumber(player.damageDealt)}
+                    </td>
+
+                    <td className="py-3 text-right font-black text-rose-300">
+                      {formatNumber(player.damageTaken)}
+                    </td>
+
+                    <td className="py-3 text-right font-black text-violet-300">
+                      {formatNumber(player.ccHits)}
+                    </td>
+
+                    <td className="py-3 pr-4 text-right font-black text-amber-300">
+                      {formatNumber(player.fortDamage)}
                     </td>
                   </tr>
                 ))}
