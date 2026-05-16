@@ -329,11 +329,45 @@ function parseSecondaryLine(line, index) {
   const player = normalizeSecondaryPlayerName(columns.slice(0, firstNumberIndex));
   const kills = Math.round(parseSecondaryNumber(numericColumns[0]));
   const deaths = Math.round(parseSecondaryNumber(numericColumns[1]));
-  const killStreak = Math.round(parseSecondaryNumber(numericColumns[2]));
-  const damageDealt = Math.round(parseSecondaryNumber(numericColumns[3]));
-  const damageTaken = Math.round(parseSecondaryNumber(numericColumns[4]));
-  const ccHits = Math.round(parseSecondaryNumber(numericColumns[5]));
-  const fortDamage = Math.round(parseSecondaryNumber(numericColumns[8]));
+
+  const thirdColumn = String(numericColumns[2] || '').trim();
+  const thirdNumber = parseSecondaryNumber(thirdColumn);
+  const looksLikeKdColumn =
+    player &&
+    numericColumns.length >= 9 &&
+    /[.,]/.test(thirdColumn) &&
+    thirdNumber >= 0 &&
+    thirdNumber <= 50;
+
+  const killStreak = Math.round(
+    parseSecondaryNumber(
+      looksLikeKdColumn ? numericColumns[4] : numericColumns[2],
+    ),
+  );
+
+  const damageDealt = Math.round(
+    parseSecondaryNumber(
+      looksLikeKdColumn ? numericColumns[5] : numericColumns[3],
+    ),
+  );
+
+  const damageTaken = Math.round(
+    parseSecondaryNumber(
+      looksLikeKdColumn ? numericColumns[6] : numericColumns[4],
+    ),
+  );
+
+  const ccHits = Math.round(
+    parseSecondaryNumber(
+      looksLikeKdColumn ? numericColumns[7] : numericColumns[5],
+    ),
+  );
+
+  const fortDamage = Math.round(
+    parseSecondaryNumber(
+      looksLikeKdColumn ? numericColumns[8] : numericColumns[8],
+    ),
+  );
 
   if (
     kills === 0 &&
