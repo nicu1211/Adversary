@@ -475,7 +475,7 @@ export default function App() {
         }));
     }
 
-    return stripSecondaryFromLogs(baseLogs);
+    return baseLogs;
   }, [
     current,
     page,
@@ -498,14 +498,12 @@ export default function App() {
     const sourceLogs = Array.isArray(allLogs) ? allLogs : [];
 
     return calculateStats(
-      stripSecondaryFromLogs(
-        sourceLogs
-          .filter((log) => Boolean(log.raw))
-          .map((log) => ({
-            ...log,
-            date: dateOf(log),
-          })),
-      ),
+      sourceLogs
+        .filter((log) => Boolean(log.raw))
+        .map((log) => ({
+          ...log,
+          date: dateOf(log),
+        })),
     );
   }, [page, allLogs]);
 
@@ -561,10 +559,7 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
-    const summary = buildLogSummary({
-      ...draftLog,
-      raw: mainRawForValidation,
-    });
+    const summary = buildLogSummary(draftLog);
 
     const payload = {
       ...draftLog,
