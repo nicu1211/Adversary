@@ -485,11 +485,11 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
               <p>{compact(guild.matches, 0)}</p>
             </div>
             <div>
-              <p className="text-[8px] uppercase tracking-wider text-rose-300/80">D</p>
+              <p className="text-[8px] uppercase tracking-wider text-emerald-300/80">K</p>
               <p>{compact(guild.deaths)}</p>
             </div>
             <div>
-              <p className="text-[8px] uppercase tracking-wider text-emerald-300/80">K</p>
+              <p className="text-[8px] uppercase tracking-wider text-rose-300/80">D</p>
               <p>{compact(guild.kills)}</p>
             </div>
             <div>
