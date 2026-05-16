@@ -234,19 +234,41 @@ function parseSecondaryNumber(value) {
 
   if (!raw) return 0;
 
-  const multiplier = /m\s*$/i.test(raw)
-    ? 1000000
-    : /k\s*$/i.test(raw)
-      ? 1000
-      : 1;
+  const suffixMatch = raw.match(/([kKmMbBtT])\s*$/);
+  const suffix = suffixMatch?.[1]?.toLowerCase() || '';
+  const multiplier =
+    suffix === 't'
+      ? 1000000000000
+      : suffix === 'b'
+        ? 1000000000
+        : suffix === 'm'
+          ? 1000000
+          : suffix === 'k'
+            ? 1000
+            : 1;
 
-  const cleaned = raw
-    .replace(/\s+/g, '')
-    .replace(/[kKmM]$/g, '')
-    .replace(/(?<=\d)[,.](?=\d{3}(\D|$))/g, '')
-    .replace(',', '.');
+  const withoutSuffix = raw.replace(/[kKmMbBtT]\s*$/g, '').trim();
+  const compact = withoutSuffix.replace(/\s+/g, '');
+  const lastComma = compact.lastIndexOf(',');
+  const lastDot = compact.lastIndexOf('.');
+  const decimalSeparator =
+    lastComma >= 0 && lastDot >= 0
+      ? lastComma > lastDot
+        ? ','
+        : '.'
+      : null;
 
-  const number = Number(cleaned.replace(/[^\d.-]/g, ''));
+  let normalized = compact;
+
+  if (decimalSeparator === ',') {
+    normalized = normalized.replace(/\./g, '').replace(',', '.');
+  } else if (decimalSeparator === '.') {
+    normalized = normalized.replace(/,/g, '');
+  } else {
+    normalized = normalized.replace(/(?<=\d)[,.](?=\d{3}(\D|$))/g, '').replace(',', '.');
+  }
+
+  const number = Number(normalized.replace(/[^\d.-]/g, ''));
 
   return Number.isFinite(number) ? number * multiplier : 0;
 }
@@ -256,15 +278,15 @@ function isSecondaryNumber(value) {
 
   if (!raw || !/\d/.test(raw)) return false;
 
-  const withoutUnitSuffix = raw.replace(/[kKmM]\s*$/g, '').trim();
+  const withoutUnitSuffix = raw.replace(/[kKmMbBtT]\s*$/g, '').trim();
 
   if (/[A-Za-z]/.test(withoutUnitSuffix)) return false;
 
   const cleaned = raw
-    .replace(/[^\d\s.,+\-kKmM]/g, '')
+    .replace(/[^\d\s.,+\-kKmMbBtT]/g, '')
     .trim();
 
-  return /^[-+]?\d[\d\s.,]*(?:[kKmM])?$/.test(cleaned);
+  return /^[-+]?\d[\d\s.,]*(?:[kKmMbBtT])?$/.test(cleaned);
 }
 
 function splitSecondaryColumns(line) {
