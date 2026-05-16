@@ -1307,7 +1307,7 @@ export default function OverviewPage({
             label="Total Kills"
             value={stats.kills}
             sub="Eliminations"
-            className="border-blue-400/25 from-blue-500/20 text-blue-300"
+            className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
           />
 
           <Metric
@@ -1331,7 +1331,7 @@ export default function OverviewPage({
             label="Players"
             value={stats.players.length}
             sub="Active"
-            className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
+            className="border-blue-400/25 from-blue-500/20 text-blue-300"
           />
         </div>
       </header>
