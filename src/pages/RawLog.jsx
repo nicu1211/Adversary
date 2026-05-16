@@ -1,33 +1,37 @@
-import React, { useMemo, useState } from 'react';
-import { Calendar, DeletePopup, Panel } from '../components/UI';
-import { dateOf, parseLog, scrollCls, today } from '../lib/logUtils';
+import React, { useMemo, useState } from "react";
+import { Calendar, DeletePopup, Panel } from "../components/UI";
+import {
+  dateOf,
+  parseLog,
+  parseSecondaryRows,
+  scrollCls,
+  today,
+} from "../lib/logUtils";
 
-const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
-const SECONDARY_LOG_END = '===== ADVERSARY_SECONDARY_LOG_END =====';
-
+const SECONDARY_LOG_START = "===== ADVERSARY_SECONDARY_LOG_START =====";
+const SECONDARY_LOG_END = "===== ADVERSARY_SECONDARY_LOG_END =====";
 
 function cleanText(text) {
-  return String(text || '')
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
+  return String(text || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
     .trim();
 }
 
 function countLines(text) {
-  return String(text || '')
-    .split('\n')
-    .filter((line) => line.trim())
-    .length;
+  return String(text || "")
+    .split("\n")
+    .filter((line) => line.trim()).length;
 }
 
 function hasSecondaryLog(rawLog) {
-  const text = String(rawLog || '');
+  const text = String(rawLog || "");
 
   return text.includes(SECONDARY_LOG_START) && text.includes(SECONDARY_LOG_END);
 }
 
 function getMainLogOnly(rawLog) {
-  const text = String(rawLog || '');
+  const text = String(rawLog || "");
 
   if (!hasSecondaryLog(text)) {
     return text;
@@ -37,14 +41,14 @@ function getMainLogOnly(rawLog) {
 }
 
 function getSecondaryLog(rawLog) {
-  const text = String(rawLog || '');
+  const text = String(rawLog || "");
 
   if (!hasSecondaryLog(text)) {
-    return '';
+    return "";
   }
 
-  const afterStart = text.split(SECONDARY_LOG_START)[1] || '';
-  const secondary = afterStart.split(SECONDARY_LOG_END)[0] || '';
+  const afterStart = text.split(SECONDARY_LOG_START)[1] || "";
+  const secondary = afterStart.split(SECONDARY_LOG_END)[0] || "";
 
   return secondary.trim();
 }
@@ -57,27 +61,21 @@ function buildCombinedRawLog(mainRaw, secondaryRaw) {
     return cleanMain;
   }
 
-  return [
-    cleanMain,
-    '',
-    SECONDARY_LOG_START,
-    cleanSecondary,
-    SECONDARY_LOG_END,
-  ]
-    .filter((item) => item !== '')
-    .join('\n');
+  return [cleanMain, "", SECONDARY_LOG_START, cleanSecondary, SECONDARY_LOG_END]
+    .filter((item) => item !== "")
+    .join("\n");
 }
 
 function getParsedEntries(raw, name, date) {
   try {
-    return parseLog(getMainLogOnly(raw), name, date, 'preview').length;
+    return parseLog(getMainLogOnly(raw), name, date, "preview").length;
   } catch {
     return 0;
   }
 }
 
 function getSavedLogStats(log) {
-  const raw = String(log?.raw || '');
+  const raw = String(log?.raw || "");
   const mainRaw = getMainLogOnly(raw);
   const secondaryRaw = getSecondaryLog(raw);
 
@@ -87,6 +85,39 @@ function getSavedLogStats(log) {
     mainLines: countLines(mainRaw),
     secondaryLines: countLines(secondaryRaw),
   };
+}
+
+function getSecondaryTotals(rows) {
+  return rows.reduce(
+    (totals, row) => ({
+      kills: totals.kills + (Number(row.kills) || 0),
+      deaths: totals.deaths + (Number(row.deaths) || 0),
+      killStreak: Math.max(totals.killStreak, Number(row.killStreak) || 0),
+      damageDealt: totals.damageDealt + (Number(row.damageDealt) || 0),
+      damageTaken: totals.damageTaken + (Number(row.damageTaken) || 0),
+      ccHits: totals.ccHits + (Number(row.ccHits) || 0),
+      fortDamage: totals.fortDamage + (Number(row.fortDamage) || 0),
+    }),
+    {
+      kills: 0,
+      deaths: 0,
+      killStreak: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+    },
+  );
+}
+
+function compactNumber(value) {
+  const number = Number(value) || 0;
+
+  if (Math.abs(number) >= 1000000) return `${(number / 1000000).toFixed(1)}M`;
+  if (Math.abs(number) >= 1000)
+    return `${Math.round(number).toLocaleString("en-US")}`;
+
+  return String(Math.round(number));
 }
 
 export default function RawLog({
@@ -107,7 +138,7 @@ export default function RawLog({
   deleting,
   deleteLog,
 }) {
-  const [secondaryRaw, setSecondaryRaw] = useState('');
+  const [secondaryRaw, setSecondaryRaw] = useState("");
   const [saving, setSaving] = useState(false);
 
   const mainRawOnly = useMemo(() => getMainLogOnly(raw), [raw]);
@@ -118,8 +149,26 @@ export default function RawLog({
   );
 
   const mainLines = useMemo(() => countLines(mainRawOnly), [mainRawOnly]);
-  const secondaryLines = useMemo(() => countLines(secondaryRaw), [secondaryRaw]);
-  const combinedLines = useMemo(() => countLines(combinedPreview), [combinedPreview]);
+  const secondaryLines = useMemo(
+    () => countLines(secondaryRaw),
+    [secondaryRaw],
+  );
+  const secondaryRows = useMemo(
+    () => parseSecondaryRows(secondaryRaw),
+    [secondaryRaw],
+  );
+  const secondaryTotals = useMemo(
+    () => getSecondaryTotals(secondaryRows),
+    [secondaryRows],
+  );
+  const secondaryNamedRows = useMemo(
+    () => secondaryRows.filter((row) => row.player).length,
+    [secondaryRows],
+  );
+  const combinedLines = useMemo(
+    () => countLines(combinedPreview),
+    [combinedPreview],
+  );
 
   const parsedEntries = useMemo(
     () => getParsedEntries(mainRawOnly, date, date),
@@ -145,11 +194,11 @@ export default function RawLog({
   }
 
   function clearMainRaw() {
-    setRaw('');
+    setRaw("");
   }
 
   function clearSecondaryRaw() {
-    setSecondaryRaw('');
+    setSecondaryRaw("");
   }
 
   function loadSavedLogIntoEditor(log) {
@@ -162,7 +211,7 @@ export default function RawLog({
 
     window.scrollTo({
       top: 0,
-      behavior: 'smooth',
+      behavior: "smooth",
     });
   }
 
@@ -228,7 +277,7 @@ export default function RawLog({
                 disabled={!canSave}
                 className="rounded-xl bg-blue-600 px-5 py-3 font-black hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? "Saving..." : "Save"}
               </button>
             </div>
 
@@ -257,8 +306,8 @@ export default function RawLog({
                     <span
                       className={`rounded-lg px-2 py-1 text-xs ${
                         parsedEntries > 0
-                          ? 'bg-emerald-500/10 text-emerald-200'
-                          : 'bg-amber-500/10 text-amber-200'
+                          ? "bg-emerald-500/10 text-emerald-200"
+                          : "bg-amber-500/10 text-amber-200"
                       }`}
                     >
                       Parsed: {parsedEntries}
@@ -289,7 +338,8 @@ export default function RawLog({
                 />
 
                 <p className="mt-2 text-xs text-slate-500">
-                  Formatul actual acceptat rămâne cel normal, de tip kill/death log.
+                  Formatul actual acceptat rămâne cel normal, de tip kill/death
+                  log.
                 </p>
               </div>
 
@@ -300,12 +350,21 @@ export default function RawLog({
                   </span>
 
                   <span className="mt-1 block text-xs text-emerald-200/80">
-                    Al doilea format se salvează împreună cu logul principal.
+                    Coloanele folosite: Kills, Deaths, Kill streak, Damage
+                    dealt, Damage taken, CC hits și Fort damage.
                   </span>
 
                   <div className="mt-2 flex flex-wrap gap-2">
                     <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
                       Lines: {secondaryLines}
+                    </span>
+
+                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
+                      Rows: {secondaryRows.length}
+                    </span>
+
+                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
+                      Named: {secondaryNamedRows}
                     </span>
 
                     <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
@@ -332,13 +391,27 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder="Lipește aici al doilea log, cu altă structură. Coloanele exacte le mapăm în următorul pas."
+                  placeholder="Lipește aici secondary log. Coloane folosite: 1 Kills, 2 Deaths, 3 Kill streak, 4 Damage dealt, 5 Damage taken, 6 CC hits, 9 Fort damage."
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
 
                 <p className="mt-2 text-xs text-slate-500">
-                  Acest text este păstrat separat în raw log între markere speciale.
+                  Restul coloanelor sunt ignorate. Dacă rândul conține numele
+                  jucătorului înaintea numerelor, valorile se atașează acelui
+                  player.
                 </p>
+
+                {secondaryRows.length > 0 && (
+                  <p className="mt-2 text-xs text-emerald-200/80">
+                    Secondary totals: {secondaryTotals.kills} kills ·{" "}
+                    {secondaryTotals.deaths} deaths ·{" "}
+                    {secondaryTotals.killStreak} max streak ·{" "}
+                    {compactNumber(secondaryTotals.damageDealt)} damage dealt ·{" "}
+                    {compactNumber(secondaryTotals.damageTaken)} damage taken ·{" "}
+                    {secondaryTotals.ccHits} CC hits ·{" "}
+                    {compactNumber(secondaryTotals.fortDamage)} fort damage
+                  </p>
+                )}
               </div>
             </div>
 
@@ -364,9 +437,9 @@ export default function RawLog({
 
             {!canSave && (
               <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-                Pentru Save, logul principal trebuie să conțină cel puțin o linie validă
-                de kill/death. Secondary Manual Log poate fi completat separat, dar nu
-                validează singur salvarea.
+                Pentru Save, logul principal trebuie să conțină cel puțin o
+                linie validă de kill/death. Secondary Manual Log poate fi
+                completat separat, dar nu validează singur salvarea.
               </div>
             )}
           </Panel>
@@ -395,10 +468,10 @@ export default function RawLog({
 
                         <p className="mt-1 text-xs text-slate-500">
                           {dateOf(log)}
-                          {log.localOnly ? ' · local only' : ''}
+                          {log.localOnly ? " · local only" : ""}
                           {savedStats.secondaryRaw
                             ? ` · secondary ${savedStats.secondaryLines} lines`
-                            : ''}
+                            : ""}
                         </p>
                       </div>
                     </div>
