@@ -382,38 +382,64 @@ export default function App() {
   const loadOverviewLogs = useCallback(async () => {
     if (page !== 'overview') return;
 
-    const availableLogs = Array.isArray(nodeLogs) ? nodeLogs : [];
-    const allAvailableLogs = Array.isArray(allLogs) ? allLogs : [];
-    const sourceLogs = [...availableLogs, ...allAvailableLogs];
-
-    const selectedRealWars = selectedWars.includes('all')
-      ? availableLogs
-          .map((log) => String(log.id))
-          .filter((id) => id && id !== 'current' && id !== 'all')
-      : selectedWars.filter((id) => id !== 'all' && id !== 'current');
-
-    const uniqueSelectedWars = [...new Set(selectedRealWars)];
-
-    if (!uniqueSelectedWars.length) {
-      setOverviewLogs([]);
-      return;
-    }
-
-    const fallbackById = new Map(
-      sourceLogs.map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
-    );
-
     try {
       setLoadingOverviewLogs(true);
 
+      const availableLogs = Array.isArray(nodeLogs) ? nodeLogs : [];
+      const needsAllLogs =
+        selectedDays.includes('all') || selectedWars.includes('all');
+      const allAvailableLogs = needsAllLogs
+        ? await loadAllLogs()
+        : Array.isArray(allLogs)
+          ? allLogs
+          : [];
+
+      const sourceLogs = [
+        ...new Map(
+          [...availableLogs, ...allAvailableLogs]
+            .filter(Boolean)
+            .map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
+        ).values(),
+      ];
+
+      const selectedRealWars = selectedWars.includes('all')
+        ? sourceLogs
+            .map((log) => String(log.id))
+            .filter((id) => id && id !== 'current' && id !== 'all')
+        : selectedWars.filter((id) => id !== 'all' && id !== 'current');
+
+      const uniqueSelectedWars = [...new Set(selectedRealWars)];
+
+      if (!uniqueSelectedWars.length) {
+        setOverviewLogs([]);
+        return;
+      }
+
+      const fallbackById = new Map(
+        sourceLogs.map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
+      );
+
+      const rawById = new Map();
+
+      sourceLogs.forEach((log) => {
+        const id = String(log.id);
+
+        if (!id || !log.raw) return;
+
+        rawById.set(id, {
+          ...log,
+          date: dateOf(log),
+        });
+      });
+
+      const idsToLoad = uniqueSelectedWars.filter((id) => !rawById.has(String(id)));
+
       const loaded = await Promise.allSettled(
-        uniqueSelectedWars.map(async (id) => {
+        idsToLoad.map(async (id) => {
           const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
           return normalizeLog(data);
         }),
       );
-
-      const rawById = new Map();
 
       loaded.forEach((result) => {
         if (result.status !== 'fulfilled') return;
@@ -435,18 +461,17 @@ export default function App() {
 
       setOverviewLogs(selectedLogsWithFallback);
 
-      const failedCount = uniqueSelectedWars.length - rawById.size;
+      const loadedCount = uniqueSelectedWars.filter((id) => rawById.has(String(id))).length;
+      const failedCount = uniqueSelectedWars.length - loadedCount;
 
       if (failedCount > 0) {
         console.warn(
-          `Overview loaded ${rawById.size}/${uniqueSelectedWars.length} raw log(s). Falling back to saved summaries for ${failedCount} log(s).`,
+          `Overview loaded ${loadedCount}/${uniqueSelectedWars.length} raw log(s). Falling back to saved summaries for ${failedCount} log(s).`,
         );
       }
     } catch (error) {
       console.error('Failed to load overview raw logs:', error);
-      setOverviewLogs(
-        uniqueSelectedWars.map((id) => fallbackById.get(String(id))).filter(Boolean),
-      );
+      setOverviewLogs([]);
       setMessage(
         `Failed to load selected raw logs: ${
           error?.message || error || 'unknown error'
@@ -455,7 +480,7 @@ export default function App() {
     } finally {
       setLoadingOverviewLogs(false);
     }
-  }, [page, selectedWars, nodeLogs, allLogs]);
+  }, [page, selectedDays, selectedWars, nodeLogs, allLogs, loadAllLogs]);
 
   useEffect(() => {
     loadNodeLogs(30);
