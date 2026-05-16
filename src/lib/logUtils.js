@@ -1394,6 +1394,23 @@ export function getLogSummary(log) {
 
 export function buildNodeWarRow(log) {
   const summary = getLogSummary(log);
+  const secondaryTotals = summary.secondary?.totals || {};
+  const playerSecondaryTotals = (summary.players || []).reduce(
+    (totals, player) => ({
+      damageDealt:
+        totals.damageDealt + (Number(player.damageDealt) || 0),
+      damageTaken:
+        totals.damageTaken + (Number(player.damageTaken) || 0),
+      ccHits: totals.ccHits + (Number(player.ccHits) || 0),
+      fortDamage: totals.fortDamage + (Number(player.fortDamage) || 0),
+    }),
+    {
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+    },
+  );
 
   return {
     ...log,
@@ -1403,6 +1420,13 @@ export function buildNodeWarRow(log) {
     deaths: Number(summary.deaths) || 0,
     kd: summary.kd || '0.00',
     kdNumber: Number(summary.kd) || 0,
+    damageDealt:
+      Number(secondaryTotals.damageDealt) || playerSecondaryTotals.damageDealt || 0,
+    damageTaken:
+      Number(secondaryTotals.damageTaken) || playerSecondaryTotals.damageTaken || 0,
+    ccHits: Number(secondaryTotals.ccHits) || playerSecondaryTotals.ccHits || 0,
+    fortDamage:
+      Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0,
     topEnemies: summary.topEnemies || [],
     allEnemyNames:
       summary.enemyNames?.length > 0
