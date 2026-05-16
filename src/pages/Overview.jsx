@@ -969,6 +969,7 @@ function EnemyGuilds({ guilds, events }) {
   const chartRef = useRef(null);
   const [selected, setSelected] = useState(null);
   const [guildListOpen, setGuildListOpen] = useState(false);
+  const [guildSearch, setGuildSearch] = useState('');
   const [chartGuildFilter, setChartGuildFilter] = useState('');
 
   const guildMatches = useMemo(() => {
@@ -1044,6 +1045,14 @@ function EnemyGuilds({ guilds, events }) {
         ),
     [guilds, guildMatches],
   );
+
+  const guildListRows = useMemo(() => {
+    const query = guildSearch.trim().toLowerCase();
+
+    return [...rows]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .filter((guild) => !query || guild.name.toLowerCase().includes(query));
+  }, [rows, guildSearch]);
 
   const chartRows = useMemo(() => {
     const firstRows = rows.slice(0, 32);
@@ -1171,9 +1180,19 @@ function EnemyGuilds({ guilds, events }) {
           backgroundColor: 'rgba(2, 6, 23, 0.96)',
           borderColor: 'rgba(148, 163, 184, 0.35)',
           borderWidth: 1,
-          padding: 10,
+          padding: 14,
           titleColor: '#f8fafc',
           bodyColor: '#cbd5e1',
+          titleFont: {
+            size: 14,
+            weight: 900,
+          },
+          bodyFont: {
+            size: 12,
+            weight: 700,
+          },
+          titleMarginBottom: 8,
+          bodySpacing: 4,
           callbacks: {
             title: (items) => {
               const guild = items?.[0]?.raw?.guild;
@@ -1330,7 +1349,10 @@ function EnemyGuilds({ guilds, events }) {
 
             <button
               type="button"
-              onClick={() => setGuildListOpen(true)}
+              onClick={() => {
+                setGuildSearch('');
+                setGuildListOpen(true);
+              }}
               className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300 transition hover:border-blue-400/60 hover:bg-slate-800 hover:text-blue-100"
               title="Show enemy guilds"
             >
@@ -1379,33 +1401,55 @@ function EnemyGuilds({ guilds, events }) {
                   </span>
                 </button>
 
-                {rows.map((guild) => (
-                  <button
-                    key={guild.name}
-                    type="button"
-                    onClick={() => {
-                      setChartGuildFilter(guild.name);
-                      setGuildListOpen(false);
-                      setSelected(null);
-                    }}
-                    className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                      chartGuildFilter === guild.name
-                        ? 'border-amber-400/45 bg-amber-500/15 text-amber-100'
-                        : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-blue-400/40 hover:bg-slate-800/90 hover:text-blue-100'
-                    }`}
-                  >
-                    <span className="min-w-0 truncate font-black">
-                      {guild.name}
-                    </span>
+                <div className="sticky top-0 z-10 rounded-2xl border border-slate-800 bg-slate-950/95 p-2 backdrop-blur-xl">
+                  <input
+                    value={guildSearch}
+                    onChange={(event) => setGuildSearch(event.target.value)}
+                    autoFocus
+                    placeholder="Search guild..."
+                    className="w-full rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400"
+                  />
 
-                    <span className="grid grid-cols-2 gap-x-3 gap-y-1 text-right text-[10px] font-black uppercase tracking-wide text-slate-400 sm:grid-cols-4">
-                      <span>Matches {guild.totalMatches}</span>
-                      <span>Avg K {formatAverageValue(guild.averageKills)}</span>
-                      <span>Avg D {formatAverageValue(guild.averageDeaths)}</span>
-                      <span>Avg K/D {formatGuildKd(guild.averageKd)}</span>
-                    </span>
-                  </button>
-                ))}
+                  {guildSearch.trim() && (
+                    <p className="mt-2 px-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      {guildListRows.length} suggestions
+                    </p>
+                  )}
+                </div>
+
+                {!guildListRows.length ? (
+                  <p className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-5 text-sm font-bold text-slate-500">
+                    No guild found.
+                  </p>
+                ) : (
+                  guildListRows.map((guild) => (
+                    <button
+                      key={guild.name}
+                      type="button"
+                      onClick={() => {
+                        setChartGuildFilter(guild.name);
+                        setGuildListOpen(false);
+                        setSelected(null);
+                      }}
+                      className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                        chartGuildFilter === guild.name
+                          ? 'border-amber-400/45 bg-amber-500/15 text-amber-100'
+                          : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-blue-400/40 hover:bg-slate-800/90 hover:text-blue-100'
+                      }`}
+                    >
+                      <span className="min-w-0 truncate font-black">
+                        {guild.name}
+                      </span>
+
+                      <span className="grid grid-cols-2 gap-x-3 gap-y-1 text-right text-[10px] font-black uppercase tracking-wide text-slate-400 sm:grid-cols-4">
+                        <span>Matches {guild.totalMatches}</span>
+                        <span>Avg K {formatAverageValue(guild.averageKills)}</span>
+                        <span>Avg D {formatAverageValue(guild.averageDeaths)}</span>
+                        <span>Avg K/D {formatGuildKd(guild.averageKd)}</span>
+                      </span>
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </Popup>
