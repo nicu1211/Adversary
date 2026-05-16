@@ -769,6 +769,7 @@ function calculateStatsFromRaw(items) {
   const classicPlayerKills = {};
   const classicPlayerDeaths = {};
   const secondaryByPlayer = {};
+  const secondaryByPlayerLog = {};
 
   classicEvents.forEach((event) => {
     if (event.type === 'kill') {
@@ -801,11 +802,35 @@ function calculateStatsFromRaw(items) {
     families[row.player] = families[row.player] || '-';
   });
 
-  function mergeSecondaryRow(playerName, row) {
-    if (!playerName) return;
-
-    const current = secondaryByPlayer[playerName] || {
+  function mergeSecondaryValues(current, playerName, row) {
+    return {
+      ...current,
       player: playerName,
+      id: row.id,
+      date: row.date,
+      war: row.war,
+      kills: (Number(current.kills) || 0) + (Number(row.kills) || 0),
+      deaths: (Number(current.deaths) || 0) + (Number(row.deaths) || 0),
+      killStreak: Math.max(
+        Number(current.killStreak) || 0,
+        Number(row.killStreak) || 0,
+      ),
+      damageDealt:
+        (Number(current.damageDealt) || 0) + (Number(row.damageDealt) || 0),
+      damageTaken:
+        (Number(current.damageTaken) || 0) + (Number(row.damageTaken) || 0),
+      ccHits: (Number(current.ccHits) || 0) + (Number(row.ccHits) || 0),
+      fortDamage:
+        (Number(current.fortDamage) || 0) + (Number(row.fortDamage) || 0),
+    };
+  }
+
+  function emptySecondaryRow(playerName, row = {}) {
+    return {
+      player: playerName,
+      id: row.id,
+      date: row.date,
+      war: row.war,
       kills: 0,
       deaths: 0,
       killStreak: 0,
@@ -814,17 +839,21 @@ function calculateStatsFromRaw(items) {
       ccHits: 0,
       fortDamage: 0,
     };
+  }
 
-    secondaryByPlayer[playerName] = {
-      ...current,
-      kills: current.kills + (Number(row.kills) || 0),
-      deaths: current.deaths + (Number(row.deaths) || 0),
-      killStreak: Math.max(current.killStreak, Number(row.killStreak) || 0),
-      damageDealt: current.damageDealt + (Number(row.damageDealt) || 0),
-      damageTaken: current.damageTaken + (Number(row.damageTaken) || 0),
-      ccHits: current.ccHits + (Number(row.ccHits) || 0),
-      fortDamage: current.fortDamage + (Number(row.fortDamage) || 0),
-    };
+  function secondaryLogKey(row, playerName) {
+    return `${String(row.id || row.date || 'secondary')}::${playerName}`;
+  }
+
+  function mergeSecondaryRow(playerName, row) {
+    if (!playerName) return;
+
+    const current = secondaryByPlayer[playerName] || emptySecondaryRow(playerName, row);
+    secondaryByPlayer[playerName] = mergeSecondaryValues(current, playerName, row);
+
+    const logKey = secondaryLogKey(row, playerName);
+    const currentLog = secondaryByPlayerLog[logKey] || emptySecondaryRow(playerName, row);
+    secondaryByPlayerLog[logKey] = mergeSecondaryValues(currentLog, playerName, row);
   }
 
   function buildBasePlayersForSecondary(row) {
@@ -918,10 +947,44 @@ function calculateStatsFromRaw(items) {
     assignedSecondaryPlayers.add(`${row.id}:${target.name}`);
   });
 
-  Object.values(secondaryByPlayer).forEach((row) => {
-    playerKills[row.player] = Number(row.kills) || 0;
-    playerDeaths[row.player] = Number(row.deaths) || 0;
-    families[row.player] = families[row.player] || '-';
+  Object.values(secondaryByPlayerLog).forEach((row) => {
+    const playerName = row.player;
+
+    if (!playerName) return;
+
+    const classicKillsForSameLog = classicEvents.filter(
+      (event) => event.id === row.id && event.killer === playerName,
+    ).length;
+
+    const classicDeathsForSameLog = classicEvents.filter(
+      (event) => event.id === row.id && event.victim === playerName,
+    ).length;
+
+    const summaryKillsForSameLog = summaryRows
+      .filter((summaryRow) => summaryRow.id === row.id && summaryRow.player === playerName)
+      .reduce((sum, summaryRow) => sum + (Number(summaryRow.kills) || 0), 0);
+
+    const summaryDeathsForSameLog = summaryRows
+      .filter((summaryRow) => summaryRow.id === row.id && summaryRow.player === playerName)
+      .reduce((sum, summaryRow) => sum + (Number(summaryRow.deaths) || 0), 0);
+
+    playerKills[playerName] = Math.max(
+      0,
+      (Number(playerKills[playerName]) || 0) -
+        classicKillsForSameLog -
+        summaryKillsForSameLog +
+        (Number(row.kills) || 0),
+    );
+
+    playerDeaths[playerName] = Math.max(
+      0,
+      (Number(playerDeaths[playerName]) || 0) -
+        classicDeathsForSameLog -
+        summaryDeathsForSameLog +
+        (Number(row.deaths) || 0),
+    );
+
+    families[playerName] = families[playerName] || '-';
   });
 
   const hasTimeline = classicEvents.length > 0;
@@ -994,34 +1057,15 @@ function calculateStatsFromRaw(items) {
     };
   });
 
-  const classicKills = classicEvents.filter((event) => event.type === 'kill').length;
-  const classicDeaths = classicEvents.filter((event) => event.type === 'death').length;
-  const summaryKills = summaryRows.reduce((sum, row) => sum + row.kills, 0);
-  const summaryDeaths = summaryRows.reduce((sum, row) => sum + row.deaths, 0);
+  const kills = Object.values(playerKills).reduce(
+    (sum, value) => sum + (Number(value) || 0),
+    0,
+  );
 
-  const classicExtraKills = hasNamedSecondaryRows
-    ? Object.entries(classicPlayerKills).reduce(
-        (sum, [player, value]) =>
-          secondaryPlayerNames.has(player) ? sum : sum + (Number(value) || 0),
-        0,
-      )
-    : 0;
-
-  const classicExtraDeaths = hasNamedSecondaryRows
-    ? Object.entries(classicPlayerDeaths).reduce(
-        (sum, [player, value]) =>
-          secondaryPlayerNames.has(player) ? sum : sum + (Number(value) || 0),
-        0,
-      )
-    : 0;
-
-  const kills = hasSecondaryRows
-    ? secondaryTotals.kills + classicExtraKills + summaryKills
-    : classicKills + summaryKills;
-
-  const deaths = hasSecondaryRows
-    ? secondaryTotals.deaths + classicExtraDeaths + summaryDeaths
-    : classicDeaths + summaryDeaths;
+  const deaths = Object.values(playerDeaths).reduce(
+    (sum, value) => sum + (Number(value) || 0),
+    0,
+  );
 
   const classicStreaks = hasTimeline ? calculateStreaks(classicEvents) : {};
   const st = { ...classicStreaks };
