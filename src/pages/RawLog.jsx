@@ -5,17 +5,6 @@ import { dateOf, parseLog, scrollCls, today } from '../lib/logUtils';
 const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
 const SECONDARY_LOG_END = '===== ADVERSARY_SECONDARY_LOG_END =====';
 
-function formatBytes(bytes) {
-  if (!bytes) return '0 KB';
-
-  const kb = bytes / 1024;
-
-  if (kb < 1024) {
-    return `${kb.toFixed(1)} KB`;
-  }
-
-  return `${(kb / 1024).toFixed(1)} MB`;
-}
 
 function cleanText(text) {
   return String(text || '')
@@ -103,8 +92,6 @@ function getSavedLogStats(log) {
 export default function RawLog({
   raw,
   setRaw,
-  name,
-  setName,
   date,
   setDate,
   logs,
@@ -120,7 +107,6 @@ export default function RawLog({
   deleting,
   deleteLog,
 }) {
-  const [txtFile, setTxtFile] = useState(null);
   const [secondaryRaw, setSecondaryRaw] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -136,40 +122,11 @@ export default function RawLog({
   const combinedLines = useMemo(() => countLines(combinedPreview), [combinedPreview]);
 
   const parsedEntries = useMemo(
-    () => getParsedEntries(mainRawOnly, name, date),
-    [mainRawOnly, name, date],
+    () => getParsedEntries(mainRawOnly, date, date),
+    [mainRawOnly, date],
   );
 
   const canSave = parsedEntries > 0 && !saving;
-
-  async function handleTxtUpload(event) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-
-    if (!file) return;
-
-    const isTxt =
-      file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
-
-    if (!isTxt) {
-      alert('Te rog încarcă doar fișiere .txt.');
-      return;
-    }
-
-    try {
-      const text = await file.text();
-
-      setTxtFile(file);
-      setRaw(cleanText(text));
-
-      if (!name || name === 'Battle log') {
-        setName(file.name.replace(/\.txt$/i, ''));
-      }
-    } catch (error) {
-      console.error(error);
-      alert('Nu am putut citi fișierul TXT.');
-    }
-  }
 
   async function handleSave() {
     if (!canSave) return;
@@ -189,7 +146,6 @@ export default function RawLog({
 
   function clearMainRaw() {
     setRaw('');
-    setTxtFile(null);
   }
 
   function clearSecondaryRaw() {
@@ -200,7 +156,6 @@ export default function RawLog({
     const savedMain = getMainLogOnly(log.raw);
     const savedSecondary = getSecondaryLog(log.raw);
 
-    setName(log.name || 'Battle log');
     setDate(dateOf(log));
     setRaw(savedMain);
     setSecondaryRaw(savedSecondary);
@@ -216,15 +171,8 @@ export default function RawLog({
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <Panel>
-            <div className="mb-4 flex flex-col gap-3 xl:flex-row">
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Battle log name"
-                className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm outline-none focus:border-blue-400"
-              />
-
-              <div className="relative min-w-[220px]">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="relative w-full sm:max-w-[260px]">
                 <button
                   type="button"
                   onClick={() => setCalendarOpen(!calendarOpen)}
@@ -290,79 +238,34 @@ export default function RawLog({
               </p>
             )}
 
-            <div className="mb-4 grid gap-3 md:grid-cols-3">
-              <label className="cursor-pointer rounded-2xl border border-slate-700 bg-slate-900 p-4 transition hover:bg-slate-800">
-                <input
-                  type="file"
-                  accept=".txt,text/plain"
-                  className="hidden"
-                  onChange={handleTxtUpload}
-                />
-
-                <span className="block text-sm font-black text-white">
-                  Upload TXT log
-                </span>
-
-                <span className="mt-1 block text-xs text-slate-400">
-                  Încarcă logul normal în format .txt.
-                </span>
-
-                {txtFile && (
-                  <span className="mt-2 block text-xs text-blue-200">
-                    {txtFile.name} · {formatBytes(txtFile.size)}
-                  </span>
-                )}
-              </label>
-
-              <div className="rounded-2xl border border-slate-700 bg-slate-900 p-4">
-                <span className="block text-sm font-black text-white">
-                  Main log status
-                </span>
-
-                <span className="mt-1 block text-xs text-slate-400">
-                  Logul principal este folosit la calculele actuale.
-                </span>
-
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="rounded-lg bg-slate-950 px-2 py-1 text-xs text-slate-300">
-                    Lines: {mainLines}
-                  </span>
-
-                  <span
-                    className={`rounded-lg px-2 py-1 text-xs ${
-                      parsedEntries > 0
-                        ? 'bg-emerald-500/10 text-emerald-200'
-                        : 'bg-amber-500/10 text-amber-200'
-                    }`}
-                  >
-                    Parsed: {parsedEntries}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
-                <span className="block text-sm font-black text-emerald-100">
-                  Secondary manual log
-                </span>
-
-                <span className="mt-1 block text-xs text-emerald-200/80">
-                  Al doilea format se salvează împreună cu logul principal.
-                </span>
-
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
-                    Lines: {secondaryLines}
-                  </span>
-
-                  <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
-                    Total: {combinedLines}
-                  </span>
-                </div>
-              </div>
-            </div>
-
             <div className="grid gap-4 xl:grid-cols-2">
               <div>
+                <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-900 p-4">
+                  <span className="block text-sm font-black text-white">
+                    Main log status
+                  </span>
+
+                  <span className="mt-1 block text-xs text-slate-400">
+                    Logul principal este folosit la calculele actuale.
+                  </span>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-lg bg-slate-950 px-2 py-1 text-xs text-slate-300">
+                      Lines: {mainLines}
+                    </span>
+
+                    <span
+                      className={`rounded-lg px-2 py-1 text-xs ${
+                        parsedEntries > 0
+                          ? 'bg-emerald-500/10 text-emerald-200'
+                          : 'bg-amber-500/10 text-amber-200'
+                      }`}
+                    >
+                      Parsed: {parsedEntries}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
                     Main Raw Log
@@ -381,7 +284,7 @@ export default function RawLog({
                 <textarea
                   value={mainRawOnly}
                   onChange={(event) => setRaw(event.target.value)}
-                  placeholder="Paste your normal node war log here or upload a .txt file..."
+                  placeholder="Paste your normal node war log here..."
                   className="h-96 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-blue-400"
                 />
 
@@ -391,6 +294,26 @@ export default function RawLog({
               </div>
 
               <div>
+                <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                  <span className="block text-sm font-black text-emerald-100">
+                    Secondary manual log
+                  </span>
+
+                  <span className="mt-1 block text-xs text-emerald-200/80">
+                    Al doilea format se salvează împreună cu logul principal.
+                  </span>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
+                      Lines: {secondaryLines}
+                    </span>
+
+                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
+                      Total: {combinedLines}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">
                     Secondary Manual Log
