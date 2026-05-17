@@ -313,6 +313,19 @@ function splitSecondaryColumns(line) {
   return text.split(/\s+/).map((part) => part.trim()).filter(Boolean);
 }
 
+function expandPackedSecondaryNumberColumns(columns) {
+  return columns.flatMap((column) => {
+    const text = String(column || '').trim();
+    const parts = text.split(/\s+/).filter(Boolean);
+
+    if (parts.length > 1 && parts.every(isSecondaryNumber)) {
+      return parts;
+    }
+
+    return [column];
+  });
+}
+
 function normalizeSecondaryPlayerName(parts) {
   const name = parts.join(' ').replace(/^[-#•\d.\s]+/, '').trim();
 
@@ -336,7 +349,8 @@ function normalizeSecondaryPlayerName(parts) {
 }
 
 function parseSecondaryLine(line, index) {
-  const columns = splitSecondaryColumns(line);
+  let columns = splitSecondaryColumns(line);
+  columns = expandPackedSecondaryNumberColumns(columns);
 
   if (columns.length < 2) return null;
 
@@ -392,6 +406,7 @@ function parseSecondaryLine(line, index) {
   );
 
   if (
+    !player &&
     kills === 0 &&
     deaths === 0 &&
     killStreak === 0 &&
