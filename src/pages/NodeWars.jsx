@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Activity,
   CalendarDays,
   Castle,
   ChevronDown,
   Crosshair,
+  Gauge,
+  Hand,
   Search,
   Shield,
   Skull,
@@ -170,7 +172,6 @@ function PeriodSelect({ value, onChange, loading = false }) {
   const [open, setOpen] = useState(false);
 
   const options = [
-    { value: 7, label: 'Last 7 Days' },
     { value: 30, label: 'Last 30 Days' },
     { value: 'all', label: 'All Time' },
   ];
@@ -448,7 +449,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                 label="CC Hits"
                 value={compactNumber(row.ccHits)}
                 valueClass="text-cyan-300"
-                icon={<Activity size={17} className="text-cyan-300" />}
+                icon={<Hand size={17} className="text-cyan-300" />}
               />
 
               <WarMetric
@@ -590,48 +591,6 @@ function KillsDeathsTrend({ rows }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-
-          {safeKills.map((value, index) => {
-            const x =
-              safeKills.length === 1
-                ? width / 2
-                : (index / (safeKills.length - 1)) * width;
-
-            const y = bottom - ((Number(value) || 0) / max) * height;
-
-            return (
-              <circle
-                key={`kills-${value}-${index}`}
-                cx={x}
-                cy={y}
-                r="2.3"
-                fill="rgb(15 23 42)"
-                stroke="rgb(52 211 153)"
-                strokeWidth="1.8"
-              />
-            );
-          })}
-
-          {safeDeaths.map((value, index) => {
-            const x =
-              safeDeaths.length === 1
-                ? width / 2
-                : (index / (safeDeaths.length - 1)) * width;
-
-            const y = bottom - ((Number(value) || 0) / max) * height;
-
-            return (
-              <circle
-                key={`deaths-${value}-${index}`}
-                cx={x}
-                cy={y}
-                r="2.3"
-                fill="rgb(15 23 42)"
-                stroke="rgb(251 113 133)"
-                strokeWidth="1.8"
-              />
-            );
-          })}
         </svg>
       </div>
     </div>
@@ -642,7 +601,7 @@ function KillsDeathsTrend({ rows }) {
 export default function NodeWars({
   logs,
   loading = false,
-  periodDays = 7,
+  periodDays = 30,
   onPeriodChange = () => {},
   setPage,
   setSelectedDays,
@@ -657,6 +616,23 @@ export default function NodeWars({
     key: 'time',
     dir: 'desc',
   });
+  const [filtersVisible, setFiltersVisible] = useState(true);
+  const lastListScrollTop = useRef(0);
+
+  function handleWarsListScroll(event) {
+    const nextTop = event.currentTarget.scrollTop;
+    const delta = nextTop - lastListScrollTop.current;
+
+    if (nextTop <= 8) {
+      setFiltersVisible(true);
+    } else if (delta > 14) {
+      setFiltersVisible(false);
+    } else if (delta < -14) {
+      setFiltersVisible(true);
+    }
+
+    lastListScrollTop.current = nextTop;
+  }
 
   function clearWarnings() {
     setWarning('');
@@ -898,7 +874,13 @@ export default function NodeWars({
     <Panel cls="border-0 bg-transparent p-0 shadow-none">
       <div className="space-y-3">
         {/* FILTER PANEL */}
-        <div className="rounded-xl border border-slate-800 bg-slate-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)]">
+        <div
+          className={`overflow-hidden rounded-xl border border-slate-800 bg-slate-950/95 shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition-all duration-300 ${
+            filtersVisible
+              ? 'max-h-[240px] p-4 opacity-100 translate-y-0'
+              : 'max-h-0 border-transparent p-0 opacity-0 -translate-y-2'
+          }`}
+        >
           <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
             <EnemySearch
               value={query}
@@ -1046,7 +1028,7 @@ export default function NodeWars({
             barClass={
               Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'
             }
-            icon={<Activity size={20} className="text-cyan-300" />}
+            icon={<Gauge size={20} className="text-cyan-300" />}
           />
 
           <SummaryStat
@@ -1070,7 +1052,7 @@ export default function NodeWars({
             value={compactNumber(totals.ccHits)}
             valueClass="text-cyan-300"
             barClass="bg-cyan-300"
-            icon={<Activity size={20} className="text-cyan-300" />}
+            icon={<Hand size={20} className="text-cyan-300" />}
           />
 
           <SummaryStat
@@ -1086,7 +1068,8 @@ export default function NodeWars({
 
         {/* LIST */}
         <div
-          className={`max-h-[calc(100vh-330px)] space-y-2 overflow-auto px-1 py-1 ${scrollCls}`}
+          onScroll={handleWarsListScroll}
+          className={`${filtersVisible ? 'max-h-[calc(100vh-330px)]' : 'max-h-[calc(100vh-210px)]'} space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
         >
           {loading && !rows.length ? (
             <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
