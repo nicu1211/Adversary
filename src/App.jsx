@@ -600,9 +600,8 @@ export default function App() {
 
   async function saveLog(rawOverride) {
     const rawToSave = rawOverride == null ? raw : rawOverride;
-    const mainRawForValidation = getMainLogOnly(rawToSave);
 
-    if (!parseLog(mainRawForValidation, date, date, 'x').length) {
+    if (!parseLog(rawToSave, date, date, 'x').length) {
       setMessage('Invalid log');
       return;
     }
