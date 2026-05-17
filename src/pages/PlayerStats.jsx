@@ -617,7 +617,71 @@ function getOurPlayerRowsForWar(warEvents) {
   });
 }
 
-function buildAverageRankFromPlayedWars(events, playerName) {
+
+function secondaryWarId(row, index = 0) {
+  return String(row?.id || row?.date || row?.war || `secondary-${index}`);
+}
+
+function buildSecondaryRankValues(rows, playerName, excludedWarIds = new Set()) {
+  const warMap = {};
+
+  (rows || [])
+    .filter((row) => row?.player)
+    .forEach((row, index) => {
+      const id = secondaryWarId(row, index);
+
+      if (excludedWarIds.has(id)) return;
+
+      warMap[id] ||= [];
+      warMap[id].push({
+        ...row,
+        id,
+        name: row.player,
+        kills: Number(row.kills) || 0,
+        deaths: Number(row.deaths) || 0,
+        kdNumber: Number(row.deaths)
+          ? Number(((Number(row.kills) || 0) / Number(row.deaths)).toFixed(2))
+          : Number((Number(row.kills) || 0).toFixed(2)),
+        streak: Number(row.killStreak) || 0,
+        feed: 0,
+      });
+    });
+
+  const values = [];
+
+  Object.values(warMap).forEach((rowsForWar) => {
+    if (!rowsForWar.some((row) => row.name === playerName)) return;
+
+    const ranks = {
+      kills: buildTieAwareRank(rowsForWar, 'kills', true),
+      deaths: buildTieAwareRank(rowsForWar, 'deaths', false),
+      kd: buildTieAwareRank(rowsForWar, 'kdNumber', true),
+      streak: buildTieAwareRank(rowsForWar, 'streak', true),
+    };
+
+    values.push(
+      (ranks.kills[playerName] +
+        ranks.deaths[playerName] +
+        ranks.kd[playerName] +
+        ranks.streak[playerName]) /
+        4,
+    );
+  });
+
+  return values;
+}
+
+function formatAverageRank(values) {
+  const clean = (values || []).filter((value) => Number.isFinite(Number(value)));
+
+  if (!clean.length) return '0.00';
+
+  const average = clean.reduce((sum, value) => sum + Number(value), 0) / clean.length;
+
+  return average.toFixed(2);
+}
+
+function buildAverageRankValuesFromPlayedWars(events, playerName) {
   const warMap = {};
 
   events.forEach((event) => {
@@ -654,13 +718,11 @@ function buildAverageRankFromPlayedWars(events, playerName) {
     playedWarAverages.push(averageForThisWar);
   });
 
-  if (!playedWarAverages.length) return '0.00';
+  return playedWarAverages;
+}
 
-  const finalAverage =
-    playedWarAverages.reduce((sum, value) => sum + value, 0) /
-    playedWarAverages.length;
-
-  return finalAverage.toFixed(2);
+function buildAverageRankFromPlayedWars(events, playerName) {
+  return formatAverageRank(buildAverageRankValuesFromPlayedWars(events, playerName));
 }
 
 function PremiumStatList({ title, items, accent = 'emerald' }) {
@@ -807,6 +869,7 @@ export default function PlayerStats({ stats }) {
     const days = {};
     const enemyGuilds = {};
     const involvedWarIds = new Set();
+    const eventWarIdsForPlayer = new Set();
     const warMap = {};
 
     stats.ev.forEach((event) => {
@@ -818,6 +881,7 @@ export default function PlayerStats({ stats }) {
       if (!involved) return;
 
       involvedWarIds.add(String(event.id));
+      eventWarIdsForPlayer.add(String(event.id));
 
       if (!days[event.date]) {
         days[event.date] = {
@@ -852,6 +916,33 @@ export default function PlayerStats({ stats }) {
         days[event.date].deaths += 1;
         enemyGuilds[event.guild].deaths += 1;
       }
+    });
+
+
+    const secondaryRowsForPlayer = (stats.secondary?.rows || []).filter(
+      (row) => row.player === player,
+    );
+
+    secondaryRowsForPlayer.forEach((row, index) => {
+      const warId = secondaryWarId(row, index);
+
+      if (eventWarIdsForPlayer.has(warId)) return;
+
+      const dayKey = row.date || row.war || warId;
+      involvedWarIds.add(warId);
+
+      if (!days[dayKey]) {
+        days[dayKey] = {
+          time: dayKey,
+          kills: 0,
+          deaths: 0,
+          wars: new Set(),
+        };
+      }
+
+      days[dayKey].wars.add(warId);
+      days[dayKey].kills += Number(row.kills) || 0;
+      days[dayKey].deaths += Number(row.deaths) || 0;
     });
 
     const playerRow =
@@ -960,7 +1051,10 @@ export default function PlayerStats({ stats }) {
       averageLine,
       enemyGuildRows,
       wars: involvedWarIds.size,
-      averageRank: buildAverageRankFromPlayedWars(stats.ev, player),
+      averageRank: formatAverageRank([
+        ...buildAverageRankValuesFromPlayedWars(stats.ev, player),
+        ...buildSecondaryRankValues(stats.secondary?.rows || [], player, eventWarIdsForPlayer),
+      ]),
       streakItems,
       feedItems,
     };
