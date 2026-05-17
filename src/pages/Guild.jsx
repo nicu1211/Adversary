@@ -197,7 +197,7 @@ const enemyTierMeta = {
   },
   Trash: {
     label: 'T',
-    range: 'Trash Tier · Under 15 score',
+    range: 'Under 15 score',
     className:
       'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
