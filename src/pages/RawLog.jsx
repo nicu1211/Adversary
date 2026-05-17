@@ -175,7 +175,8 @@ export default function RawLog({
     [mainRawOnly, date],
   );
 
-  const canSave = parsedEntries > 0 && !saving;
+  const hasSecondaryOnlyStats = secondaryRows.length > 0;
+  const canSave = (parsedEntries > 0 || hasSecondaryOnlyStats) && !saving;
 
   async function handleSave() {
     if (!canSave) return;
@@ -350,8 +351,8 @@ export default function RawLog({
                   </span>
 
                   <span className="mt-1 block text-xs text-emerald-200/80">
-                    Coloanele folosite: Kills, Deaths, Kill streak, Damage
-                    dealt, Damage taken, CC hits și Fort damage.
+                    Poți salva și doar Secondary Manual Log. Format scurt: Player, Kills, Deaths.
+                    Format complet: Kills, Deaths, Kill streak, Damage dealt, Damage taken, CC hits și Fort damage.
                   </span>
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -391,14 +392,12 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder="Lipește aici secondary log. Coloane folosite: 1 Kills, 2 Deaths, 3 Kill streak, 4 Damage dealt, 5 Damage taken, 6 CC hits, 9 Fort damage."
+                  placeholder="Lipește aici secondary log. Acceptă: Player Kills Deaths sau format complet: 1 Kills, 2 Deaths, 3 Kill streak, 4 Damage dealt, 5 Damage taken, 6 CC hits, 9 Fort damage."
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
 
                 <p className="mt-2 text-xs text-slate-500">
-                  Restul coloanelor sunt ignorate. Dacă rândul conține numele
-                  jucătorului înaintea numerelor, valorile se atașează acelui
-                  player.
+                  Restul coloanelor sunt ignorate. Dacă există doar player, kills și deaths, logul poate fi salvat fără Main Raw Log.
                 </p>
 
                 {secondaryRows.length > 0 && (
@@ -423,7 +422,7 @@ export default function RawLog({
                   </p>
 
                   <p className="text-xs text-slate-400">
-                    La Save se salvează Main Raw Log + Secondary Manual Log.
+                    La Save se salvează ce ai completat: Main Raw Log + Secondary Manual Log sau doar Secondary Manual Log.
                   </p>
                 </div>
 
@@ -437,9 +436,7 @@ export default function RawLog({
 
             {!canSave && (
               <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-                Pentru Save, logul principal trebuie să conțină cel puțin o
-                linie validă de kill/death. Secondary Manual Log poate fi
-                completat separat, dar nu validează singur salvarea.
+                Pentru Save, completează Main Raw Log cu cel puțin o linie validă de kill/death sau Secondary Manual Log cu cel puțin un rând valid.
               </div>
             )}
           </Panel>
