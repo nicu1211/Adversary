@@ -196,8 +196,8 @@ const enemyTierMeta = {
     tone: 'rose',
   },
   Trash: {
-    label: 'Trash',
-    range: 'Under 15 score',
+    label: 'T',
+    range: 'Trash Tier · Under 15 score',
     className:
       'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
@@ -479,7 +479,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-2 shadow-lg">
+    <div className="relative z-0 rounded-xl border border-slate-800 bg-slate-950/70 p-2 shadow-lg hover:z-[999]">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs font-black text-white" title={guild.name}>
           {guild.name}
@@ -495,7 +495,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
           style={{ width: `${width}%` }}
         />
 
-        <div className="pointer-events-none absolute left-1/2 top-0 z-20 w-max max-w-[340px] -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
+        <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[380px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
           <div className="grid grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-[9px] uppercase tracking-wider text-blue-300/80">M</p>
@@ -556,7 +556,7 @@ function EnemyGuildTierList({ groups }) {
                 </div>
                 <div className="min-w-0 lg:text-center">
                   <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    Tier
+                    {group.tier === 'Trash' ? 'Trash Tier' : 'Tier'}
                   </p>
                   <p className="truncate text-[10px] font-bold text-slate-300">{group.meta.range}</p>
                 </div>
