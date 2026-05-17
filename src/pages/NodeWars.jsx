@@ -180,7 +180,7 @@ function PeriodSelect({ value, onChange, loading = false }) {
     options.find((option) => option.value === value) || options[0];
 
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
         type="button"
         disabled={loading}
@@ -196,7 +196,7 @@ function PeriodSelect({ value, onChange, loading = false }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.45)]">
+        <div className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.45)]">
           {options.map((option) => (
             <button
               key={option.value}
@@ -875,10 +875,10 @@ export default function NodeWars({
       <div className="space-y-3">
         {/* FILTER PANEL */}
         <div
-          className={`overflow-hidden rounded-xl border border-slate-800 bg-slate-950/95 shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition-all duration-300 ${
+          className={`relative z-30 rounded-xl border border-slate-800 bg-slate-950/95 shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition-all duration-300 ${
             filtersVisible
-              ? 'max-h-[240px] p-4 opacity-100 translate-y-0'
-              : 'max-h-0 border-transparent p-0 opacity-0 -translate-y-2'
+              ? 'max-h-[240px] overflow-visible p-4 opacity-100 translate-y-0'
+              : 'max-h-0 overflow-hidden border-transparent p-0 opacity-0 -translate-y-2'
           }`}
         >
           <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
