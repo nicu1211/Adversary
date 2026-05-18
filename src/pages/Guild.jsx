@@ -344,6 +344,98 @@ function topBy(rows, key, limit = 6) {
     .slice(0, limit);
 }
 
+
+function getHistoryLabel(log, index) {
+  const raw =
+    log?.date ||
+    log?.warDate ||
+    log?.war_date ||
+    log?.createdAt ||
+    log?.created_at ||
+    log?.name ||
+    '';
+
+  const parsed = new Date(raw);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+    });
+  }
+
+  return String(raw || `Match ${index + 1}`);
+}
+
+function buildMetricHistory(logs = []) {
+  return [...(logs || [])]
+    .map((log, index) => {
+      const summary = getSimpleSummary(log);
+      const players = Array.isArray(summary?.players) ? summary.players : [];
+      const secondaryTotals = summary?.secondary?.totals || {};
+
+      const playerKills = players.reduce((sum, player) => sum + num(player.kills), 0);
+      const playerDeaths = players.reduce((sum, player) => sum + num(player.deaths), 0);
+      const playerDamageDealt = players.reduce((sum, player) => sum + num(player.damageDealt), 0);
+      const playerDamageTaken = players.reduce((sum, player) => sum + num(player.damageTaken), 0);
+      const playerCcHits = players.reduce((sum, player) => sum + num(player.ccHits), 0);
+      const playerFortDamage = players.reduce((sum, player) => sum + num(player.fortDamage), 0);
+
+      const kills = num(summary?.kills) || num(log?.kills) || playerKills;
+      const deaths = num(summary?.deaths) || num(log?.deaths) || playerDeaths;
+      const damageDealt =
+        num(secondaryTotals.damageDealt) ||
+        num(summary?.damageDealt) ||
+        num(log?.damageDealt) ||
+        playerDamageDealt;
+      const damageTaken =
+        num(secondaryTotals.damageTaken) ||
+        num(summary?.damageTaken) ||
+        num(log?.damageTaken) ||
+        playerDamageTaken;
+      const ccHits =
+        num(secondaryTotals.ccHits) ||
+        num(summary?.ccHits) ||
+        num(log?.ccHits) ||
+        playerCcHits;
+      const fortDamage =
+        num(secondaryTotals.fortDamage) ||
+        num(summary?.fortDamage) ||
+        num(log?.fortDamage) ||
+        playerFortDamage;
+
+      return {
+        index,
+        time: getLogTime(log),
+        label: getHistoryLabel(log, index),
+        kills,
+        deaths,
+        kd: kd(kills, deaths),
+        damageDealt,
+        damageTaken,
+        ccHits,
+        fortDamage,
+      };
+    })
+    .filter(
+      (item) =>
+        item.kills > 0 ||
+        item.deaths > 0 ||
+        item.damageDealt > 0 ||
+        item.damageTaken > 0 ||
+        item.ccHits > 0 ||
+        item.fortDamage > 0,
+    )
+    .sort((a, b) => {
+      if (a.time && b.time) return a.time - b.time;
+      if (a.time) return -1;
+      if (b.time) return 1;
+      return a.index - b.index;
+    })
+    .slice(-18);
+}
+
 function buildGuildData(stats, logs) {
   const players = Array.isArray(stats?.players) ? stats.players : [];
   const matches = uniqueLogCount(logs, stats);
@@ -395,6 +487,7 @@ function buildGuildData(stats, logs) {
     avgKd: matches ? kd(kills / matches, deaths / matches) : ratio,
     avgDamage: secondaryAverageMatches ? damageDealt / secondaryAverageMatches : 0,
     avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
+    metricHistory: buildMetricHistory(logs),
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
@@ -415,7 +508,58 @@ function EmptyState() {
   );
 }
 
-function MetricCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
+
+function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
+  if (!metricKey || !Array.isArray(history) || history.length === 0) return null;
+
+  const bars = history
+    .map((item) => ({
+      label: item.label,
+      value: num(item?.[metricKey]),
+    }))
+    .filter((item) => Number.isFinite(item.value))
+    .slice(-18);
+
+  if (!bars.length) return null;
+
+  const maxValue = Math.max(1, ...bars.map((item) => Math.abs(item.value)));
+  const colors = {
+    blue: 'bg-blue-300',
+    emerald: 'bg-emerald-300',
+    rose: 'bg-rose-300',
+    violet: 'bg-violet-300',
+    amber: 'bg-amber-300',
+    cyan: 'bg-cyan-300',
+  };
+
+  return (
+    <div
+      className="mt-4 flex h-12 items-end gap-1.5 border-t border-white/10 pt-3"
+      aria-label={`${label} history`}
+    >
+      {bars.map((item, index) => {
+        const percent = maxValue
+          ? Math.round((Math.abs(item.value) / maxValue) * 100)
+          : 0;
+        const height = item.value > 0 ? Math.max(18, percent) : 8;
+
+        return (
+          <span
+            key={`${label}-${item.label}-${index}`}
+            title={`${item.label} · ${label}: ${compact(item.value)}`}
+            className={cls(
+              'flex-1 rounded-t-sm opacity-85 shadow-[0_0_14px_rgba(255,255,255,0.08)]',
+              colors[tone] || colors.blue,
+            )}
+            style={{ height: `${height}%` }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = [], historyKey }) {
   const tones = {
     blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
     emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
@@ -437,6 +581,13 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
           <Icon size={22} />
         </div>
       </div>
+
+      <MetricHistoryBars
+        history={history}
+        metricKey={historyKey}
+        label={label}
+        tone={tone}
+      />
     </div>
   );
 }
@@ -595,12 +746,60 @@ function Arsenal({ data }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <MetricCard icon={Swords} label="Kills" value={compact(data.kills)} sub="All-time" tone="emerald" />
-        <MetricCard icon={Skull} label="Deaths" value={compact(data.deaths)} sub="All-time" tone="rose" />
-        <MetricCard icon={Gauge} label="K/D" value={decimal(data.kd)} sub="Ratio" tone="blue" />
-        <MetricCard icon={Zap} label="Damage" value={compact(data.damageDealt)} sub="Dealt" tone="amber" />
-        <MetricCard icon={Crosshair} label="CC" value={compact(data.ccHits)} sub="Hits" tone="cyan" />
-        <MetricCard icon={Castle} label="Fort" value={compact(data.fortDamage)} sub="Damage" tone="violet" />
+        <MetricCard
+          icon={Swords}
+          label="Kills"
+          value={compact(data.kills)}
+          sub="All-time"
+          tone="emerald"
+          history={data.metricHistory}
+          historyKey="kills"
+        />
+        <MetricCard
+          icon={Skull}
+          label="Deaths"
+          value={compact(data.deaths)}
+          sub="All-time"
+          tone="rose"
+          history={data.metricHistory}
+          historyKey="deaths"
+        />
+        <MetricCard
+          icon={Gauge}
+          label="K/D"
+          value={decimal(data.kd)}
+          sub="Ratio"
+          tone="blue"
+          history={data.metricHistory}
+          historyKey="kd"
+        />
+        <MetricCard
+          icon={Zap}
+          label="Damage"
+          value={compact(data.damageDealt)}
+          sub="Dealt"
+          tone="amber"
+          history={data.metricHistory}
+          historyKey="damageDealt"
+        />
+        <MetricCard
+          icon={Crosshair}
+          label="CC"
+          value={compact(data.ccHits)}
+          sub="Hits"
+          tone="cyan"
+          history={data.metricHistory}
+          historyKey="ccHits"
+        />
+        <MetricCard
+          icon={Castle}
+          label="Fort"
+          value={compact(data.fortDamage)}
+          sub="Damage"
+          tone="violet"
+          history={data.metricHistory}
+          historyKey="fortDamage"
+        />
       </div>
 
       <Panel>
