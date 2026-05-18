@@ -1,13 +1,11 @@
 import React, { useMemo } from 'react';
 import {
   Activity,
-  ArrowDownRight,
-  ArrowUpRight,
   Castle,
   Crosshair,
   Database,
-  Flame,
   Gauge,
+  Shield,
   Skull,
   Swords,
   Trophy,
@@ -126,6 +124,7 @@ function uniqueSecondaryLogCount(logs = [], stats = {}) {
   return hasSecondaryTotals(stats) ? 1 : 0;
 }
 
+
 function cleanGuildName(value) {
   const text = String(value || '').trim();
 
@@ -147,17 +146,12 @@ function getTierByScore(value) {
 }
 
 function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
-  const kdScore = (Math.min(3, Math.max(0, kdNumber)) / 3) * 45;
-  const deathVolumeScore = (Math.min(400, Math.max(0, deaths)) / 400) * 25;
-  const matchVolumeScore = (Math.min(30, Math.max(0, matches)) / 30) * 20;
-  const pressureScore =
-    (Math.max(0, deaths - kills) / Math.max(1, deaths, kills)) * 10;
+  const kdScore = Math.min(3, Math.max(0, kdNumber)) / 3 * 45;
+  const deathVolumeScore = Math.min(400, Math.max(0, deaths)) / 400 * 25;
+  const matchVolumeScore = Math.min(30, Math.max(0, matches)) / 30 * 20;
+  const pressureScore = Math.max(0, deaths - kills) / Math.max(1, deaths, kills) * 10;
 
-  return (
-    Math.round(
-      (kdScore + deathVolumeScore + matchVolumeScore + pressureScore) * 10,
-    ) / 10
-  );
+  return Math.round((kdScore + deathVolumeScore + matchVolumeScore + pressureScore) * 10) / 10;
 }
 
 const enemyTierMeta = {
@@ -235,81 +229,6 @@ function getSimpleSummary(log) {
   return log?.summary || log?.stats || log?.analytics || {};
 }
 
-function getLogMetricSnapshot(log) {
-  const summary = getSimpleSummary(log);
-  const players = Array.isArray(summary?.players) ? summary.players : [];
-  const secondaryTotals = summary?.secondary?.totals || {};
-
-  const kills = num(summary?.kills);
-  const deaths = num(summary?.deaths);
-  const damageDealt =
-    num(secondaryTotals.damageDealt) ||
-    players.reduce((sum, player) => sum + num(player?.damageDealt), 0);
-  const ccHits =
-    num(secondaryTotals.ccHits) ||
-    players.reduce((sum, player) => sum + num(player?.ccHits), 0);
-  const fortDamage =
-    num(secondaryTotals.fortDamage) ||
-    players.reduce((sum, player) => sum + num(player?.fortDamage), 0);
-
-  return {
-    kills,
-    deaths,
-    kd: kd(kills, deaths),
-    damageDealt,
-    ccHits,
-    fortDamage,
-  };
-}
-
-function buildMetricHistory(logs = [], limit = 12) {
-  return [...(logs || [])]
-    .map((log, index) => ({
-      log,
-      index,
-      time: getLogTime(log),
-      metrics: getLogMetricSnapshot(log),
-    }))
-    .sort((a, b) => {
-      if (a.time && b.time) return a.time - b.time;
-      if (a.time) return 1;
-      if (b.time) return -1;
-      return a.index - b.index;
-    })
-    .filter((item) => {
-      const values = Object.values(item.metrics || {});
-      return values.some((value) => num(value) > 0);
-    })
-    .slice(-limit)
-    .map((item) => item.metrics);
-}
-
-function getTrend(history = [], key) {
-  const values = (history || [])
-    .map((entry) => num(entry?.[key]))
-    .filter((value) => Number.isFinite(value));
-
-  if (values.length < 2) {
-    return {
-      direction: 0,
-      delta: 0,
-      previous: 0,
-      current: values[values.length - 1] || 0,
-    };
-  }
-
-  const previous = values[values.length - 2];
-  const current = values[values.length - 1];
-  const delta = current - previous;
-
-  return {
-    direction: delta > 0 ? 1 : delta < 0 ? -1 : 0,
-    delta,
-    previous,
-    current,
-  };
-}
-
 function buildEnemyGuildTiers(stats = {}, logs = []) {
   const latestTime = getLatestLogTime(logs);
   const cutoffTime = latestTime - 45 * 24 * 60 * 60 * 1000;
@@ -347,9 +266,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
     const eventTimes = events
       .map((event) => new Date(event?.date || '').getTime())
       .filter((time) => time > 0);
-    const eventLatestTime = eventTimes.length
-      ? Math.max(...eventTimes)
-      : Date.now();
+    const eventLatestTime = eventTimes.length ? Math.max(...eventTimes) : Date.now();
     const eventCutoffTime = eventLatestTime - 45 * 24 * 60 * 60 * 1000;
 
     events.forEach((event) => {
@@ -367,9 +284,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
 
       if (event.type === 'kill') byGuild[guildName].kills += 1;
       if (event.type === 'death') byGuild[guildName].deaths += 1;
-      byGuild[guildName].matchIds.add(
-        String(event?.id || event?.date || guildName),
-      );
+      byGuild[guildName].matchIds.add(String(event?.id || event?.date || guildName));
     });
   }
 
@@ -425,12 +340,100 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
 function topBy(rows, key, limit = 6) {
   return [...(rows || [])]
     .filter((row) => num(row?.[key]) > 0)
-    .sort(
-      (a, b) =>
-        num(b[key]) - num(a[key]) ||
-        String(a.name).localeCompare(String(b.name)),
-    )
+    .sort((a, b) => num(b[key]) - num(a[key]) || String(a.name).localeCompare(String(b.name)))
     .slice(0, limit);
+}
+
+
+function getHistoryLabel(log, index) {
+  const raw =
+    log?.date ||
+    log?.warDate ||
+    log?.war_date ||
+    log?.createdAt ||
+    log?.created_at ||
+    log?.name ||
+    '';
+
+  const parsed = new Date(raw);
+
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+    });
+  }
+
+  return String(raw || `Match ${index + 1}`);
+}
+
+function buildMetricHistory(logs = []) {
+  return [...(logs || [])]
+    .map((log, index) => {
+      const summary = getSimpleSummary(log);
+      const players = Array.isArray(summary?.players) ? summary.players : [];
+      const secondaryTotals = summary?.secondary?.totals || {};
+
+      const playerKills = players.reduce((sum, player) => sum + num(player.kills), 0);
+      const playerDeaths = players.reduce((sum, player) => sum + num(player.deaths), 0);
+      const playerDamageDealt = players.reduce((sum, player) => sum + num(player.damageDealt), 0);
+      const playerDamageTaken = players.reduce((sum, player) => sum + num(player.damageTaken), 0);
+      const playerCcHits = players.reduce((sum, player) => sum + num(player.ccHits), 0);
+      const playerFortDamage = players.reduce((sum, player) => sum + num(player.fortDamage), 0);
+
+      const kills = num(summary?.kills) || num(log?.kills) || playerKills;
+      const deaths = num(summary?.deaths) || num(log?.deaths) || playerDeaths;
+      const damageDealt =
+        num(secondaryTotals.damageDealt) ||
+        num(summary?.damageDealt) ||
+        num(log?.damageDealt) ||
+        playerDamageDealt;
+      const damageTaken =
+        num(secondaryTotals.damageTaken) ||
+        num(summary?.damageTaken) ||
+        num(log?.damageTaken) ||
+        playerDamageTaken;
+      const ccHits =
+        num(secondaryTotals.ccHits) ||
+        num(summary?.ccHits) ||
+        num(log?.ccHits) ||
+        playerCcHits;
+      const fortDamage =
+        num(secondaryTotals.fortDamage) ||
+        num(summary?.fortDamage) ||
+        num(log?.fortDamage) ||
+        playerFortDamage;
+
+      return {
+        index,
+        time: getLogTime(log),
+        label: getHistoryLabel(log, index),
+        kills,
+        deaths,
+        kd: kd(kills, deaths),
+        damageDealt,
+        damageTaken,
+        ccHits,
+        fortDamage,
+      };
+    })
+    .filter(
+      (item) =>
+        item.kills > 0 ||
+        item.deaths > 0 ||
+        item.damageDealt > 0 ||
+        item.damageTaken > 0 ||
+        item.ccHits > 0 ||
+        item.fortDamage > 0,
+    )
+    .sort((a, b) => {
+      if (a.time && b.time) return a.time - b.time;
+      if (a.time) return -1;
+      if (b.time) return 1;
+      return a.index - b.index;
+    })
+    .slice(-18);
 }
 
 function buildGuildData(stats, logs) {
@@ -444,22 +447,10 @@ function buildGuildData(stats, logs) {
   const ratio = kd(kills, deaths);
 
   const secondaryTotals = stats?.secondary?.totals || {};
-  const playerDamageDealt = players.reduce(
-    (sum, player) => sum + num(player.damageDealt),
-    0,
-  );
-  const playerDamageTaken = players.reduce(
-    (sum, player) => sum + num(player.damageTaken),
-    0,
-  );
-  const playerCcHits = players.reduce(
-    (sum, player) => sum + num(player.ccHits),
-    0,
-  );
-  const playerFortDamage = players.reduce(
-    (sum, player) => sum + num(player.fortDamage),
-    0,
-  );
+  const playerDamageDealt = players.reduce((sum, player) => sum + num(player.damageDealt), 0);
+  const playerDamageTaken = players.reduce((sum, player) => sum + num(player.damageTaken), 0);
+  const playerCcHits = players.reduce((sum, player) => sum + num(player.ccHits), 0);
+  const playerFortDamage = players.reduce((sum, player) => sum + num(player.fortDamage), 0);
 
   const damageDealt = num(secondaryTotals.damageDealt) || playerDamageDealt;
   const damageTaken = num(secondaryTotals.damageTaken) || playerDamageTaken;
@@ -482,8 +473,6 @@ function buildGuildData(stats, logs) {
     };
   });
 
-  const history = buildMetricHistory(logs, 12);
-
   return {
     matches,
     kills,
@@ -496,24 +485,12 @@ function buildGuildData(stats, logs) {
     avgKills: matches ? kills / matches : 0,
     avgDeaths: matches ? deaths / matches : 0,
     avgKd: matches ? kd(kills / matches, deaths / matches) : ratio,
-    avgDamage: secondaryAverageMatches
-      ? damageDealt / secondaryAverageMatches
-      : 0,
-    avgFortDamage: secondaryAverageMatches
-      ? fortDamage / secondaryAverageMatches
-      : 0,
+    avgDamage: secondaryAverageMatches ? damageDealt / secondaryAverageMatches : 0,
+    avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
+    metricHistory: buildMetricHistory(logs),
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
-    history,
-    trends: {
-      kills: getTrend(history, 'kills'),
-      deaths: getTrend(history, 'deaths'),
-      kd: getTrend(history, 'kd'),
-      damageDealt: getTrend(history, 'damageDealt'),
-      ccHits: getTrend(history, 'ccHits'),
-      fortDamage: getTrend(history, 'fortDamage'),
-    },
   };
 }
 
@@ -525,75 +502,56 @@ function EmptyState() {
       </div>
       <h3 className="text-2xl font-black text-white">No guild data yet</h3>
       <p className="mx-auto mt-2 max-w-xl text-sm text-slate-400">
-        Save battle logs first, then this Guild tab will generate all-time
-        statistics automatically.
+        Save battle logs first, then this Guild tab will generate all-time statistics automatically.
       </p>
     </div>
   );
 }
 
-function MetricHistoryBars({ values = [], tone = 'blue' }) {
-  const palette = {
-    blue: {
-      bar: 'from-blue-500 via-sky-400 to-cyan-300',
-      glow: 'shadow-[0_0_18px_rgba(59,130,246,0.35)]',
-      fade: 'from-blue-500/12 via-blue-400/8 to-transparent',
-    },
-    emerald: {
-      bar: 'from-emerald-500 via-lime-400 to-emerald-200',
-      glow: 'shadow-[0_0_18px_rgba(16,185,129,0.35)]',
-      fade: 'from-emerald-500/12 via-emerald-400/8 to-transparent',
-    },
-    rose: {
-      bar: 'from-rose-500 via-pink-400 to-rose-200',
-      glow: 'shadow-[0_0_18px_rgba(244,63,94,0.35)]',
-      fade: 'from-rose-500/12 via-rose-400/8 to-transparent',
-    },
-    violet: {
-      bar: 'from-violet-500 via-fuchsia-400 to-violet-200',
-      glow: 'shadow-[0_0_18px_rgba(139,92,246,0.35)]',
-      fade: 'from-violet-500/12 via-violet-400/8 to-transparent',
-    },
-    amber: {
-      bar: 'from-amber-500 via-yellow-400 to-amber-200',
-      glow: 'shadow-[0_0_18px_rgba(245,158,11,0.35)]',
-      fade: 'from-amber-500/12 via-amber-400/8 to-transparent',
-    },
-    cyan: {
-      bar: 'from-cyan-500 via-sky-400 to-cyan-200',
-      glow: 'shadow-[0_0_18px_rgba(6,182,212,0.35)]',
-      fade: 'from-cyan-500/12 via-cyan-400/8 to-transparent',
-    },
+
+function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
+  if (!metricKey || !Array.isArray(history) || history.length === 0) return null;
+
+  const bars = history
+    .map((item) => ({
+      label: item.label,
+      value: num(item?.[metricKey]),
+    }))
+    .filter((item) => Number.isFinite(item.value))
+    .slice(-18);
+
+  if (!bars.length) return null;
+
+  const maxValue = Math.max(1, ...bars.map((item) => Math.abs(item.value)));
+  const colors = {
+    blue: 'bg-blue-300',
+    emerald: 'bg-emerald-300',
+    rose: 'bg-rose-300',
+    violet: 'bg-violet-300',
+    amber: 'bg-amber-300',
+    cyan: 'bg-cyan-300',
   };
 
-  const currentPalette = palette[tone] || palette.blue;
-  const bars = (values || []).map((value) => num(value));
-  const maxValue = Math.max(1, ...bars.map((value) => Math.abs(value)));
-
   return (
-    <div className="relative flex h-[90px] min-w-[118px] items-end justify-end gap-1 overflow-hidden rounded-2xl px-2 pb-2 pt-4">
-      <div
-        className={cls(
-          'pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t',
-          currentPalette.fade,
-        )}
-      />
-      {bars.map((value, index) => {
-        const percent = Math.abs(value) / maxValue;
-        const height = Math.max(14, Math.round(percent * 62) + 8);
-        const isLatest = index === bars.length - 1;
+    <div
+      className="mt-4 flex h-12 items-end gap-1.5 border-t border-white/10 pt-3"
+      aria-label={`${label} history`}
+    >
+      {bars.map((item, index) => {
+        const percent = maxValue
+          ? Math.round((Math.abs(item.value) / maxValue) * 100)
+          : 0;
+        const height = item.value > 0 ? Math.max(18, percent) : 8;
 
         return (
           <span
-            key={`${tone}-${index}-${value}`}
+            key={`${label}-${item.label}-${index}`}
+            title={`${item.label} · ${label}: ${compact(item.value)}`}
             className={cls(
-              'relative w-1.5 rounded-full bg-gradient-to-t opacity-95',
-              currentPalette.bar,
-              currentPalette.glow,
-              isLatest && 'brightness-110',
+              'flex-1 rounded-t-sm opacity-85 shadow-[0_0_14px_rgba(255,255,255,0.08)]',
+              colors[tone] || colors.blue,
             )}
-            style={{ height }}
-            title={nf.format(value)}
+            style={{ height: `${height}%` }}
           />
         );
       })}
@@ -601,144 +559,13 @@ function MetricHistoryBars({ values = [], tone = 'blue' }) {
   );
 }
 
-function MetricTrendBadge({ trend, formatter = compact }) {
-  if (!trend || !trend.direction) return null;
-
-  const isUp = trend.direction > 0;
-  const Icon = isUp ? ArrowUpRight : ArrowDownRight;
-  const colorClass = isUp
-    ? 'border-emerald-400/25 bg-emerald-500/15 text-emerald-300'
-    : 'border-rose-400/25 bg-rose-500/15 text-rose-300';
-  const prefix = isUp ? '+' : '-';
-
-  return (
-    <div
-      className={cls(
-        'mt-2 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black',
-        colorClass,
-      )}
-    >
-      <Icon size={12} />
-      <span>{`${prefix}${formatter(Math.abs(trend.delta))} vs prev`}</span>
-    </div>
-  );
-}
-
-const metricKeyMap = {
-  Kills: 'kills',
-  Deaths: 'deaths',
-  'K/D': 'kd',
-  Damage: 'damageDealt',
-  CC: 'ccHits',
-  Fort: 'fortDamage',
-};
-
-function GuildHeroMetricCard({
-  label,
-  value,
-  sub,
-  tone = 'blue',
-  history = [],
-  trend,
-  formatter = compact,
-}) {
-  const tones = {
-    blue: {
-      shell:
-        'border-blue-500/20 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
-      title: 'text-blue-300',
-    },
-    emerald: {
-      shell:
-        'border-emerald-500/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
-      title: 'text-emerald-300',
-    },
-    rose: {
-      shell:
-        'border-rose-500/20 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
-      title: 'text-rose-300',
-    },
-    violet: {
-      shell:
-        'border-violet-500/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
-      title: 'text-violet-300',
-    },
-    amber: {
-      shell:
-        'border-amber-500/20 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
-      title: 'text-amber-300',
-    },
-    cyan: {
-      shell:
-        'border-cyan-500/20 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
-      title: 'text-cyan-300',
-    },
-  };
-
-  const theme = tones[tone] || tones.blue;
-  const trendUp = trend?.direction > 0;
-  const trendDown = trend?.direction < 0;
-
-  return (
-    <div
-      className={cls(
-        'relative overflow-hidden rounded-[24px] border px-4 py-3 sm:px-5 sm:py-4',
-        theme.shell,
-      )}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.05),transparent_28%)]" />
-
-      <div className="relative flex min-h-[136px] items-end justify-between gap-3">
-        <div className="flex min-w-0 flex-1 flex-col justify-between">
-          <div>
-            <div
-              className={cls(
-                'flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em]',
-                theme.title,
-              )}
-            >
-              <Flame size={13} />
-              <span>{label}</span>
-            </div>
-
-            <div className="mt-3 flex items-end gap-2">
-              <p className="text-4xl font-black leading-none text-white">
-                {value}
-              </p>
-              {trendUp && (
-                <ArrowUpRight size={20} className="mb-1 text-emerald-400" />
-              )}
-              {trendDown && (
-                <ArrowDownRight size={20} className="mb-1 text-rose-400" />
-              )}
-            </div>
-
-            <p className="mt-1 text-sm font-bold text-slate-300">{sub}</p>
-            <MetricTrendBadge trend={trend} formatter={formatter} />
-          </div>
-        </div>
-
-        <MetricHistoryBars
-          values={(history || []).map((entry) =>
-            num(entry?.[metricKeyMap[label] || '']),
-          )}
-          tone={tone}
-        />
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
+function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = [], historyKey }) {
   const tones = {
     blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
-    emerald:
-      'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
+    emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
     rose: 'border-rose-400/20 bg-rose-500/10 text-rose-200 shadow-rose-500/10',
-    violet:
-      'border-violet-400/20 bg-violet-500/10 text-violet-200 shadow-violet-500/10',
-    amber:
-      'border-amber-400/20 bg-amber-500/10 text-amber-200 shadow-amber-500/10',
+    violet: 'border-violet-400/20 bg-violet-500/10 text-violet-200 shadow-violet-500/10',
+    amber: 'border-amber-400/20 bg-amber-500/10 text-amber-200 shadow-amber-500/10',
     cyan: 'border-cyan-400/20 bg-cyan-500/10 text-cyan-200 shadow-cyan-500/10',
   };
 
@@ -746,9 +573,7 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
     <div className={cls('rounded-[26px] border p-4 shadow-2xl', tones[tone])}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-            {label}
-          </p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
           <p className="mt-2 text-3xl font-black text-white">{value}</p>
           {sub && <p className="mt-1 text-xs font-bold text-slate-400">{sub}</p>}
         </div>
@@ -756,18 +581,20 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
           <Icon size={22} />
         </div>
       </div>
+
+      <MetricHistoryBars
+        history={history}
+        metricKey={historyKey}
+        label={label}
+        tone={tone}
+      />
     </div>
   );
 }
 
 function Panel({ children, className = '' }) {
   return (
-    <section
-      className={cls(
-        'rounded-[30px] border border-slate-800 bg-slate-950/70 p-5 shadow-2xl',
-        className,
-      )}
-    >
+    <section className={cls('rounded-[30px] border border-slate-800 bg-slate-950/70 p-5 shadow-2xl', className)}>
       {children}
     </section>
   );
@@ -786,6 +613,7 @@ function SectionTitle({ icon: Icon, title, sub }) {
     </div>
   );
 }
+
 
 function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   const width = maxScore
@@ -814,37 +642,26 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
 
       <div className="group/bar relative h-2.5 rounded-full bg-slate-900/90">
         <div
-          className={cls(
-            'h-2.5 rounded-full bg-gradient-to-r',
-            colors[tone] || colors.blue,
-          )}
+          className={cls('h-2.5 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)}
           style={{ width: `${width}%` }}
         />
 
         <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[380px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
           <div className="grid grid-cols-4 gap-3 text-center">
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-blue-300/80">
-                M
-              </p>
+              <p className="text-[9px] uppercase tracking-wider text-blue-300/80">M</p>
               <p>{compact(guild.matches, 0)}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-emerald-300/80">
-                K
-              </p>
+              <p className="text-[9px] uppercase tracking-wider text-emerald-300/80">K</p>
               <p>{compact(guild.deaths)}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-rose-300/80">
-                D
-              </p>
+              <p className="text-[9px] uppercase tracking-wider text-rose-300/80">D</p>
               <p>{compact(guild.kills)}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">
-                K/D
-              </p>
+              <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">K/D</p>
               <p>{decimal(guild.kdNumber)}</p>
             </div>
           </div>
@@ -855,8 +672,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
 }
 
 function EnemyGuildTierList({ groups }) {
-  const scrollClass =
-    '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80';
+  const scrollClass = '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80';
   const hasGuilds = groups.some((group) => group.guilds.length > 0);
   const maxScore = Math.max(
     1,
@@ -886,21 +702,14 @@ function EnemyGuildTierList({ groups }) {
               )}
             >
               <div className="flex items-center gap-2 lg:flex-col lg:items-center lg:justify-center">
-                <div
-                  className={cls(
-                    'flex h-11 w-11 items-center justify-center rounded-xl border text-2xl font-black',
-                    group.meta.badge,
-                  )}
-                >
+                <div className={cls('flex h-11 w-11 items-center justify-center rounded-xl border text-2xl font-black', group.meta.badge)}>
                   {group.meta.label}
                 </div>
                 <div className="min-w-0 lg:text-center">
                   <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
                     {group.tier === 'Trash' ? 'Trash Tier' : 'Tier'}
                   </p>
-                  <p className="truncate text-[10px] font-bold text-slate-300">
-                    {group.meta.range}
-                  </p>
+                  <p className="truncate text-[10px] font-bold text-slate-300">{group.meta.range}</p>
                 </div>
               </div>
 
@@ -908,8 +717,7 @@ function EnemyGuildTierList({ groups }) {
                 <div
                   className={cls(
                     'grid gap-2 sm:grid-cols-2 xl:grid-cols-4',
-                    group.guilds.length > 16 &&
-                      `max-h-[330px] overflow-y-auto pr-1 ${scrollClass}`,
+                    group.guilds.length > 16 && `max-h-[330px] overflow-y-auto pr-1 ${scrollClass}`,
                   )}
                 >
                   {group.guilds.map((guild) => (
@@ -937,99 +745,70 @@ function EnemyGuildTierList({ groups }) {
 function Arsenal({ data }) {
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <GuildHeroMetricCard
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <MetricCard
+          icon={Swords}
           label="Kills"
           value={compact(data.kills)}
           sub="All-time"
           tone="emerald"
-          history={data.history}
-          trend={data.trends.kills}
-          formatter={compact}
+          history={data.metricHistory}
+          historyKey="kills"
         />
-
-        <GuildHeroMetricCard
+        <MetricCard
+          icon={Skull}
           label="Deaths"
           value={compact(data.deaths)}
           sub="All-time"
           tone="rose"
-          history={data.history}
-          trend={data.trends.deaths}
-          formatter={compact}
+          history={data.metricHistory}
+          historyKey="deaths"
         />
-
-        <GuildHeroMetricCard
+        <MetricCard
+          icon={Gauge}
           label="K/D"
           value={decimal(data.kd)}
           sub="Ratio"
           tone="blue"
-          history={data.history}
-          trend={data.trends.kd}
-          formatter={(value) => decimal(value)}
+          history={data.metricHistory}
+          historyKey="kd"
         />
-
-        <GuildHeroMetricCard
+        <MetricCard
+          icon={Zap}
           label="Damage"
           value={compact(data.damageDealt)}
           sub="Dealt"
           tone="amber"
-          history={data.history}
-          trend={data.trends.damageDealt}
-          formatter={compact}
+          history={data.metricHistory}
+          historyKey="damageDealt"
         />
-
-        <GuildHeroMetricCard
+        <MetricCard
+          icon={Crosshair}
           label="CC"
           value={compact(data.ccHits)}
           sub="Hits"
           tone="cyan"
-          history={data.history}
-          trend={data.trends.ccHits}
-          formatter={compact}
+          history={data.metricHistory}
+          historyKey="ccHits"
         />
-
-        <GuildHeroMetricCard
+        <MetricCard
+          icon={Castle}
           label="Fort"
           value={compact(data.fortDamage)}
           sub="Damage"
           tone="violet"
-          history={data.history}
-          trend={data.trends.fortDamage}
-          formatter={compact}
+          history={data.metricHistory}
+          historyKey="fortDamage"
         />
       </div>
 
       <Panel>
         <SectionTitle icon={Activity} title="Averages" sub="Per saved match" />
         <div className="grid gap-3 md:grid-cols-4">
-          <MetricCard
-            icon={Swords}
-            label="Avg Kills"
-            value={compact(data.avgKills)}
-            sub="Per match"
-            tone="emerald"
-          />
-          <MetricCard
-            icon={Skull}
-            label="Avg Deaths"
-            value={compact(data.avgDeaths)}
-            sub="Per match"
-            tone="rose"
-          />
-          <MetricCard
-            icon={Gauge}
-            label="Avg K/D"
-            value={decimal(data.avgKd)}
-            sub="Per match"
-            tone="blue"
-          />
-          <MetricCard
-            icon={Zap}
-            label="Avg Damage"
-            value={compact(data.avgDamage)}
-            sub="Per match"
-            tone="amber"
-          />
+          <MetricCard icon={Swords} label="Avg Kills" value={compact(data.avgKills)} sub="Per match" tone="emerald" />
+          <MetricCard icon={Skull} label="Avg Deaths" value={compact(data.avgDeaths)} sub="Per match" tone="rose" />
+          <MetricCard icon={Gauge} label="Avg K/D" value={decimal(data.avgKd)} sub="Per match" tone="blue" />
+          <MetricCard icon={Zap} label="Avg Damage" value={compact(data.avgDamage)} sub="Per match" tone="amber" />
         </div>
       </Panel>
 
@@ -1039,10 +818,7 @@ function Arsenal({ data }) {
 }
 
 export default function Guild({ stats, logs }) {
-  const data = useMemo(
-    () => buildGuildData(stats || {}, logs || []),
-    [stats, logs],
-  );
+  const data = useMemo(() => buildGuildData(stats || {}, logs || []), [stats, logs]);
 
   const hasData = data.kills > 0 || data.deaths > 0 || data.matches > 0;
 
