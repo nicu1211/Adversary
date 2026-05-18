@@ -1,9 +1,12 @@
 import React, { useMemo } from 'react';
 import {
   Activity,
+  ArrowDownRight,
+  ArrowUpRight,
   Castle,
   Crosshair,
   Database,
+  Flame,
   Gauge,
   Shield,
   Skull,
@@ -124,7 +127,6 @@ function uniqueSecondaryLogCount(logs = [], stats = {}) {
   return hasSecondaryTotals(stats) ? 1 : 0;
 }
 
-
 function cleanGuildName(value) {
   const text = String(value || '').trim();
 
@@ -146,10 +148,10 @@ function getTierByScore(value) {
 }
 
 function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
-  const kdScore = Math.min(3, Math.max(0, kdNumber)) / 3 * 45;
-  const deathVolumeScore = Math.min(400, Math.max(0, deaths)) / 400 * 25;
-  const matchVolumeScore = Math.min(30, Math.max(0, matches)) / 30 * 20;
-  const pressureScore = Math.max(0, deaths - kills) / Math.max(1, deaths, kills) * 10;
+  const kdScore = (Math.min(3, Math.max(0, kdNumber)) / 3) * 45;
+  const deathVolumeScore = (Math.min(400, Math.max(0, deaths)) / 400) * 25;
+  const matchVolumeScore = (Math.min(30, Math.max(0, matches)) / 30) * 20;
+  const pressureScore = (Math.max(0, deaths - kills) / Math.max(1, deaths, kills)) * 10;
 
   return Math.round((kdScore + deathVolumeScore + matchVolumeScore + pressureScore) * 10) / 10;
 }
@@ -227,6 +229,81 @@ function getLatestLogTime(logs = []) {
 
 function getSimpleSummary(log) {
   return log?.summary || log?.stats || log?.analytics || {};
+}
+
+function getLogMetricSnapshot(log) {
+  const summary = getSimpleSummary(log);
+  const players = Array.isArray(summary?.players) ? summary.players : [];
+  const secondaryTotals = summary?.secondary?.totals || {};
+
+  const kills = num(summary?.kills);
+  const deaths = num(summary?.deaths);
+  const damageDealt =
+    num(secondaryTotals.damageDealt) ||
+    players.reduce((sum, player) => sum + num(player?.damageDealt), 0);
+  const ccHits =
+    num(secondaryTotals.ccHits) ||
+    players.reduce((sum, player) => sum + num(player?.ccHits), 0);
+  const fortDamage =
+    num(secondaryTotals.fortDamage) ||
+    players.reduce((sum, player) => sum + num(player?.fortDamage), 0);
+
+  return {
+    kills,
+    deaths,
+    kd: kd(kills, deaths),
+    damageDealt,
+    ccHits,
+    fortDamage,
+  };
+}
+
+function buildMetricHistory(logs = [], limit = 12) {
+  return [...(logs || [])]
+    .map((log, index) => ({
+      log,
+      index,
+      time: getLogTime(log),
+      metrics: getLogMetricSnapshot(log),
+    }))
+    .sort((a, b) => {
+      if (a.time && b.time) return a.time - b.time;
+      if (a.time) return 1;
+      if (b.time) return -1;
+      return a.index - b.index;
+    })
+    .filter((item) => {
+      const values = Object.values(item.metrics || {});
+      return values.some((value) => num(value) > 0);
+    })
+    .slice(-limit)
+    .map((item) => item.metrics);
+}
+
+function getTrend(history = [], key) {
+  const values = (history || [])
+    .map((entry) => num(entry?.[key]))
+    .filter((value) => Number.isFinite(value));
+
+  if (values.length < 2) {
+    return {
+      direction: 0,
+      delta: 0,
+      previous: 0,
+      current: values[values.length - 1] || 0,
+    };
+  }
+
+  const previous = values[values.length - 2];
+  const current = values[values.length - 1];
+  const delta = current - previous;
+
+  return {
+    direction: delta > 0 ? 1 : delta < 0 ? -1 : 0,
+    delta,
+    previous,
+    current,
+  };
 }
 
 function buildEnemyGuildTiers(stats = {}, logs = []) {
@@ -344,98 +421,6 @@ function topBy(rows, key, limit = 6) {
     .slice(0, limit);
 }
 
-
-function getHistoryLabel(log, index) {
-  const raw =
-    log?.date ||
-    log?.warDate ||
-    log?.war_date ||
-    log?.createdAt ||
-    log?.created_at ||
-    log?.name ||
-    '';
-
-  const parsed = new Date(raw);
-
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-    });
-  }
-
-  return String(raw || `Match ${index + 1}`);
-}
-
-function buildMetricHistory(logs = []) {
-  return [...(logs || [])]
-    .map((log, index) => {
-      const summary = getSimpleSummary(log);
-      const players = Array.isArray(summary?.players) ? summary.players : [];
-      const secondaryTotals = summary?.secondary?.totals || {};
-
-      const playerKills = players.reduce((sum, player) => sum + num(player.kills), 0);
-      const playerDeaths = players.reduce((sum, player) => sum + num(player.deaths), 0);
-      const playerDamageDealt = players.reduce((sum, player) => sum + num(player.damageDealt), 0);
-      const playerDamageTaken = players.reduce((sum, player) => sum + num(player.damageTaken), 0);
-      const playerCcHits = players.reduce((sum, player) => sum + num(player.ccHits), 0);
-      const playerFortDamage = players.reduce((sum, player) => sum + num(player.fortDamage), 0);
-
-      const kills = num(summary?.kills) || num(log?.kills) || playerKills;
-      const deaths = num(summary?.deaths) || num(log?.deaths) || playerDeaths;
-      const damageDealt =
-        num(secondaryTotals.damageDealt) ||
-        num(summary?.damageDealt) ||
-        num(log?.damageDealt) ||
-        playerDamageDealt;
-      const damageTaken =
-        num(secondaryTotals.damageTaken) ||
-        num(summary?.damageTaken) ||
-        num(log?.damageTaken) ||
-        playerDamageTaken;
-      const ccHits =
-        num(secondaryTotals.ccHits) ||
-        num(summary?.ccHits) ||
-        num(log?.ccHits) ||
-        playerCcHits;
-      const fortDamage =
-        num(secondaryTotals.fortDamage) ||
-        num(summary?.fortDamage) ||
-        num(log?.fortDamage) ||
-        playerFortDamage;
-
-      return {
-        index,
-        time: getLogTime(log),
-        label: getHistoryLabel(log, index),
-        kills,
-        deaths,
-        kd: kd(kills, deaths),
-        damageDealt,
-        damageTaken,
-        ccHits,
-        fortDamage,
-      };
-    })
-    .filter(
-      (item) =>
-        item.kills > 0 ||
-        item.deaths > 0 ||
-        item.damageDealt > 0 ||
-        item.damageTaken > 0 ||
-        item.ccHits > 0 ||
-        item.fortDamage > 0,
-    )
-    .sort((a, b) => {
-      if (a.time && b.time) return a.time - b.time;
-      if (a.time) return -1;
-      if (b.time) return 1;
-      return a.index - b.index;
-    })
-    .slice(-18);
-}
-
 function buildGuildData(stats, logs) {
   const players = Array.isArray(stats?.players) ? stats.players : [];
   const matches = uniqueLogCount(logs, stats);
@@ -473,6 +458,8 @@ function buildGuildData(stats, logs) {
     };
   });
 
+  const history = buildMetricHistory(logs, 12);
+
   return {
     matches,
     kills,
@@ -487,10 +474,18 @@ function buildGuildData(stats, logs) {
     avgKd: matches ? kd(kills / matches, deaths / matches) : ratio,
     avgDamage: secondaryAverageMatches ? damageDealt / secondaryAverageMatches : 0,
     avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
-    metricHistory: buildMetricHistory(logs),
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
+    history,
+    trends: {
+      kills: getTrend(history, 'kills'),
+      deaths: getTrend(history, 'deaths'),
+      kd: getTrend(history, 'kd'),
+      damageDealt: getTrend(history, 'damageDealt'),
+      ccHits: getTrend(history, 'ccHits'),
+      fortDamage: getTrend(history, 'fortDamage'),
+    },
   };
 }
 
@@ -508,50 +503,63 @@ function EmptyState() {
   );
 }
 
-
-function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
-  if (!metricKey || !Array.isArray(history) || history.length === 0) return null;
-
-  const bars = history
-    .map((item) => ({
-      label: item.label,
-      value: num(item?.[metricKey]),
-    }))
-    .filter((item) => Number.isFinite(item.value))
-    .slice(-18);
-
-  if (!bars.length) return null;
-
-  const maxValue = Math.max(1, ...bars.map((item) => Math.abs(item.value)));
-  const colors = {
-    blue: 'bg-blue-300',
-    emerald: 'bg-emerald-300',
-    rose: 'bg-rose-300',
-    violet: 'bg-violet-300',
-    amber: 'bg-amber-300',
-    cyan: 'bg-cyan-300',
+function MetricHistoryBars({ values = [], tone = 'blue' }) {
+  const palette = {
+    blue: {
+      bar: 'from-blue-500 via-sky-400 to-cyan-300',
+      glow: 'shadow-[0_0_18px_rgba(59,130,246,0.35)]',
+      fade: 'from-blue-500/12 via-blue-400/8 to-transparent',
+    },
+    emerald: {
+      bar: 'from-emerald-500 via-lime-400 to-emerald-200',
+      glow: 'shadow-[0_0_18px_rgba(16,185,129,0.35)]',
+      fade: 'from-emerald-500/12 via-emerald-400/8 to-transparent',
+    },
+    rose: {
+      bar: 'from-rose-500 via-pink-400 to-rose-200',
+      glow: 'shadow-[0_0_18px_rgba(244,63,94,0.35)]',
+      fade: 'from-rose-500/12 via-rose-400/8 to-transparent',
+    },
+    violet: {
+      bar: 'from-violet-500 via-fuchsia-400 to-violet-200',
+      glow: 'shadow-[0_0_18px_rgba(139,92,246,0.35)]',
+      fade: 'from-violet-500/12 via-violet-400/8 to-transparent',
+    },
+    amber: {
+      bar: 'from-amber-500 via-yellow-400 to-amber-200',
+      glow: 'shadow-[0_0_18px_rgba(245,158,11,0.35)]',
+      fade: 'from-amber-500/12 via-amber-400/8 to-transparent',
+    },
+    cyan: {
+      bar: 'from-cyan-500 via-sky-400 to-cyan-200',
+      glow: 'shadow-[0_0_18px_rgba(6,182,212,0.35)]',
+      fade: 'from-cyan-500/12 via-cyan-400/8 to-transparent',
+    },
   };
 
+  const currentPalette = palette[tone] || palette.blue;
+  const bars = (values || []).map((value) => num(value));
+  const maxValue = Math.max(1, ...bars.map((value) => Math.abs(value)));
+
   return (
-    <div
-      className="mt-4 flex h-12 items-end gap-1.5 border-t border-white/10 pt-3"
-      aria-label={`${label} history`}
-    >
-      {bars.map((item, index) => {
-        const percent = maxValue
-          ? Math.round((Math.abs(item.value) / maxValue) * 100)
-          : 0;
-        const height = item.value > 0 ? Math.max(18, percent) : 8;
+    <div className="relative flex h-[88px] min-w-[116px] flex-1 items-end justify-end gap-1 overflow-hidden rounded-2xl px-2 pb-2 pt-5">
+      <div className={cls('pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t', currentPalette.fade)} />
+      {bars.map((value, index) => {
+        const percent = Math.abs(value) / maxValue;
+        const height = Math.max(14, Math.round(percent * 60) + 8);
+        const isLatest = index === bars.length - 1;
 
         return (
           <span
-            key={`${label}-${item.label}-${index}`}
-            title={`${item.label} · ${label}: ${compact(item.value)}`}
+            key={`${tone}-${index}-${value}`}
             className={cls(
-              'flex-1 rounded-t-sm opacity-85 shadow-[0_0_14px_rgba(255,255,255,0.08)]',
-              colors[tone] || colors.blue,
+              'relative w-1.5 rounded-full bg-gradient-to-t opacity-95',
+              currentPalette.bar,
+              currentPalette.glow,
+              isLatest && 'brightness-110',
             )}
-            style={{ height: `${height}%` }}
+            style={{ height }}
+            title={nf.format(value)}
           />
         );
       })}
@@ -559,7 +567,119 @@ function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
   );
 }
 
-function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = [], historyKey }) {
+function MetricTrendBadge({ trend, formatter = compact }) {
+  if (!trend || !trend.direction) return null;
+
+  const isUp = trend.direction > 0;
+  const Icon = isUp ? ArrowUpRight : ArrowDownRight;
+  const colorClass = isUp
+    ? 'border-emerald-400/25 bg-emerald-500/15 text-emerald-300'
+    : 'border-rose-400/25 bg-rose-500/15 text-rose-300';
+  const prefix = isUp ? '+' : '';
+
+  return (
+    <div className={cls('mt-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black', colorClass)}>
+      <Icon size={12} />
+      <span>{`${prefix}${formatter(Math.abs(trend.delta))} vs prev`}</span>
+    </div>
+  );
+}
+
+function GuildHeroMetricCard({
+  eyebrowIcon: EyebrowIcon = Flame,
+  icon: Icon,
+  label,
+  value,
+  sub,
+  tone = 'blue',
+  history = [],
+  trend,
+  formatter = compact,
+}) {
+  const tones = {
+    blue: {
+      shell: 'border-blue-500/20 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
+      icon: 'text-blue-300',
+      title: 'text-blue-300',
+    },
+    emerald: {
+      shell: 'border-emerald-500/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
+      icon: 'text-emerald-300',
+      title: 'text-emerald-300',
+    },
+    rose: {
+      shell: 'border-rose-500/20 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
+      icon: 'text-rose-300',
+      title: 'text-rose-300',
+    },
+    violet: {
+      shell: 'border-violet-500/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
+      icon: 'text-violet-300',
+      title: 'text-violet-300',
+    },
+    amber: {
+      shell: 'border-amber-500/20 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
+      icon: 'text-amber-300',
+      title: 'text-amber-300',
+    },
+    cyan: {
+      shell: 'border-cyan-500/20 bg-[radial-gradient(circle_at_top_left,rgba(6,182,212,0.16),transparent_42%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(2,6,23,0.88))] shadow-[0_18px_42px_rgba(2,8,23,0.55)]',
+      icon: 'text-cyan-300',
+      title: 'text-cyan-300',
+    },
+  };
+
+  const theme = tones[tone] || tones.blue;
+  const trendUp = trend?.direction > 0;
+  const trendDown = trend?.direction < 0;
+
+  return (
+    <div className={cls('relative overflow-hidden rounded-[24px] border px-4 py-3 sm:px-5 sm:py-4', theme.shell)}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.05),transparent_28%)]" />
+      <div className="relative flex min-h-[136px] items-stretch justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col justify-between">
+          <div>
+            <div className={cls('flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em]', theme.title)}>
+              <EyebrowIcon size={13} />
+              <span>{label}</span>
+            </div>
+            <div className="mt-3 flex items-end gap-2">
+              <p className="text-4xl font-black leading-none text-white">{value}</p>
+              {trendUp && <ArrowUpRight size={20} className="mb-1 text-emerald-400" />}
+              {trendDown && <ArrowDownRight size={20} className="mb-1 text-rose-400" />}
+            </div>
+            <p className="mt-1 text-sm font-bold text-slate-300">{sub}</p>
+          </div>
+
+          <div className="mt-4 flex items-end justify-between gap-3">
+            <div className="flex min-h-[36px] items-end">
+              <MetricTrendBadge trend={trend} formatter={formatter} />
+            </div>
+            <div className={cls('rounded-2xl border border-white/10 bg-white/5 p-2.5', theme.icon)}>
+              <Icon size={18} />
+            </div>
+          </div>
+        </div>
+
+        <MetricHistoryBars
+          values={(history || []).map((entry) => num(entry?.[labelKeyMap[label] || '']))}
+          tone={tone}
+        />
+      </div>
+    </div>
+  );
+}
+
+const labelKeyMap = {
+  Kills: 'kills',
+  Deaths: 'deaths',
+  'K/D': 'kd',
+  Damage: 'damageDealt',
+  CC: 'ccHits',
+  Fort: 'fortDamage',
+};
+
+function MetricCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
   const tones = {
     blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
     emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
@@ -581,13 +701,6 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
           <Icon size={22} />
         </div>
       </div>
-
-      <MetricHistoryBars
-        history={history}
-        metricKey={historyKey}
-        label={label}
-        tone={tone}
-      />
     </div>
   );
 }
@@ -613,7 +726,6 @@ function SectionTitle({ icon: Icon, title, sub }) {
     </div>
   );
 }
-
 
 function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   const width = maxScore
@@ -745,60 +857,72 @@ function EnemyGuildTierList({ groups }) {
 function Arsenal({ data }) {
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <MetricCard
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <GuildHeroMetricCard
+          eyebrowIcon={Flame}
           icon={Swords}
           label="Kills"
           value={compact(data.kills)}
           sub="All-time"
           tone="emerald"
-          history={data.metricHistory}
-          historyKey="kills"
+          history={data.history}
+          trend={data.trends.kills}
+          formatter={compact}
         />
-        <MetricCard
+        <GuildHeroMetricCard
+          eyebrowIcon={Flame}
           icon={Skull}
           label="Deaths"
           value={compact(data.deaths)}
           sub="All-time"
           tone="rose"
-          history={data.metricHistory}
-          historyKey="deaths"
+          history={data.history}
+          trend={data.trends.deaths}
+          formatter={compact}
         />
-        <MetricCard
+        <GuildHeroMetricCard
+          eyebrowIcon={Flame}
           icon={Gauge}
           label="K/D"
           value={decimal(data.kd)}
           sub="Ratio"
           tone="blue"
-          history={data.metricHistory}
-          historyKey="kd"
+          history={data.history}
+          trend={data.trends.kd}
+          formatter={(value) => decimal(value)}
         />
-        <MetricCard
+        <GuildHeroMetricCard
+          eyebrowIcon={Flame}
           icon={Zap}
           label="Damage"
           value={compact(data.damageDealt)}
           sub="Dealt"
           tone="amber"
-          history={data.metricHistory}
-          historyKey="damageDealt"
+          history={data.history}
+          trend={data.trends.damageDealt}
+          formatter={compact}
         />
-        <MetricCard
+        <GuildHeroMetricCard
+          eyebrowIcon={Flame}
           icon={Crosshair}
           label="CC"
           value={compact(data.ccHits)}
           sub="Hits"
           tone="cyan"
-          history={data.metricHistory}
-          historyKey="ccHits"
+          history={data.history}
+          trend={data.trends.ccHits}
+          formatter={compact}
         />
-        <MetricCard
+        <GuildHeroMetricCard
+          eyebrowIcon={Flame}
           icon={Castle}
           label="Fort"
           value={compact(data.fortDamage)}
           sub="Damage"
           tone="violet"
-          history={data.metricHistory}
-          historyKey="fortDamage"
+          history={data.history}
+          trend={data.trends.fortDamage}
+          formatter={compact}
         />
       </div>
 
