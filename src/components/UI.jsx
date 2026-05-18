@@ -16,7 +16,24 @@ export function Panel({ children, cls = '' }) {
   );
 }
 
-export function Metric({ icon, label, value, sub, className }) {
+export function Metric({
+  icon,
+  label,
+  value,
+  sub,
+  className,
+  history = [],
+  historyClassName = 'bg-slate-300',
+}) {
+  const bars = Array.isArray(history)
+    ? history
+        .map((item) => Number(item) || 0)
+        .filter((item) => Number.isFinite(item))
+        .slice(-18)
+    : [];
+
+  const maxBar = Math.max(1, ...bars.map((item) => Math.abs(item)));
+
   return (
     <div
       className={`rounded-2xl border bg-gradient-to-br to-slate-950/40 p-4 sm:p-5 ${className}`}
@@ -30,6 +47,29 @@ export function Metric({ icon, label, value, sub, className }) {
           <p className="text-sm text-slate-400">{sub}</p>
         </div>
       </div>
+
+      {bars.length > 0 && (
+        <div
+          className="mt-4 flex h-12 items-end gap-1.5 border-t border-white/10 pt-3"
+          aria-label={`${label} history`}
+        >
+          {bars.map((item, index) => {
+            const percent = maxBar
+              ? Math.round((Math.abs(item) / maxBar) * 100)
+              : 0;
+            const height = item > 0 ? Math.max(18, percent) : 8;
+
+            return (
+              <span
+                key={`${label}-${index}-${item}`}
+                title={`${label}: ${item.toLocaleString('en-US')}`}
+                className={`flex-1 rounded-t-sm opacity-85 shadow-[0_0_14px_rgba(255,255,255,0.08)] ${historyClassName}`}
+                style={{ height: `${height}%` }}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
