@@ -602,9 +602,9 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
         background: `linear-gradient(90deg, transparent 0%, ${accent.topLine} 50%, transparent 100%)`,
       }} />
 
-      <div style={{ display: 'flex', flex: 1, padding: '14px 16px 14px 16px', gap: 0 }}>
+      <div style={{ display: 'flex', flex: 1, padding: '14px 16px 14px 16px', gap: 0, alignItems: 'flex-end' }}>
         {/* Left side: label + value + sub */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, minWidth: 0, alignSelf: 'stretch' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Icon size={13} style={{ color: accent.color, flexShrink: 0 }} />
             <p style={{
@@ -653,7 +653,6 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
             flexShrink: 0,
             display: 'flex',
             alignItems: 'flex-end',
-            alignSelf: 'flex-end',
             paddingLeft: '10px',
             paddingBottom: '0px',
             height: '52px',
