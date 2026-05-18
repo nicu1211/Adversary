@@ -509,7 +509,7 @@ function EmptyState() {
 }
 
 
-function MetricHistoryBars({ history = [], metricKey, label }) {
+function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
   if (!metricKey || !Array.isArray(history) || history.length === 0) return null;
 
   const bars = history
@@ -524,57 +524,55 @@ function MetricHistoryBars({ history = [], metricKey, label }) {
 
   const maxValue = Math.max(1, ...bars.map((item) => Math.abs(item.value)));
 
+  // Per-tone color config: [darkBase, mid, bright, tip, glowRgba]
+  const toneColors = {
+    emerald: ['#052e16', '#16a34a', '#4ade80', '#bbf7d0', 'rgba(74,222,128,0.7)'],
+    rose:    ['#4c0519', '#e11d48', '#fb7185', '#fecdd3', 'rgba(251,113,133,0.7)'],
+    blue:    ['#172554', '#2563eb', '#60a5fa', '#bfdbfe', 'rgba(96,165,250,0.7)'],
+    amber:   ['#451a03', '#d97706', '#fbbf24', '#fef3c7', 'rgba(251,191,36,0.7)'],
+    cyan:    ['#083344', '#0891b2', '#22d3ee', '#cffafe', 'rgba(34,211,238,0.7)'],
+    violet:  ['#2e1065', '#7c3aed', '#a78bfa', '#ede9fe', 'rgba(167,139,250,0.7)'],
+  };
+
+  const [dark, mid, bright, tip, glow] = toneColors[tone] || toneColors.blue;
+
   return (
     <div
       aria-label={`${label} history`}
-      style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: '3px',
-        height: '100%',
-        width: '100%',
-      }}
+      style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '100%', width: '100%' }}
     >
       {bars.map((item, index) => {
-        const percent = maxValue
-          ? Math.round((Math.abs(item.value) / maxValue) * 100)
-          : 0;
+        const percent = maxValue ? Math.round((Math.abs(item.value) / maxValue) * 100) : 0;
         const height = item.value > 0 ? Math.max(12, percent) : 6;
-        const isTop = percent >= 80;
+        const isTop = percent >= 78;
 
         return (
           <div
             key={`${label}-${item.label}-${index}`}
             title={`${item.label} · ${label}: ${compact(item.value)}`}
-            style={{
-              flex: 1,
-              height: `${height}%`,
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-            }}
+            style={{ flex: 1, height: `${height}%`, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}
           >
+            {/* Flame tip glow */}
             <div style={{
               position: 'absolute',
               top: '-5px',
               left: '50%',
               transform: 'translateX(-50%)',
-              width: '5px',
-              height: '5px',
+              width: isTop ? '6px' : '5px',
+              height: isTop ? '6px' : '5px',
               borderRadius: '50%',
-              background: isTop ? '#fde68a' : '#fbbf24',
+              background: isTop ? tip : bright,
               boxShadow: isTop
-                ? '0 0 8px 4px rgba(253,230,138,0.95), 0 0 18px 6px rgba(251,191,36,0.65)'
-                : '0 0 6px 3px rgba(251,191,36,0.75), 0 0 12px 4px rgba(249,115,22,0.45)',
+                ? `0 0 8px 4px ${glow}, 0 0 18px 6px ${glow.replace('0.7', '0.4')}`
+                : `0 0 6px 3px ${glow}, 0 0 12px 4px ${glow.replace('0.7', '0.3')}`,
               zIndex: 2,
             }} />
+            {/* Bar body */}
             <div style={{
               width: '100%',
               height: '100%',
-              background: 'linear-gradient(to top, #7c2d12 0%, #c2410c 30%, #ea580c 60%, #fb923c 82%, #fbbf24 100%)',
-              boxShadow: '0 0 4px rgba(251,146,60,0.35)',
+              background: `linear-gradient(to top, ${dark} 0%, ${mid} 40%, ${bright} 80%, ${tip} 100%)`,
+              boxShadow: `0 0 4px ${glow.replace('0.7', '0.3')}`,
               borderRadius: '1px 1px 0 0',
             }} />
           </div>
@@ -587,14 +585,25 @@ function MetricHistoryBars({ history = [], metricKey, label }) {
 function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = [], historyKey }) {
   const hasBars = historyKey && history.length > 0;
 
+  // Per-tone accent colors for border, icon, label, top line
+  const toneAccent = {
+    emerald: { color: '#4ade80', border: 'rgba(74,222,128,0.18)', bg: 'rgba(74,222,128,0.04)', topLine: 'rgba(74,222,128,0.3)', shadow: 'rgba(74,222,128,0.08)' },
+    rose:    { color: '#fb7185', border: 'rgba(251,113,133,0.18)', bg: 'rgba(251,113,133,0.04)', topLine: 'rgba(251,113,133,0.3)', shadow: 'rgba(251,113,133,0.08)' },
+    blue:    { color: '#60a5fa', border: 'rgba(96,165,250,0.18)',  bg: 'rgba(96,165,250,0.04)',  topLine: 'rgba(96,165,250,0.3)',  shadow: 'rgba(96,165,250,0.08)'  },
+    amber:   { color: '#fbbf24', border: 'rgba(251,191,36,0.18)',  bg: 'rgba(251,191,36,0.04)',  topLine: 'rgba(251,191,36,0.3)',  shadow: 'rgba(251,191,36,0.08)'  },
+    cyan:    { color: '#22d3ee', border: 'rgba(34,211,238,0.18)',  bg: 'rgba(34,211,238,0.04)',  topLine: 'rgba(34,211,238,0.3)',  shadow: 'rgba(34,211,238,0.08)'  },
+    violet:  { color: '#a78bfa', border: 'rgba(167,139,250,0.18)', bg: 'rgba(167,139,250,0.04)', topLine: 'rgba(167,139,250,0.3)', shadow: 'rgba(167,139,250,0.08)' },
+  };
+  const accent = toneAccent[tone] || toneAccent.blue;
+
   return (
     <div
       style={{
-        background: '#0c0c0c',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: `linear-gradient(135deg, #0a0a0a 0%, #111111 60%, ${accent.bg} 100%)`,
+        border: `1px solid ${accent.border}`,
         borderRadius: '16px',
         padding: '0',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px ${accent.shadow} inset`,
         position: 'relative',
         overflow: 'hidden',
         minHeight: '130px',
@@ -602,25 +611,25 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
         flexDirection: 'column',
       }}
     >
-      {/* Subtle top border accent */}
+      {/* Top accent line */}
       <div style={{
         position: 'absolute',
         top: 0, left: 0, right: 0,
         height: '1px',
-        background: 'linear-gradient(90deg, transparent 0%, rgba(251,146,60,0.25) 50%, transparent 100%)',
+        background: `linear-gradient(90deg, transparent 0%, ${accent.topLine} 50%, transparent 100%)`,
       }} />
 
       <div style={{ display: 'flex', flex: 1, padding: '14px 16px 14px 16px', gap: 0 }}>
         {/* Left side: label + value + sub */}
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Icon size={13} style={{ color: '#f97316', flexShrink: 0 }} />
+            <Icon size={13} style={{ color: accent.color, flexShrink: 0 }} />
             <p style={{
               fontSize: '10px',
               fontWeight: 900,
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
-              color: '#f97316',
+              color: accent.color,
               margin: 0,
               whiteSpace: 'nowrap',
             }}>
@@ -669,6 +678,7 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
               history={history}
               metricKey={historyKey}
               label={label}
+              tone={tone}
             />
           </div>
         )}
