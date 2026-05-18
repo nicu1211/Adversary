@@ -652,8 +652,8 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
               flex: 1,
               display: 'flex',
               alignItems: 'flex-end',
-              height: '52px',
-              paddingBottom: '22px',
+              height: '58px',
+              transform: 'translateY(-12px)',
             }}>
               <MetricHistoryBars
                 history={history}
