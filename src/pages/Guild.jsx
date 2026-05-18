@@ -602,25 +602,26 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
         background: `linear-gradient(90deg, transparent 0%, ${accent.topLine} 50%, transparent 100%)`,
       }} />
 
-      <div style={{ display: 'flex', flex: 1, padding: '14px 16px 14px 16px', gap: 0, alignItems: 'flex-end' }}>
-        {/* Left side: label + value + sub */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, minWidth: 0, alignSelf: 'stretch' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Icon size={13} style={{ color: accent.color, flexShrink: 0 }} />
-            <p style={{
-              fontSize: '10px',
-              fontWeight: 900,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: accent.color,
-              margin: 0,
-              whiteSpace: 'nowrap',
-            }}>
-              {label}
-            </p>
-          </div>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '14px 16px 14px 16px', justifyContent: 'space-between' }}>
+        {/* Top: label */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Icon size={13} style={{ color: accent.color, flexShrink: 0 }} />
+          <p style={{
+            fontSize: '10px',
+            fontWeight: 900,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: accent.color,
+            margin: 0,
+            whiteSpace: 'nowrap',
+          }}>
+            {label}
+          </p>
+        </div>
 
-          <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+        {/* Bottom: value + bars aligned to same baseline */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
+          <div>
             <p style={{
               fontSize: '2.2rem',
               fontWeight: 900,
@@ -636,7 +637,7 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
                 fontSize: '10px',
                 fontWeight: 700,
                 color: '#475569',
-                margin: '5px 0 0 0',
+                margin: '4px 0 0 0',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
               }}>
@@ -644,27 +645,24 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
               </p>
             )}
           </div>
-        </div>
 
-        {/* Right side: flame bars */}
-        {hasBars && (
-          <div style={{
-            width: '50%',
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'flex-end',
-            paddingLeft: '10px',
-            paddingBottom: '0px',
-            height: '52px',
-          }}>
-            <MetricHistoryBars
-              history={history}
-              metricKey={historyKey}
-              label={label}
-              tone={tone}
-            />
-          </div>
-        )}
+          {/* Right side: flame bars */}
+          {hasBars && (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'flex-end',
+              height: '52px',
+            }}>
+              <MetricHistoryBars
+                history={history}
+                metricKey={historyKey}
+                label={label}
+                tone={tone}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
