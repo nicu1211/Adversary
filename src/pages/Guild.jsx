@@ -518,7 +518,7 @@ function MetricHistoryBars({ history = [], metricKey, label }) {
       value: num(item?.[metricKey]),
     }))
     .filter((item) => Number.isFinite(item.value))
-    .slice(-12);
+    .slice(-14);
 
   if (!bars.length) return null;
 
@@ -526,27 +526,58 @@ function MetricHistoryBars({ history = [], metricKey, label }) {
 
   return (
     <div
-      className="flex h-10 items-end gap-[3px]"
       aria-label={`${label} history`}
+      style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: '3px',
+        height: '100%',
+        width: '100%',
+      }}
     >
       {bars.map((item, index) => {
         const percent = maxValue
           ? Math.round((Math.abs(item.value) / maxValue) * 100)
           : 0;
-        const height = item.value > 0 ? Math.max(15, percent) : 8;
+        const height = item.value > 0 ? Math.max(12, percent) : 6;
+        const isTop = percent >= 80;
 
         return (
-          <span
+          <div
             key={`${label}-${item.label}-${index}`}
             title={`${item.label} · ${label}: ${compact(item.value)}`}
-            className="flex-1 rounded-t-[2px]"
             style={{
+              flex: 1,
               height: `${height}%`,
-              background: 'linear-gradient(to top, #f97316, #fb923c)',
-              boxShadow: '0 0 6px rgba(251,146,60,0.5)',
-              opacity: 0.85 + (index / bars.length) * 0.15,
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
             }}
-          />
+          >
+            <div style={{
+              position: 'absolute',
+              top: '-5px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '5px',
+              height: '5px',
+              borderRadius: '50%',
+              background: isTop ? '#fde68a' : '#fbbf24',
+              boxShadow: isTop
+                ? '0 0 8px 4px rgba(253,230,138,0.95), 0 0 18px 6px rgba(251,191,36,0.65)'
+                : '0 0 6px 3px rgba(251,191,36,0.75), 0 0 12px 4px rgba(249,115,22,0.45)',
+              zIndex: 2,
+            }} />
+            <div style={{
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(to top, #7c2d12 0%, #c2410c 30%, #ea580c 60%, #fb923c 82%, #fbbf24 100%)',
+              boxShadow: '0 0 4px rgba(251,146,60,0.35)',
+              borderRadius: '1px 1px 0 0',
+            }} />
+          </div>
         );
       })}
     </div>
@@ -559,71 +590,81 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
   return (
     <div
       style={{
-        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        background: '#0c0c0c',
+        border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: '16px',
-        padding: '16px 18px 14px 18px',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        padding: '0',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
         position: 'relative',
         overflow: 'hidden',
-        minHeight: '110px',
+        minHeight: '130px',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
       }}
     >
-      {/* Top row: title + icon */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Icon
-            size={14}
-            style={{ color: '#f97316', flexShrink: 0 }}
-          />
-          <p
-            style={{
-              fontSize: '11px',
+      {/* Subtle top border accent */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: '1px',
+        background: 'linear-gradient(90deg, transparent 0%, rgba(251,146,60,0.25) 50%, transparent 100%)',
+      }} />
+
+      <div style={{ display: 'flex', flex: 1, padding: '14px 16px 14px 16px', gap: 0 }}>
+        {/* Left side: label + value + sub */}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Icon size={13} style={{ color: '#f97316', flexShrink: 0 }} />
+            <p style={{
+              fontSize: '10px',
               fontWeight: 900,
-              letterSpacing: '0.15em',
+              letterSpacing: '0.16em',
               textTransform: 'uppercase',
               color: '#f97316',
               margin: 0,
-            }}
-          >
-            {label}
-          </p>
-        </div>
-      </div>
+              whiteSpace: 'nowrap',
+            }}>
+              {label}
+            </p>
+          </div>
 
-      {/* Bottom row: value + bars */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
-        <div>
-          <p
-            style={{
-              fontSize: '2.1rem',
+          <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+            <p style={{
+              fontSize: '2.2rem',
               fontWeight: 900,
               color: '#ffffff',
               lineHeight: 1,
               margin: 0,
-            }}
-          >
-            {value}
-          </p>
-          {sub && (
-            <p
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#64748b',
-                margin: '4px 0 0 0',
-              }}
-            >
-              {sub}
+              letterSpacing: '-0.02em',
+            }}>
+              {value}
             </p>
-          )}
+            {sub && (
+              <p style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                color: '#475569',
+                margin: '5px 0 0 0',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+              }}>
+                {sub}
+              </p>
+            )}
+          </div>
         </div>
 
+        {/* Right side: flame bars */}
         {hasBars && (
-          <div style={{ width: '45%', flexShrink: 0 }}>
+          <div style={{
+            width: '50%',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'flex-end',
+            paddingLeft: '10px',
+            paddingBottom: '2px',
+            height: '96px',
+          }}>
             <MetricHistoryBars
               history={history}
               metricKey={historyKey}
@@ -635,6 +676,7 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
     </div>
   );
 }
+
 
 function Panel({ children, className = '' }) {
   return (
