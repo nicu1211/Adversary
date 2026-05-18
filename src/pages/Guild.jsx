@@ -550,11 +550,12 @@ function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
             title={`${item.label} · ${label}: ${compact(item.value)}`}
             style={{ flex: 1, height: `${height}%`, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}
           >
-            {/* Bar body with fade from transparent at bottom */}
+            {/* Bar body with fade + glow */}
             <div style={{
               width: '100%',
               height: '100%',
               background: `linear-gradient(to top, transparent 0%, ${dark} 15%, ${mid} 45%, ${bright} 82%, ${tip} 100%)`,
+              boxShadow: `0 0 6px 1px ${glow}, 0 0 12px 2px ${glow.replace('0.7', '0.3')}`,
               borderRadius: '1px 1px 0 0',
             }} />
           </div>
@@ -654,7 +655,7 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
             alignItems: 'flex-end',
             paddingLeft: '10px',
             paddingBottom: '2px',
-            height: '68px',
+            height: '52px',
           }}>
             <MetricHistoryBars
               history={history}
