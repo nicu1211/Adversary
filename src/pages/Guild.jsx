@@ -555,7 +555,7 @@ function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
               width: '100%',
               height: '100%',
               background: `linear-gradient(to top, transparent 0%, transparent 25%, ${mid} 60%, ${bright} 85%, ${tip} 100%)`,
-              boxShadow: `0 0 6px 1px ${glow}, 0 0 12px 2px ${glow.replace('0.7', '0.3')}`,
+
               borderRadius: '1px 1px 0 0',
             }} />
           </div>
@@ -653,8 +653,9 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
             flexShrink: 0,
             display: 'flex',
             alignItems: 'flex-end',
+            alignSelf: 'flex-end',
             paddingLeft: '10px',
-            paddingBottom: '2px',
+            paddingBottom: '0px',
             height: '52px',
           }}>
             <MetricHistoryBars
