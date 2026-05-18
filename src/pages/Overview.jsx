@@ -81,6 +81,86 @@ function RankList({ title, items, valueKey }) {
   );
 }
 
+
+function StatProgressBar({
+  value = 75,
+  max = 100,
+  color = "cyan",
+  label,
+}) {
+  const percentage = Math.min((value / max) * 100, 100);
+
+  const styles = {
+    cyan: {
+      fill: "from-cyan-400 via-cyan-300 to-blue-500",
+      glow: "shadow-cyan-500/40",
+      dot: "bg-cyan-300",
+    },
+    purple: {
+      fill: "from-fuchsia-500 via-purple-400 to-violet-500",
+      glow: "shadow-purple-500/40",
+      dot: "bg-purple-300",
+    },
+    green: {
+      fill: "from-emerald-400 via-green-300 to-lime-400",
+      glow: "shadow-green-500/40",
+      dot: "bg-green-300",
+    },
+    orange: {
+      fill: "from-orange-400 via-amber-300 to-yellow-400",
+      glow: "shadow-orange-500/40",
+      dot: "bg-yellow-300",
+    },
+    red: {
+      fill: "from-pink-500 via-rose-400 to-red-500",
+      glow: "shadow-rose-500/40",
+      dot: "bg-rose-300",
+    },
+  };
+
+  const current = styles[color];
+
+  return (
+    <div className="w-full">
+      {label && (
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-slate-300 font-medium">
+            {label}
+          </span>
+
+          <span className="text-sm text-white font-bold">
+            {value}
+          </span>
+        </div>
+      )}
+
+      {/* TRACK */}
+      <div className="relative h-2 w-full overflow-hidden rounded-full bg-white/5 border border-white/10 backdrop-blur-xl">
+        
+        {/* GLOW BACKGROUND */}
+        <div
+          className={`absolute inset-y-0 left-0 rounded-full blur-md opacity-70 bg-gradient-to-r ${current.fill}`}
+          style={{ width: `${percentage}%` }}
+        />
+
+        {/* MAIN FILL */}
+        <div
+          className={`relative h-full rounded-full bg-gradient-to-r ${current.fill} shadow-lg ${current.glow} transition-all duration-700 ease-out`}
+          style={{ width: `${percentage}%` }}
+        >
+          {/* SHINE EFFECT */}
+          <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.45),transparent)] animate-pulse opacity-40" />
+
+          {/* GLOW DOT */}
+          <div
+            className={`absolute right-0 top-1/2 h-3 w-3 -translate-y-1/2 translate-x-1/2 rounded-full ${current.dot} shadow-[0_0_12px_currentColor]`}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function timeToSecondsValue(time) {
   const raw = String(time || '').trim();
 
@@ -689,6 +769,38 @@ function PlayerOverview({ players, streaks, feeds, events }) {
       return 0;
     });
 
+  const maxValues = {
+    kills: Math.max(1, ...rows.map((player) => Number(player.kills) || 0)),
+    deaths: Math.max(1, ...rows.map((player) => Number(player.deaths) || 0)),
+    kd: Math.max(1, ...rows.map((player) => Number(player.kd) || 0)),
+    streak: Math.max(1, ...rows.map((player) => Number(player.streak) || 0)),
+    feed: Math.max(1, ...rows.map((player) => Number(player.feed) || 0)),
+    damageDealt: Math.max(1, ...rows.map((player) => Number(player.damageDealt) || 0)),
+    damageTaken: Math.max(1, ...rows.map((player) => Number(player.damageTaken) || 0)),
+    ccHits: Math.max(1, ...rows.map((player) => Number(player.ccHits) || 0)),
+    fortDamage: Math.max(1, ...rows.map((player) => Number(player.fortDamage) || 0)),
+  };
+
+  function PlayerMetricCell({
+    children,
+    value,
+    max,
+    color,
+    className = '',
+    padRight = false,
+  }) {
+    return (
+      <td
+        className={`py-2 text-right font-black ${padRight ? 'pr-3' : ''} ${className}`}
+      >
+        <div className="ml-auto flex min-w-[86px] max-w-[130px] flex-col items-end gap-1.5">
+          <span>{children}</span>
+          <StatProgressBar value={Number(value) || 0} max={max} color={color} />
+        </div>
+      </td>
+    );
+  }
+
   function flip(nextKey) {
     setSort(
       key === nextKey
@@ -767,8 +879,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
-          <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
-            <table className="w-full text-xs">
+          <div className={`h-full overflow-auto pr-1 ${scrollCls}`}>
+            <table className="w-full min-w-[1320px] text-xs">
               <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
                   <Header id="name" className="pl-4 text-left">
@@ -819,41 +931,87 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                       </button>
                     </td>
 
-                    <td className="py-2 text-right font-black text-blue-300">
+                    <PlayerMetricCell
+                      value={player.kills}
+                      max={maxValues.kills}
+                      color="cyan"
+                      className="text-blue-300"
+                    >
                       ⚔ {player.kills}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 text-right font-black text-pink-300">
+                    <PlayerMetricCell
+                      value={player.deaths}
+                      max={maxValues.deaths}
+                      color="red"
+                      className="text-pink-300"
+                    >
                       ☠ {player.deaths}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 text-right font-black text-emerald-300">
+                    <PlayerMetricCell
+                      value={Number(player.kd) || 0}
+                      max={maxValues.kd}
+                      color="green"
+                      className="text-emerald-300"
+                    >
                       ✺ {player.kd}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 text-right font-black">
+                    <PlayerMetricCell
+                      value={player.streak}
+                      max={maxValues.streak}
+                      color="purple"
+                      className="text-slate-200"
+                    >
                       {player.streak}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 text-right font-black text-orange-300">
+                    <PlayerMetricCell
+                      value={player.feed}
+                      max={maxValues.feed}
+                      color="orange"
+                      className="text-orange-300"
+                    >
                       🔥 {player.feed}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 text-right font-black text-cyan-300">
+                    <PlayerMetricCell
+                      value={player.damageDealt}
+                      max={maxValues.damageDealt}
+                      color="purple"
+                      className="text-cyan-300"
+                    >
                       {formatNumber(player.damageDealt)}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 text-right font-black text-rose-300">
+                    <PlayerMetricCell
+                      value={player.damageTaken}
+                      max={maxValues.damageTaken}
+                      color="red"
+                      className="text-rose-300"
+                    >
                       {formatNumber(player.damageTaken)}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 text-right font-black text-violet-300">
+                    <PlayerMetricCell
+                      value={player.ccHits}
+                      max={maxValues.ccHits}
+                      color="green"
+                      className="text-violet-300"
+                    >
                       {formatNumber(player.ccHits)}
-                    </td>
+                    </PlayerMetricCell>
 
-                    <td className="py-2 pr-3 text-right font-black text-amber-300">
+                    <PlayerMetricCell
+                      value={player.fortDamage}
+                      max={maxValues.fortDamage}
+                      color="orange"
+                      className="text-amber-300"
+                      padRight
+                    >
                       {formatNumber(player.fortDamage)}
-                    </td>
+                    </PlayerMetricCell>
                   </tr>
                 ))}
               </tbody>
