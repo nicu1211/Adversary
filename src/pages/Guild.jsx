@@ -544,35 +544,17 @@ function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
       {bars.map((item, index) => {
         const percent = maxValue ? Math.round((Math.abs(item.value) / maxValue) * 100) : 0;
         const height = item.value > 0 ? Math.max(12, percent) : 6;
-        const isTop = percent >= 78;
-
         return (
           <div
             key={`${label}-${item.label}-${index}`}
             title={`${item.label} · ${label}: ${compact(item.value)}`}
             style={{ flex: 1, height: `${height}%`, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}
           >
-            {/* Flame tip glow */}
-            <div style={{
-              position: 'absolute',
-              top: '-5px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: isTop ? '6px' : '5px',
-              height: isTop ? '6px' : '5px',
-              borderRadius: '50%',
-              background: isTop ? tip : bright,
-              boxShadow: isTop
-                ? `0 0 8px 4px ${glow}, 0 0 18px 6px ${glow.replace('0.7', '0.4')}`
-                : `0 0 6px 3px ${glow}, 0 0 12px 4px ${glow.replace('0.7', '0.3')}`,
-              zIndex: 2,
-            }} />
-            {/* Bar body */}
+            {/* Bar body with fade from transparent at bottom */}
             <div style={{
               width: '100%',
               height: '100%',
-              background: `linear-gradient(to top, ${dark} 0%, ${mid} 40%, ${bright} 80%, ${tip} 100%)`,
-              boxShadow: `0 0 4px ${glow.replace('0.7', '0.3')}`,
+              background: `linear-gradient(to top, transparent 0%, ${dark} 15%, ${mid} 45%, ${bright} 82%, ${tip} 100%)`,
               borderRadius: '1px 1px 0 0',
             }} />
           </div>
@@ -672,7 +654,7 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = []
             alignItems: 'flex-end',
             paddingLeft: '10px',
             paddingBottom: '2px',
-            height: '96px',
+            height: '68px',
           }}>
             <MetricHistoryBars
               history={history}
