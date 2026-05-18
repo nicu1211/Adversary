@@ -555,7 +555,7 @@ function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
               width: '100%',
               height: '100%',
               background: `linear-gradient(to top, transparent 0%, transparent 25%, ${mid} 60%, ${bright} 85%, ${tip} 100%)`,
-
+              filter: `drop-shadow(0 0 4px ${glow}) drop-shadow(0 0 8px ${glow.replace('0.7', '0.4')})`,
               borderRadius: '1px 1px 0 0',
             }} />
           </div>
