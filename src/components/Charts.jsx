@@ -1066,12 +1066,27 @@ export function PerformanceChart({ data }) {
                 <feDropShadow dx="0" dy="0" stdDeviation="9" floodColor="#fda4af" floodOpacity="0.36" />
               </filter>
 
+              <linearGradient id="avgKdStroke" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#dbeafe" stopOpacity={1} />
+                <stop offset="22%" stopColor="#93c5fd" stopOpacity={0.98} />
+                <stop offset="50%" stopColor="#60a5fa" stopOpacity={0.94} />
+                <stop offset="78%" stopColor="#2563eb" stopOpacity={0.88} />
+                <stop offset="100%" stopColor="#1e3a8a" stopOpacity={0.82} />
+              </linearGradient>
+
+              <linearGradient id="avgKdGlowStroke" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#eff6ff" stopOpacity={0.95} />
+                <stop offset="35%" stopColor="#93c5fd" stopOpacity={0.72} />
+                <stop offset="70%" stopColor="#3b82f6" stopOpacity={0.42} />
+                <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.24} />
+              </linearGradient>
+
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(96,165,250,0.92)" />
-                <stop offset="22%" stopColor="rgba(96,165,250,0.72)" />
-                <stop offset="45%" stopColor="rgba(96,165,250,0.48)" />
-                <stop offset="70%" stopColor="rgba(96,165,250,0.24)" />
-                <stop offset="100%" stopColor="rgba(96,165,250,0.02)" />
+                <stop offset="0%" stopColor="rgba(219,234,254,0.50)" />
+                <stop offset="22%" stopColor="rgba(147,197,253,0.36)" />
+                <stop offset="48%" stopColor="rgba(96,165,250,0.22)" />
+                <stop offset="74%" stopColor="rgba(37,99,235,0.10)" />
+                <stop offset="100%" stopColor="rgba(30,58,138,0)" />
               </linearGradient>
 
               <filter
@@ -1185,7 +1200,7 @@ export function PerformanceChart({ data }) {
               type="monotone"
               dataKey="avgKd"
               name=""
-              stroke="#60a5fa"
+              stroke="url(#avgKdGlowStroke)"
               strokeWidth={12}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -1202,7 +1217,7 @@ export function PerformanceChart({ data }) {
               type="monotone"
               dataKey="avgKd"
               name=""
-              stroke="#60a5fa"
+              stroke="url(#avgKdGlowStroke)"
               strokeWidth={6}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -1219,16 +1234,16 @@ export function PerformanceChart({ data }) {
               type="monotone"
               dataKey="avgKd"
               name="K/D"
-              stroke="#60a5fa"
-              strokeWidth={1.6}
+              stroke="url(#avgKdStroke)"
+              strokeWidth={2.2}
               strokeLinecap="round"
               strokeLinejoin="round"
               dot={false}
               activeDot={{
                 r: 4,
-                fill: '#60a5fa',
-                stroke: '#dbeafe',
-                strokeWidth: 1.5,
+                fill: '#dbeafe',
+                stroke: '#60a5fa',
+                strokeWidth: 1.8,
               }}
               isAnimationActive
             />
