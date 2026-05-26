@@ -434,21 +434,32 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = 
     cyan: 'from-blue-500 to-sky-300',
   };
 
+  const barHeights = [45, 68, 56, 86, 72, 100, 82, 60, 76, 52];
+
   return (
     <div
       className={cls(
         'relative rounded-[26px] border p-4 shadow-2xl',
-        accentBar && 'overflow-hidden pl-5',
+        accentBar && 'overflow-hidden pl-12',
         tones[tone],
       )}
     >
       {accentBar && (
-        <div
-          className={cls(
-            'absolute bottom-4 left-3 top-4 w-1 rounded-full bg-gradient-to-b shadow-lg',
-            accentBars[tone] || accentBars.blue,
-          )}
-        />
+        <div className="absolute bottom-4 left-3 top-4 flex w-7 items-end gap-[2px]">
+          {barHeights.map((height, index) => (
+            <span
+              key={index}
+              className={cls(
+                'w-[2px] rounded-full bg-gradient-to-t shadow-lg',
+                accentBars[tone] || accentBars.blue,
+              )}
+              style={{
+                height: `${height}%`,
+                opacity: 0.45 + index * 0.045,
+              }}
+            />
+          ))}
+        </div>
       )}
 
       <div className="relative flex items-start justify-between gap-4">
