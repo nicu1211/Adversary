@@ -492,6 +492,8 @@ function parseClassicEventLine(line, index, name, date, id) {
           killer,
           victim,
           guild,
+          guildPlayer: killer,
+          enemyPlayer: victim,
           kf: families[0],
           vf: families[1],
           war: name,
@@ -516,6 +518,8 @@ function parseClassicEventLine(line, index, name, date, id) {
           killer,
           victim,
           guild,
+          guildPlayer: victim,
+          enemyPlayer: killer,
           kf: families[1],
           vf: families[0],
           war: name,
@@ -578,6 +582,8 @@ function summaryRowsToValidationEvents(rows, name, date, id) {
         killer: row.player,
         victim: `Unknown_${rowIndex}_${i}`,
         guild: '',
+        guildPlayer: row.player,
+        enemyPlayer: `Unknown_${rowIndex}_${i}`,
         kf: '-',
         vf: '-',
         war: name,
@@ -597,6 +603,8 @@ function summaryRowsToValidationEvents(rows, name, date, id) {
         killer: `Unknown_${rowIndex}_${i}`,
         victim: row.player,
         guild: '',
+        guildPlayer: row.player,
+        enemyPlayer: `Unknown_${rowIndex}_${i}`,
         kf: '-',
         vf: '-',
         war: name,
@@ -641,6 +649,14 @@ export function parseLog(raw, name, date, id) {
   );
 }
 
+function getGuildPlayerFromEvent(event) {
+  return event?.guildPlayer || (event?.type === 'kill' ? event?.killer : event?.victim) || '';
+}
+
+function getEnemyPlayerFromEvent(event) {
+  return event?.enemyPlayer || (event?.type === 'kill' ? event?.victim : event?.killer) || '';
+}
+
 export function calculateStreaks(events) {
   const current = {};
   const best = {};
@@ -648,11 +664,15 @@ export function calculateStreaks(events) {
   events
     .filter((event) => event.hasTimestamp !== false && event.source !== 'summary')
     .forEach((event) => {
+      const playerName = getGuildPlayerFromEvent(event);
+
+      if (!playerName) return;
+
       if (event.type === 'kill') {
-        current[event.killer] = (current[event.killer] || 0) + 1;
-        best[event.killer] = Math.max(best[event.killer] || 0, current[event.killer]);
+        current[playerName] = (current[playerName] || 0) + 1;
+        best[playerName] = Math.max(best[playerName] || 0, current[playerName]);
       } else {
-        current[event.victim] = 0;
+        current[playerName] = 0;
       }
     });
 
@@ -670,7 +690,11 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
         event.source !== 'summary',
     )
     .forEach((event) => {
-      const key = `${event.killer}@@${event.id}`;
+      const playerName = getGuildPlayerFromEvent(event);
+
+      if (!playerName) return;
+
+      const key = `${playerName}@@${event.id}`;
 
       (byPlayerAndWar[key] ||= []).push(event);
     });
@@ -708,7 +732,7 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
           war: bestList[0].war,
           date: bestList[0].date,
           id: bestList[0].id,
-          victims: bestList.map((event) => event.victim),
+          victims: bestList.map((event) => getEnemyPlayerFromEvent(event)),
         });
       }
     } else {
@@ -787,18 +811,21 @@ function calculateStatsFromRaw(items) {
   const secondaryByPlayerLog = {};
 
   classicEvents.forEach((event) => {
-    if (event.type === 'kill') {
-      add(playerKills, event.killer);
-      add(classicPlayerKills, event.killer);
-      add(guildKills, event.guild);
-    } else {
-      add(playerDeaths, event.victim);
-      add(classicPlayerDeaths, event.victim);
-      add(guildDeaths, event.guild);
-    }
+    const playerName = getGuildPlayerFromEvent(event);
 
-    families[event.killer] = event.kf;
-    families[event.victim] = event.vf;
+    if (!playerName) return;
+
+    if (event.type === 'kill') {
+      add(playerKills, playerName);
+      add(classicPlayerKills, playerName);
+      add(guildKills, event.guild);
+      families[playerName] = event.kf || families[playerName] || '-';
+    } else {
+      add(playerDeaths, playerName);
+      add(classicPlayerDeaths, playerName);
+      add(guildDeaths, event.guild);
+      families[playerName] = event.vf || families[playerName] || '-';
+    }
 
     const minute = minuteLabel(Math.floor(event.sec / 60) * 60);
 
@@ -877,7 +904,7 @@ function calculateStatsFromRaw(items) {
     classicEvents
       .filter((event) => event.id === row.id)
       .forEach((event) => {
-        const name = event.type === 'kill' ? event.killer : event.victim;
+        const name = getGuildPlayerFromEvent(event);
 
         if (!name) return;
 
@@ -968,11 +995,17 @@ function calculateStatsFromRaw(items) {
     if (!playerName) return;
 
     const classicKillsForSameLog = classicEvents.filter(
-      (event) => event.id === row.id && event.killer === playerName,
+      (event) =>
+        event.id === row.id &&
+        event.type === 'kill' &&
+        getGuildPlayerFromEvent(event) === playerName,
     ).length;
 
     const classicDeathsForSameLog = classicEvents.filter(
-      (event) => event.id === row.id && event.victim === playerName,
+      (event) =>
+        event.id === row.id &&
+        event.type === 'death' &&
+        getGuildPlayerFromEvent(event) === playerName,
     ).length;
 
     const summaryKillsForSameLog = summaryRows
