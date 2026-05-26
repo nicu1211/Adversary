@@ -1067,26 +1067,26 @@ export function PerformanceChart({ data }) {
               </filter>
 
               <linearGradient id="avgKdStroke" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#dbeafe" stopOpacity={1} />
-                <stop offset="22%" stopColor="#93c5fd" stopOpacity={0.98} />
-                <stop offset="50%" stopColor="#60a5fa" stopOpacity={0.94} />
-                <stop offset="78%" stopColor="#2563eb" stopOpacity={0.88} />
-                <stop offset="100%" stopColor="#1e3a8a" stopOpacity={0.82} />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity={1} />
+                <stop offset="18%" stopColor="#dbeafe" stopOpacity={1} />
+                <stop offset="42%" stopColor="#93c5fd" stopOpacity={0.98} />
+                <stop offset="70%" stopColor="#3b82f6" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.92} />
               </linearGradient>
 
               <linearGradient id="avgKdGlowStroke" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#eff6ff" stopOpacity={0.95} />
-                <stop offset="35%" stopColor="#93c5fd" stopOpacity={0.72} />
-                <stop offset="70%" stopColor="#3b82f6" stopOpacity={0.42} />
-                <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.24} />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity={1} />
+                <stop offset="28%" stopColor="#bfdbfe" stopOpacity={0.90} />
+                <stop offset="64%" stopColor="#60a5fa" stopOpacity={0.70} />
+                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.48} />
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(219,234,254,0.50)" />
-                <stop offset="22%" stopColor="rgba(147,197,253,0.36)" />
-                <stop offset="48%" stopColor="rgba(96,165,250,0.22)" />
-                <stop offset="74%" stopColor="rgba(37,99,235,0.10)" />
-                <stop offset="100%" stopColor="rgba(30,58,138,0)" />
+                <stop offset="0%" stopColor="rgba(255,255,255,0.72)" />
+                <stop offset="18%" stopColor="rgba(219,234,254,0.58)" />
+                <stop offset="42%" stopColor="rgba(147,197,253,0.42)" />
+                <stop offset="70%" stopColor="rgba(59,130,246,0.24)" />
+                <stop offset="100%" stopColor="rgba(29,78,216,0.05)" />
               </linearGradient>
 
               <filter
@@ -1189,6 +1189,7 @@ export function PerformanceChart({ data }) {
               name=""
               stroke="none"
               fill="url(#avgKdFill)"
+              fillOpacity={1}
               legendType="none"
               activeDot={false}
               isAnimationActive
@@ -1201,10 +1202,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="url(#avgKdGlowStroke)"
-              strokeWidth={12}
+              strokeWidth={16}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.24}
+              opacity={0.40}
               filter="url(#avgKdGlowBig)"
               dot={false}
               activeDot={false}
@@ -1218,10 +1219,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="url(#avgKdGlowStroke)"
-              strokeWidth={6}
+              strokeWidth={8}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.36}
+              opacity={0.60}
               filter="url(#avgKdGlowSoft)"
               dot={false}
               activeDot={false}
@@ -1235,15 +1236,15 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name="K/D"
               stroke="url(#avgKdStroke)"
-              strokeWidth={2.2}
+              strokeWidth={3.6}
               strokeLinecap="round"
               strokeLinejoin="round"
               dot={false}
               activeDot={{
-                r: 4,
-                fill: '#dbeafe',
+                r: 5,
+                fill: '#ffffff',
                 stroke: '#60a5fa',
-                strokeWidth: 1.8,
+                strokeWidth: 2.2,
               }}
               isAnimationActive
             />
