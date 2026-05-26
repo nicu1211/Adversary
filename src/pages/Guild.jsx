@@ -579,15 +579,7 @@ function MiniSparkline({ values = [], tone = 'blue', height = 40, width = 120 })
         strokeLinecap="round"
         strokeLinejoin="round"
         opacity="0.9"
-      />
-      {/* last dot */}
-      <circle
-        cx={points[points.length - 1].x}
-        cy={points[points.length - 1].y}
-        r="2.5"
-        fill={colors.line}
-        stroke="#020617"
-        strokeWidth="1.2"
+        style={{ pointerEvents: 'none' }}
       />
     </svg>
   );
@@ -873,140 +865,7 @@ function EnemyGuildTierList({ groups }) {
   );
 }
 
-// ─── AveragesLineGraph ────────────────────────────────────────────────────────
 
-function buildLinePath(points) {
-  if (!points.length) return '';
-
-  return points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' ');
-}
-
-function AveragesLineGraph({ rows = [] }) {
-  const data = (rows || []).slice(-18);
-  const width = 960;
-  const height = 230;
-  const pad = { top: 18, right: 22, bottom: 32, left: 42 };
-  const innerW = width - pad.left - pad.right;
-  const innerH = height - pad.top - pad.bottom;
-
-  const series = [
-    { key: 'avgKills', label: 'Avg Kills', color: '#34d399', format: compact },
-    { key: 'avgDeaths', label: 'Avg Deaths', color: '#fb7185', format: compact },
-    { key: 'avgKd', label: 'Avg K/D', color: '#60a5fa', format: (value) => decimal(value) },
-    { key: 'avgDamage', label: 'Avg Dmg', color: '#f59e0b', format: compact },
-  ];
-
-  const lines = series.map((item) => {
-    const values = data.map((row) => num(row[item.key]));
-    const min = values.length ? Math.min(...values) : 0;
-    const max = values.length ? Math.max(...values) : 0;
-    const range = Math.max(1, max - min);
-
-    const points = values.map((value, index) => {
-      const x = data.length <= 1 ? pad.left + innerW / 2 : pad.left + (index / (data.length - 1)) * innerW;
-      const y = max === min ? pad.top + innerH / 2 : pad.top + ((max - value) / range) * innerH;
-
-      return { x, y, value, label: data[index]?.label || `#${index + 1}` };
-    });
-
-    return {
-      ...item,
-      points,
-      path: buildLinePath(points),
-    };
-  });
-
-  if (!data.length) {
-    return (
-      <div className="mt-3 rounded-[22px] border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm font-bold text-slate-500">
-        No average trend data yet.
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-3 rounded-[22px] border border-slate-800 bg-slate-950/70 p-3 shadow-xl">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h4 className="text-sm font-black text-white">Averages Over Time</h4>
-          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
-            Kills / Deaths / K/D / Average damage
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-          {series.map((item) => (
-            <span key={item.key} className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />
-              {item.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-[210px] w-full overflow-visible">
-        <defs>
-          <linearGradient id="avgGridFade" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="rgba(148,163,184,0)" />
-            <stop offset="50%" stopColor="rgba(148,163,184,0.16)" />
-            <stop offset="100%" stopColor="rgba(148,163,184,0)" />
-          </linearGradient>
-        </defs>
-
-        {[0, 1, 2, 3].map((line) => {
-          const y = pad.top + (line / 3) * innerH;
-          return <line key={line} x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="url(#avgGridFade)" strokeWidth="1" />;
-        })}
-
-        {data.map((row, index) => {
-          const x = data.length <= 1 ? pad.left + innerW / 2 : pad.left + (index / (data.length - 1)) * innerW;
-          const showLabel = index === 0 || index === data.length - 1 || index % Math.ceil(Math.max(1, data.length / 6)) === 0;
-
-          return (
-            <g key={`${row.label}-${index}`}>
-              <line x1={x} x2={x} y1={pad.top} y2={pad.top + innerH} stroke="rgba(148,163,184,0.06)" />
-              {showLabel && (
-                <text x={x} y={height - 8} textAnchor="middle" className="fill-slate-500 text-[20px] font-bold">
-                  {row.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {lines.map((line) => (
-          <g key={line.key}>
-            <path
-              d={line.path}
-              fill="none"
-              stroke={line.color}
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.88"
-            />
-            {line.points.map((point, index) => (
-              <circle
-                key={`${line.key}-${index}`}
-                cx={point.x}
-                cy={point.y}
-                r="4.2"
-                fill={line.color}
-                stroke="#020617"
-                strokeWidth="2"
-                className="transition hover:r-7"
-              >
-                <title>{`${line.label} • ${point.label}: ${line.format(point.value)}`}</title>
-              </circle>
-            ))}
-          </g>
-        ))}
-      </svg>
-    </div>
-  );
-}
 
 // ─── Arsenal ──────────────────────────────────────────────────────────────────
 
@@ -1136,7 +995,7 @@ function Arsenal({ data }) {
           />
         </div>
 
-        <AveragesLineGraph rows={data.averageTrendRows} />
+
       </Panel>
 
       <EnemyGuildTierList groups={data.enemyTierGroups} />
