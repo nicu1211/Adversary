@@ -883,7 +883,8 @@ function PerformanceTooltip({ active, payload, label }) {
     payload.map((item) => [item.dataKey, item.value]),
   );
 
-  const deaths = map.deaths ?? 0;
+  const row = payload[0]?.payload || {};
+  const deaths = row.deaths ?? Math.abs(map.deathsDown ?? map.deaths ?? 0);
 
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
@@ -929,27 +930,35 @@ export function PerformanceChart({ data }) {
 
   const performanceData = useMemo(
     () =>
-      (data || []).map((item) => ({
-        ...item,
-        kills: Number(item.kills) || 0,
-        deaths: Number(item.deaths) || 0,
-        avgKd: Number(item.avgKd) || 0,
-      })),
+      (data || []).map((item) => {
+        const kills = Number(item.kills) || 0;
+        const deaths = Number(item.deaths) || 0;
+
+        return {
+          ...item,
+          kills,
+          deaths,
+          deathsDown: -deaths,
+          avgKd: Number(item.avgKd) || 0,
+        };
+      }),
     [data],
   );
 
   const battleDomain = useMemo(() => {
-    const maxBattleTotal = Math.max(
+    const maxKills = Math.max(
       1,
-      ...performanceData.map(
-        (item) =>
-          (Number(item.kills) || 0) + (Number(item.deaths) || 0),
-      ),
+      ...performanceData.map((item) => Number(item.kills) || 0),
+    );
+
+    const maxDeaths = Math.max(
+      1,
+      ...performanceData.map((item) => Number(item.deaths) || 0),
     );
 
     return {
-      min: 0,
-      max: maxBattleTotal,
+      min: -maxDeaths,
+      max: maxKills,
     };
   }, [performanceData]);
 
@@ -969,27 +978,10 @@ export function PerformanceChart({ data }) {
     );
 
     const values = performanceData.map((item) => Number(item.avgKd) || 0);
+    const upper = Math.max(0.5, ...values) * 1.15;
+    const lower = upper * (zeroPosition / Math.max(0.05, 1 - zeroPosition));
 
-    const lowerDeviation = Math.max(
-      0.25,
-      ...values.map((value) => Math.max(0, 1 - value)),
-    );
-
-    const upperDeviation = Math.max(
-      0.25,
-      ...values.map((value) => Math.max(0, value - 1)),
-    );
-
-    const scale = Math.max(
-      lowerDeviation / zeroPosition,
-      upperDeviation / (1 - zeroPosition),
-      0.5,
-    );
-
-    const lower = zeroPosition * scale;
-    const upper = (1 - zeroPosition) * scale;
-
-    return [1 - lower, 1 + upper];
+    return [-lower, upper];
   }, [battleDomain, performanceData]);
 
   return (
@@ -1121,7 +1113,7 @@ export function PerformanceChart({ data }) {
               allowDecimals={false}
               domain={[battleDomain.min, battleDomain.max]}
               ticks={battleTicks}
-              tickFormatter={(value) => value}
+              tickFormatter={(value) => Math.abs(Number(value) || 0)}
             />
 
             <YAxis
@@ -1145,11 +1137,11 @@ export function PerformanceChart({ data }) {
               strokeWidth={1.5}
             />
 
-            <ReferenceLine yAxisId="right" y={1} stroke="transparent" />
+            <ReferenceLine yAxisId="right" y={0} stroke="transparent" />
 
             <Bar
               yAxisId="left"
-              dataKey="deaths"
+              dataKey="deathsDown"
               name="Deaths"
               stackId="battle"
               fill="url(#perfBarDeaths)"
@@ -1179,7 +1171,7 @@ export function PerformanceChart({ data }) {
               legendType="none"
               activeDot={false}
               isAnimationActive
-              baseValue={1}
+              baseValue={0}
             />
 
             <RechartsLine
