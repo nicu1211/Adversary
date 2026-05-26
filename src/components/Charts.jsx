@@ -813,6 +813,69 @@ function SummaryChip({ label, value, colorClass }) {
   );
 }
 
+
+function PerformanceBarShape({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  fill,
+  active = false,
+}) {
+  const safeWidth = Math.max(0, Number(width) || 0);
+  const safeHeight = Math.max(0, Number(height) || 0);
+
+  if (!safeWidth || !safeHeight) return null;
+
+  const glowFilter = String(fill || '').includes('Deaths')
+    ? 'url(#perfBarGlowDeaths)'
+    : 'url(#perfBarGlowKills)';
+
+  return (
+    <g
+      className="transition duration-200"
+      style={{
+        filter: active ? glowFilter : undefined,
+        transform: active ? 'translateY(-2px)' : undefined,
+        transformOrigin: `${x + safeWidth / 2}px ${y + safeHeight / 2}px`,
+      }}
+    >
+      <rect
+        x={x}
+        y={y}
+        width={safeWidth}
+        height={safeHeight}
+        rx="5"
+        ry="5"
+        fill={fill}
+        opacity={active ? 1 : 0.9}
+        stroke={active ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.10)'}
+        strokeWidth={active ? 1.2 : 0.7}
+      />
+      <rect
+        x={x + safeWidth * 0.18}
+        y={y + 1}
+        width={Math.max(1, safeWidth * 0.22)}
+        height={Math.max(0, safeHeight - 2)}
+        rx="4"
+        ry="4"
+        fill="rgba(255,255,255,0.32)"
+        opacity={active ? 0.42 : 0.22}
+      />
+      <rect
+        x={x}
+        y={y}
+        width={safeWidth}
+        height={Math.max(1, safeHeight * 0.24)}
+        rx="5"
+        ry="5"
+        fill="rgba(255,255,255,0.22)"
+        opacity={active ? 0.36 : 0.18}
+      />
+    </g>
+  );
+}
+
 function PerformanceTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
 
@@ -978,15 +1041,39 @@ export function PerformanceChart({ data }) {
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
-              <linearGradient id="perfBarKills" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.98} />
-                <stop offset="100%" stopColor="#10b981" stopOpacity={0.82} />
+              <linearGradient id="perfBarKills" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="#059669" stopOpacity={0.88} />
+                <stop offset="58%" stopColor="#10b981" stopOpacity={0.96} />
+                <stop offset="100%" stopColor="#bef264" stopOpacity={1} />
               </linearGradient>
 
-              <linearGradient id="perfBarDeaths" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.98} />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0.82} />
+              <linearGradient id="perfBarDeaths" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="#dc2626" stopOpacity={0.88} />
+                <stop offset="58%" stopColor="#f43f5e" stopOpacity={0.96} />
+                <stop offset="100%" stopColor="#fda4af" stopOpacity={1} />
               </linearGradient>
+
+              <filter
+                id="perfBarGlowKills"
+                x="-80%"
+                y="-80%"
+                width="260%"
+                height="260%"
+              >
+                <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="#34d399" floodOpacity="0.70" />
+                <feDropShadow dx="0" dy="0" stdDeviation="9" floodColor="#bef264" floodOpacity="0.36" />
+              </filter>
+
+              <filter
+                id="perfBarGlowDeaths"
+                x="-80%"
+                y="-80%"
+                width="260%"
+                height="260%"
+              >
+                <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="#fb7185" floodOpacity="0.70" />
+                <feDropShadow dx="0" dy="0" stdDeviation="9" floodColor="#fda4af" floodOpacity="0.36" />
+              </filter>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="rgba(96,165,250,0.92)" />
@@ -1073,8 +1160,9 @@ export function PerformanceChart({ data }) {
               name="Kills"
               stackId="battle"
               fill="url(#perfBarKills)"
-              radius={[0, 0, 0, 0]}
-              activeBar={false}
+              radius={[5, 5, 5, 5]}
+              shape={<PerformanceBarShape />}
+              activeBar={<PerformanceBarShape active />}
             />
 
             <Area
@@ -1149,8 +1237,9 @@ export function PerformanceChart({ data }) {
               name="Deaths"
               stackId="battle"
               fill="url(#perfBarDeaths)"
-              radius={[0, 0, 0, 0]}
-              activeBar={false}
+              radius={[5, 5, 5, 5]}
+              shape={<PerformanceBarShape />}
+              activeBar={<PerformanceBarShape active />}
             />
           </ComposedChart>
         </ResponsiveContainer>
