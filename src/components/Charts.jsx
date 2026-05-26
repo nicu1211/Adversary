@@ -1149,6 +1149,17 @@ export function PerformanceChart({ data }) {
 
             <Bar
               yAxisId="left"
+              dataKey="deaths"
+              name="Deaths"
+              stackId="battle"
+              fill="url(#perfBarDeaths)"
+              radius={[5, 5, 5, 5]}
+              shape={<PerformanceBarShape />}
+              activeBar={<PerformanceBarShape active />}
+            />
+
+            <Bar
+              yAxisId="left"
               dataKey="kills"
               name="Kills"
               stackId="battle"
@@ -1222,17 +1233,6 @@ export function PerformanceChart({ data }) {
                 strokeWidth: 1.5,
               }}
               isAnimationActive
-            />
-
-            <Bar
-              yAxisId="left"
-              dataKey="deaths"
-              name="Deaths"
-              stackId="battle"
-              fill="url(#perfBarDeaths)"
-              radius={[5, 5, 5, 5]}
-              shape={<PerformanceBarShape />}
-              activeBar={<PerformanceBarShape active />}
             />
           </ComposedChart>
         </ResponsiveContainer>
