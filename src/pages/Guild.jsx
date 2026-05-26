@@ -504,8 +504,96 @@ function buildGuildData(stats, logs) {
       fortDamage: buildMetricBars(logs, 'fortDamage'),
     },
     averageTrendRows: buildAverageTrendRows(logs),
+    // per-avg sparkline data extracted from averageTrendRows
+    avgSparklines: {
+      avgKills: [],
+      avgDeaths: [],
+      avgKd: [],
+      avgDamage: [],
+    },
   };
 }
+
+// ─── Sparkline SVG (line + gradient fill) ────────────────────────────────────
+
+const sparklineToneColors = {
+  emerald: { line: '#34d399', gradFrom: 'rgba(52,211,153,0.35)', gradTo: 'rgba(52,211,153,0)' },
+  rose:    { line: '#fb7185', gradFrom: 'rgba(251,113,133,0.35)', gradTo: 'rgba(251,113,133,0)' },
+  blue:    { line: '#60a5fa', gradFrom: 'rgba(96,165,250,0.35)',  gradTo: 'rgba(96,165,250,0)'  },
+  amber:   { line: '#f59e0b', gradFrom: 'rgba(245,158,11,0.35)',  gradTo: 'rgba(245,158,11,0)'  },
+  violet:  { line: '#a78bfa', gradFrom: 'rgba(167,139,250,0.35)', gradTo: 'rgba(167,139,250,0)' },
+  cyan:    { line: '#22d3ee', gradFrom: 'rgba(34,211,238,0.35)',  gradTo: 'rgba(34,211,238,0)'  },
+  slate:   { line: '#94a3b8', gradFrom: 'rgba(148,163,184,0.35)', gradTo: 'rgba(148,163,184,0)' },
+};
+
+function MiniSparkline({ values = [], tone = 'blue', height = 40, width = 120 }) {
+  const colors = sparklineToneColors[tone] || sparklineToneColors.blue;
+  const pts = values.map((v) => num(v));
+
+  if (pts.length < 2) {
+    // flat placeholder line
+    const mid = height / 2;
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }} preserveAspectRatio="none">
+        <line x1="0" y1={mid} x2={width} y2={mid} stroke={colors.line} strokeWidth="1.5" strokeOpacity="0.3" />
+      </svg>
+    );
+  }
+
+  const pad = 3;
+  const innerW = width - pad * 2;
+  const innerH = height - pad * 2;
+  const minVal = Math.min(...pts);
+  const maxVal = Math.max(...pts);
+  const range = Math.max(1, maxVal - minVal);
+
+  const points = pts.map((v, i) => ({
+    x: pad + (i / (pts.length - 1)) * innerW,
+    y: pad + ((maxVal - v) / range) * innerH,
+  }));
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+  const areaPath =
+    linePath +
+    ` L ${points[points.length - 1].x.toFixed(2)} ${(pad + innerH).toFixed(2)}` +
+    ` L ${points[0].x.toFixed(2)} ${(pad + innerH).toFixed(2)} Z`;
+
+  const gradId = `spark-${tone}-${Math.random().toString(36).slice(2, 7)}`;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={colors.gradFrom} />
+          <stop offset="100%" stopColor={colors.gradTo} />
+        </linearGradient>
+      </defs>
+      {/* gradient fill */}
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      {/* line */}
+      <path
+        d={linePath}
+        fill="none"
+        stroke={colors.line}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.9"
+      />
+      {/* last dot */}
+      <circle
+        cx={points[points.length - 1].x}
+        cy={points[points.length - 1].y}
+        r="2.5"
+        fill={colors.line}
+        stroke="#020617"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
+}
+
+// ─── EmptyState ──────────────────────────────────────────────────────────────
 
 function EmptyState() {
   return (
@@ -521,6 +609,8 @@ function EmptyState() {
   );
 }
 
+// ─── MetricCard ──────────────────────────────────────────────────────────────
+
 function MetricCard({
   icon: Icon,
   label,
@@ -531,6 +621,7 @@ function MetricCard({
   bars = [],
   compactCard = false,
   showIcon = true,
+  sparklineValues = null,   // NEW: array of numbers for the line gradient chart
 }) {
   const tones = {
     blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
@@ -558,16 +649,19 @@ function MetricCard({
   const maxBar = Math.max(1, ...filledBars.map((bar) => Math.abs(num(bar))));
   const chartHeight = compactCard ? 54 : 88;
 
+  // If sparklineValues passed, we render it below the content
+  const hasSparkline = Array.isArray(sparklineValues) && sparklineValues.length > 0;
+
   return (
     <div
       className={cls(
         'relative rounded-[26px] border shadow-2xl',
         compactCard ? 'min-h-[82px] p-2.5' : 'min-h-[124px] p-3.5',
-        accentBar && 'overflow-hidden pr-28',
+        accentBar && !hasSparkline && 'overflow-hidden pr-28',
         tones[tone],
       )}
     >
-      {accentBar && (
+      {accentBar && !hasSparkline && (
         <div
           className="absolute bottom-2 right-3 flex w-24 items-end justify-end gap-1"
           style={{ height: `${chartHeight}px` }}
@@ -606,9 +700,23 @@ function MetricCard({
           </div>
         )}
       </div>
+
+      {/* ── Line gradient sparkline ── */}
+      {hasSparkline && (
+        <div className="mt-2 -mx-0.5">
+          <MiniSparkline
+            values={sparklineValues}
+            tone={tone}
+            height={compactCard ? 36 : 44}
+            width={200}
+          />
+        </div>
+      )}
     </div>
   );
 }
+
+// ─── Panel / SectionTitle ─────────────────────────────────────────────────────
 
 function Panel({ children, className = '' }) {
   return (
@@ -632,6 +740,7 @@ function SectionTitle({ icon: Icon, title, sub }) {
   );
 }
 
+// ─── GuildTierProgressRow ─────────────────────────────────────────────────────
 
 function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   const width = maxScore
@@ -688,6 +797,8 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
     </div>
   );
 }
+
+// ─── EnemyGuildTierList ───────────────────────────────────────────────────────
 
 function EnemyGuildTierList({ groups }) {
   const scrollClass = '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80';
@@ -762,6 +873,7 @@ function EnemyGuildTierList({ groups }) {
   );
 }
 
+// ─── AveragesLineGraph ────────────────────────────────────────────────────────
 
 function buildLinePath(points) {
   if (!points.length) return '';
@@ -896,7 +1008,16 @@ function AveragesLineGraph({ rows = [] }) {
   );
 }
 
+// ─── Arsenal ──────────────────────────────────────────────────────────────────
+
 function Arsenal({ data }) {
+  // Extract per-match sparkline series from averageTrendRows
+  const trendRows = data.averageTrendRows || [];
+  const sparkKills  = trendRows.map((r) => num(r.avgKills));
+  const sparkDeaths = trendRows.map((r) => num(r.avgDeaths));
+  const sparkKd     = trendRows.map((r) => num(r.avgKd));
+  const sparkDamage = trendRows.map((r) => num(r.avgDamage));
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
@@ -973,10 +1094,46 @@ function Arsenal({ data }) {
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-4">
-          <MetricCard icon={Swords} label="Avg Kills" value={compact(data.avgKills)} sub="Per match" tone="emerald" compactCard showIcon={false} />
-          <MetricCard icon={Skull} label="Avg Deaths" value={compact(data.avgDeaths)} sub="Per match" tone="rose" compactCard showIcon={false} />
-          <MetricCard icon={Gauge} label="Avg K/D" value={decimal(data.avgKd)} sub="Per match" tone="blue" compactCard showIcon={false} />
-          <MetricCard icon={Zap} label="Avg Damage" value={compact(data.avgDamage)} sub="Per match" tone="amber" compactCard showIcon={false} />
+          <MetricCard
+            icon={Swords}
+            label="Avg Kills"
+            value={compact(data.avgKills)}
+            sub="Per match"
+            tone="emerald"
+            compactCard
+            showIcon={false}
+            sparklineValues={sparkKills}
+          />
+          <MetricCard
+            icon={Skull}
+            label="Avg Deaths"
+            value={compact(data.avgDeaths)}
+            sub="Per match"
+            tone="rose"
+            compactCard
+            showIcon={false}
+            sparklineValues={sparkDeaths}
+          />
+          <MetricCard
+            icon={Gauge}
+            label="Avg K/D"
+            value={decimal(data.avgKd)}
+            sub="Per match"
+            tone="blue"
+            compactCard
+            showIcon={false}
+            sparklineValues={sparkKd}
+          />
+          <MetricCard
+            icon={Zap}
+            label="Avg Damage"
+            value={compact(data.avgDamage)}
+            sub="Per match"
+            tone="amber"
+            compactCard
+            showIcon={false}
+            sparklineValues={sparkDamage}
+          />
         </div>
 
         <AveragesLineGraph rows={data.averageTrendRows} />
@@ -986,6 +1143,8 @@ function Arsenal({ data }) {
     </div>
   );
 }
+
+// ─── Export ───────────────────────────────────────────────────────────────────
 
 export default function Guild({ stats, logs }) {
   const data = useMemo(() => buildGuildData(stats || {}, logs || []), [stats, logs]);
