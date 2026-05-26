@@ -472,6 +472,14 @@ function EnemyGuildTable({ rows }) {
   );
 }
 
+function getGuildPlayerFromEvent(event) {
+  return event?.guildPlayer || (event?.type === 'kill' ? event?.killer : event?.victim) || '';
+}
+
+function getEnemyPlayerFromEvent(event) {
+  return event?.enemyPlayer || (event?.type === 'kill' ? event?.victim : event?.killer) || '';
+}
+
 function getWarEventsSorted(events) {
   return [...events].sort((a, b) => {
     if (Number(a.sec) !== Number(b.sec)) {
@@ -489,12 +497,14 @@ function getBestKillstreakForWar(events, playerName) {
   let best = 0;
 
   sorted.forEach((event) => {
-    if (event.type === 'kill' && event.killer === playerName) {
+    const guildPlayer = getGuildPlayerFromEvent(event);
+
+    if (event.type === 'kill' && guildPlayer === playerName) {
       current += 1;
       best = Math.max(best, current);
     }
 
-    if (event.type === 'death' && event.victim === playerName) {
+    if (event.type === 'death' && guildPlayer === playerName) {
       current = 0;
     }
   });
@@ -504,7 +514,9 @@ function getBestKillstreakForWar(events, playerName) {
 
 function getBestKillfeedForWar(events, playerName, seconds = 10) {
   const kills = events
-    .filter((event) => event.type === 'kill' && event.killer === playerName)
+    .filter(
+      (event) => event.type === 'kill' && getGuildPlayerFromEvent(event) === playerName,
+    )
     .sort((a, b) => Number(a.sec) - Number(b.sec));
 
   let left = 0;
@@ -560,12 +572,16 @@ function buildKillsRankLikeBestOverall(rows, events) {
   sortedEvents
     .filter((event) => event.type === 'kill')
     .forEach((event) => {
-      runningKills[event.killer] = (runningKills[event.killer] || 0) + 1;
+      const guildPlayer = getGuildPlayerFromEvent(event);
 
-      const finalKills = byName[event.killer]?.kills || 0;
+      if (!guildPlayer) return;
 
-      if (finalKills && runningKills[event.killer] === finalKills) {
-        reached[event.killer] = `${String(event.sec).padStart(5, '0')} ${String(
+      runningKills[guildPlayer] = (runningKills[guildPlayer] || 0) + 1;
+
+      const finalKills = byName[guildPlayer]?.kills || 0;
+
+      if (finalKills && runningKills[guildPlayer] === finalKills) {
+        reached[guildPlayer] = `${String(event.sec).padStart(5, '0')} ${String(
           event.i || 0,
         ).padStart(5, '0')}`;
       }
@@ -591,14 +607,18 @@ function getOurPlayerRowsForWar(warEvents) {
   const names = new Set();
 
   warEvents.forEach((event) => {
+    const guildPlayer = getGuildPlayerFromEvent(event);
+
+    if (!guildPlayer) return;
+
     if (event.type === 'kill') {
-      names.add(event.killer);
-      add(kills, event.killer);
+      names.add(guildPlayer);
+      add(kills, guildPlayer);
     }
 
     if (event.type === 'death') {
-      names.add(event.victim);
-      add(deaths, event.victim);
+      names.add(guildPlayer);
+      add(deaths, guildPlayer);
     }
   });
 
@@ -876,7 +896,9 @@ export default function PlayerStats({ stats }) {
       warMap[String(event.id)] ||= [];
       warMap[String(event.id)].push(event);
 
-      const involved = event.killer === player || event.victim === player;
+      const guildPlayer = getGuildPlayerFromEvent(event);
+      const enemyPlayer = getEnemyPlayerFromEvent(event);
+      const involved = guildPlayer === player;
 
       if (!involved) return;
 
@@ -905,14 +927,14 @@ export default function PlayerStats({ stats }) {
 
       enemyGuilds[event.guild].wars.add(String(event.id));
 
-      if (event.killer === player) {
-        add(victims, event.victim);
+      if (event.type === 'kill') {
+        add(victims, enemyPlayer);
         days[event.date].kills += 1;
         enemyGuilds[event.guild].kills += 1;
       }
 
-      if (event.victim === player) {
-        add(killedBy, event.killer);
+      if (event.type === 'death') {
+        add(killedBy, enemyPlayer);
         days[event.date].deaths += 1;
         enemyGuilds[event.guild].deaths += 1;
       }
