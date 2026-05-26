@@ -281,6 +281,52 @@ function buildMetricBars(logs = [], key) {
   ];
 }
 
+function getLogLabel(log, index) {
+  const raw = String(
+    log?.date ||
+      log?.warDate ||
+      log?.war_date ||
+      log?.createdAt ||
+      log?.created_at ||
+      '',
+  );
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return raw.slice(5, 10);
+  }
+
+  return `#${index + 1}`;
+}
+
+function buildAverageTrendRows(logs = []) {
+  const sortedLogs = [...(logs || [])]
+    .filter((log) => getLogTime(log) > 0)
+    .sort((a, b) => getLogTime(a) - getLogTime(b));
+
+  let matches = 0;
+  let kills = 0;
+  let deaths = 0;
+  let damageDealt = 0;
+
+  return sortedLogs.map((log, index) => {
+    matches += 1;
+    kills += getLogMetricValue(log, 'kills');
+    deaths += getLogMetricValue(log, 'deaths');
+    damageDealt += getLogMetricValue(log, 'damageDealt');
+
+    const avgKills = matches ? kills / matches : 0;
+    const avgDeaths = matches ? deaths / matches : 0;
+
+    return {
+      label: getLogLabel(log, index),
+      avgKills,
+      avgDeaths,
+      avgKd: kd(avgKills, avgDeaths),
+      avgDamage: matches ? damageDealt / matches : 0,
+    };
+  });
+}
+
 function buildEnemyGuildTiers(stats = {}, logs = []) {
   const latestTime = getLatestLogTime(logs);
   const cutoffTime = latestTime - 45 * 24 * 60 * 60 * 1000;
@@ -457,6 +503,7 @@ function buildGuildData(stats, logs) {
       ccHits: buildMetricBars(logs, 'ccHits'),
       fortDamage: buildMetricBars(logs, 'fortDamage'),
     },
+    averageTrendRows: buildAverageTrendRows(logs),
   };
 }
 
@@ -509,32 +556,32 @@ function MetricCard({
     ...chartBars,
   ].slice(-10);
   const maxBar = Math.max(1, ...filledBars.map((bar) => Math.abs(num(bar))));
-  const chartHeight = compactCard ? 78 : 136;
+  const chartHeight = compactCard ? 54 : 88;
 
   return (
     <div
       className={cls(
         'relative rounded-[26px] border shadow-2xl',
-        compactCard ? 'min-h-[104px] p-3' : 'min-h-[146px] p-4',
-        accentBar && 'overflow-hidden pr-36',
+        compactCard ? 'min-h-[82px] p-2.5' : 'min-h-[124px] p-3.5',
+        accentBar && 'overflow-hidden pr-28',
         tones[tone],
       )}
     >
       {accentBar && (
         <div
-          className="absolute bottom-2 right-3 flex w-28 items-end justify-end gap-1.5"
+          className="absolute bottom-2 right-3 flex w-24 items-end justify-end gap-1"
           style={{ height: `${chartHeight}px` }}
         >
           {filledBars.map((bar, index) => {
             const valueNumber = Math.abs(num(bar));
-            const height = valueNumber ? Math.max(12, (valueNumber / maxBar) * chartHeight) : 4;
+            const height = valueNumber ? Math.max(7, (valueNumber / maxBar) * chartHeight) : 3;
 
             return (
               <span
                 key={`${index}-${valueNumber}`}
                 title={compact(bar)}
                 className={cls(
-                  'w-2 rounded-full bg-gradient-to-t shadow-lg transition-all duration-200 hover:z-10 hover:-translate-y-1 hover:scale-x-125 hover:scale-y-110 hover:opacity-100 hover:shadow-[0_0_22px_rgba(255,255,255,0.55)]',
+                  'w-1.5 rounded-full bg-gradient-to-t shadow-lg transition-all duration-200 hover:z-10 hover:-translate-y-1 hover:scale-x-125 hover:scale-y-110 hover:opacity-100 hover:shadow-[0_0_22px_rgba(255,255,255,0.55)]',
                   accentBars[tone] || accentBars.blue,
                 )}
                 style={{
@@ -549,9 +596,9 @@ function MetricCard({
 
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
-          <p className={cls('font-black text-white', compactCard ? 'mt-1 text-2xl' : 'mt-2 text-3xl')}>{value}</p>
-          {sub && <p className="mt-1 text-xs font-bold text-slate-400">{sub}</p>}
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+          <p className={cls('font-black text-white', compactCard ? 'mt-0.5 text-xl' : 'mt-1 text-2xl')}>{value}</p>
+          {sub && <p className="mt-0.5 text-[11px] font-bold text-slate-400">{sub}</p>}
         </div>
         {!accentBar && showIcon && Icon && (
           <div className="rounded-2xl border border-white/10 bg-white/10 p-2.5">
@@ -715,6 +762,140 @@ function EnemyGuildTierList({ groups }) {
   );
 }
 
+
+function buildLinePath(points) {
+  if (!points.length) return '';
+
+  return points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ');
+}
+
+function AveragesLineGraph({ rows = [] }) {
+  const data = (rows || []).slice(-18);
+  const width = 960;
+  const height = 230;
+  const pad = { top: 18, right: 22, bottom: 32, left: 42 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+
+  const series = [
+    { key: 'avgKills', label: 'Avg Kills', color: '#34d399', format: compact },
+    { key: 'avgDeaths', label: 'Avg Deaths', color: '#fb7185', format: compact },
+    { key: 'avgKd', label: 'Avg K/D', color: '#60a5fa', format: (value) => decimal(value) },
+    { key: 'avgDamage', label: 'Avg Dmg', color: '#f59e0b', format: compact },
+  ];
+
+  const lines = series.map((item) => {
+    const values = data.map((row) => num(row[item.key]));
+    const min = values.length ? Math.min(...values) : 0;
+    const max = values.length ? Math.max(...values) : 0;
+    const range = Math.max(1, max - min);
+
+    const points = values.map((value, index) => {
+      const x = data.length <= 1 ? pad.left + innerW / 2 : pad.left + (index / (data.length - 1)) * innerW;
+      const y = max === min ? pad.top + innerH / 2 : pad.top + ((max - value) / range) * innerH;
+
+      return { x, y, value, label: data[index]?.label || `#${index + 1}` };
+    });
+
+    return {
+      ...item,
+      points,
+      path: buildLinePath(points),
+    };
+  });
+
+  if (!data.length) {
+    return (
+      <div className="mt-3 rounded-[22px] border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm font-bold text-slate-500">
+        No average trend data yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-[22px] border border-slate-800 bg-slate-950/70 p-3 shadow-xl">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-black text-white">Averages Over Time</h4>
+          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+            Kills / Deaths / K/D / Average damage
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+          {series.map((item) => (
+            <span key={item.key} className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />
+              {item.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-[210px] w-full overflow-visible">
+        <defs>
+          <linearGradient id="avgGridFade" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="rgba(148,163,184,0)" />
+            <stop offset="50%" stopColor="rgba(148,163,184,0.16)" />
+            <stop offset="100%" stopColor="rgba(148,163,184,0)" />
+          </linearGradient>
+        </defs>
+
+        {[0, 1, 2, 3].map((line) => {
+          const y = pad.top + (line / 3) * innerH;
+          return <line key={line} x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="url(#avgGridFade)" strokeWidth="1" />;
+        })}
+
+        {data.map((row, index) => {
+          const x = data.length <= 1 ? pad.left + innerW / 2 : pad.left + (index / (data.length - 1)) * innerW;
+          const showLabel = index === 0 || index === data.length - 1 || index % Math.ceil(Math.max(1, data.length / 6)) === 0;
+
+          return (
+            <g key={`${row.label}-${index}`}>
+              <line x1={x} x2={x} y1={pad.top} y2={pad.top + innerH} stroke="rgba(148,163,184,0.06)" />
+              {showLabel && (
+                <text x={x} y={height - 8} textAnchor="middle" className="fill-slate-500 text-[20px] font-bold">
+                  {row.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+
+        {lines.map((line) => (
+          <g key={line.key}>
+            <path
+              d={line.path}
+              fill="none"
+              stroke={line.color}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.88"
+            />
+            {line.points.map((point, index) => (
+              <circle
+                key={`${line.key}-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r="4.2"
+                fill={line.color}
+                stroke="#020617"
+                strokeWidth="2"
+                className="transition hover:r-7"
+              >
+                <title>{`${line.label} • ${point.label}: ${line.format(point.value)}`}</title>
+              </circle>
+            ))}
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function Arsenal({ data }) {
   return (
     <div className="space-y-4">
@@ -797,6 +978,8 @@ function Arsenal({ data }) {
           <MetricCard icon={Gauge} label="Avg K/D" value={decimal(data.avgKd)} sub="Per match" tone="blue" compactCard showIcon={false} />
           <MetricCard icon={Zap} label="Avg Damage" value={compact(data.avgDamage)} sub="Per match" tone="amber" compactCard showIcon={false} />
         </div>
+
+        <AveragesLineGraph rows={data.averageTrendRows} />
       </Panel>
 
       <EnemyGuildTierList groups={data.enemyTierGroups} />
