@@ -229,6 +229,62 @@ function getSimpleSummary(log) {
   return log?.summary || log?.stats || log?.analytics || {};
 }
 
+function sumPlayerMetric(players = [], key) {
+  return (players || []).reduce((sum, player) => sum + num(player?.[key]), 0);
+}
+
+function getLogMetricValue(log, key) {
+  const summary = getSimpleSummary(log);
+  const players = Array.isArray(summary?.players) ? summary.players : [];
+  const secondaryTotals = summary?.secondary?.totals || {};
+
+  if (key === 'matches') return 1;
+  if (key === 'kills') return num(summary?.kills);
+  if (key === 'deaths') return num(summary?.deaths);
+  if (key === 'kd') return kd(summary?.kills, summary?.deaths);
+  if (key === 'damageDealt') {
+    return num(secondaryTotals.damageDealt) || sumPlayerMetric(players, 'damageDealt');
+  }
+  if (key === 'ccHits') {
+    return num(secondaryTotals.ccHits) || sumPlayerMetric(players, 'ccHits');
+  }
+  if (key === 'fortDamage') {
+    return num(secondaryTotals.fortDamage) || sumPlayerMetric(players, 'fortDamage');
+  }
+
+  return 0;
+}
+
+function fallbackMetricBars(value) {
+  const base = Math.max(0, num(value));
+
+  if (!base) {
+    return Array.from({ length: 10 }, () => 0);
+  }
+
+  return Array.from({ length: 10 }, (_, index) => {
+    const ratio = 0.28 + ((index + 1) / 10) * 0.72;
+    return base * ratio;
+  });
+}
+
+function buildMetricBars(logs = [], key, fallbackValue = 0) {
+  const rows = [...(logs || [])]
+    .filter((log) => getLogTime(log) > 0)
+    .sort((a, b) => getLogTime(a) - getLogTime(b))
+    .slice(-10)
+    .map((log) => getLogMetricValue(log, key));
+
+  const usableRows = rows.some((value) => num(value) > 0)
+    ? rows
+    : fallbackMetricBars(fallbackValue);
+
+  return [
+    ...Array.from({ length: Math.max(0, 10 - usableRows.length) }, () => 0),
+    ...usableRows.slice(-10),
+  ];
+}
+
 function buildEnemyGuildTiers(stats = {}, logs = []) {
   const latestTime = getLatestLogTime(logs);
   const cutoffTime = latestTime - 45 * 24 * 60 * 60 * 1000;
@@ -396,6 +452,15 @@ function buildGuildData(stats, logs) {
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
+    metricBars: {
+      matches: buildMetricBars(logs, 'matches', matches),
+      kills: buildMetricBars(logs, 'kills', kills),
+      deaths: buildMetricBars(logs, 'deaths', deaths),
+      kd: buildMetricBars(logs, 'kd', ratio),
+      damageDealt: buildMetricBars(logs, 'damageDealt', damageDealt),
+      ccHits: buildMetricBars(logs, 'ccHits', ccHits),
+      fortDamage: buildMetricBars(logs, 'fortDamage', fortDamage),
+    },
   };
 }
 
@@ -413,7 +478,7 @@ function EmptyState() {
   );
 }
 
-function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = false }) {
+function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = false, bars = [] }) {
   const tones = {
     blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
     emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
@@ -432,31 +497,38 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = 
     cyan: 'from-blue-500 to-sky-300',
   };
 
-  const barHeights = [45, 68, 56, 86, 72, 100, 82, 60, 76, 52];
+  const chartBars = (Array.isArray(bars) && bars.length ? bars : fallbackMetricBars(value)).slice(-10);
+  const maxBar = Math.max(1, ...chartBars.map((bar) => Math.abs(num(bar))));
 
   return (
     <div
       className={cls(
-        'relative rounded-[26px] border p-4 shadow-2xl',
-        accentBar && 'overflow-hidden pr-12',
+        'relative min-h-[132px] rounded-[26px] border p-4 shadow-2xl',
+        accentBar && 'overflow-hidden pr-24',
         tones[tone],
       )}
     >
       {accentBar && (
-        <div className="absolute bottom-4 right-3 top-4 flex w-7 items-end gap-[2px]">
-          {barHeights.map((height, index) => (
-            <span
-              key={index}
-              className={cls(
-                'w-[2px] rounded-full bg-gradient-to-t shadow-lg',
-                accentBars[tone] || accentBars.blue,
-              )}
-              style={{
-                height: `${height}%`,
-                opacity: 0.45 + index * 0.045,
-              }}
-            />
-          ))}
+        <div className="absolute bottom-3 right-4 top-3 flex w-16 items-end justify-end gap-1">
+          {chartBars.map((bar, index) => {
+            const valueNumber = Math.abs(num(bar));
+            const height = valueNumber ? Math.max(14, (valueNumber / maxBar) * 100) : 8;
+
+            return (
+              <span
+                key={`${index}-${valueNumber}`}
+                title={compact(bar)}
+                className={cls(
+                  'w-1.5 rounded-full bg-gradient-to-t shadow-lg transition-all duration-300',
+                  accentBars[tone] || accentBars.blue,
+                )}
+                style={{
+                  height: `${height}%`,
+                  opacity: valueNumber ? 0.55 + index * 0.035 : 0.22,
+                }}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -629,14 +701,76 @@ function EnemyGuildTierList({ groups }) {
 function Arsenal({ data }) {
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
-        <MetricCard icon={Shield} label="Node Wars" value={compact(data.matches)} sub="Total" tone="blue" accentBar />
-        <MetricCard icon={Swords} label="Kills" value={compact(data.kills)} sub="All-time" tone="emerald" accentBar />
-        <MetricCard icon={Skull} label="Deaths" value={compact(data.deaths)} sub="All-time" tone="rose" accentBar />
-        <MetricCard icon={Gauge} label="K/D" value={decimal(data.kd)} sub="Ratio" tone="blue" accentBar />
-        <MetricCard icon={Zap} label="Damage" value={compact(data.damageDealt)} sub="Dealt" tone="amber" accentBar />
-        <MetricCard icon={Crosshair} label="CC" value={compact(data.ccHits)} sub="Hits" tone="cyan" accentBar />
-        <MetricCard icon={Castle} label="Fort" value={compact(data.fortDamage)} sub="Damage" tone="violet" accentBar />
+      <Panel>
+        <SectionTitle icon={Activity} title="Node Wars" sub="Total saved matches" />
+        <div className="grid gap-3 md:grid-cols-3">
+          <MetricCard
+            icon={Shield}
+            label="Total Node Wars"
+            value={compact(data.matches)}
+            sub="Saved matches"
+            tone="blue"
+            accentBar
+            bars={data.metricBars.matches}
+          />
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <MetricCard
+          icon={Swords}
+          label="Kills"
+          value={compact(data.kills)}
+          sub="All-time"
+          tone="emerald"
+          accentBar
+          bars={data.metricBars.kills}
+        />
+        <MetricCard
+          icon={Skull}
+          label="Deaths"
+          value={compact(data.deaths)}
+          sub="All-time"
+          tone="rose"
+          accentBar
+          bars={data.metricBars.deaths}
+        />
+        <MetricCard
+          icon={Gauge}
+          label="K/D"
+          value={decimal(data.kd)}
+          sub="Ratio"
+          tone="blue"
+          accentBar
+          bars={data.metricBars.kd}
+        />
+        <MetricCard
+          icon={Zap}
+          label="Damage"
+          value={compact(data.damageDealt)}
+          sub="Dealt"
+          tone="amber"
+          accentBar
+          bars={data.metricBars.damageDealt}
+        />
+        <MetricCard
+          icon={Crosshair}
+          label="CC"
+          value={compact(data.ccHits)}
+          sub="Hits"
+          tone="cyan"
+          accentBar
+          bars={data.metricBars.ccHits}
+        />
+        <MetricCard
+          icon={Castle}
+          label="Fort"
+          value={compact(data.fortDamage)}
+          sub="Damage"
+          tone="violet"
+          accentBar
+          bars={data.metricBars.fortDamage}
+        />
       </div>
 
       <Panel>
