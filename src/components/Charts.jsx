@@ -823,26 +823,32 @@ function PerformanceBarShape({
   active = false,
 }) {
   const safeWidth = Math.max(0, Number(width) || 0);
-  const safeHeight = Math.max(0, Number(height) || 0);
+  const rawHeight = Number(height) || 0;
+  const safeHeight = Math.abs(rawHeight);
+  const safeY = rawHeight < 0 ? Number(y) + rawHeight : Number(y) || 0;
 
   if (!safeWidth || !safeHeight) return null;
 
-  const glowFilter = String(fill || '').includes('Deaths')
+  const fillText = String(fill || '');
+  const isDeathBar =
+    fillText.includes('perfBarDeaths') || fillText.includes('Deaths');
+  const glowFilter = isDeathBar
     ? 'url(#perfBarGlowDeaths)'
     : 'url(#perfBarGlowKills)';
+  const hoverOffset = active ? (isDeathBar ? 'translateY(2px)' : 'translateY(-2px)') : undefined;
 
   return (
     <g
       className="transition duration-200"
       style={{
         filter: active ? glowFilter : undefined,
-        transform: active ? 'translateY(-2px)' : undefined,
-        transformOrigin: `${x + safeWidth / 2}px ${y + safeHeight / 2}px`,
+        transform: hoverOffset,
+        transformOrigin: `${x + safeWidth / 2}px ${safeY + safeHeight / 2}px`,
       }}
     >
       <rect
         x={x}
-        y={y}
+        y={safeY}
         width={safeWidth}
         height={safeHeight}
         rx="5"
@@ -854,7 +860,7 @@ function PerformanceBarShape({
       />
       <rect
         x={x + safeWidth * 0.18}
-        y={y + 1}
+        y={safeY + 1}
         width={Math.max(1, safeWidth * 0.22)}
         height={Math.max(0, safeHeight - 2)}
         rx="4"
@@ -864,7 +870,7 @@ function PerformanceBarShape({
       />
       <rect
         x={x}
-        y={y}
+        y={safeY}
         width={safeWidth}
         height={Math.max(1, safeHeight * 0.24)}
         rx="5"
