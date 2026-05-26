@@ -474,7 +474,17 @@ function EmptyState() {
   );
 }
 
-function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = false, bars = [] }) {
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  tone = 'blue',
+  accentBar = false,
+  bars = [],
+  compactCard = false,
+  showIcon = true,
+}) {
   const tones = {
     blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
     emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
@@ -493,34 +503,43 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = 
     cyan: 'from-cyan-500 to-cyan-200',
   };
 
-  const chartBars = (Array.isArray(bars) && bars.length ? bars : Array.from({ length: 10 }, () => 0)).slice(-10);
-  const maxBar = Math.max(1, ...chartBars.map((bar) => Math.abs(num(bar))));
+  const chartBars = (Array.isArray(bars) ? bars : []).slice(-10);
+  const filledBars = [
+    ...Array.from({ length: Math.max(0, 10 - chartBars.length) }, () => 0),
+    ...chartBars,
+  ].slice(-10);
+  const maxBar = Math.max(1, ...filledBars.map((bar) => Math.abs(num(bar))));
+  const chartHeight = compactCard ? 78 : 136;
 
   return (
     <div
       className={cls(
-        'relative min-h-[152px] rounded-[26px] border p-4 shadow-2xl',
-        accentBar && 'overflow-hidden pr-32',
+        'relative rounded-[26px] border shadow-2xl',
+        compactCard ? 'min-h-[104px] p-3' : 'min-h-[146px] p-4',
+        accentBar && 'overflow-hidden pr-36',
         tones[tone],
       )}
     >
       {accentBar && (
-        <div className="absolute bottom-4 right-4 flex h-[118px] w-24 items-end justify-end gap-1.5">
-          {chartBars.map((bar, index) => {
+        <div
+          className="absolute bottom-2 right-3 flex w-28 items-end justify-end gap-1.5"
+          style={{ height: `${chartHeight}px` }}
+        >
+          {filledBars.map((bar, index) => {
             const valueNumber = Math.abs(num(bar));
-            const height = valueNumber ? Math.max(18, (valueNumber / maxBar) * 112) : 8;
+            const height = valueNumber ? Math.max(12, (valueNumber / maxBar) * chartHeight) : 4;
 
             return (
               <span
                 key={`${index}-${valueNumber}`}
                 title={compact(bar)}
                 className={cls(
-                  'w-2 rounded-full bg-gradient-to-t shadow-lg transition-all duration-200 hover:z-10 hover:-translate-y-1 hover:scale-y-110 hover:opacity-100 hover:shadow-[0_0_18px_rgba(255,255,255,0.45)]',
+                  'w-2 rounded-full bg-gradient-to-t shadow-lg transition-all duration-200 hover:z-10 hover:-translate-y-1 hover:scale-x-125 hover:scale-y-110 hover:opacity-100 hover:shadow-[0_0_22px_rgba(255,255,255,0.55)]',
                   accentBars[tone] || accentBars.blue,
                 )}
                 style={{
                   height: `${height}px`,
-                  opacity: valueNumber ? 0.56 + index * 0.04 : 0.2,
+                  opacity: valueNumber ? 0.58 + index * 0.035 : 0.18,
                 }}
               />
             );
@@ -529,14 +548,14 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = 
       )}
 
       <div className="relative flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
-          <p className="mt-2 text-3xl font-black text-white">{value}</p>
+          <p className={cls('font-black text-white', compactCard ? 'mt-1 text-2xl' : 'mt-2 text-3xl')}>{value}</p>
           {sub && <p className="mt-1 text-xs font-bold text-slate-400">{sub}</p>}
         </div>
-        {!accentBar && Icon && (
-          <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
-            <Icon size={22} />
+        {!accentBar && showIcon && Icon && (
+          <div className="rounded-2xl border border-white/10 bg-white/10 p-2.5">
+            <Icon size={compactCard ? 18 : 22} />
           </div>
         )}
       </div>
@@ -698,18 +717,14 @@ function EnemyGuildTierList({ groups }) {
 
 function Arsenal({ data }) {
   return (
-    <div className="space-y-5">
-      <Panel className="p-3">
-        <div className="flex items-center justify-between gap-4 rounded-[22px] border border-blue-400/15 bg-blue-500/10 px-4 py-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Node Wars</p>
-            <p className="mt-1 text-sm font-bold text-slate-500">Total Node Wars</p>
-          </div>
-          <p className="text-3xl font-black text-white">{compact(data.matches)}</p>
-        </div>
-      </Panel>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <MetricCard
+          label="Node Wars"
+          value={compact(data.matches)}
+          tone="blue"
+          showIcon={false}
+        />
         <MetricCard
           icon={Swords}
           label="Kills"
@@ -766,13 +781,21 @@ function Arsenal({ data }) {
         />
       </div>
 
-      <Panel>
-        <SectionTitle icon={Activity} title="Averages" sub="Per saved match" />
+      <Panel className="p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-lg font-black text-white">
+              <Activity size={18} className="text-blue-300" />
+              Averages
+            </h3>
+            <p className="mt-0.5 text-[11px] font-bold text-slate-500">Per saved match</p>
+          </div>
+        </div>
         <div className="grid gap-3 md:grid-cols-4">
-          <MetricCard icon={Swords} label="Avg Kills" value={compact(data.avgKills)} sub="Per match" tone="emerald" />
-          <MetricCard icon={Skull} label="Avg Deaths" value={compact(data.avgDeaths)} sub="Per match" tone="rose" />
-          <MetricCard icon={Gauge} label="Avg K/D" value={decimal(data.avgKd)} sub="Per match" tone="blue" />
-          <MetricCard icon={Zap} label="Avg Damage" value={compact(data.avgDamage)} sub="Per match" tone="amber" />
+          <MetricCard icon={Swords} label="Avg Kills" value={compact(data.avgKills)} sub="Per match" tone="emerald" compactCard showIcon={false} />
+          <MetricCard icon={Skull} label="Avg Deaths" value={compact(data.avgDeaths)} sub="Per match" tone="rose" compactCard showIcon={false} />
+          <MetricCard icon={Gauge} label="Avg K/D" value={decimal(data.avgKd)} sub="Per match" tone="blue" compactCard showIcon={false} />
+          <MetricCard icon={Zap} label="Avg Damage" value={compact(data.avgDamage)} sub="Per match" tone="amber" compactCard showIcon={false} />
         </div>
       </Panel>
 
