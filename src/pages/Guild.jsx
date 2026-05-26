@@ -268,20 +268,16 @@ function fallbackMetricBars(value) {
   });
 }
 
-function buildMetricBars(logs = [], key, fallbackValue = 0) {
+function buildMetricBars(logs = [], key) {
   const rows = [...(logs || [])]
     .filter((log) => getLogTime(log) > 0)
     .sort((a, b) => getLogTime(a) - getLogTime(b))
     .slice(-10)
     .map((log) => getLogMetricValue(log, key));
 
-  const usableRows = rows.some((value) => num(value) > 0)
-    ? rows
-    : fallbackMetricBars(fallbackValue);
-
   return [
-    ...Array.from({ length: Math.max(0, 10 - usableRows.length) }, () => 0),
-    ...usableRows.slice(-10),
+    ...Array.from({ length: Math.max(0, 10 - rows.length) }, () => 0),
+    ...rows.slice(-10),
   ];
 }
 
@@ -453,13 +449,13 @@ function buildGuildData(stats, logs) {
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
     metricBars: {
-      matches: buildMetricBars(logs, 'matches', matches),
-      kills: buildMetricBars(logs, 'kills', kills),
-      deaths: buildMetricBars(logs, 'deaths', deaths),
-      kd: buildMetricBars(logs, 'kd', ratio),
-      damageDealt: buildMetricBars(logs, 'damageDealt', damageDealt),
-      ccHits: buildMetricBars(logs, 'ccHits', ccHits),
-      fortDamage: buildMetricBars(logs, 'fortDamage', fortDamage),
+      matches: buildMetricBars(logs, 'matches'),
+      kills: buildMetricBars(logs, 'kills'),
+      deaths: buildMetricBars(logs, 'deaths'),
+      kd: buildMetricBars(logs, 'kd'),
+      damageDealt: buildMetricBars(logs, 'damageDealt'),
+      ccHits: buildMetricBars(logs, 'ccHits'),
+      fortDamage: buildMetricBars(logs, 'fortDamage'),
     },
   };
 }
@@ -494,37 +490,37 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = 
     rose: 'from-rose-500 to-red-300',
     violet: 'from-violet-500 to-fuchsia-300',
     amber: 'from-amber-500 to-yellow-300',
-    cyan: 'from-blue-500 to-sky-300',
+    cyan: 'from-cyan-500 to-cyan-200',
   };
 
-  const chartBars = (Array.isArray(bars) && bars.length ? bars : fallbackMetricBars(value)).slice(-10);
+  const chartBars = (Array.isArray(bars) && bars.length ? bars : Array.from({ length: 10 }, () => 0)).slice(-10);
   const maxBar = Math.max(1, ...chartBars.map((bar) => Math.abs(num(bar))));
 
   return (
     <div
       className={cls(
-        'relative min-h-[132px] rounded-[26px] border p-4 shadow-2xl',
-        accentBar && 'overflow-hidden pr-24',
+        'relative min-h-[152px] rounded-[26px] border p-4 shadow-2xl',
+        accentBar && 'overflow-hidden pr-32',
         tones[tone],
       )}
     >
       {accentBar && (
-        <div className="absolute bottom-3 right-4 top-3 flex w-16 items-end justify-end gap-1">
+        <div className="absolute bottom-4 right-4 flex h-[118px] w-24 items-end justify-end gap-1.5">
           {chartBars.map((bar, index) => {
             const valueNumber = Math.abs(num(bar));
-            const height = valueNumber ? Math.max(14, (valueNumber / maxBar) * 100) : 8;
+            const height = valueNumber ? Math.max(18, (valueNumber / maxBar) * 112) : 8;
 
             return (
               <span
                 key={`${index}-${valueNumber}`}
                 title={compact(bar)}
                 className={cls(
-                  'w-1.5 rounded-full bg-gradient-to-t shadow-lg transition-all duration-300',
+                  'w-2 rounded-full bg-gradient-to-t shadow-lg transition-all duration-200 hover:z-10 hover:-translate-y-1 hover:scale-y-110 hover:opacity-100 hover:shadow-[0_0_18px_rgba(255,255,255,0.45)]',
                   accentBars[tone] || accentBars.blue,
                 )}
                 style={{
-                  height: `${height}%`,
-                  opacity: valueNumber ? 0.55 + index * 0.035 : 0.22,
+                  height: `${height}px`,
+                  opacity: valueNumber ? 0.56 + index * 0.04 : 0.2,
                 }}
               />
             );
@@ -662,9 +658,11 @@ function EnemyGuildTierList({ groups }) {
                   {group.meta.label}
                 </div>
                 <div className="min-w-0 lg:text-center">
-                  <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    {group.tier === 'Trash' ? 'Trash Tier' : 'Tier'}
-                  </p>
+                  {group.tier !== 'Trash' && (
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                      Tier
+                    </p>
+                  )}
                   <p className="truncate text-[10px] font-bold text-slate-300">{group.meta.range}</p>
                 </div>
               </div>
@@ -701,18 +699,13 @@ function EnemyGuildTierList({ groups }) {
 function Arsenal({ data }) {
   return (
     <div className="space-y-5">
-      <Panel>
-        <SectionTitle icon={Activity} title="Node Wars" sub="Total saved matches" />
-        <div className="grid gap-3 md:grid-cols-3">
-          <MetricCard
-            icon={Shield}
-            label="Total Node Wars"
-            value={compact(data.matches)}
-            sub="Saved matches"
-            tone="blue"
-            accentBar
-            bars={data.metricBars.matches}
-          />
+      <Panel className="p-3">
+        <div className="flex items-center justify-between gap-4 rounded-[22px] border border-blue-400/15 bg-blue-500/10 px-4 py-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Node Wars</p>
+            <p className="mt-1 text-sm font-bold text-slate-500">Total Node Wars</p>
+          </div>
+          <p className="text-3xl font-black text-white">{compact(data.matches)}</p>
         </div>
       </Panel>
 
