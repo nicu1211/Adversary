@@ -146,10 +146,10 @@ function getTierByScore(value) {
 }
 
 function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
-  const kdScore = Math.min(3, Math.max(0, kdNumber)) / 3 * 45;
-  const deathVolumeScore = Math.min(400, Math.max(0, deaths)) / 400 * 25;
-  const matchVolumeScore = Math.min(30, Math.max(0, matches)) / 30 * 20;
-  const pressureScore = Math.max(0, deaths - kills) / Math.max(1, deaths, kills) * 10;
+  const kdScore = Math.min(3, Math.max(0, kdNumber)) / 3 * 65;
+  const deathVolumeScore = Math.min(400, Math.max(0, deaths)) / 400 * 15;
+  const matchVolumeScore = Math.min(30, Math.max(0, matches)) / 30 * 15;
+  const pressureScore = Math.max(0, deaths - kills) / Math.max(1, deaths, kills) * 5;
 
   return Math.round((kdScore + deathVolumeScore + matchVolumeScore + pressureScore) * 10) / 10;
 }
@@ -347,8 +347,6 @@ function topBy(rows, key, limit = 6) {
 function buildGuildData(stats, logs) {
   const players = Array.isArray(stats?.players) ? stats.players : [];
   const matches = uniqueLogCount(logs, stats);
-  const secondaryMatches = uniqueSecondaryLogCount(logs, stats);
-  const secondaryAverageMatches = secondaryMatches || matches;
 
   const kills = num(stats?.kills);
   const deaths = num(stats?.deaths);
@@ -393,8 +391,8 @@ function buildGuildData(stats, logs) {
     avgKills: matches ? kills / matches : 0,
     avgDeaths: matches ? deaths / matches : 0,
     avgKd: matches ? kd(kills / matches, deaths / matches) : ratio,
-    avgDamage: secondaryAverageMatches ? damageDealt / secondaryAverageMatches : 0,
-    avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
+    avgDamage: matches ? damageDealt / matches : 0,
+    avgFortDamage: matches ? fortDamage / matches : 0,
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
@@ -440,12 +438,12 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = 
     <div
       className={cls(
         'relative rounded-[26px] border p-4 shadow-2xl',
-        accentBar && 'overflow-hidden pl-12',
+        accentBar && 'overflow-hidden pr-12',
         tones[tone],
       )}
     >
       {accentBar && (
-        <div className="absolute bottom-4 left-3 top-4 flex w-7 items-end gap-[2px]">
+        <div className="absolute bottom-4 right-3 top-4 flex w-7 items-end gap-[2px]">
           {barHeights.map((height, index) => (
             <span
               key={index}
@@ -468,9 +466,11 @@ function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = 
           <p className="mt-2 text-3xl font-black text-white">{value}</p>
           {sub && <p className="mt-1 text-xs font-bold text-slate-400">{sub}</p>}
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
-          <Icon size={22} />
-        </div>
+        {!accentBar && Icon && (
+          <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
+            <Icon size={22} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -568,7 +568,7 @@ function EnemyGuildTierList({ groups }) {
       <SectionTitle
         icon={Trophy}
         title="Enemy Guild Tier List"
-        sub="Last 45 days · minimum 30 K+D · S 50+ · A 40-50 · B 30-40 · C 20-30 · D 15-20 · Trash <15"
+        sub="Last 45 days"
       />
 
       {!hasGuilds ? (
@@ -629,7 +629,8 @@ function EnemyGuildTierList({ groups }) {
 function Arsenal({ data }) {
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <MetricCard icon={Shield} label="Node Wars" value={compact(data.matches)} sub="Total" tone="blue" accentBar />
         <MetricCard icon={Swords} label="Kills" value={compact(data.kills)} sub="All-time" tone="emerald" accentBar />
         <MetricCard icon={Skull} label="Deaths" value={compact(data.deaths)} sub="All-time" tone="rose" accentBar />
         <MetricCard icon={Gauge} label="K/D" value={decimal(data.kd)} sub="Ratio" tone="blue" accentBar />
