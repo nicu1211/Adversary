@@ -820,7 +820,6 @@ function PerformanceBarShape({
   width = 0,
   height = 0,
   fill,
-  active = false,
 }) {
   const safeWidth = Math.max(0, Number(width) || 0);
   const rawHeight = Number(height) || 0;
@@ -835,18 +834,18 @@ function PerformanceBarShape({
   const glowFilter = isDeathBar
     ? 'url(#perfBarGlowDeaths)'
     : 'url(#perfBarGlowKills)';
-  const hoverOffset = active ? (isDeathBar ? 'translateY(2px)' : 'translateY(-2px)') : undefined;
+  const hoverShift = isDeathBar ? '2px' : '-2px';
 
   return (
     <g
-      className="transition duration-200"
+      className="perf-bar-shape"
       style={{
-        filter: active ? glowFilter : undefined,
-        transform: hoverOffset,
-        transformOrigin: `${x + safeWidth / 2}px ${safeY + safeHeight / 2}px`,
+        '--perf-bar-glow': glowFilter,
+        '--perf-bar-hover-shift': hoverShift,
       }}
     >
       <rect
+        className="perf-bar-main"
         x={x}
         y={safeY}
         width={safeWidth}
@@ -854,11 +853,12 @@ function PerformanceBarShape({
         rx="5"
         ry="5"
         fill={fill}
-        opacity={active ? 1 : 0.9}
-        stroke={active ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.10)'}
-        strokeWidth={active ? 1.2 : 0.7}
+        opacity={0.9}
+        stroke="rgba(255,255,255,0.10)"
+        strokeWidth={0.7}
       />
       <rect
+        className="perf-bar-side-highlight"
         x={x + safeWidth * 0.18}
         y={safeY + 1}
         width={Math.max(1, safeWidth * 0.22)}
@@ -866,9 +866,10 @@ function PerformanceBarShape({
         rx="4"
         ry="4"
         fill="rgba(255,255,255,0.32)"
-        opacity={active ? 0.42 : 0.22}
+        opacity={0.22}
       />
       <rect
+        className="perf-bar-top-highlight"
         x={x}
         y={safeY}
         width={safeWidth}
@@ -876,7 +877,7 @@ function PerformanceBarShape({
         rx="5"
         ry="5"
         fill="rgba(255,255,255,0.22)"
-        opacity={active ? 0.36 : 0.18}
+        opacity={0.18}
       />
     </g>
   );
@@ -1032,6 +1033,33 @@ export function PerformanceChart({ data }) {
             margin={{ top: 6, right: 10, left: 4, bottom: 14 }}
           >
             <defs>
+              <style>{`
+                .perf-bar-shape {
+                  transform-box: fill-box;
+                  transform-origin: center;
+                  transition: filter 180ms ease, transform 180ms ease;
+                }
+
+                .perf-bar-shape:hover {
+                  filter: var(--perf-bar-glow);
+                  transform: translateY(var(--perf-bar-hover-shift));
+                }
+
+                .perf-bar-shape:hover .perf-bar-main {
+                  opacity: 1;
+                  stroke: rgba(255,255,255,0.55);
+                  stroke-width: 1.2px;
+                }
+
+                .perf-bar-shape:hover .perf-bar-side-highlight {
+                  opacity: 0.42;
+                }
+
+                .perf-bar-shape:hover .perf-bar-top-highlight {
+                  opacity: 0.36;
+                }
+              `}</style>
+
               <linearGradient id="perfBarKills" x1="0" y1="1" x2="0" y2="0">
                 <stop offset="0%" stopColor="#059669" stopOpacity={0.88} />
                 <stop offset="58%" stopColor="#10b981" stopOpacity={0.96} />
@@ -1067,26 +1095,26 @@ export function PerformanceChart({ data }) {
               </filter>
 
               <linearGradient id="avgKdStroke" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity={1} />
-                <stop offset="18%" stopColor="#dbeafe" stopOpacity={1} />
-                <stop offset="42%" stopColor="#93c5fd" stopOpacity={0.98} />
-                <stop offset="70%" stopColor="#3b82f6" stopOpacity={0.95} />
+                <stop offset="0%" stopColor="#7dd3fc" stopOpacity={1} />
+                <stop offset="20%" stopColor="#38bdf8" stopOpacity={1} />
+                <stop offset="48%" stopColor="#60a5fa" stopOpacity={0.98} />
+                <stop offset="76%" stopColor="#3b82f6" stopOpacity={0.96} />
                 <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.92} />
               </linearGradient>
 
               <linearGradient id="avgKdGlowStroke" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity={1} />
-                <stop offset="28%" stopColor="#bfdbfe" stopOpacity={0.90} />
-                <stop offset="64%" stopColor="#60a5fa" stopOpacity={0.70} />
-                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.48} />
+                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.92} />
+                <stop offset="30%" stopColor="#38bdf8" stopOpacity={0.78} />
+                <stop offset="65%" stopColor="#60a5fa" stopOpacity={0.58} />
+                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.34} />
               </linearGradient>
 
               <linearGradient id="avgKdFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.72)" />
-                <stop offset="18%" stopColor="rgba(219,234,254,0.58)" />
-                <stop offset="42%" stopColor="rgba(147,197,253,0.42)" />
-                <stop offset="70%" stopColor="rgba(59,130,246,0.24)" />
-                <stop offset="100%" stopColor="rgba(29,78,216,0.05)" />
+                <stop offset="0%" stopColor="rgba(34,211,238,0.54)" />
+                <stop offset="22%" stopColor="rgba(56,189,248,0.44)" />
+                <stop offset="48%" stopColor="rgba(96,165,250,0.32)" />
+                <stop offset="76%" stopColor="rgba(59,130,246,0.18)" />
+                <stop offset="100%" stopColor="rgba(29,78,216,0.04)" />
               </linearGradient>
 
               <filter
@@ -1168,7 +1196,7 @@ export function PerformanceChart({ data }) {
               fill="url(#perfBarDeaths)"
               radius={[5, 5, 5, 5]}
               shape={<PerformanceBarShape />}
-              activeBar={<PerformanceBarShape active />}
+              activeBar={false}
             />
 
             <Bar
@@ -1179,7 +1207,7 @@ export function PerformanceChart({ data }) {
               fill="url(#perfBarKills)"
               radius={[5, 5, 5, 5]}
               shape={<PerformanceBarShape />}
-              activeBar={<PerformanceBarShape active />}
+              activeBar={false}
             />
 
             <Area
@@ -1202,10 +1230,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="url(#avgKdGlowStroke)"
-              strokeWidth={16}
+              strokeWidth={10}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.40}
+              opacity={0.30}
               filter="url(#avgKdGlowBig)"
               dot={false}
               activeDot={false}
@@ -1219,10 +1247,10 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name=""
               stroke="url(#avgKdGlowStroke)"
-              strokeWidth={8}
+              strokeWidth={4.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={0.60}
+              opacity={0.45}
               filter="url(#avgKdGlowSoft)"
               dot={false}
               activeDot={false}
@@ -1236,15 +1264,15 @@ export function PerformanceChart({ data }) {
               dataKey="avgKd"
               name="K/D"
               stroke="url(#avgKdStroke)"
-              strokeWidth={3.6}
+              strokeWidth={2.4}
               strokeLinecap="round"
               strokeLinejoin="round"
               dot={false}
               activeDot={{
-                r: 5,
-                fill: '#ffffff',
-                stroke: '#60a5fa',
-                strokeWidth: 2.2,
+                r: 4,
+                fill: '#38bdf8',
+                stroke: '#0f172a',
+                strokeWidth: 2,
               }}
               isAnimationActive
             />
