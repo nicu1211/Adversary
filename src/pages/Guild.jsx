@@ -124,24 +124,19 @@ function uniqueSecondaryLogCount(logs = [], stats = {}) {
   return hasSecondaryTotals(stats) ? 1 : 0;
 }
 
-
 function cleanGuildName(value) {
   const text = String(value || '').trim();
-
   if (!text || /^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
-
   return text;
 }
 
 function getTierByScore(value) {
   const score = num(value);
-
   if (score >= 50) return 'S';
   if (score >= 40) return 'A';
   if (score >= 30) return 'B';
   if (score >= 20) return 'C';
   if (score >= 15) return 'D';
-
   return 'Trash';
 }
 
@@ -150,7 +145,6 @@ function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
   const deathVolumeScore = Math.min(400, Math.max(0, deaths)) / 400 * 15;
   const matchVolumeScore = Math.min(30, Math.max(0, matches)) / 30 * 15;
   const pressureScore = Math.max(0, deaths - kills) / Math.max(1, deaths, kills) * 5;
-
   return Math.round((kdScore + deathVolumeScore + matchVolumeScore + pressureScore) * 10) / 10;
 }
 
@@ -158,48 +152,42 @@ const enemyTierMeta = {
   S: {
     label: 'S',
     range: '50+ score',
-    className:
-      'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
+    className: 'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
     tone: 'amber',
   },
   A: {
     label: 'A',
     range: '40 - 50 score',
-    className:
-      'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
+    className: 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
     tone: 'emerald',
   },
   B: {
     label: 'B',
     range: '30 - 40 score',
-    className:
-      'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
+    className: 'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
     tone: 'blue',
   },
   C: {
     label: 'C',
     range: '20 - 30 score',
-    className:
-      'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
+    className: 'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
     tone: 'violet',
   },
   D: {
     label: 'D',
     range: '15 - 20 score',
-    className:
-      'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
+    className: 'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
     tone: 'rose',
   },
   Trash: {
     label: 'T',
     range: 'Under 15 score',
-    className:
-      'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
+    className: 'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
     tone: 'slate',
   },
@@ -215,13 +203,11 @@ function getLogTime(log) {
     log?.created ||
     '';
   const parsed = new Date(raw).getTime();
-
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 function getLatestLogTime(logs = []) {
   const times = logs.map(getLogTime).filter((time) => time > 0);
-
   return times.length ? Math.max(...times) : Date.now();
 }
 
@@ -255,19 +241,6 @@ function getLogMetricValue(log, key) {
   return 0;
 }
 
-function fallbackMetricBars(value) {
-  const base = Math.max(0, num(value));
-
-  if (!base) {
-    return Array.from({ length: 10 }, () => 0);
-  }
-
-  return Array.from({ length: 10 }, (_, index) => {
-    const ratio = 0.28 + ((index + 1) / 10) * 0.72;
-    return base * ratio;
-  });
-}
-
 function buildMetricBars(logs = [], key) {
   const rows = [...(logs || [])]
     .filter((log) => getLogTime(log) > 0)
@@ -290,11 +263,9 @@ function getLogLabel(log, index) {
       log?.created_at ||
       '',
   );
-
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
     return raw.slice(5, 10);
   }
-
   return `#${index + 1}`;
 }
 
@@ -327,6 +298,24 @@ function buildAverageTrendRows(logs = []) {
   });
 }
 
+// Builds raw per-match values for sparkline trend (not cumulative average)
+function buildRawTrendRows(logs = []) {
+  return [...(logs || [])]
+    .filter((log) => getLogTime(log) > 0)
+    .sort((a, b) => getLogTime(a) - getLogTime(b))
+    .map((log, index) => {
+      const kills = getLogMetricValue(log, 'kills');
+      const deaths = getLogMetricValue(log, 'deaths');
+      return {
+        label: getLogLabel(log, index),
+        kills,
+        deaths,
+        kd: kd(kills, deaths),
+        damageDealt: getLogMetricValue(log, 'damageDealt'),
+      };
+    });
+}
+
 function buildEnemyGuildTiers(stats = {}, logs = []) {
   const latestTime = getLatestLogTime(logs);
   const cutoffTime = latestTime - 45 * 24 * 60 * 60 * 1000;
@@ -334,7 +323,6 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
 
   (logs || []).forEach((log) => {
     const logTime = getLogTime(log);
-
     if (!logTime || logTime < cutoffTime) return;
 
     const summary = getSimpleSummary(log);
@@ -343,16 +331,9 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
 
     guilds.forEach((guild) => {
       const name = cleanGuildName(guild?.name);
-
       if (!name) return;
 
-      byGuild[name] ||= {
-        name,
-        kills: 0,
-        deaths: 0,
-        matchIds: new Set(),
-      };
-
+      byGuild[name] ||= { name, kills: 0, deaths: 0, matchIds: new Set() };
       byGuild[name].kills += num(guild?.kills);
       byGuild[name].deaths += num(guild?.deaths);
       byGuild[name].matchIds.add(matchId);
@@ -370,16 +351,9 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
     events.forEach((event) => {
       const guildName = cleanGuildName(event?.guild);
       const eventTime = new Date(event?.date || '').getTime();
-
       if (!guildName || !eventTime || eventTime < eventCutoffTime) return;
 
-      byGuild[guildName] ||= {
-        name: guildName,
-        kills: 0,
-        deaths: 0,
-        matchIds: new Set(),
-      };
-
+      byGuild[guildName] ||= { name: guildName, kills: 0, deaths: 0, matchIds: new Set() };
       if (event.type === 'kill') byGuild[guildName].kills += 1;
       if (event.type === 'death') byGuild[guildName].deaths += 1;
       byGuild[guildName].matchIds.add(String(event?.id || event?.date || guildName));
@@ -393,23 +367,8 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
       const matches = guild.matchIds?.size || 0;
       const totalInteractions = kills + deaths;
       const kdNumber = kills > 0 ? deaths / kills : deaths > 0 ? deaths : 0;
-      const score = enemyGuildScore({
-        kills,
-        deaths,
-        matches,
-        kdNumber,
-      });
-
-      return {
-        name: guild.name,
-        kills,
-        deaths,
-        totalInteractions,
-        kdNumber,
-        matches,
-        score,
-        tier: 'D',
-      };
+      const score = enemyGuildScore({ kills, deaths, matches, kdNumber });
+      return { name: guild.name, kills, deaths, totalInteractions, kdNumber, matches, score, tier: 'D' };
     })
     .filter((guild) => guild.name && guild.totalInteractions >= 30)
     .sort(
@@ -421,10 +380,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
         a.name.localeCompare(b.name),
     );
 
-  const tieredRows = rows.map((guild) => ({
-    ...guild,
-    tier: getTierByScore(guild.score),
-  }));
+  const tieredRows = rows.map((guild) => ({ ...guild, tier: getTierByScore(guild.score) }));
 
   return ['S', 'A', 'B', 'C', 'D', 'Trash']
     .map((tier) => ({
@@ -464,7 +420,6 @@ function buildGuildData(stats, logs) {
   const enrichedPlayers = players.map((player) => {
     const killsNumber = num(player.kills);
     const deathsNumber = num(player.deaths);
-
     return {
       ...player,
       kills: killsNumber,
@@ -476,6 +431,8 @@ function buildGuildData(stats, logs) {
       fortDamage: num(player.fortDamage),
     };
   });
+
+  const rawTrendRows = buildRawTrendRows(logs);
 
   return {
     matches,
@@ -504,88 +461,153 @@ function buildGuildData(stats, logs) {
       fortDamage: buildMetricBars(logs, 'fortDamage'),
     },
     averageTrendRows: buildAverageTrendRows(logs),
-    // per-avg sparkline data extracted from averageTrendRows
-    avgSparklines: {
-      avgKills: [],
-      avgDeaths: [],
-      avgKd: [],
-      avgDamage: [],
-    },
+    // Raw per-match values for sparkline trend charts
+    rawTrendRows,
   };
 }
 
-// ─── Sparkline SVG (line + gradient fill) ────────────────────────────────────
+// ─── Sparkline trend chart (line + gradient fill, raw per-match values) ───────
 
 const sparklineToneColors = {
-  emerald: { line: '#34d399', gradFrom: 'rgba(52,211,153,0.35)', gradTo: 'rgba(52,211,153,0)' },
-  rose:    { line: '#fb7185', gradFrom: 'rgba(251,113,133,0.35)', gradTo: 'rgba(251,113,133,0)' },
-  blue:    { line: '#60a5fa', gradFrom: 'rgba(96,165,250,0.35)',  gradTo: 'rgba(96,165,250,0)'  },
-  amber:   { line: '#f59e0b', gradFrom: 'rgba(245,158,11,0.35)',  gradTo: 'rgba(245,158,11,0)'  },
-  violet:  { line: '#a78bfa', gradFrom: 'rgba(167,139,250,0.35)', gradTo: 'rgba(167,139,250,0)' },
-  cyan:    { line: '#22d3ee', gradFrom: 'rgba(34,211,238,0.35)',  gradTo: 'rgba(34,211,238,0)'  },
-  slate:   { line: '#94a3b8', gradFrom: 'rgba(148,163,184,0.35)', gradTo: 'rgba(148,163,184,0)' },
+  emerald: { line: '#34d399', gradFrom: 'rgba(52,211,153,0.30)',  gradTo: 'rgba(52,211,153,0)',  trendUp: '#34d399', trendDown: '#fb7185' },
+  rose:    { line: '#fb7185', gradFrom: 'rgba(251,113,133,0.30)', gradTo: 'rgba(251,113,133,0)', trendUp: '#fb7185', trendDown: '#fb7185' },
+  blue:    { line: '#60a5fa', gradFrom: 'rgba(96,165,250,0.30)',  gradTo: 'rgba(96,165,250,0)',  trendUp: '#60a5fa', trendDown: '#60a5fa' },
+  amber:   { line: '#f59e0b', gradFrom: 'rgba(245,158,11,0.30)',  gradTo: 'rgba(245,158,11,0)',  trendUp: '#f59e0b', trendDown: '#f59e0b' },
+  violet:  { line: '#a78bfa', gradFrom: 'rgba(167,139,250,0.30)', gradTo: 'rgba(167,139,250,0)', trendUp: '#a78bfa', trendDown: '#a78bfa' },
+  cyan:    { line: '#22d3ee', gradFrom: 'rgba(34,211,238,0.30)',  gradTo: 'rgba(34,211,238,0)',  trendUp: '#22d3ee', trendDown: '#22d3ee' },
+  slate:   { line: '#94a3b8', gradFrom: 'rgba(148,163,184,0.30)', gradTo: 'rgba(148,163,184,0)', trendUp: '#94a3b8', trendDown: '#94a3b8' },
 };
 
-function MiniSparkline({ values = [], tone = 'blue', height = 40, width = 120 }) {
+// Smooth cubic bezier path through points
+function smoothPath(points) {
+  if (points.length < 2) return '';
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
+  let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cpX = (prev.x + curr.x) / 2;
+    d += ` C ${cpX.toFixed(2)} ${prev.y.toFixed(2)}, ${cpX.toFixed(2)} ${curr.y.toFixed(2)}, ${curr.x.toFixed(2)} ${curr.y.toFixed(2)}`;
+  }
+  return d;
+}
+
+function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
   const colors = sparklineToneColors[tone] || sparklineToneColors.blue;
   const pts = values.map((v) => num(v));
+  const gradId = `tspk-${tone}-${uid}`;
+  const clipId = `tclip-${tone}-${uid}`;
+
+  const W = 240;
+  const H = 52;
+  const padX = 6;
+  const padY = 6;
+  const innerW = W - padX * 2;
+  const innerH = H - padY * 2;
 
   if (pts.length < 2) {
-    // flat placeholder line
-    const mid = height / 2;
+    const mid = H / 2;
+    // show a single dot if exactly 1 value
     return (
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }} preserveAspectRatio="none">
-        <line x1="0" y1={mid} x2={width} y2={mid} stroke={colors.line} strokeWidth="1.5" strokeOpacity="0.3" />
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: `${H}px` }} preserveAspectRatio="none">
+        <line x1={padX} y1={mid} x2={W - padX} y2={mid} stroke={colors.line} strokeWidth="1.5" strokeOpacity="0.2" strokeDasharray="3 4" />
+        {pts.length === 1 && (
+          <circle cx={W / 2} cy={mid} r="3" fill={colors.line} opacity="0.7" />
+        )}
       </svg>
     );
   }
 
-  const pad = 3;
-  const innerW = width - pad * 2;
-  const innerH = height - pad * 2;
   const minVal = Math.min(...pts);
   const maxVal = Math.max(...pts);
   const range = Math.max(1, maxVal - minVal);
 
   const points = pts.map((v, i) => ({
-    x: pad + (i / (pts.length - 1)) * innerW,
-    y: pad + ((maxVal - v) / range) * innerH,
+    x: padX + (i / (pts.length - 1)) * innerW,
+    y: padY + ((maxVal - v) / range) * innerH,
+    v,
   }));
 
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+  const linePath = smoothPath(points);
+
+  const last = points[points.length - 1];
+  const prev = points[points.length - 2];
+  const trendUp = last.v >= prev.v;
+  const lastColor = trendUp ? colors.trendUp : '#fb7185';
+
+  // area path: follow line then close at bottom
   const areaPath =
     linePath +
-    ` L ${points[points.length - 1].x.toFixed(2)} ${(pad + innerH).toFixed(2)}` +
-    ` L ${points[0].x.toFixed(2)} ${(pad + innerH).toFixed(2)} Z`;
-
-  const gradId = `spark-${tone}-${Math.random().toString(36).slice(2, 7)}`;
+    ` L ${last.x.toFixed(2)} ${(padY + innerH).toFixed(2)}` +
+    ` L ${points[0].x.toFixed(2)} ${(padY + innerH).toFixed(2)} Z`;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: `${H}px` }} preserveAspectRatio="none">
       <defs>
         <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor={colors.gradFrom} />
           <stop offset="100%" stopColor={colors.gradTo} />
         </linearGradient>
+        <clipPath id={clipId}>
+          <rect x={padX} y={padY} width={innerW} height={innerH} />
+        </clipPath>
       </defs>
-      {/* gradient fill */}
-      <path d={areaPath} fill={`url(#${gradId})`} />
-      {/* line */}
+
+      {/* subtle horizontal grid lines */}
+      {[0.25, 0.5, 0.75].map((r) => (
+        <line
+          key={r}
+          x1={padX} x2={W - padX}
+          y1={padY + r * innerH} y2={padY + r * innerH}
+          stroke="rgba(148,163,184,0.07)"
+          strokeWidth="1"
+        />
+      ))}
+
+      {/* gradient fill area */}
+      <path d={areaPath} fill={`url(#${gradId})`} clipPath={`url(#${clipId})`} />
+
+      {/* smooth line */}
       <path
         d={linePath}
         fill="none"
         stroke={colors.line}
-        strokeWidth="1.8"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity="0.9"
+        opacity="0.95"
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* all data points — small dots */}
+      {points.map((p, i) => (
+        <circle
+          key={i}
+          cx={p.x} cy={p.y} r="2"
+          fill={colors.line}
+          stroke="#020617"
+          strokeWidth="1"
+          opacity={0.5}
+          style={{ pointerEvents: 'none' }}
+        />
+      ))}
+
+      {/* last point — highlighted, color reflects trend direction */}
+      <circle
+        cx={last.x} cy={last.y} r="3.5"
+        fill={lastColor}
+        stroke="#020617"
+        strokeWidth="1.5"
+        opacity="1"
         style={{ pointerEvents: 'none' }}
       />
     </svg>
   );
 }
 
-// ─── EmptyState ──────────────────────────────────────────────────────────────
+// ─── EmptyState ───────────────────────────────────────────────────────────────
 
 function EmptyState() {
   return (
@@ -601,7 +623,7 @@ function EmptyState() {
   );
 }
 
-// ─── MetricCard ──────────────────────────────────────────────────────────────
+// ─── MetricCard ───────────────────────────────────────────────────────────────
 
 function MetricCard({
   icon: Icon,
@@ -613,24 +635,25 @@ function MetricCard({
   bars = [],
   compactCard = false,
   showIcon = true,
-  sparklineValues = null,   // NEW: array of numbers for the line gradient chart
+  sparklineValues = null,
+  sparklineUid = '',
 }) {
   const tones = {
-    blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
+    blue:    'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
     emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
-    rose: 'border-rose-400/20 bg-rose-500/10 text-rose-200 shadow-rose-500/10',
-    violet: 'border-violet-400/20 bg-violet-500/10 text-violet-200 shadow-violet-500/10',
-    amber: 'border-amber-400/20 bg-amber-500/10 text-amber-200 shadow-amber-500/10',
-    cyan: 'border-cyan-400/20 bg-cyan-500/10 text-cyan-200 shadow-cyan-500/10',
+    rose:    'border-rose-400/20 bg-rose-500/10 text-rose-200 shadow-rose-500/10',
+    violet:  'border-violet-400/20 bg-violet-500/10 text-violet-200 shadow-violet-500/10',
+    amber:   'border-amber-400/20 bg-amber-500/10 text-amber-200 shadow-amber-500/10',
+    cyan:    'border-cyan-400/20 bg-cyan-500/10 text-cyan-200 shadow-cyan-500/10',
   };
 
   const accentBars = {
-    blue: 'from-blue-500 to-sky-300',
+    blue:    'from-blue-500 to-sky-300',
     emerald: 'from-emerald-500 to-lime-300',
-    rose: 'from-rose-500 to-red-300',
-    violet: 'from-violet-500 to-fuchsia-300',
-    amber: 'from-amber-500 to-yellow-300',
-    cyan: 'from-cyan-500 to-cyan-200',
+    rose:    'from-rose-500 to-red-300',
+    violet:  'from-violet-500 to-fuchsia-300',
+    amber:   'from-amber-500 to-yellow-300',
+    cyan:    'from-cyan-500 to-cyan-200',
   };
 
   const chartBars = (Array.isArray(bars) ? bars : []).slice(-10);
@@ -641,7 +664,6 @@ function MetricCard({
   const maxBar = Math.max(1, ...filledBars.map((bar) => Math.abs(num(bar))));
   const chartHeight = compactCard ? 54 : 88;
 
-  // If sparklineValues passed, we render it below the content
   const hasSparkline = Array.isArray(sparklineValues) && sparklineValues.length > 0;
 
   return (
@@ -661,7 +683,6 @@ function MetricCard({
           {filledBars.map((bar, index) => {
             const valueNumber = Math.abs(num(bar));
             const height = valueNumber ? Math.max(7, (valueNumber / maxBar) * chartHeight) : 3;
-
             return (
               <span
                 key={`${index}-${valueNumber}`}
@@ -693,14 +714,13 @@ function MetricCard({
         )}
       </div>
 
-      {/* ── Line gradient sparkline ── */}
+      {/* ── Trend sparkline ── */}
       {hasSparkline && (
         <div className="mt-2 -mx-0.5">
-          <MiniSparkline
+          <TrendSparkline
             values={sparklineValues}
             tone={tone}
-            height={compactCard ? 36 : 44}
-            width={200}
+            uid={sparklineUid}
           />
         </div>
       )}
@@ -708,7 +728,7 @@ function MetricCard({
   );
 }
 
-// ─── Panel / SectionTitle ─────────────────────────────────────────────────────
+// ─── Panel / SectionTitle ──────────────────────────────────────────────────────
 
 function Panel({ children, className = '' }) {
   return (
@@ -732,7 +752,7 @@ function SectionTitle({ icon: Icon, title, sub }) {
   );
 }
 
-// ─── GuildTierProgressRow ─────────────────────────────────────────────────────
+// ─── GuildTierProgressRow ──────────────────────────────────────────────────────
 
 function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   const width = maxScore
@@ -740,12 +760,12 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
     : 0;
 
   const colors = {
-    blue: 'from-blue-500 to-sky-300',
+    blue:    'from-blue-500 to-sky-300',
     emerald: 'from-emerald-500 to-lime-300',
-    amber: 'from-amber-500 to-yellow-300',
-    rose: 'from-rose-500 to-red-300',
-    violet: 'from-violet-500 to-fuchsia-300',
-    slate: 'from-slate-500 to-slate-300',
+    amber:   'from-amber-500 to-yellow-300',
+    rose:    'from-rose-500 to-red-300',
+    violet:  'from-violet-500 to-fuchsia-300',
+    slate:   'from-slate-500 to-slate-300',
   };
 
   return (
@@ -764,7 +784,6 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
           className={cls('h-2.5 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)}
           style={{ width: `${width}%` }}
         />
-
         <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[380px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
           <div className="grid grid-cols-4 gap-3 text-center">
             <div>
@@ -802,11 +821,7 @@ function EnemyGuildTierList({ groups }) {
 
   return (
     <Panel className="p-3">
-      <SectionTitle
-        icon={Trophy}
-        title="Enemy Guild Tier List"
-        sub="Last 45 days"
-      />
+      <SectionTitle icon={Trophy} title="Enemy Guild Tier List" sub="Last 45 days" />
 
       {!hasGuilds ? (
         <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-4 text-sm font-bold text-slate-500">
@@ -828,9 +843,7 @@ function EnemyGuildTierList({ groups }) {
                 </div>
                 <div className="min-w-0 lg:text-center">
                   {group.tier !== 'Trash' && (
-                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
-                      Tier
-                    </p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Tier</p>
                   )}
                   <p className="truncate text-[10px] font-bold text-slate-300">{group.meta.range}</p>
                 </div>
@@ -865,17 +878,16 @@ function EnemyGuildTierList({ groups }) {
   );
 }
 
-
-
 // ─── Arsenal ──────────────────────────────────────────────────────────────────
 
 function Arsenal({ data }) {
-  // Extract per-match sparkline series from averageTrendRows
-  const trendRows = data.averageTrendRows || [];
-  const sparkKills  = trendRows.map((r) => num(r.avgKills));
-  const sparkDeaths = trendRows.map((r) => num(r.avgDeaths));
-  const sparkKd     = trendRows.map((r) => num(r.avgKd));
-  const sparkDamage = trendRows.map((r) => num(r.avgDamage));
+  const rawRows = data.rawTrendRows || [];
+
+  // Raw per-match values for each sparkline
+  const sparkKills  = rawRows.map((r) => num(r.kills));
+  const sparkDeaths = rawRows.map((r) => num(r.deaths));
+  const sparkKd     = rawRows.map((r) => num(r.kd));
+  const sparkDamage = rawRows.map((r) => num(r.damageDealt));
 
   return (
     <div className="space-y-4">
@@ -954,7 +966,6 @@ function Arsenal({ data }) {
         </div>
         <div className="grid gap-3 md:grid-cols-4">
           <MetricCard
-            icon={Swords}
             label="Avg Kills"
             value={compact(data.avgKills)}
             sub="Per match"
@@ -962,9 +973,9 @@ function Arsenal({ data }) {
             compactCard
             showIcon={false}
             sparklineValues={sparkKills}
+            sparklineUid="kills"
           />
           <MetricCard
-            icon={Skull}
             label="Avg Deaths"
             value={compact(data.avgDeaths)}
             sub="Per match"
@@ -972,9 +983,9 @@ function Arsenal({ data }) {
             compactCard
             showIcon={false}
             sparklineValues={sparkDeaths}
+            sparklineUid="deaths"
           />
           <MetricCard
-            icon={Gauge}
             label="Avg K/D"
             value={decimal(data.avgKd)}
             sub="Per match"
@@ -982,9 +993,9 @@ function Arsenal({ data }) {
             compactCard
             showIcon={false}
             sparklineValues={sparkKd}
+            sparklineUid="kd"
           />
           <MetricCard
-            icon={Zap}
             label="Avg Damage"
             value={compact(data.avgDamage)}
             sub="Per match"
@@ -992,10 +1003,9 @@ function Arsenal({ data }) {
             compactCard
             showIcon={false}
             sparklineValues={sparkDamage}
+            sparklineUid="damage"
           />
         </div>
-
-
       </Panel>
 
       <EnemyGuildTierList groups={data.enemyTierGroups} />
@@ -1007,8 +1017,6 @@ function Arsenal({ data }) {
 
 export default function Guild({ stats, logs }) {
   const data = useMemo(() => buildGuildData(stats || {}, logs || []), [stats, logs]);
-
   const hasData = data.kills > 0 || data.deaths > 0 || data.matches > 0;
-
   return <div>{hasData ? <Arsenal data={data} /> : <EmptyState />}</div>;
 }
