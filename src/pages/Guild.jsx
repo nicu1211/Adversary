@@ -526,39 +526,39 @@ const sparklineToneColors = {
   slate:   { line: '#94a3b8', gradFrom: 'rgba(148,163,184,0.35)', gradTo: 'rgba(148,163,184,0)' },
 };
 
-function MiniSparkline({ values = [], tone = 'blue', height = 44, width = 200, uid = '' }) {
+function MiniSparkline({ values = [], tone = 'blue', height = 40, width = 120 }) {
   const colors = sparklineToneColors[tone] || sparklineToneColors.blue;
   const pts = values.map((v) => num(v));
-  // stable id based on tone + uid, no Math.random
-  const gradId = `spark-grad-${tone}-${uid}`;
 
   if (pts.length < 2) {
+    // flat placeholder line
     const mid = height / 2;
     return (
       <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }} preserveAspectRatio="none">
-        <line x1="0" y1={mid} x2={width} y2={mid} stroke={colors.line} strokeWidth="1.5" strokeOpacity="0.25" />
+        <line x1="0" y1={mid} x2={width} y2={mid} stroke={colors.line} strokeWidth="1.5" strokeOpacity="0.3" />
       </svg>
     );
   }
 
-  const padX = 4;
-  const padY = 5;
-  const innerW = width - padX * 2;
-  const innerH = height - padY * 2;
+  const pad = 3;
+  const innerW = width - pad * 2;
+  const innerH = height - pad * 2;
   const minVal = Math.min(...pts);
   const maxVal = Math.max(...pts);
   const range = Math.max(1, maxVal - minVal);
 
   const points = pts.map((v, i) => ({
-    x: padX + (i / (pts.length - 1)) * innerW,
-    y: padY + ((maxVal - v) / range) * innerH,
+    x: pad + (i / (pts.length - 1)) * innerW,
+    y: pad + ((maxVal - v) / range) * innerH,
   }));
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
   const areaPath =
     linePath +
-    ` L ${points[points.length - 1].x.toFixed(2)} ${(padY + innerH).toFixed(2)}` +
-    ` L ${points[0].x.toFixed(2)} ${(padY + innerH).toFixed(2)} Z`;
+    ` L ${points[points.length - 1].x.toFixed(2)} ${(pad + innerH).toFixed(2)}` +
+    ` L ${points[0].x.toFixed(2)} ${(pad + innerH).toFixed(2)} Z`;
+
+  const gradId = `spark-${tone}-${Math.random().toString(36).slice(2, 7)}`;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }} preserveAspectRatio="none">
@@ -568,32 +568,19 @@ function MiniSparkline({ values = [], tone = 'blue', height = 44, width = 200, u
           <stop offset="100%" stopColor={colors.gradTo} />
         </linearGradient>
       </defs>
-      {/* gradient area fill */}
+      {/* gradient fill */}
       <path d={areaPath} fill={`url(#${gradId})`} />
       {/* line */}
       <path
         d={linePath}
         fill="none"
         stroke={colors.line}
-        strokeWidth="2"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity="0.95"
+        opacity="0.9"
+        style={{ pointerEvents: 'none' }}
       />
-      {/* data points — visible dots, no interactivity */}
-      {points.map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x}
-          cy={p.y}
-          r={i === points.length - 1 ? 3 : 2}
-          fill={colors.line}
-          stroke="#020617"
-          strokeWidth="1.2"
-          opacity={i === points.length - 1 ? 1 : 0.6}
-          style={{ pointerEvents: 'none' }}
-        />
-      ))}
     </svg>
   );
 }
@@ -712,9 +699,8 @@ function MetricCard({
           <MiniSparkline
             values={sparklineValues}
             tone={tone}
-            height={compactCard ? 44 : 52}
+            height={compactCard ? 36 : 44}
             width={200}
-            uid={label}
           />
         </div>
       )}
