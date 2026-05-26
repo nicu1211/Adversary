@@ -344,98 +344,6 @@ function topBy(rows, key, limit = 6) {
     .slice(0, limit);
 }
 
-
-function getHistoryLabel(log, index) {
-  const raw =
-    log?.date ||
-    log?.warDate ||
-    log?.war_date ||
-    log?.createdAt ||
-    log?.created_at ||
-    log?.name ||
-    '';
-
-  const parsed = new Date(raw);
-
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-    });
-  }
-
-  return String(raw || `Match ${index + 1}`);
-}
-
-function buildMetricHistory(logs = []) {
-  return [...(logs || [])]
-    .map((log, index) => {
-      const summary = getSimpleSummary(log);
-      const players = Array.isArray(summary?.players) ? summary.players : [];
-      const secondaryTotals = summary?.secondary?.totals || {};
-
-      const playerKills = players.reduce((sum, player) => sum + num(player.kills), 0);
-      const playerDeaths = players.reduce((sum, player) => sum + num(player.deaths), 0);
-      const playerDamageDealt = players.reduce((sum, player) => sum + num(player.damageDealt), 0);
-      const playerDamageTaken = players.reduce((sum, player) => sum + num(player.damageTaken), 0);
-      const playerCcHits = players.reduce((sum, player) => sum + num(player.ccHits), 0);
-      const playerFortDamage = players.reduce((sum, player) => sum + num(player.fortDamage), 0);
-
-      const kills = num(summary?.kills) || num(log?.kills) || playerKills;
-      const deaths = num(summary?.deaths) || num(log?.deaths) || playerDeaths;
-      const damageDealt =
-        num(secondaryTotals.damageDealt) ||
-        num(summary?.damageDealt) ||
-        num(log?.damageDealt) ||
-        playerDamageDealt;
-      const damageTaken =
-        num(secondaryTotals.damageTaken) ||
-        num(summary?.damageTaken) ||
-        num(log?.damageTaken) ||
-        playerDamageTaken;
-      const ccHits =
-        num(secondaryTotals.ccHits) ||
-        num(summary?.ccHits) ||
-        num(log?.ccHits) ||
-        playerCcHits;
-      const fortDamage =
-        num(secondaryTotals.fortDamage) ||
-        num(summary?.fortDamage) ||
-        num(log?.fortDamage) ||
-        playerFortDamage;
-
-      return {
-        index,
-        time: getLogTime(log),
-        label: getHistoryLabel(log, index),
-        kills,
-        deaths,
-        kd: kd(kills, deaths),
-        damageDealt,
-        damageTaken,
-        ccHits,
-        fortDamage,
-      };
-    })
-    .filter(
-      (item) =>
-        item.kills > 0 ||
-        item.deaths > 0 ||
-        item.damageDealt > 0 ||
-        item.damageTaken > 0 ||
-        item.ccHits > 0 ||
-        item.fortDamage > 0,
-    )
-    .sort((a, b) => {
-      if (a.time && b.time) return a.time - b.time;
-      if (a.time) return -1;
-      if (b.time) return 1;
-      return a.index - b.index;
-    })
-    .slice(-18);
-}
-
 function buildGuildData(stats, logs) {
   const players = Array.isArray(stats?.players) ? stats.players : [];
   const matches = uniqueLogCount(logs, stats);
@@ -487,7 +395,6 @@ function buildGuildData(stats, logs) {
     avgKd: matches ? kd(kills / matches, deaths / matches) : ratio,
     avgDamage: secondaryAverageMatches ? damageDealt / secondaryAverageMatches : 0,
     avgFortDamage: secondaryAverageMatches ? fortDamage / secondaryAverageMatches : 0,
-    metricHistory: buildMetricHistory(logs),
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
@@ -508,167 +415,55 @@ function EmptyState() {
   );
 }
 
-
-function MetricHistoryBars({ history = [], metricKey, label, tone = 'blue' }) {
-  if (!metricKey || !Array.isArray(history) || history.length === 0) return null;
-
-  const bars = history
-    .map((item) => ({
-      label: item.label,
-      value: num(item?.[metricKey]),
-    }))
-    .filter((item) => Number.isFinite(item.value))
-    .slice(-14);
-
-  if (!bars.length) return null;
-
-  const maxValue = Math.max(1, ...bars.map((item) => Math.abs(item.value)));
-
-  // Per-tone color config: [darkBase, mid, bright, tip, glowRgba]
-  const toneColors = {
-    emerald: ['#052e16', '#16a34a', '#4ade80', '#bbf7d0', 'rgba(74,222,128,0.7)'],
-    rose:    ['#4c0519', '#e11d48', '#fb7185', '#fecdd3', 'rgba(251,113,133,0.7)'],
-    blue:    ['#172554', '#2563eb', '#60a5fa', '#bfdbfe', 'rgba(96,165,250,0.7)'],
-    amber:   ['#451a03', '#d97706', '#fbbf24', '#fef3c7', 'rgba(251,191,36,0.7)'],
-    cyan:    ['#083344', '#0891b2', '#22d3ee', '#cffafe', 'rgba(34,211,238,0.7)'],
-    violet:  ['#2e1065', '#7c3aed', '#a78bfa', '#ede9fe', 'rgba(167,139,250,0.7)'],
+function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', accentBar = false }) {
+  const tones = {
+    blue: 'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
+    emerald: 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/10',
+    rose: 'border-rose-400/20 bg-rose-500/10 text-rose-200 shadow-rose-500/10',
+    violet: 'border-violet-400/20 bg-violet-500/10 text-violet-200 shadow-violet-500/10',
+    amber: 'border-amber-400/20 bg-amber-500/10 text-amber-200 shadow-amber-500/10',
+    cyan: 'border-cyan-400/20 bg-cyan-500/10 text-cyan-200 shadow-cyan-500/10',
   };
 
-  const [dark, mid, bright, tip, glow] = toneColors[tone] || toneColors.blue;
+  const accentBars = {
+    blue: 'from-blue-500 to-sky-300',
+    emerald: 'from-emerald-500 to-lime-300',
+    rose: 'from-rose-500 to-red-300',
+    violet: 'from-violet-500 to-fuchsia-300',
+    amber: 'from-amber-500 to-yellow-300',
+    cyan: 'from-blue-500 to-sky-300',
+  };
 
   return (
     <div
-      aria-label={`${label} history`}
-      style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '100%', width: '100%' }}
+      className={cls(
+        'relative rounded-[26px] border p-4 shadow-2xl',
+        accentBar && 'overflow-hidden pl-5',
+        tones[tone],
+      )}
     >
-      {bars.map((item, index) => {
-        const percent = maxValue ? Math.round((Math.abs(item.value) / maxValue) * 100) : 0;
-        const height = item.value > 0 ? Math.max(12, percent) : 6;
-        return (
-          <div
-            key={`${label}-${item.label}-${index}`}
-            title={`${item.label} · ${label}: ${compact(item.value)}`}
-            style={{ flex: 1, height: `${height}%`, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}
-          >
-            {/* Bar body with glow */}
-            <div style={{
-              width: '100%',
-              height: '100%',
-              background: `linear-gradient(to top, ${dark} 0%, ${mid} 0%, ${bright} 0%, ${tip} 100%)`,
-              filter: `drop-shadow(0 0 4px ${glow}) drop-shadow(0 0 8px ${glow.replace('0.7', '0.4')})`,
-              borderRadius: '1px 1px 0 0',
-            }} />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function MetricCard({ icon: Icon, label, value, sub, tone = 'blue', history = [], historyKey }) {
-  const hasBars = historyKey && history.length > 0;
-
-  // Per-tone accent colors for border, icon, label, top line
-  const toneAccent = {
-    emerald: { color: '#4ade80', border: 'rgba(74,222,128,0.18)', bg: 'rgba(74,222,128,0.04)', topLine: 'rgba(74,222,128,0.3)', shadow: 'rgba(74,222,128,0.08)' },
-    rose:    { color: '#fb7185', border: 'rgba(251,113,133,0.18)', bg: 'rgba(251,113,133,0.04)', topLine: 'rgba(251,113,133,0.3)', shadow: 'rgba(251,113,133,0.08)' },
-    blue:    { color: '#60a5fa', border: 'rgba(96,165,250,0.18)',  bg: 'rgba(96,165,250,0.04)',  topLine: 'rgba(96,165,250,0.3)',  shadow: 'rgba(96,165,250,0.08)'  },
-    amber:   { color: '#fbbf24', border: 'rgba(251,191,36,0.18)',  bg: 'rgba(251,191,36,0.04)',  topLine: 'rgba(251,191,36,0.3)',  shadow: 'rgba(251,191,36,0.08)'  },
-    cyan:    { color: '#22d3ee', border: 'rgba(34,211,238,0.18)',  bg: 'rgba(34,211,238,0.04)',  topLine: 'rgba(34,211,238,0.3)',  shadow: 'rgba(34,211,238,0.08)'  },
-    violet:  { color: '#a78bfa', border: 'rgba(167,139,250,0.18)', bg: 'rgba(167,139,250,0.04)', topLine: 'rgba(167,139,250,0.3)', shadow: 'rgba(167,139,250,0.08)' },
-  };
-  const accent = toneAccent[tone] || toneAccent.blue;
-
-  return (
-    <div
-      style={{
-        background: `linear-gradient(135deg, #0a0a0a 0%, #111111 60%, ${accent.bg} 100%)`,
-        border: `1px solid ${accent.border}`,
-        borderRadius: '16px',
-        padding: '0',
-        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px ${accent.shadow} inset`,
-        position: 'relative',
-        overflow: 'hidden',
-        minHeight: '130px',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Top accent line */}
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0,
-        height: '1px',
-        background: `linear-gradient(90deg, transparent 0%, ${accent.topLine} 50%, transparent 100%)`,
-      }} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '14px 16px 14px 16px', justifyContent: 'space-between' }}>
-        {/* Top: label */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Icon size={13} style={{ color: accent.color, flexShrink: 0 }} />
-          <p style={{
-            fontSize: '10px',
-            fontWeight: 900,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: accent.color,
-            margin: 0,
-            whiteSpace: 'nowrap',
-          }}>
-            {label}
-          </p>
-        </div>
-
-        {/* Bottom: value + bars aligned to same baseline */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
-          <div>
-            <p style={{
-              fontSize: '2.2rem',
-              fontWeight: 900,
-              color: '#ffffff',
-              lineHeight: 1,
-              margin: 0,
-              letterSpacing: '-0.02em',
-            }}>
-              {value}
-            </p>
-            {sub && (
-              <p style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: '#475569',
-                margin: '4px 0 0 0',
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-              }}>
-                {sub}
-              </p>
-            )}
-          </div>
-
-          {/* Right side: flame bars */}
-          {hasBars && (
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'flex-end',
-              height: '58px',
-              transform: 'translateY(-12px)',
-            }}>
-              <MetricHistoryBars
-                history={history}
-                metricKey={historyKey}
-                label={label}
-                tone={tone}
-              />
-            </div>
+      {accentBar && (
+        <div
+          className={cls(
+            'absolute bottom-4 left-3 top-4 w-1 rounded-full bg-gradient-to-b shadow-lg',
+            accentBars[tone] || accentBars.blue,
           )}
+        />
+      )}
+
+      <div className="relative flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
+          <p className="mt-2 text-3xl font-black text-white">{value}</p>
+          {sub && <p className="mt-1 text-xs font-bold text-slate-400">{sub}</p>}
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
+          <Icon size={22} />
         </div>
       </div>
     </div>
   );
 }
-
 
 function Panel({ children, className = '' }) {
   return (
@@ -824,60 +619,12 @@ function Arsenal({ data }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <MetricCard
-          icon={Swords}
-          label="Kills"
-          value={compact(data.kills)}
-          sub="All-time"
-          tone="emerald"
-          history={data.metricHistory}
-          historyKey="kills"
-        />
-        <MetricCard
-          icon={Skull}
-          label="Deaths"
-          value={compact(data.deaths)}
-          sub="All-time"
-          tone="rose"
-          history={data.metricHistory}
-          historyKey="deaths"
-        />
-        <MetricCard
-          icon={Gauge}
-          label="K/D"
-          value={decimal(data.kd)}
-          sub="Ratio"
-          tone="blue"
-          history={data.metricHistory}
-          historyKey="kd"
-        />
-        <MetricCard
-          icon={Zap}
-          label="Damage"
-          value={compact(data.damageDealt)}
-          sub="Dealt"
-          tone="amber"
-          history={data.metricHistory}
-          historyKey="damageDealt"
-        />
-        <MetricCard
-          icon={Crosshair}
-          label="CC"
-          value={compact(data.ccHits)}
-          sub="Hits"
-          tone="cyan"
-          history={data.metricHistory}
-          historyKey="ccHits"
-        />
-        <MetricCard
-          icon={Castle}
-          label="Fort"
-          value={compact(data.fortDamage)}
-          sub="Damage"
-          tone="violet"
-          history={data.metricHistory}
-          historyKey="fortDamage"
-        />
+        <MetricCard icon={Swords} label="Kills" value={compact(data.kills)} sub="All-time" tone="emerald" accentBar />
+        <MetricCard icon={Skull} label="Deaths" value={compact(data.deaths)} sub="All-time" tone="rose" accentBar />
+        <MetricCard icon={Gauge} label="K/D" value={decimal(data.kd)} sub="Ratio" tone="blue" accentBar />
+        <MetricCard icon={Zap} label="Damage" value={compact(data.damageDealt)} sub="Dealt" tone="amber" accentBar />
+        <MetricCard icon={Crosshair} label="CC" value={compact(data.ccHits)} sub="Hits" tone="cyan" accentBar />
+        <MetricCard icon={Castle} label="Fort" value={compact(data.fortDamage)} sub="Damage" tone="violet" accentBar />
       </div>
 
       <Panel>
