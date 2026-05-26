@@ -883,10 +883,7 @@ function PerformanceTooltip({ active, payload, label }) {
     payload.map((item) => [item.dataKey, item.value]),
   );
 
-  const deaths =
-    map.deathsNegative != null
-      ? Math.abs(Number(map.deathsNegative) || 0)
-      : map.deaths ?? 0;
+  const deaths = map.deaths ?? 0;
 
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
@@ -935,28 +932,24 @@ export function PerformanceChart({ data }) {
       (data || []).map((item) => ({
         ...item,
         kills: Number(item.kills) || 0,
-        deathsNegative: -Math.min(50, Number(item.deaths) || 0),
+        deaths: Number(item.deaths) || 0,
         avgKd: Number(item.avgKd) || 0,
       })),
     [data],
   );
 
   const battleDomain = useMemo(() => {
-    const maxKills = Math.max(
+    const maxBattleTotal = Math.max(
       1,
-      ...performanceData.map((item) => Number(item.kills) || 0),
-    );
-
-    const maxDeaths = Math.max(
-      1,
-      ...performanceData.map((item) =>
-        Math.abs(Number(item.deathsNegative) || 0),
+      ...performanceData.map(
+        (item) =>
+          (Number(item.kills) || 0) + (Number(item.deaths) || 0),
       ),
     );
 
     return {
-      min: -Math.min(50, maxDeaths),
-      max: maxKills,
+      min: 0,
+      max: maxBattleTotal,
     };
   }, [performanceData]);
 
@@ -1233,7 +1226,7 @@ export function PerformanceChart({ data }) {
 
             <Bar
               yAxisId="left"
-              dataKey="deathsNegative"
+              dataKey="deaths"
               name="Deaths"
               stackId="battle"
               fill="url(#perfBarDeaths)"
