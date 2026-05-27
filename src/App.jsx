@@ -770,12 +770,12 @@ export default function App() {
     const warId = String(match?.warId || '');
 
     setNodeWarsWarning('');
-    setMatchHistoryDateFilter(matchDate);
+    setMatchHistoryDateFilter('');
     setSelectedDays(matchDate ? [matchDate] : ['all']);
     setSelectedWars(warId ? [warId] : ['all']);
     setPeriodDays('all');
     loadNodeLogs('all');
-    setPage('nodewars');
+    setPage('overview');
   }
 
   const rawHistoryLogs = allLogs || nodeLogs;
