@@ -880,6 +880,19 @@ function StreakFeedPanel({ streakItems, feedItems }) {
 
 // ─── MatchHistoryList ─────────────────────────────────────────────────────────
 
+const MATCH_HISTORY_COLORS = {
+  kills: '#93c5fd',
+  deaths: '#f9a8d4',
+  kdPositive: '#6ee7b7',
+  kdNegative: '#fda4af',
+  killstreak: '#f8fafc',
+  killfeed: '#fb923c',
+  damageDealt: '#67e8f9',
+  damageTaken: '#fda4af',
+  ccHits: '#c4b5fd',
+  damageToFort: '#fde047',
+};
+
 function hasRawValue(row, keys) {
   return keys.some((key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '');
 }
@@ -957,6 +970,29 @@ function getSecondaryMatchStats(row) {
   };
 }
 
+function MatchHistoryHeaderCell({ children, color }) {
+  return (
+    <p
+      className="text-center text-[11px] font-black uppercase tracking-[0.16em]"
+      style={{ color }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function MatchHistoryValue({ children, color, prefix = null }) {
+  return (
+    <p
+      className="flex items-center justify-center gap-1.5 text-center text-sm font-black"
+      style={{ color }}
+    >
+      {prefix && <span className="text-xs leading-none">{prefix}</span>}
+      <span>{children}</span>
+    </p>
+  );
+}
+
 function MatchHistoryList({ matches }) {
   if (!matches || !matches.length) return null;
 
@@ -982,33 +1018,33 @@ function MatchHistoryList({ matches }) {
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
               Date
             </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.kills}>
               Kills
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.deaths}>
               Deaths
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.kdPositive}>
               K/D
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.killstreak}>
               Killstreak
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.killfeed}>
               KillFeed
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.damageDealt}>
               Damage Dealt
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.damageTaken}>
               Damage Taken
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.ccHits}>
               CC Hits
-            </p>
-            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.damageToFort}>
               Damage to Fort
-            </p>
+            </MatchHistoryHeaderCell>
           </div>
 
           {/* Rows */}
@@ -1034,57 +1070,56 @@ function MatchHistoryList({ matches }) {
                 </p>
 
                 {/* Kills */}
-                <p className="text-center text-sm font-black text-cyan-300">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.kills} prefix="⚔">
                   {formatMatchNumber(match.kills)}
-                </p>
+                </MatchHistoryValue>
 
                 {/* Deaths */}
-                <p className="text-center text-sm font-black text-pink-300">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.deaths} prefix="☠">
                   {formatMatchNumber(match.deaths)}
-                </p>
+                </MatchHistoryValue>
 
-                {/* K/D badge */}
-                <div className="flex justify-center">
-                  <span
-                    className={`inline-flex min-w-[72px] items-center justify-center rounded-xl border px-2 py-1 text-xs font-black ${
-                      positive
-                        ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
-                        : 'border-rose-400/25 bg-rose-500/10 text-rose-300'
-                    }`}
-                  >
-                    {kdValue}
-                  </span>
-                </div>
+                {/* K/D */}
+                <MatchHistoryValue
+                  color={
+                    positive
+                      ? MATCH_HISTORY_COLORS.kdPositive
+                      : MATCH_HISTORY_COLORS.kdNegative
+                  }
+                  prefix="●"
+                >
+                  {kdValue}
+                </MatchHistoryValue>
 
                 {/* Killstreak */}
-                <p className="text-center text-sm font-black text-slate-200">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.killstreak}>
                   {formatMatchNumber(match.killstreak)}
-                </p>
+                </MatchHistoryValue>
 
                 {/* KillFeed */}
-                <p className="text-center text-sm font-black text-amber-300">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.killfeed} prefix="🔥">
                   {formatMatchNumber(match.killfeed)}
-                </p>
+                </MatchHistoryValue>
 
                 {/* Damage Dealt */}
-                <p className="text-center text-sm font-black text-slate-200">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageDealt}>
                   {formatMatchNumber(match.damageDealt)}
-                </p>
+                </MatchHistoryValue>
 
                 {/* Damage Taken */}
-                <p className="text-center text-sm font-black text-slate-200">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageTaken}>
                   {formatMatchNumber(match.damageTaken)}
-                </p>
+                </MatchHistoryValue>
 
                 {/* CC Hits */}
-                <p className="text-center text-sm font-black text-slate-200">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.ccHits}>
                   {formatMatchNumber(match.ccHits)}
-                </p>
+                </MatchHistoryValue>
 
                 {/* Damage to Fort */}
-                <p className="text-center text-sm font-black text-slate-200">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageToFort}>
                   {formatMatchNumber(match.damageToFort)}
-                </p>
+                </MatchHistoryValue>
               </div>
             );
           })}
