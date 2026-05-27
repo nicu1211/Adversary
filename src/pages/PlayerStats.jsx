@@ -880,8 +880,88 @@ function StreakFeedPanel({ streakItems, feedItems }) {
 
 // ─── MatchHistoryList ─────────────────────────────────────────────────────────
 
+function hasRawValue(row, keys) {
+  return keys.some((key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '');
+}
+
+function readNumber(row, keys, fallback = 0) {
+  const key = keys.find(
+    (item) => row?.[item] !== undefined && row?.[item] !== null && row?.[item] !== '',
+  );
+
+  if (!key) return fallback;
+
+  const value = Number(row[key]);
+
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function formatMatchNumber(value) {
+  const number = Number(value) || 0;
+
+  if (!Number.isFinite(number)) return '0';
+
+  return Number.isInteger(number) ? String(number) : number.toFixed(2);
+}
+
+function getSecondaryMatchStats(row) {
+  const kills = readNumber(row, ['kills', 'Kills']);
+  const deaths = readNumber(row, ['deaths', 'Deaths']);
+  const killstreak = readNumber(row, [
+    'killStreak',
+    'killstreak',
+    'streak',
+    'Killstreak',
+    'KillStreak',
+  ]);
+  const killfeed = readNumber(row, [
+    'killFeed',
+    'killfeed',
+    'feed',
+    'KillFeed',
+    'Killfeed',
+  ]);
+  const damageDealt = readNumber(row, [
+    'damageDealt',
+    'damage_dealt',
+    'damageDone',
+    'damage',
+    'Damage Dealt',
+    'DamageDealt',
+  ]);
+  const damageTaken = readNumber(row, [
+    'damageTaken',
+    'damage_taken',
+    'Damage Taken',
+    'DamageTaken',
+  ]);
+  const ccHits = readNumber(row, ['ccHits', 'cc_hits', 'cc', 'CC Hits', 'CCHits']);
+  const damageToFort = readNumber(row, [
+    'damageToFort',
+    'damage_to_fort',
+    'fortDamage',
+    'damageFort',
+    'Damage to Fort',
+    'DamageToFort',
+  ]);
+
+  return {
+    kills,
+    deaths,
+    killstreak,
+    killfeed,
+    damageDealt,
+    damageTaken,
+    ccHits,
+    damageToFort,
+  };
+}
+
 function MatchHistoryList({ matches }) {
   if (!matches || !matches.length) return null;
+
+  const gridCols =
+    'grid-cols-[32px_minmax(180px,1fr)_72px_72px_82px_104px_96px_124px_124px_92px_124px]';
 
   return (
     <Panel>
@@ -892,22 +972,42 @@ function MatchHistoryList({ matches }) {
         </p>
       </div>
 
-      <div className={`max-h-[420px] overflow-y-auto pr-2 ${scrollCls}`}>
-        <div className="space-y-2">
+      <div className={`max-h-[420px] overflow-auto pr-2 ${scrollCls}`}>
+        <div className="min-w-[1120px] space-y-2">
           {/* Header */}
-          <div className="sticky top-0 z-10 grid grid-cols-[32px_1fr_64px_64px_88px] gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur">
+          <div
+            className={`sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur`}
+          >
             <div />
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
               Date
             </p>
             <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-              K
+              Kills
             </p>
             <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-              D
+              Deaths
             </p>
             <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-              K / D
+              K/D
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Killstreak
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              KillFeed
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Damage Dealt
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Damage Taken
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              CC Hits
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Damage to Fort
             </p>
           </div>
 
@@ -920,8 +1020,8 @@ function MatchHistoryList({ matches }) {
 
             return (
               <div
-                key={`${match.date}-${index}`}
-                className="grid grid-cols-[32px_1fr_64px_64px_88px] items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700"
+                key={`${match.warId}-${match.date}-${index}`}
+                className={`grid ${gridCols} items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
               >
                 {/* Index */}
                 <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-400">
@@ -935,12 +1035,12 @@ function MatchHistoryList({ matches }) {
 
                 {/* Kills */}
                 <p className="text-center text-sm font-black text-cyan-300">
-                  {match.kills}
+                  {formatMatchNumber(match.kills)}
                 </p>
 
                 {/* Deaths */}
                 <p className="text-center text-sm font-black text-pink-300">
-                  {match.deaths}
+                  {formatMatchNumber(match.deaths)}
                 </p>
 
                 {/* K/D badge */}
@@ -955,6 +1055,36 @@ function MatchHistoryList({ matches }) {
                     {kdValue}
                   </span>
                 </div>
+
+                {/* Killstreak */}
+                <p className="text-center text-sm font-black text-slate-200">
+                  {formatMatchNumber(match.killstreak)}
+                </p>
+
+                {/* KillFeed */}
+                <p className="text-center text-sm font-black text-amber-300">
+                  {formatMatchNumber(match.killfeed)}
+                </p>
+
+                {/* Damage Dealt */}
+                <p className="text-center text-sm font-black text-slate-200">
+                  {formatMatchNumber(match.damageDealt)}
+                </p>
+
+                {/* Damage Taken */}
+                <p className="text-center text-sm font-black text-slate-200">
+                  {formatMatchNumber(match.damageTaken)}
+                </p>
+
+                {/* CC Hits */}
+                <p className="text-center text-sm font-black text-slate-200">
+                  {formatMatchNumber(match.ccHits)}
+                </p>
+
+                {/* Damage to Fort */}
+                <p className="text-center text-sm font-black text-slate-200">
+                  {formatMatchNumber(match.damageToFort)}
+                </p>
               </div>
             );
           })}
@@ -1081,22 +1211,77 @@ export default function PlayerStats({ stats }) {
       };
     });
 
-    // ── Build per-match list from warMap ──────────────────────────────────────
-    const matchList = Object.entries(warMap)
-      .map(([warId, events]) => {
-        const playerEvents = events.filter(
-          (event) => getGuildPlayerFromEvent(event) === player,
-        );
-        if (!playerEvents.length) return null;
+    // ── Build per-match list from warMap + secondary rows ─────────────────────
+    const matchMap = {};
 
-        const kills = playerEvents.filter((e) => e.type === 'kill').length;
-        const deaths = playerEvents.filter((e) => e.type === 'death').length;
-        const date = events[0]?.date || warId;
+    Object.entries(warMap).forEach(([warId, events]) => {
+      const playerEvents = events.filter(
+        (event) => getGuildPlayerFromEvent(event) === player,
+      );
 
-        return { warId, date, kills, deaths };
-      })
-      .filter(Boolean)
-      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      if (!playerEvents.length) return;
+
+      const kills = playerEvents.filter((event) => event.type === 'kill').length;
+      const deaths = playerEvents.filter((event) => event.type === 'death').length;
+      const date = events[0]?.date || warId;
+
+      matchMap[warId] = {
+        warId,
+        date,
+        kills,
+        deaths,
+        killstreak: getBestKillstreakForWar(events, player),
+        killfeed: getBestKillfeedForWar(events, player),
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        damageToFort: 0,
+      };
+    });
+
+    secondaryRowsForPlayer.forEach((row, index) => {
+      const warId = secondaryWarId(row, index);
+      const statsFromRow = getSecondaryMatchStats(row);
+      const existing = matchMap[warId];
+      const date = row.date || row.war || existing?.date || warId;
+
+      matchMap[warId] = {
+        warId,
+        date,
+        kills: hasRawValue(row, ['kills', 'Kills'])
+          ? statsFromRow.kills
+          : existing?.kills || 0,
+        deaths: hasRawValue(row, ['deaths', 'Deaths'])
+          ? statsFromRow.deaths
+          : existing?.deaths || 0,
+        killstreak: hasRawValue(row, [
+          'killStreak',
+          'killstreak',
+          'streak',
+          'Killstreak',
+          'KillStreak',
+        ])
+          ? statsFromRow.killstreak
+          : existing?.killstreak || 0,
+        killfeed: hasRawValue(row, [
+          'killFeed',
+          'killfeed',
+          'feed',
+          'KillFeed',
+          'Killfeed',
+        ])
+          ? statsFromRow.killfeed
+          : existing?.killfeed || 0,
+        damageDealt: statsFromRow.damageDealt || existing?.damageDealt || 0,
+        damageTaken: statsFromRow.damageTaken || existing?.damageTaken || 0,
+        ccHits: statsFromRow.ccHits || existing?.ccHits || 0,
+        damageToFort: statsFromRow.damageToFort || existing?.damageToFort || 0,
+      };
+    });
+
+    const matchList = Object.values(matchMap).sort((a, b) =>
+      String(b.date).localeCompare(String(a.date)),
+    );
 
     const enemyGuildRows = Object.values(enemyGuilds)
       .map((guild) => {
