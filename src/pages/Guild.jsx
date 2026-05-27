@@ -55,12 +55,6 @@ function kd(kills, deaths) {
   return num(kills) / deathsNumber;
 }
 
-function cleanGuildName(value) {
-  const text = String(value || '').trim();
-  if (!text || /^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
-  return text;
-}
-
 function safeDateOf(log) {
   try {
     return dateOf(log);
@@ -74,78 +68,6 @@ function safeDateOf(log) {
       ''
     );
   }
-}
-
-function getLogTime(log) {
-  const raw =
-    safeDateOf(log) ||
-    log?.date ||
-    log?.warDate ||
-    log?.war_date ||
-    log?.createdAt ||
-    log?.created_at ||
-    log?.created ||
-    '';
-
-  const parsed = new Date(raw).getTime();
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function getLatestLogTime(logs = []) {
-  const times = logs.map(getLogTime).filter((time) => time > 0);
-  return times.length ? Math.max(...times) : Date.now();
-}
-
-function getSimpleSummary(log) {
-  return log?.summary || log?.stats || log?.analytics || {};
-}
-
-function sumPlayerMetric(players = [], key) {
-  return (players || []).reduce((sum, player) => sum + num(player?.[key]), 0);
-}
-
-function getLogMetricValue(log, key) {
-  const summary = getSimpleSummary(log);
-  const players = Array.isArray(summary?.players) ? summary.players : [];
-  const secondaryTotals = summary?.secondary?.totals || {};
-
-  if (key === 'matches') return 1;
-  if (key === 'kills') return num(summary?.kills);
-  if (key === 'deaths') return num(summary?.deaths);
-  if (key === 'kd') return kd(summary?.kills, summary?.deaths);
-
-  if (key === 'damageDealt') {
-    return num(secondaryTotals.damageDealt) || sumPlayerMetric(players, 'damageDealt');
-  }
-
-  if (key === 'damageTaken') {
-    return num(secondaryTotals.damageTaken) || sumPlayerMetric(players, 'damageTaken');
-  }
-
-  if (key === 'ccHits') {
-    return num(secondaryTotals.ccHits) || sumPlayerMetric(players, 'ccHits');
-  }
-
-  if (key === 'fortDamage') {
-    return num(secondaryTotals.fortDamage) || sumPlayerMetric(players, 'fortDamage');
-  }
-
-  return 0;
-}
-
-function getLogLabel(log, index) {
-  const raw = String(
-    safeDateOf(log) ||
-      log?.date ||
-      log?.warDate ||
-      log?.war_date ||
-      log?.createdAt ||
-      log?.created_at ||
-      '',
-  );
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(5, 10);
-  return `#${index + 1}`;
 }
 
 function uniqueLogCount(logs = [], stats = {}) {
@@ -166,145 +88,58 @@ function uniqueLogCount(logs = [], stats = {}) {
   return fromEvents.size;
 }
 
-function hasUsefulLogData(log) {
-  const raw = String(log?.raw || '').trim();
-  const summary = getSimpleSummary(log);
-  const players = Array.isArray(summary?.players) ? summary.players : [];
-  const secondaryTotals = summary?.secondary?.totals || {};
+function hasSecondaryTotals(stats = {}) {
+  const totals = stats?.secondary?.totals || {};
 
   return (
-    Boolean(raw) ||
-    num(summary?.kills) > 0 ||
-    num(summary?.deaths) > 0 ||
-    num(secondaryTotals.damageDealt) > 0 ||
-    num(secondaryTotals.ccHits) > 0 ||
-    num(secondaryTotals.fortDamage) > 0 ||
-    players.length > 0
+    num(totals.damageDealt) > 0 ||
+    num(totals.damageTaken) > 0 ||
+    num(totals.ccHits) > 0 ||
+    num(totals.fortDamage) > 0
   );
 }
 
-function getStatsForOneLog(log) {
-  const raw = String(log?.raw || '').trim();
+function uniqueSecondaryLogCount(logs = [], stats = {}) {
+  const secondaryRows = Array.isArray(stats?.secondary?.rows) ? stats.secondary.rows : [];
 
-  if (!raw) return null;
+  const fromRows = new Set(
+    secondaryRows
+      .map((row, index) =>
+        String(row?.id || row?.date || row?.war || row?.logId || index),
+      )
+      .filter(Boolean),
+  );
 
-  try {
-    return calculateStats([
-      {
-        ...log,
-        date: safeDateOf(log),
-      },
-    ]);
-  } catch {
-    return null;
-  }
+  if (fromRows.size) return fromRows.size;
+
+  const fromLogs = new Set(
+    (logs || [])
+      .filter((log) => {
+        const raw = String(log?.raw || '');
+        const summary = log?.summary || log?.stats || log?.analytics || {};
+        const summaryTotals = summary?.secondary?.totals || {};
+
+        return (
+          raw.includes('ADVERSARY_SECONDARY_LOG_START') ||
+          num(summaryTotals.damageDealt) > 0 ||
+          num(summaryTotals.damageTaken) > 0 ||
+          num(summaryTotals.ccHits) > 0 ||
+          num(summaryTotals.fortDamage) > 0
+        );
+      })
+      .map((log) => String(log?.id || safeDateOf(log) || log?.name || ''))
+      .filter(Boolean),
+  );
+
+  if (fromLogs.size) return fromLogs.size;
+
+  return hasSecondaryTotals(stats) ? 1 : 0;
 }
 
-function buildMatchRows(logs = []) {
-  return [...(logs || [])]
-    .filter(hasUsefulLogData)
-    .map((log, index) => {
-      const oneStats = getStatsForOneLog(log);
-      const summary = getSimpleSummary(log);
-
-      const summaryPlayers = Array.isArray(summary?.players) ? summary.players : [];
-      const statPlayers = Array.isArray(oneStats?.players) ? oneStats.players : [];
-      const players = statPlayers.length ? statPlayers : summaryPlayers;
-
-      const secondaryTotals =
-        oneStats?.secondary?.totals || summary?.secondary?.totals || {};
-
-      const kills = oneStats ? num(oneStats.kills) : getLogMetricValue(log, 'kills');
-      const deaths = oneStats ? num(oneStats.deaths) : getLogMetricValue(log, 'deaths');
-
-      const damageDealt =
-        num(secondaryTotals.damageDealt) ||
-        sumPlayerMetric(players, 'damageDealt') ||
-        getLogMetricValue(log, 'damageDealt');
-
-      const damageTaken =
-        num(secondaryTotals.damageTaken) ||
-        sumPlayerMetric(players, 'damageTaken') ||
-        getLogMetricValue(log, 'damageTaken');
-
-      const ccHits =
-        num(secondaryTotals.ccHits) ||
-        sumPlayerMetric(players, 'ccHits') ||
-        getLogMetricValue(log, 'ccHits');
-
-      const fortDamage =
-        num(secondaryTotals.fortDamage) ||
-        sumPlayerMetric(players, 'fortDamage') ||
-        getLogMetricValue(log, 'fortDamage');
-
-      return {
-        id: String(log?.id || `${safeDateOf(log)}-${index}`),
-        label: getLogLabel(log, index),
-        time: getLogTime(log),
-        matches: 1,
-        kills,
-        deaths,
-        kd: kd(kills, deaths),
-        damageDealt,
-        damageTaken,
-        ccHits,
-        fortDamage,
-      };
-    })
-    .sort((a, b) => a.time - b.time);
-}
-
-function sumRows(rows = [], key) {
-  return rows.reduce((sum, row) => sum + num(row?.[key]), 0);
-}
-
-function averageRows(rows = [], key) {
-  return rows.length ? sumRows(rows, key) / rows.length : 0;
-}
-
-function buildMetricBarsFromRows(rows = [], key) {
-  const values = [...(rows || [])]
-    .slice(-10)
-    .map((row) => (key === 'matches' ? 1 : num(row?.[key])));
-
-  return [
-    ...Array.from({ length: Math.max(0, 10 - values.length) }, () => 0),
-    ...values,
-  ].slice(-10);
-}
-
-function buildRawTrendRows(rows = []) {
-  return [...(rows || [])].map((row, index) => ({
-    label: row.label || `#${index + 1}`,
-    kills: num(row.kills),
-    deaths: num(row.deaths),
-    kd: num(row.kd),
-    damageDealt: num(row.damageDealt),
-  }));
-}
-
-function buildAverageTrendRows(rows = []) {
-  let matches = 0;
-  let kills = 0;
-  let deaths = 0;
-  let kdTotal = 0;
-  let damageDealt = 0;
-
-  return [...(rows || [])].map((row, index) => {
-    matches += 1;
-    kills += num(row.kills);
-    deaths += num(row.deaths);
-    kdTotal += num(row.kd);
-    damageDealt += num(row.damageDealt);
-
-    return {
-      label: row.label || `#${index + 1}`,
-      avgKills: matches ? kills / matches : 0,
-      avgDeaths: matches ? deaths / matches : 0,
-      avgKd: matches ? kdTotal / matches : 0,
-      avgDamage: matches ? damageDealt / matches : 0,
-    };
-  });
+function cleanGuildName(value) {
+  const text = String(value || '').trim();
+  if (!text || /^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+  return text;
 }
 
 function getTierByScore(value) {
@@ -379,6 +214,199 @@ const enemyTierMeta = {
   },
 };
 
+function getLogTime(log) {
+  const raw =
+    safeDateOf(log) ||
+    log?.date ||
+    log?.warDate ||
+    log?.war_date ||
+    log?.createdAt ||
+    log?.created_at ||
+    log?.created ||
+    '';
+
+  const parsed = new Date(raw).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getLatestLogTime(logs = []) {
+  const times = logs.map(getLogTime).filter((time) => time > 0);
+  return times.length ? Math.max(...times) : Date.now();
+}
+
+function getSimpleSummary(log) {
+  return log?.summary || log?.stats || log?.analytics || {};
+}
+
+function sumPlayerMetric(players = [], key) {
+  return (players || []).reduce((sum, player) => sum + num(player?.[key]), 0);
+}
+
+function getParsedSingleLogStats(log) {
+  const raw = String(log?.raw || '').trim();
+
+  if (!raw) return null;
+
+  try {
+    return calculateStats([
+      {
+        ...log,
+        date: safeDateOf(log),
+      },
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+function getLogMetricValue(log, key) {
+  const parsedStats = getParsedSingleLogStats(log);
+  const summary = getSimpleSummary(log);
+  const players = Array.isArray(parsedStats?.players)
+    ? parsedStats.players
+    : Array.isArray(summary?.players)
+      ? summary.players
+      : [];
+
+  const secondaryTotals = parsedStats?.secondary?.totals || summary?.secondary?.totals || {};
+
+  if (key === 'matches') return 1;
+
+  if (key === 'kills') {
+    return parsedStats ? num(parsedStats.kills) : num(summary?.kills);
+  }
+
+  if (key === 'deaths') {
+    return parsedStats ? num(parsedStats.deaths) : num(summary?.deaths);
+  }
+
+  if (key === 'kd') {
+    const kills = parsedStats ? num(parsedStats.kills) : num(summary?.kills);
+    const deaths = parsedStats ? num(parsedStats.deaths) : num(summary?.deaths);
+    return kd(kills, deaths);
+  }
+
+  if (key === 'damageDealt') {
+    return num(secondaryTotals.damageDealt) || sumPlayerMetric(players, 'damageDealt');
+  }
+
+  if (key === 'damageTaken') {
+    return num(secondaryTotals.damageTaken) || sumPlayerMetric(players, 'damageTaken');
+  }
+
+  if (key === 'ccHits') {
+    return num(secondaryTotals.ccHits) || sumPlayerMetric(players, 'ccHits');
+  }
+
+  if (key === 'fortDamage') {
+    return num(secondaryTotals.fortDamage) || sumPlayerMetric(players, 'fortDamage');
+  }
+
+  return 0;
+}
+
+function getLogLabel(log, index) {
+  const raw = String(
+    safeDateOf(log) ||
+      log?.date ||
+      log?.warDate ||
+      log?.war_date ||
+      log?.createdAt ||
+      log?.created_at ||
+      '',
+  );
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return raw.slice(5, 10);
+  }
+
+  return `#${index + 1}`;
+}
+
+function buildAverageMatchRows(logs = []) {
+  return [...(logs || [])]
+    .map((log, index) => {
+      const kills = getLogMetricValue(log, 'kills');
+      const deaths = getLogMetricValue(log, 'deaths');
+      const damageDealt = getLogMetricValue(log, 'damageDealt');
+
+      return {
+        label: getLogLabel(log, index),
+        time: getLogTime(log),
+        kills,
+        deaths,
+        kd: kd(kills, deaths),
+        damageDealt,
+      };
+    })
+    .filter((row) => row.kills > 0 || row.deaths > 0 || row.damageDealt > 0 || row.time > 0);
+}
+
+function buildMetricBars(logs = [], key) {
+  const rows = [...(logs || [])]
+    .filter((log) => getLogTime(log) > 0)
+    .sort((a, b) => getLogTime(a) - getLogTime(b))
+    .slice(-10)
+    .map((log) => getLogMetricValue(log, key));
+
+  return [
+    ...Array.from({ length: Math.max(0, 10 - rows.length) }, () => 0),
+    ...rows.slice(-10),
+  ];
+}
+
+function buildAverageTrendRows(logs = []) {
+  const sortedLogs = [...(logs || [])]
+    .filter((log) => getLogTime(log) > 0)
+    .sort((a, b) => getLogTime(a) - getLogTime(b));
+
+  let matches = 0;
+  let kills = 0;
+  let deaths = 0;
+  let kdTotal = 0;
+  let damageDealt = 0;
+
+  return sortedLogs.map((log, index) => {
+    const matchKills = getLogMetricValue(log, 'kills');
+    const matchDeaths = getLogMetricValue(log, 'deaths');
+    const matchKd = kd(matchKills, matchDeaths);
+    const matchDamage = getLogMetricValue(log, 'damageDealt');
+
+    matches += 1;
+    kills += matchKills;
+    deaths += matchDeaths;
+    kdTotal += matchKd;
+    damageDealt += matchDamage;
+
+    return {
+      label: getLogLabel(log, index),
+      avgKills: matches ? kills / matches : 0,
+      avgDeaths: matches ? deaths / matches : 0,
+      avgKd: matches ? kdTotal / matches : 0,
+      avgDamage: matches ? damageDealt / matches : 0,
+    };
+  });
+}
+
+// Builds raw per-match values for sparkline trend (not cumulative average)
+function buildRawTrendRows(logs = []) {
+  return [...(logs || [])]
+    .filter((log) => getLogTime(log) > 0)
+    .sort((a, b) => getLogTime(a) - getLogTime(b))
+    .map((log, index) => {
+      const kills = getLogMetricValue(log, 'kills');
+      const deaths = getLogMetricValue(log, 'deaths');
+
+      return {
+        label: getLogLabel(log, index),
+        kills,
+        deaths,
+        kd: kd(kills, deaths),
+        damageDealt: getLogMetricValue(log, 'damageDealt'),
+      };
+    });
+}
+
 function buildEnemyGuildTiers(stats = {}, logs = []) {
   const latestTime = getLatestLogTime(logs);
   const cutoffTime = latestTime - 45 * 24 * 60 * 60 * 1000;
@@ -396,13 +424,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
       const name = cleanGuildName(guild?.name);
       if (!name) return;
 
-      byGuild[name] ||= {
-        name,
-        kills: 0,
-        deaths: 0,
-        matchIds: new Set(),
-      };
-
+      byGuild[name] ||= { name, kills: 0, deaths: 0, matchIds: new Set() };
       byGuild[name].kills += num(guild?.kills);
       byGuild[name].deaths += num(guild?.deaths);
       byGuild[name].matchIds.add(matchId);
@@ -424,12 +446,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
 
       if (!guildName || !eventTime || eventTime < eventCutoffTime) return;
 
-      byGuild[guildName] ||= {
-        name: guildName,
-        kills: 0,
-        deaths: 0,
-        matchIds: new Set(),
-      };
+      byGuild[guildName] ||= { name: guildName, kills: 0, deaths: 0, matchIds: new Set() };
 
       if (event.type === 'kill') byGuild[guildName].kills += 1;
       if (event.type === 'death') byGuild[guildName].deaths += 1;
@@ -494,55 +511,37 @@ function topBy(rows, key, limit = 6) {
 }
 
 function buildGuildData(stats, logs) {
-  const matchRows = buildMatchRows(logs);
-  const hasMatchRows = matchRows.length > 0;
-
   const players = Array.isArray(stats?.players) ? stats.players : [];
+  const matches = uniqueLogCount(logs, stats);
+  const averageRows = buildAverageMatchRows(logs);
 
-  const fallbackMatches = uniqueLogCount(logs, stats);
-  const matches = hasMatchRows ? matchRows.length : fallbackMatches;
-
-  const kills = hasMatchRows ? sumRows(matchRows, 'kills') : num(stats?.kills);
-  const deaths = hasMatchRows ? sumRows(matchRows, 'deaths') : num(stats?.deaths);
+  const kills = num(stats?.kills);
+  const deaths = num(stats?.deaths);
   const ratio = kd(kills, deaths);
 
   const secondaryTotals = stats?.secondary?.totals || {};
 
-  const playerDamageDealt = players.reduce(
-    (sum, player) => sum + num(player.damageDealt),
-    0,
-  );
+  const playerDamageDealt = players.reduce((sum, player) => sum + num(player.damageDealt), 0);
+  const playerDamageTaken = players.reduce((sum, player) => sum + num(player.damageTaken), 0);
+  const playerCcHits = players.reduce((sum, player) => sum + num(player.ccHits), 0);
+  const playerFortDamage = players.reduce((sum, player) => sum + num(player.fortDamage), 0);
 
-  const playerDamageTaken = players.reduce(
-    (sum, player) => sum + num(player.damageTaken),
-    0,
-  );
+  const damageDealt = num(secondaryTotals.damageDealt) || playerDamageDealt;
+  const damageTaken = num(secondaryTotals.damageTaken) || playerDamageTaken;
+  const ccHits = num(secondaryTotals.ccHits) || playerCcHits;
+  const fortDamage = num(secondaryTotals.fortDamage) || playerFortDamage;
 
-  const playerCcHits = players.reduce(
-    (sum, player) => sum + num(player.ccHits),
-    0,
-  );
-
-  const playerFortDamage = players.reduce(
-    (sum, player) => sum + num(player.fortDamage),
-    0,
-  );
-
-  const damageDealt = hasMatchRows
-    ? sumRows(matchRows, 'damageDealt')
-    : num(secondaryTotals.damageDealt) || playerDamageDealt;
-
-  const damageTaken = hasMatchRows
-    ? sumRows(matchRows, 'damageTaken')
-    : num(secondaryTotals.damageTaken) || playerDamageTaken;
-
-  const ccHits = hasMatchRows
-    ? sumRows(matchRows, 'ccHits')
-    : num(secondaryTotals.ccHits) || playerCcHits;
-
-  const fortDamage = hasMatchRows
-    ? sumRows(matchRows, 'fortDamage')
-    : num(secondaryTotals.fortDamage) || playerFortDamage;
+  const averageMatches = averageRows.length || matches;
+  const averageKillsTotal = averageRows.length
+    ? averageRows.reduce((sum, row) => sum + num(row.kills), 0)
+    : kills;
+  const averageDeathsTotal = averageRows.length
+    ? averageRows.reduce((sum, row) => sum + num(row.deaths), 0)
+    : deaths;
+  const averageDamageTotal = averageRows.length
+    ? averageRows.reduce((sum, row) => sum + num(row.damageDealt), 0)
+    : damageDealt;
+  const averageKdTotal = averageRows.reduce((sum, row) => sum + num(row.kd), 0);
 
   const enrichedPlayers = players.map((player) => {
     const killsNumber = num(player.kills);
@@ -560,17 +559,7 @@ function buildGuildData(stats, logs) {
     };
   });
 
-  const fallbackRawRows = [
-    {
-      label: 'All',
-      kills,
-      deaths,
-      kd: ratio,
-      damageDealt,
-    },
-  ];
-
-  const rawTrendRows = hasMatchRows ? buildRawTrendRows(matchRows) : fallbackRawRows;
+  const rawTrendRows = buildRawTrendRows(logs);
 
   return {
     matches,
@@ -582,106 +571,90 @@ function buildGuildData(stats, logs) {
     ccHits,
     fortDamage,
 
-    avgKills: hasMatchRows
-      ? averageRows(matchRows, 'kills')
-      : matches
-        ? kills / matches
-        : 0,
-
-    avgDeaths: hasMatchRows
-      ? averageRows(matchRows, 'deaths')
-      : matches
-        ? deaths / matches
-        : 0,
-
-    avgKd: hasMatchRows
-      ? averageRows(matchRows, 'kd')
+    avgKills: averageMatches ? averageKillsTotal / averageMatches : 0,
+    avgDeaths: averageMatches ? averageDeathsTotal / averageMatches : 0,
+    avgKd: averageRows.length
+      ? averageKdTotal / averageRows.length
       : matches
         ? kd(kills / matches, deaths / matches)
         : ratio,
-
-    avgDamage: hasMatchRows
-      ? averageRows(matchRows, 'damageDealt')
-      : matches
-        ? damageDealt / matches
-        : 0,
-
+    avgDamage: averageMatches ? averageDamageTotal / averageMatches : 0,
     avgFortDamage: matches ? fortDamage / matches : 0,
+    avgSecondaryDamage: uniqueSecondaryLogCount(logs, stats)
+      ? damageDealt / uniqueSecondaryLogCount(logs, stats)
+      : 0,
 
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
     enemyTierGroups: buildEnemyGuildTiers(stats, logs),
 
     metricBars: {
-      matches: hasMatchRows
-        ? buildMetricBarsFromRows(matchRows, 'matches')
-        : buildMetricBarsFromRows(fallbackRawRows, 'matches'),
-
-      kills: hasMatchRows
-        ? buildMetricBarsFromRows(matchRows, 'kills')
-        : buildMetricBarsFromRows(fallbackRawRows, 'kills'),
-
-      deaths: hasMatchRows
-        ? buildMetricBarsFromRows(matchRows, 'deaths')
-        : buildMetricBarsFromRows(fallbackRawRows, 'deaths'),
-
-      kd: hasMatchRows
-        ? buildMetricBarsFromRows(matchRows, 'kd')
-        : buildMetricBarsFromRows(fallbackRawRows, 'kd'),
-
-      damageDealt: hasMatchRows
-        ? buildMetricBarsFromRows(matchRows, 'damageDealt')
-        : buildMetricBarsFromRows(fallbackRawRows, 'damageDealt'),
-
-      ccHits: hasMatchRows
-        ? buildMetricBarsFromRows(matchRows, 'ccHits')
-        : buildMetricBarsFromRows([{ ccHits }], 'ccHits'),
-
-      fortDamage: hasMatchRows
-        ? buildMetricBarsFromRows(matchRows, 'fortDamage')
-        : buildMetricBarsFromRows([{ fortDamage }], 'fortDamage'),
+      matches: buildMetricBars(logs, 'matches'),
+      kills: buildMetricBars(logs, 'kills'),
+      deaths: buildMetricBars(logs, 'deaths'),
+      kd: buildMetricBars(logs, 'kd'),
+      damageDealt: buildMetricBars(logs, 'damageDealt'),
+      ccHits: buildMetricBars(logs, 'ccHits'),
+      fortDamage: buildMetricBars(logs, 'fortDamage'),
     },
 
-    averageTrendRows: buildAverageTrendRows(matchRows),
+    averageTrendRows: buildAverageTrendRows(logs),
+
+    // Raw per-match values for sparkline trend charts
     rawTrendRows,
   };
 }
 
+// ─── Sparkline trend chart (line + gradient fill, raw per-match values) ───────
 const sparklineToneColors = {
   emerald: {
     line: '#34d399',
     gradFrom: 'rgba(52,211,153,0.30)',
     gradTo: 'rgba(52,211,153,0)',
+    trendUp: '#34d399',
+    trendDown: '#fb7185',
   },
   rose: {
     line: '#fb7185',
     gradFrom: 'rgba(251,113,133,0.30)',
     gradTo: 'rgba(251,113,133,0)',
+    trendUp: '#fb7185',
+    trendDown: '#fb7185',
   },
   blue: {
     line: '#60a5fa',
     gradFrom: 'rgba(96,165,250,0.30)',
     gradTo: 'rgba(96,165,250,0)',
+    trendUp: '#60a5fa',
+    trendDown: '#60a5fa',
   },
   amber: {
     line: '#f59e0b',
     gradFrom: 'rgba(245,158,11,0.30)',
     gradTo: 'rgba(245,158,11,0)',
+    trendUp: '#f59e0b',
+    trendDown: '#f59e0b',
   },
   violet: {
     line: '#a78bfa',
     gradFrom: 'rgba(167,139,250,0.30)',
     gradTo: 'rgba(167,139,250,0)',
+    trendUp: '#a78bfa',
+    trendDown: '#a78bfa',
   },
   cyan: {
     line: '#22d3ee',
     gradFrom: 'rgba(34,211,238,0.30)',
     gradTo: 'rgba(34,211,238,0)',
+    trendUp: '#22d3ee',
+    trendDown: '#22d3ee',
   },
   slate: {
     line: '#94a3b8',
     gradFrom: 'rgba(148,163,184,0.30)',
     gradTo: 'rgba(148,163,184,0)',
+    trendUp: '#94a3b8',
+    trendDown: '#94a3b8',
   },
 };
 
@@ -709,6 +682,7 @@ function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
   const colors = sparklineToneColors[tone] || sparklineToneColors.blue;
   const pts = values.map((v) => num(v));
   const gradId = `tspk-${tone}-${uid}`;
+  const clipId = `tclip-${tone}-${uid}`;
   const W = 240;
   const H = 52;
   const padX = 6;
@@ -716,12 +690,18 @@ function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
   const innerW = W - padX * 2;
   const innerH = H - padY * 2;
 
-  if (!pts.length) return null;
+  if (pts.length < 2) {
+    const mid = H / 2;
 
-  if (pts.length === 1) {
     return (
       <svg viewBox={`0 0 ${W} ${H}`} className="h-14 w-full overflow-visible">
-        <circle cx={W / 2} cy={H / 2} r="4" fill={colors.line} />
+        <defs>
+          <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={colors.gradFrom} />
+            <stop offset="100%" stopColor={colors.gradTo} />
+          </linearGradient>
+        </defs>
+        <circle cx={W / 2} cy={mid} r="3.5" fill={colors.line} />
       </svg>
     );
   }
@@ -751,6 +731,9 @@ function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
           <stop offset="0%" stopColor={colors.gradFrom} />
           <stop offset="100%" stopColor={colors.gradTo} />
         </linearGradient>
+        <clipPath id={clipId}>
+          <rect x="0" y="0" width={W} height={H} rx="8" />
+        </clipPath>
       </defs>
 
       {[0.25, 0.5, 0.75].map((r) => (
@@ -779,6 +762,7 @@ function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
   );
 }
 
+// ─── EmptyState ───────────────────────────────────────────────────────────────
 function EmptyState() {
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-8 text-center shadow-2xl shadow-black/20">
@@ -790,6 +774,7 @@ function EmptyState() {
   );
 }
 
+// ─── MetricCard ───────────────────────────────────────────────────────────────
 function MetricCard({
   icon: Icon,
   label,
@@ -887,6 +872,7 @@ function MetricCard({
   );
 }
 
+// ─── Panel / SectionTitle ──────────────────────────────────────────────────────
 function Panel({ children, className = '' }) {
   return (
     <div
@@ -915,6 +901,7 @@ function SectionTitle({ icon: Icon, title, sub }) {
   );
 }
 
+// ─── GuildTierProgressRow ──────────────────────────────────────────────────────
 function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   const width = maxScore
     ? Math.max(5, Math.min(100, (num(guild.score) / maxScore) * 100))
@@ -932,13 +919,9 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   return (
     <div className="rounded-2xl border border-slate-800/80 bg-slate-950/55 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="min-w-0 truncate text-sm font-black text-white">
-          {guild.name}
-        </div>
+        <div className="min-w-0 truncate text-sm font-black text-white">{guild.name}</div>
 
-        <div className="text-xs font-black text-slate-300">
-          {decimal(guild.score, 1)}
-        </div>
+        <div className="text-xs font-black text-slate-300">{decimal(guild.score, 1)}</div>
       </div>
 
       <div className="mb-2 h-2 overflow-hidden rounded-full bg-slate-900">
@@ -973,16 +956,15 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
   );
 }
 
+// ─── EnemyGuildTierList ───────────────────────────────────────────────────────
 function EnemyGuildTierList({ groups }) {
   const scrollClass =
     '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80';
 
-  const safeGroups = Array.isArray(groups) ? groups : [];
-  const hasGuilds = safeGroups.some((group) => group.guilds.length > 0);
-
+  const hasGuilds = groups.some((group) => group.guilds.length > 0);
   const maxScore = Math.max(
     1,
-    ...safeGroups.flatMap((group) => group.guilds.map((guild) => num(guild.score))),
+    ...groups.flatMap((group) => group.guilds.map((guild) => num(guild.score))),
   );
 
   return (
@@ -999,7 +981,7 @@ function EnemyGuildTierList({ groups }) {
         </div>
       ) : (
         <div className="grid gap-4 xl:grid-cols-3">
-          {safeGroups.map((group) => (
+          {groups.map((group) => (
             <div
               key={group.tier}
               className={cls(
@@ -1033,7 +1015,7 @@ function EnemyGuildTierList({ groups }) {
               {group.guilds.length ? (
                 <div
                   className={cls(
-                    'space-y-2',
+                    'grid gap-2 sm:grid-cols-2 xl:grid-cols-4',
                     group.guilds.length > 16 &&
                       `max-h-[330px] overflow-y-auto pr-1 ${scrollClass}`,
                   )}
@@ -1048,7 +1030,7 @@ function EnemyGuildTierList({ groups }) {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4 text-sm font-bold text-slate-500">
+                <div className="flex min-h-[48px] items-center rounded-xl border border-slate-800 bg-slate-950/45 px-3 text-xs font-bold text-slate-500">
                   No guilds in this tier.
                 </div>
               )}
@@ -1060,6 +1042,7 @@ function EnemyGuildTierList({ groups }) {
   );
 }
 
+// ─── Arsenal ──────────────────────────────────────────────────────────────────
 function Arsenal({ data }) {
   const rawRows = data.rawTrendRows || [];
 
@@ -1205,6 +1188,7 @@ function Arsenal({ data }) {
   );
 }
 
+// ─── Export ───────────────────────────────────────────────────────────────────
 export default function Guild({ stats, logs }) {
   const data = useMemo(() => buildGuildData(stats || {}, logs || []), [stats, logs]);
   const hasData = data.kills > 0 || data.deaths > 0 || data.matches > 0;
