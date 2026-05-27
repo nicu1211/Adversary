@@ -321,6 +321,7 @@ export default function App() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [nodeWarsWarning, setNodeWarsWarning] = useState('');
+  const [matchHistoryDateFilter, setMatchHistoryDateFilter] = useState('');
 
   const logs = allLogs || nodeLogs;
 
@@ -760,7 +761,21 @@ export default function App() {
 
   function openPage(nextPage) {
     setNodeWarsWarning('');
+    setMatchHistoryDateFilter('');
     setPage(nextPage);
+  }
+
+  function openMatchHistoryFromPlayerStats(match) {
+    const matchDate = String(match?.date || '');
+    const warId = String(match?.warId || '');
+
+    setNodeWarsWarning('');
+    setMatchHistoryDateFilter(matchDate);
+    setSelectedDays(matchDate ? [matchDate] : ['all']);
+    setSelectedWars(warId ? [warId] : ['all']);
+    setPeriodDays('all');
+    loadNodeLogs('all');
+    setPage('nodewars');
   }
 
   const rawHistoryLogs = allLogs || nodeLogs;
@@ -892,6 +907,7 @@ export default function App() {
               setSelectedDays={setSelectedDays}
               setSelectedWars={setSelectedWars}
               selectedWars={selectedWars}
+              matchHistoryDateFilter={matchHistoryDateFilter}
               externalWarning={nodeWarsWarning}
               clearExternalWarning={() => setNodeWarsWarning('')}
             />
@@ -917,7 +933,10 @@ export default function App() {
               {!playerStatsReady || loadingAllLogs ? (
                 <PageLoader text="Loading all logs for Player Stats..." />
               ) : (
-                <PlayerStats stats={allTimeStats} />
+                <PlayerStats
+                  stats={allTimeStats}
+                  onOpenMatchHistory={openMatchHistoryFromPlayerStats}
+                />
               )}
             </Suspense>
           )}
