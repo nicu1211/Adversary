@@ -878,6 +878,94 @@ function StreakFeedPanel({ streakItems, feedItems }) {
   );
 }
 
+// ─── MatchHistoryList ─────────────────────────────────────────────────────────
+
+function MatchHistoryList({ matches }) {
+  if (!matches || !matches.length) return null;
+
+  return (
+    <Panel>
+      <div className="mb-4">
+        <h3 className="text-2xl font-black">Match History</h3>
+        <p className="mt-0.5 text-xs font-bold text-slate-500">
+          All matches for this player · {matches.length} total
+        </p>
+      </div>
+
+      <div className={`max-h-[420px] overflow-y-auto pr-2 ${scrollCls}`}>
+        <div className="space-y-2">
+          {/* Header */}
+          <div className="sticky top-0 z-10 grid grid-cols-[32px_1fr_64px_64px_88px] gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur">
+            <div />
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Date
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              K
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              D
+            </p>
+            <p className="text-center text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              K / D
+            </p>
+          </div>
+
+          {/* Rows */}
+          {matches.map((match, index) => {
+            const positive = match.kills >= match.deaths;
+            const kdValue = match.deaths
+              ? (match.kills / match.deaths).toFixed(2)
+              : match.kills.toFixed(2);
+
+            return (
+              <div
+                key={`${match.date}-${index}`}
+                className="grid grid-cols-[32px_1fr_64px_64px_88px] items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700"
+              >
+                {/* Index */}
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-400">
+                  {index + 1}
+                </span>
+
+                {/* Date / war name */}
+                <p className="truncate text-sm font-black text-slate-100">
+                  {match.date || '—'}
+                </p>
+
+                {/* Kills */}
+                <p className="text-center text-sm font-black text-cyan-300">
+                  {match.kills}
+                </p>
+
+                {/* Deaths */}
+                <p className="text-center text-sm font-black text-pink-300">
+                  {match.deaths}
+                </p>
+
+                {/* K/D badge */}
+                <div className="flex justify-center">
+                  <span
+                    className={`inline-flex min-w-[72px] items-center justify-center rounded-xl border px-2 py-1 text-xs font-black ${
+                      positive
+                        ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
+                        : 'border-rose-400/25 bg-rose-500/10 text-rose-300'
+                    }`}
+                  >
+                    {kdValue}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export default function PlayerStats({ stats }) {
   const [player, setPlayer] = useState('');
 
@@ -993,6 +1081,23 @@ export default function PlayerStats({ stats }) {
       };
     });
 
+    // ── Build per-match list from warMap ──────────────────────────────────────
+    const matchList = Object.entries(warMap)
+      .map(([warId, events]) => {
+        const playerEvents = events.filter(
+          (event) => getGuildPlayerFromEvent(event) === player,
+        );
+        if (!playerEvents.length) return null;
+
+        const kills = playerEvents.filter((e) => e.type === 'kill').length;
+        const deaths = playerEvents.filter((e) => e.type === 'death').length;
+        const date = events[0]?.date || warId;
+
+        return { warId, date, kills, deaths };
+      })
+      .filter(Boolean)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
     const enemyGuildRows = Object.values(enemyGuilds)
       .map((guild) => {
         const wars = Math.max(1, guild.wars.size);
@@ -1071,6 +1176,7 @@ export default function PlayerStats({ stats }) {
       victims,
       killedBy,
       averageLine,
+      matchList,
       enemyGuildRows,
       wars: involvedWarIds.size,
       averageRank: formatAverageRank([
@@ -1142,6 +1248,10 @@ export default function PlayerStats({ stats }) {
             data={selectedStats.averageLine}
             title="Performance"
           />
+
+          <div className="mt-4">
+            <MatchHistoryList matches={selectedStats.matchList} />
+          </div>
 
           <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[1.15fr_1fr]">
             <EnemyGuildTable rows={selectedStats.enemyGuildRows} />
