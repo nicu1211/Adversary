@@ -513,9 +513,6 @@ function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
     return (
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: `${H}px` }} preserveAspectRatio="none">
         <line x1={padX} y1={mid} x2={W - padX} y2={mid} stroke={colors.line} strokeWidth="1.5" strokeOpacity="0.2" strokeDasharray="3 4" />
-        {pts.length === 1 && (
-          <circle cx={W / 2} cy={mid} r="3" fill={colors.line} opacity="0.7" />
-        )}
       </svg>
     );
   }
@@ -533,9 +530,6 @@ function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
   const linePath = smoothPath(points);
 
   const last = points[points.length - 1];
-  const prev = points[points.length - 2];
-  const trendUp = last.v >= prev.v;
-  const lastColor = trendUp ? colors.trendUp : '#fb7185';
 
   // area path: follow line then close at bottom
   const areaPath =
@@ -581,28 +575,6 @@ function TrendSparkline({ values = [], tone = 'blue', uid = '' }) {
         style={{ pointerEvents: 'none' }}
       />
 
-      {/* all data points — small dots */}
-      {points.map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x} cy={p.y} r="2"
-          fill={colors.line}
-          stroke="#020617"
-          strokeWidth="1"
-          opacity={0.5}
-          style={{ pointerEvents: 'none' }}
-        />
-      ))}
-
-      {/* last point — highlighted, color reflects trend direction */}
-      <circle
-        cx={last.x} cy={last.y} r="3.5"
-        fill={lastColor}
-        stroke="#020617"
-        strokeWidth="1.5"
-        opacity="1"
-        style={{ pointerEvents: 'none' }}
-      />
     </svg>
   );
 }
