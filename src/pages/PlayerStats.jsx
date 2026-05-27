@@ -993,7 +993,7 @@ function MatchHistoryValue({ children, color, prefix = null }) {
   );
 }
 
-function MatchHistoryList({ matches }) {
+function MatchHistoryList({ matches, onOpenMatchHistory }) {
   if (!matches || !matches.length) return null;
 
   const gridCols =
@@ -1055,9 +1055,12 @@ function MatchHistoryList({ matches }) {
               : match.kills.toFixed(2);
 
             return (
-              <div
+              <button
+                type="button"
                 key={`${match.warId}-${match.date}-${index}`}
-                className={`grid ${gridCols} items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                onClick={() => onOpenMatchHistory?.(match)}
+                className={`grid ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                title="Open this day in Match History"
               >
                 {/* Index */}
                 <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-400">
@@ -1120,7 +1123,7 @@ function MatchHistoryList({ matches }) {
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageToFort}>
                   {formatMatchNumber(match.damageToFort)}
                 </MatchHistoryValue>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -1131,7 +1134,7 @@ function MatchHistoryList({ matches }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function PlayerStats({ stats }) {
+export default function PlayerStats({ stats, onOpenMatchHistory }) {
   const [player, setPlayer] = useState('');
 
   const selectedStats = useMemo(() => {
@@ -1470,7 +1473,10 @@ export default function PlayerStats({ stats }) {
           />
 
           <div className="mt-4">
-            <MatchHistoryList matches={selectedStats.matchList} />
+            <MatchHistoryList
+              matches={selectedStats.matchList}
+              onOpenMatchHistory={onOpenMatchHistory}
+            />
           </div>
 
           <div className="mt-4 grid items-stretch gap-4 xl:grid-cols-[1.15fr_1fr]">
