@@ -550,12 +550,36 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
 }
 
 function CombatOutputPanel({ data }) {
-  const maxFraggerKills = Math.max(1, ...data.topKillers.map((player) => player.kills));
-  const averageKills = data.totals.wars
-    ? data.totals.kills / data.totals.wars
-    : data.totals.players
-      ? data.totals.kills / data.totals.players
-      : 0;
+  const topTotalKills = [...data.rows]
+    .filter((player) => player.kills > 0)
+    .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 6);
+
+  const topAverageKills = [...data.rows]
+    .filter((player) => player.kills > 0)
+    .map((player) => ({
+      ...player,
+      avgKills: player.wars ? player.kills / player.wars : player.kills,
+    }))
+    .sort((a, b) => b.avgKills - a.avgKills || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 6);
+
+  const topFraggers = [...data.rows]
+    .filter((player) => player.kills > 0)
+    .map((player) => ({
+      ...player,
+      fragScore:
+        player.kills +
+        player.kd * 35 +
+        player.streak * 18 +
+        player.feed * 24,
+    }))
+    .sort((a, b) => b.fragScore - a.fragScore || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 6);
+
+  const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
+  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.avgKills));
+  const maxFraggerScore = Math.max(1, ...topFraggers.map((player) => player.fragScore));
 
   return (
     <PremiumPanel className="p-5">
@@ -563,35 +587,49 @@ function CombatOutputPanel({ data }) {
       <div className="grid gap-5 md:grid-cols-3">
         <div>
           <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills</p>
-          <HallProgressRow
-            label="Guild total"
-            value={data.totals.kills}
-            max={Math.max(1, data.totals.kills)}
-            right={shortNum(data.totals.kills)}
-            tone="rose"
-          />
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills</p>
-          <HallProgressRow
-            label={data.totals.wars ? 'Per recorded war' : 'Per recorded player'}
-            value={averageKills}
-            max={Math.max(1, averageKills)}
-            right={averageKills.toFixed(2)}
-            tone="blue"
-          />
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers</p>
-          {data.topKillers.length ? (
-            data.topKillers.map((player, index) => (
+          {topTotalKills.length ? (
+            topTotalKills.map((player, index) => (
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
                 value={player.kills}
-                max={maxFraggerKills}
+                max={maxTotalKills}
+                right={shortNum(player.kills)}
+                tone="rose"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kills yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills</p>
+          {topAverageKills.length ? (
+            topAverageKills.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.avgKills}
+                max={maxAverageKills}
+                right={player.avgKills.toFixed(2)}
+                tone="blue"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average kill data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers</p>
+          {topFraggers.length ? (
+            topFraggers.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.fragScore}
+                max={maxFraggerScore}
                 right={shortNum(player.kills)}
                 tone="emerald"
               />
