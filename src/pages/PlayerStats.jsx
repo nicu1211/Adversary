@@ -899,12 +899,121 @@ function findRawKey(row, keys) {
   );
 }
 
+function normalizeLogText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getRowRawText(row) {
+  if (!row) return '';
+
+  return [
+    row.raw,
+    row.rawLine,
+    row.original,
+    row.originalLine,
+    row.source,
+    row.sourceLine,
+    row.text,
+    row.line,
+    row.input,
+    row.entry,
+    row.content,
+    row.note,
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== '')
+    .join(' ');
+}
+
+function getPresenceFlag(row, keys) {
+  if (!row) return undefined;
+
+  const suffixes = [
+    'HasValue',
+    'hasValue',
+    'Exists',
+    'exists',
+    'Present',
+    'present',
+    'Provided',
+    'provided',
+    'Added',
+    'added',
+  ];
+
+  for (const key of keys) {
+    const keyText = String(key);
+    const compact = keyText.replace(/[^a-zA-Z0-9]/g, '');
+    const camel = compact.charAt(0).toLowerCase() + compact.slice(1);
+    const pascal = compact.charAt(0).toUpperCase() + compact.slice(1);
+    const snake = keyText
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+
+    const candidates = [
+      `has_${snake}`,
+      `${snake}_exists`,
+      `${snake}_present`,
+      `${snake}_provided`,
+      `${snake}_added`,
+      ...suffixes.flatMap((suffix) => [`${camel}${suffix}`, `${pascal}${suffix}`]),
+    ];
+
+    const found = candidates.find((candidate) =>
+      Object.prototype.hasOwnProperty.call(row, candidate),
+    );
+
+    if (found) return Boolean(row[found]);
+  }
+
+  return undefined;
+}
+
+function hasMetricNameInRawText(row, keys) {
+  const rawText = normalizeLogText(getRowRawText(row));
+
+  if (!rawText) return false;
+
+  return keys.some((key) => {
+    const alias = normalizeLogText(key);
+    const spacedAlias = normalizeLogText(
+      String(key)
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]/g, ' '),
+    );
+
+    return Boolean(
+      (alias && rawText.includes(alias)) ||
+        (spacedAlias && rawText.includes(spacedAlias)),
+    );
+  });
+}
+
 function hasRawValue(row, keys) {
   const key = findRawKey(row, keys);
 
   if (!key) return false;
 
-  return Number.isFinite(parseNumericValue(row[key], NaN));
+  const number = parseNumericValue(row[key], NaN);
+
+  if (!Number.isFinite(number)) return false;
+
+  const presenceFlag = getPresenceFlag(row, keys);
+
+  if (presenceFlag !== undefined) return presenceFlag;
+
+  if (number !== 0) return true;
+
+  if (typeof row[key] === 'string' && String(row[key]).trim() !== '') {
+    return true;
+  }
+
+  return hasMetricNameInRawText(row, keys);
 }
 
 function parseNumericValue(value, fallback = 0) {
