@@ -720,10 +720,10 @@ function PlayerOverview({ players, streaks, feeds, events }) {
       : Math.max(3, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
 
     return (
-      <div className={`ml-auto flex min-w-[58px] flex-col items-end ${className}`}>
+      <div className={`ml-auto flex w-full min-w-0 flex-col items-end ${className}`}>
         <span className="whitespace-nowrap leading-none">{children}</span>
 
-        <span className="mt-1.5 block h-[2px] w-[92%] overflow-hidden rounded-full bg-slate-800/55">
+        <span className="mt-1.5 block h-[2px] w-full overflow-hidden rounded-full bg-slate-800/55">
           <span
             className={`relative block h-full rounded-full bg-gradient-to-r ${progressThemes[id] || 'from-slate-500 to-slate-300'} opacity-90`}
             style={{ width: `${width}%`, boxShadow: '0 0 6px rgba(255,255,255,0.08)' }}
@@ -814,7 +814,19 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
         <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
           <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
-            <table className="w-full text-xs">
+            <table className="w-full table-fixed text-xs">
+              <colgroup>
+                <col className="w-[13%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+                <col className="w-[9.666%]" />
+              </colgroup>
               <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
                   <Header id="name" className="pl-4 text-left">
@@ -836,16 +848,16 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                     KillFeed
                   </Header>
                   <Header id="damageDealt" className="text-right">
-                    Damage Dealt
+                    DMG Dealt
                   </Header>
                   <Header id="damageTaken" className="text-right">
-                    Damage Taken
+                    DMG Taken
                   </Header>
                   <Header id="ccHits" className="text-right">
                     CC Hits
                   </Header>
                   <Header id="fortDamage" className="pr-4 text-right">
-                    Damage to Fort
+                    DMG to Fort
                   </Header>
                 </tr>
               </thead>
