@@ -153,12 +153,14 @@ function buildHallData(stats) {
 
   events.forEach((event) => {
     const id = eventWarId(event);
+
     warMap[id] ||= {
       id,
       date: String(event.date || ''),
       sortKey: eventSortKey(event),
       events: [],
     };
+
     warMap[id].events.push(event);
 
     const involvedPlayer = getGuildInvolvedPlayer(event);
@@ -191,16 +193,19 @@ function buildHallData(stats) {
     const killsThisWar = {};
     const involvedThisWar = new Set();
 
-    war.events.forEach((event) => {
-      const involvedPlayer = getGuildInvolvedPlayer(event);
-      const killPlayer = getGuildKillPlayer(event);
+    [...war.events]
+      .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))
+      .forEach((event) => {
+        const involvedPlayer = getGuildInvolvedPlayer(event);
+        const killPlayer = getGuildKillPlayer(event);
 
-      if (involvedPlayer) involvedThisWar.add(involvedPlayer);
-      if (killPlayer) {
-        involvedThisWar.add(killPlayer);
-        killsThisWar[killPlayer] = (killsThisWar[killPlayer] || 0) + 1;
-      }
-    });
+        if (involvedPlayer) involvedThisWar.add(involvedPlayer);
+
+        if (killPlayer) {
+          involvedThisWar.add(killPlayer);
+          killsThisWar[killPlayer] = (killsThisWar[killPlayer] || 0) + 1;
+        }
+      });
 
     involvedThisWar.forEach((name) => {
       if (firstSeenWarIndex[name] == null) {
@@ -246,7 +251,14 @@ function buildHallData(stats) {
       const damageTaken = num(player.damageTaken);
       const ccHits = num(player.ccHits);
       const fortDamage = num(player.fortDamage);
-      const wars = warsByPlayer[player.name]?.size || 0;
+      const detectedWars = warsByPlayer[player.name]?.size || 0;
+      const explicitWars =
+        num(player.matches) ||
+        num(player.wars) ||
+        num(player.totalMatches) ||
+        num(player.nodeWars) ||
+        num(player.logs);
+      const wars = explicitWars || detectedWars;
       const matchKills = Object.values(killsByPlayerWar[player.name] || {}).map((value) => num(value));
       const maxMatchKills = Math.max(0, ...matchKills);
       const avgKillsPerMatch = wars ? kills / wars : kills;
@@ -311,9 +323,12 @@ function buildHallData(stats) {
     events.reduce((acc, event) => {
       const month = String(event.date || '').slice(0, 7) || 'Unknown';
       acc[month] ||= { month, kills: 0, deaths: 0, wars: new Set() };
+
       if (event.type === 'death') acc[month].deaths += 1;
       else if (getGuildKillPlayer(event)) acc[month].kills += 1;
+
       acc[month].wars.add(String(event.id || event.date));
+
       return acc;
     }, {}),
   )
@@ -784,7 +799,7 @@ function MilestoneLeaderboards({ data }) {
               label={`${index + 1}. ${row.name}`}
               value={Math.max(1, maxValue - row.fromFirstLogWars + 1)}
               max={maxValue}
-              right={row.date || `Log ${row.fromFirstLogWars}`}
+              right={row.date ? `${row.date} · log ${row.fromFirstLogWars}` : `Log ${row.fromFirstLogWars}`}
               tone="amber"
             />
           ))
