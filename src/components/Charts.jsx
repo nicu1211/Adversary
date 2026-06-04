@@ -787,41 +787,97 @@ export function KillDeathChart({
             );
           })}
 
-          {markerPoints.map((marker) => (
-            <g
-              key={marker.id || `timeline-marker-${marker.markerIndex}`}
-              transform={`translate(${marker.x} ${marker.y})`}
-              onMouseEnter={() => {
-                setHoveredMarker(marker);
-                setHoveredIndex(null);
-              }}
-            >
-              <circle
-                cx="0"
-                cy="0"
-                r="10"
-                fill="transparent"
-              />
+          {markerPoints.map((marker) => {
+            const isSkullMarker =
+              marker.markerType === 'bluefeed' || marker.markerType === 'redfeed';
+            const accent = markerColor(marker.markerType);
 
-              <text
-                x="0"
-                y="0"
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={marker.markerType === 'bluefeed' || marker.markerType === 'redfeed' ? '12' : '13'}
-                fontWeight="900"
-                fill={markerColor(marker.markerType)}
-                style={{
-                  paintOrder: 'stroke',
-                  stroke: 'rgba(15,23,42,0.95)',
-                  strokeWidth: '2.5px',
-                  pointerEvents: 'none',
+            return (
+              <g
+                key={marker.id || `timeline-marker-${marker.markerIndex}`}
+                transform={`translate(${marker.x} ${marker.y})`}
+                onMouseEnter={() => {
+                  setHoveredMarker(marker);
+                  setHoveredIndex(null);
                 }}
               >
-                {markerIcon(marker.markerType)}
-              </text>
-            </g>
-          ))}
+                <circle cx="0" cy="0" r={isSkullMarker ? '18' : '12'} fill="transparent" />
+
+                {isSkullMarker ? (
+                  <>
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="12.5"
+                      fill={accent}
+                      opacity="0.12"
+                      style={{ filter: 'blur(5px)' }}
+                    />
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="9.5"
+                      fill="rgba(2, 6, 23, 0.92)"
+                      stroke={accent}
+                      strokeWidth="2"
+                    />
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="7.5"
+                      fill="rgba(15, 23, 42, 0.78)"
+                    />
+                    <text
+                      x="0"
+                      y="0.3"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="9.8"
+                      fontWeight="900"
+                      fill={accent}
+                      style={{
+                        paintOrder: 'stroke',
+                        stroke: 'rgba(2,6,23,0.95)',
+                        strokeWidth: '1.6px',
+                        letterSpacing: '-0.2px',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      ☠
+                    </text>
+                  </>
+                ) : (
+                  <>
+                    <circle
+                      cx="0"
+                      cy="0"
+                      r="8"
+                      fill={accent}
+                      opacity="0.10"
+                      style={{ filter: 'blur(4px)' }}
+                    />
+                    <text
+                      x="0"
+                      y="0"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="13"
+                      fontWeight="900"
+                      fill={accent}
+                      style={{
+                        paintOrder: 'stroke',
+                        stroke: 'rgba(15,23,42,0.95)',
+                        strokeWidth: '2.5px',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      {markerIcon(marker.markerType)}
+                    </text>
+                  </>
+                )}
+              </g>
+            );
+          })}
         </svg>
       </div>
     </Panel>
