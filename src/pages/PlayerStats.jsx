@@ -2100,10 +2100,17 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
             />
           </div>
 
-          <AveragePerformanceChart
-            data={selectedStats.averageLine}
-            title="Performance"
-          />
+          <div className="player-stats-performance-no-summary">
+            <style>
+              {`.player-stats-performance-no-summary [class*="xl:justify-between"] > div:last-child {
+                display: none !important;
+              }`}
+            </style>
+            <AveragePerformanceChart
+              data={selectedStats.averageLine}
+              title="Performance"
+            />
+          </div>
 
           <div className="mt-4">
             <MatchHistoryList
@@ -2125,12 +2132,6 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
             />
           </div>
 
-          <div className="mt-4">
-            <StreakFeedPanel
-              streakItems={selectedStats.streakItems}
-              feedItems={selectedStats.feedItems}
-            />
-          </div>
         </>
       )}
     </Panel>
