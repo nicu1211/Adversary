@@ -115,13 +115,23 @@ const demoStats = {
 function buildHallData(stats) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
+  const secondaryRows =
+    safe.secondary?.rows ||
+    safe.secondaryRows ||
+    safe.manualRows ||
+    safe.secondary ||
+    [];
   const playerNames = new Set((safe.players || []).map((player) => player.name));
-  const warsByPlayer = {};
-  const killsByPlayerWar = {};
   const warMap = {};
+  const playerMatchMap = {};
+  const thresholds = [1000, 3000, 5000];
 
   function eventWarId(event) {
     return String(event.id || event.war || event.date || 'war');
+  }
+
+  function secondaryWarId(row, index = 0) {
+    return String(row?.id || row?.date || row?.war || `secondary-${index}`);
   }
 
   function eventSortKey(event) {
@@ -131,6 +141,105 @@ function buildHallData(stats) {
       String(event.i ?? 0).padStart(8, '0'),
       eventWarId(event),
     ].join(' ');
+  }
+
+  function warSortKey(id, date = '') {
+    const matchingEvents = warMap[id]?.events || [];
+    const firstEvent = [...matchingEvents].sort((a, b) =>
+      eventSortKey(a).localeCompare(eventSortKey(b)),
+    )[0];
+
+    return firstEvent
+      ? eventSortKey(firstEvent)
+      : [String(date || '9999-99-99'), '00000000', '00000000', String(id)].join(' ');
+  }
+
+  function parseHallNumber(value, fallback = NaN) {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+
+    let text = String(value).trim().toLowerCase();
+    if (!text) return fallback;
+
+    const multiplier = text.endsWith('b')
+      ? 1_000_000_000
+      : text.endsWith('m')
+        ? 1_000_000
+        : text.endsWith('k')
+          ? 1_000
+          : 1;
+
+    if (multiplier !== 1) {
+      text = text.slice(0, -1);
+    }
+
+    text = text
+      .replace(/\s+/g, '')
+      .replace(/[^\d,.\-]/g, '');
+
+    const commaCount = (text.match(/,/g) || []).length;
+    const dotCount = (text.match(/\./g) || []).length;
+
+    if (commaCount && dotCount) {
+      const lastComma = text.lastIndexOf(',');
+      const lastDot = text.lastIndexOf('.');
+
+      if (lastComma > lastDot) {
+        text = text.replace(/\./g, '').replace(',', '.');
+      } else {
+        text = text.replace(/,/g, '');
+      }
+    } else if (commaCount > 1) {
+      text = text.replace(/,/g, '');
+    } else if (commaCount === 1) {
+      const [left, right = ''] = text.split(',');
+      text = right.length === 3 && left.replace('-', '').length <= 3
+        ? `${left}${right}`
+        : `${left}.${right}`;
+    } else if (dotCount > 1) {
+      text = text.replace(/\./g, '');
+    } else if (dotCount === 1) {
+      const [left, right = ''] = text.split('.');
+      text = right.length === 3 && left.replace('-', '').length <= 3
+        ? `${left}${right}`
+        : text;
+    }
+
+    const number = Number(text);
+
+    return Number.isFinite(number) ? number * multiplier : fallback;
+  }
+
+  function findRowKey(row, keys) {
+    return keys.find(
+      (key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '',
+    );
+  }
+
+  const secondaryPlayerKeys = [
+    'player',
+    'name',
+    'family',
+    'playerName',
+    'Player',
+    'Name',
+    'Family',
+  ];
+
+  const secondaryKillKeys = ['kills', 'Kills', 'kill', 'Kill', 'k', 'K'];
+
+  function getSecondaryPlayerName(row) {
+    const key = findRowKey(row, secondaryPlayerKeys);
+    return key ? String(row[key] || '').trim() : '';
+  }
+
+  function hasSecondaryKills(row) {
+    return Boolean(findRowKey(row, secondaryKillKeys));
+  }
+
+  function getSecondaryKills(row) {
+    const key = findRowKey(row, secondaryKillKeys);
+    return key ? parseHallNumber(row[key], 0) : 0;
   }
 
   function getGuildKillPlayer(event) {
@@ -151,72 +260,115 @@ function buildHallData(stats) {
     return '';
   }
 
-  events.forEach((event) => {
-    const id = eventWarId(event);
-
+  function ensureWar(id, date = '') {
     warMap[id] ||= {
       id,
-      date: String(event.date || ''),
-      sortKey: eventSortKey(event),
+      date: String(date || ''),
       events: [],
     };
 
-    warMap[id].events.push(event);
+    if (!warMap[id].date && date) {
+      warMap[id].date = String(date);
+    }
+
+    return warMap[id];
+  }
+
+  function ensurePlayerMatch(name, warId, date = '') {
+    if (!name) return null;
+
+    playerMatchMap[name] ||= {};
+    playerMatchMap[name][warId] ||= {
+      warId,
+      date,
+      kills: 0,
+      hasKills: false,
+    };
+
+    if (!playerMatchMap[name][warId].date && date) {
+      playerMatchMap[name][warId].date = date;
+    }
+
+    return playerMatchMap[name][warId];
+  }
+
+  events.forEach((event) => {
+    const id = eventWarId(event);
+    const war = ensureWar(id, event.date);
+    war.events.push(event);
 
     const involvedPlayer = getGuildInvolvedPlayer(event);
     const killPlayer = getGuildKillPlayer(event);
 
     if (involvedPlayer) {
-      warsByPlayer[involvedPlayer] ||= new Set();
-      warsByPlayer[involvedPlayer].add(id);
+      ensurePlayerMatch(involvedPlayer, id, event.date);
     }
 
     if (killPlayer) {
-      warsByPlayer[killPlayer] ||= new Set();
-      warsByPlayer[killPlayer].add(id);
-      killsByPlayerWar[killPlayer] ||= {};
-      killsByPlayerWar[killPlayer][id] = (killsByPlayerWar[killPlayer][id] || 0) + 1;
+      const match = ensurePlayerMatch(killPlayer, id, event.date);
+      match.kills += 1;
+      match.hasKills = true;
     }
   });
 
-  const warList = Object.values(warMap).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  (Array.isArray(secondaryRows) ? secondaryRows : []).forEach((row, index) => {
+    const name = getSecondaryPlayerName(row);
+
+    if (!name) return;
+
+    const id = secondaryWarId(row, index);
+    const date = row.date || row.war || id;
+    ensureWar(id, date);
+
+    const match = ensurePlayerMatch(name, id, date);
+
+    // Same behavior as Player Stats Match History:
+    // if a secondary/manual row has a Kills cell, that cell is the match value
+    // used by the Avg header above Kills.
+    if (hasSecondaryKills(row)) {
+      match.kills = getSecondaryKills(row);
+      match.hasKills = true;
+    }
+  });
+
+  const warList = Object.values(warMap).sort((a, b) =>
+    warSortKey(a.id, a.date).localeCompare(warSortKey(b.id, b.date)),
+  );
+
+  const warIndexById = Object.fromEntries(
+    warList.map((war, index) => [war.id, index]),
+  );
+
   const totalWars = warList.length || new Set(events.map((event) => String(event.id || event.date))).size;
-  const thresholds = [1000, 3000, 5000];
 
   const firstSeenWarIndex = {};
-  const cumulativeKills = {};
   const thresholdReached = Object.fromEntries(
     thresholds.map((threshold) => [threshold, []]),
   );
 
-  warList.forEach((war, warIndex) => {
-    const killsThisWar = {};
-    const involvedThisWar = new Set();
+  Object.entries(playerMatchMap).forEach(([name, matchesByWar]) => {
+    const orderedMatches = Object.values(matchesByWar).sort((a, b) => {
+      const ai = warIndexById[a.warId] ?? 999999;
+      const bi = warIndexById[b.warId] ?? 999999;
 
-    [...war.events]
-      .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))
-      .forEach((event) => {
-        const involvedPlayer = getGuildInvolvedPlayer(event);
-        const killPlayer = getGuildKillPlayer(event);
+      if (ai !== bi) return ai - bi;
 
-        if (involvedPlayer) involvedThisWar.add(involvedPlayer);
-
-        if (killPlayer) {
-          involvedThisWar.add(killPlayer);
-          killsThisWar[killPlayer] = (killsThisWar[killPlayer] || 0) + 1;
-        }
-      });
-
-    involvedThisWar.forEach((name) => {
-      if (firstSeenWarIndex[name] == null) {
-        firstSeenWarIndex[name] = warIndex;
-      }
+      return String(a.warId).localeCompare(String(b.warId));
     });
 
-    Object.entries(killsThisWar).forEach(([name, killsInWar]) => {
-      const before = cumulativeKills[name] || 0;
-      const after = before + killsInWar;
-      cumulativeKills[name] = after;
+    if (orderedMatches.length) {
+      firstSeenWarIndex[name] = warIndexById[orderedMatches[0].warId] ?? 0;
+    }
+
+    let cumulativeKills = 0;
+
+    orderedMatches.forEach((match) => {
+      if (!match.hasKills) return;
+
+      const globalWarIndex = warIndexById[match.warId] ?? 0;
+      const before = cumulativeKills;
+      const after = before + (Number(match.kills) || 0);
+      cumulativeKills = after;
 
       thresholds.forEach((threshold) => {
         if (
@@ -227,18 +379,33 @@ function buildHallData(stats) {
           thresholdReached[threshold].push({
             name,
             threshold,
-            date: war.date || war.id,
-            warId: war.id,
-            globalWarIndex: warIndex,
-            fromFirstLogWars: warIndex + 1,
+            date: match.date || match.warId,
+            warId: match.warId,
+            globalWarIndex,
+            fromFirstLogWars: globalWarIndex + 1,
             fromPlayerFirstLogWars:
-              warIndex - (firstSeenWarIndex[name] ?? warIndex) + 1,
+              globalWarIndex - (firstSeenWarIndex[name] ?? globalWarIndex) + 1,
             totalKillsAtReach: after,
           });
         }
       });
     });
   });
+
+  function getPlayerMatchValues(name) {
+    return Object.values(playerMatchMap[name] || {}).filter((match) => match.hasKills);
+  }
+
+  function getPlayerAvgKills(name) {
+    const matches = getPlayerMatchValues(name);
+
+    if (!matches.length) return null;
+
+    return (
+      matches.reduce((sum, match) => sum + (Number(match.kills) || 0), 0) /
+      matches.length
+    );
+  }
 
   const rows = (safe.players || [])
     .map((player) => {
@@ -251,17 +418,13 @@ function buildHallData(stats) {
       const damageTaken = num(player.damageTaken);
       const ccHits = num(player.ccHits);
       const fortDamage = num(player.fortDamage);
-      const detectedWars = warsByPlayer[player.name]?.size || 0;
-      const explicitWars =
-        num(player.matches) ||
-        num(player.wars) ||
-        num(player.totalMatches) ||
-        num(player.nodeWars) ||
-        num(player.logs);
-      const wars = explicitWars || detectedWars;
-      const matchKills = Object.values(killsByPlayerWar[player.name] || {}).map((value) => num(value));
-      const maxMatchKills = Math.max(0, ...matchKills);
-      const avgKillsPerMatch = wars ? kills / wars : 0;
+      const matchValues = getPlayerMatchValues(player.name);
+      const wars = Object.keys(playerMatchMap[player.name] || {}).length;
+      const maxMatchKills = Math.max(
+        0,
+        ...matchValues.map((match) => Number(match.kills) || 0),
+      );
+      const avgKillsPerMatch = getPlayerAvgKills(player.name);
       const score = Math.max(
         0,
         Math.round(
@@ -705,19 +868,10 @@ function CombatOutputPanel({ data }) {
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
-    .map((player) => {
-      const matches = Number(player.wars) || 0;
-      const averageKills = matches > 0 ? (Number(player.kills) || 0) / matches : 0;
-
-      return {
-        ...player,
-        averageKills,
-      };
-    })
-    .filter((player) => player.averageKills > 0)
+    .filter((player) => Number.isFinite(Number(player.avgKillsPerMatch)))
     .sort(
       (a, b) =>
-        b.averageKills - a.averageKills ||
+        b.avgKillsPerMatch - a.avgKillsPerMatch ||
         b.kills - a.kills ||
         a.name.localeCompare(b.name),
     )
@@ -729,7 +883,7 @@ function CombatOutputPanel({ data }) {
     .slice(0, 10);
 
   const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
-  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.averageKills));
+  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.avgKillsPerMatch));
   const maxSingleMatchKills = Math.max(1, ...topFraggers.map((player) => player.maxMatchKills));
 
   return (
@@ -761,9 +915,9 @@ function CombatOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.averageKills}
+                value={player.avgKillsPerMatch}
                 max={maxAverageKills}
-                right={player.averageKills.toFixed(2)}
+                right={player.avgKillsPerMatch.toFixed(2)}
                 tone="blue"
               />
             ))
