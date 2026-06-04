@@ -897,6 +897,73 @@ function hasRawValue(row, keys) {
   return keys.some((key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '');
 }
 
+function parseNumericValue(value, fallback = 0) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  let text = String(value).trim().toLowerCase();
+
+  if (!text) return fallback;
+
+  let multiplier = 1;
+
+  if (text.endsWith('k')) {
+    multiplier = 1000;
+    text = text.slice(0, -1);
+  } else if (text.endsWith('m')) {
+    multiplier = 1000000;
+    text = text.slice(0, -1);
+  } else if (text.endsWith('b')) {
+    multiplier = 1000000000;
+    text = text.slice(0, -1);
+  }
+
+  text = text.replace(/[^0-9.,-]/g, '');
+
+  if (!text || text === '-' || text === '.' || text === ',') {
+    return fallback;
+  }
+
+  const commaCount = (text.match(/,/g) || []).length;
+  const dotCount = (text.match(/\./g) || []).length;
+
+  if (commaCount && dotCount) {
+    const lastComma = text.lastIndexOf(',');
+    const lastDot = text.lastIndexOf('.');
+
+    if (lastComma > lastDot) {
+      text = text.replace(/\./g, '').replace(',', '.');
+    } else {
+      text = text.replace(/,/g, '');
+    }
+  } else if (commaCount) {
+    if (commaCount > 1) {
+      text = text.replace(/,/g, '');
+    } else {
+      const [left, right = ''] = text.split(',');
+      text = right.length === 3 && left.replace('-', '').length <= 3
+        ? `${left}${right}`
+        : `${left}.${right}`;
+    }
+  } else if (dotCount > 1) {
+    text = text.replace(/\./g, '');
+  } else if (dotCount === 1) {
+    const [left, right = ''] = text.split('.');
+    text = right.length === 3 && left.replace('-', '').length <= 3
+      ? `${left}${right}`
+      : text;
+  }
+
+  const number = Number(text);
+
+  return Number.isFinite(number) ? number * multiplier : fallback;
+}
+
 function readNumber(row, keys, fallback = 0) {
   const key = keys.find(
     (item) => row?.[item] !== undefined && row?.[item] !== null && row?.[item] !== '',
@@ -904,9 +971,7 @@ function readNumber(row, keys, fallback = 0) {
 
   if (!key) return fallback;
 
-  const value = Number(row[key]);
-
-  return Number.isFinite(value) ? value : fallback;
+  return parseNumericValue(row[key], fallback);
 }
 
 function trimCompactZeros(value) {
@@ -952,9 +1017,13 @@ function formatKdNumber(value) {
   return number.toFixed(2);
 }
 
+function getMatchMetricValue(match, key) {
+  return parseNumericValue(match?.[key], 0);
+}
+
 function getMatchKdValue(match) {
-  const kills = Number(match?.kills) || 0;
-  const deaths = Number(match?.deaths) || 0;
+  const kills = getMatchMetricValue(match, 'kills');
+  const deaths = getMatchMetricValue(match, 'deaths');
 
   return deaths ? kills / deaths : kills;
 }
@@ -963,22 +1032,37 @@ function getMatchSortValue(match, key) {
   if (key === 'date') return String(match?.date || '');
   if (key === 'kd') return getMatchKdValue(match);
 
-  return Number(match?.[key]) || 0;
+  return getMatchMetricValue(match, key);
 }
 
 function buildMatchHistoryAverages(matches) {
-  const count = Math.max(1, matches.length);
+  const count = matches.length;
+
+  if (!count) {
+    return {
+      kills: 0,
+      deaths: 0,
+      kd: 0,
+      killstreak: 0,
+      killfeed: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      damageToFort: 0,
+    };
+  }
+
   const totals = matches.reduce(
     (acc, match) => ({
-      kills: acc.kills + (Number(match.kills) || 0),
-      deaths: acc.deaths + (Number(match.deaths) || 0),
+      kills: acc.kills + getMatchMetricValue(match, 'kills'),
+      deaths: acc.deaths + getMatchMetricValue(match, 'deaths'),
       kd: acc.kd + getMatchKdValue(match),
-      killstreak: acc.killstreak + (Number(match.killstreak) || 0),
-      killfeed: acc.killfeed + (Number(match.killfeed) || 0),
-      damageDealt: acc.damageDealt + (Number(match.damageDealt) || 0),
-      damageTaken: acc.damageTaken + (Number(match.damageTaken) || 0),
-      ccHits: acc.ccHits + (Number(match.ccHits) || 0),
-      damageToFort: acc.damageToFort + (Number(match.damageToFort) || 0),
+      killstreak: acc.killstreak + getMatchMetricValue(match, 'killstreak'),
+      killfeed: acc.killfeed + getMatchMetricValue(match, 'killfeed'),
+      damageDealt: acc.damageDealt + getMatchMetricValue(match, 'damageDealt'),
+      damageTaken: acc.damageTaken + getMatchMetricValue(match, 'damageTaken'),
+      ccHits: acc.ccHits + getMatchMetricValue(match, 'ccHits'),
+      damageToFort: acc.damageToFort + getMatchMetricValue(match, 'damageToFort'),
     }),
     {
       kills: 0,
@@ -1154,7 +1238,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
   if (!safeMatches.length) return null;
 
   const gridCols =
-    'grid-cols-[34px_minmax(140px,170px)_60px_60px_70px_90px_80px_106px_106px_74px_108px]';
+    'grid-cols-[38px_minmax(190px,1.65fr)_minmax(82px,.72fr)_minmax(82px,.72fr)_minmax(88px,.76fr)_minmax(112px,.95fr)_minmax(104px,.9fr)_minmax(126px,1.06fr)_minmax(126px,1.06fr)_minmax(96px,.82fr)_minmax(132px,1.1fr)]';
 
   return (
     <Panel>
@@ -1165,11 +1249,11 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
         </p>
       </div>
 
-      <div className={`max-h-[420px] overflow-auto pr-2 ${scrollCls}`}>
-        <div className="min-w-[1040px] space-y-2">
+      <div className={`max-h-[420px] overflow-x-auto overflow-y-auto pr-2 ${scrollCls}`}>
+        <div className="w-full min-w-[1240px] space-y-2">
           {/* Header */}
           <div
-            className={`sticky top-0 z-10 grid ${gridCols} gap-2 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur`}
+            className={`sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur`}
           >
             <div />
             <MatchHistoryHeaderCell
@@ -1266,7 +1350,9 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 
           {/* Rows */}
           {sortedMatches.map((match, index) => {
-            const positive = match.kills >= match.deaths;
+            const matchKills = getMatchMetricValue(match, 'kills');
+            const matchDeaths = getMatchMetricValue(match, 'deaths');
+            const positive = matchKills >= matchDeaths;
             const kdValue = formatKdNumber(getMatchKdValue(match));
 
             return (
@@ -1274,7 +1360,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
                 type="button"
                 key={`${match.warId}-${match.date}-${index}`}
                 onClick={() => onOpenMatchHistory?.(match)}
-                className={`grid ${gridCols} w-full cursor-pointer items-center gap-2 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                className={`grid ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
                 title="Open this match in Overview"
               >
                 {/* Index */}
@@ -1289,12 +1375,12 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 
                 {/* Kills */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.kills} prefix="⚔">
-                  {formatMatchNumber(match.kills)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'kills'))}
                 </MatchHistoryValue>
 
                 {/* Deaths */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.deaths} prefix="☠">
-                  {formatMatchNumber(match.deaths)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'deaths'))}
                 </MatchHistoryValue>
 
                 {/* K/D */}
@@ -1311,32 +1397,32 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 
                 {/* Killstreak */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.killstreak}>
-                  {formatMatchNumber(match.killstreak)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'killstreak'))}
                 </MatchHistoryValue>
 
                 {/* KillFeed */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.killfeed} prefix="🔥">
-                  {formatMatchNumber(match.killfeed)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'killfeed'))}
                 </MatchHistoryValue>
 
                 {/* Damage Dealt */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageDealt}>
-                  {formatMatchNumber(match.damageDealt)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'damageDealt'))}
                 </MatchHistoryValue>
 
                 {/* Damage Taken */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageTaken}>
-                  {formatMatchNumber(match.damageTaken)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'damageTaken'))}
                 </MatchHistoryValue>
 
                 {/* CC Hits */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.ccHits}>
-                  {formatMatchNumber(match.ccHits)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'ccHits'))}
                 </MatchHistoryValue>
 
                 {/* Damage to Fort */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageToFort}>
-                  {formatMatchNumber(match.damageToFort)}
+                  {formatMatchNumber(getMatchMetricValue(match, 'damageToFort'))}
                 </MatchHistoryValue>
               </button>
             );
@@ -1525,10 +1611,37 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
         ])
           ? statsFromRow.killfeed
           : existing?.killfeed || 0,
-        damageDealt: statsFromRow.damageDealt || existing?.damageDealt || 0,
-        damageTaken: statsFromRow.damageTaken || existing?.damageTaken || 0,
-        ccHits: statsFromRow.ccHits || existing?.ccHits || 0,
-        damageToFort: statsFromRow.damageToFort || existing?.damageToFort || 0,
+        damageDealt: hasRawValue(row, [
+          'damageDealt',
+          'damage_dealt',
+          'damageDone',
+          'damage',
+          'Damage Dealt',
+          'DamageDealt',
+        ])
+          ? statsFromRow.damageDealt
+          : existing?.damageDealt || 0,
+        damageTaken: hasRawValue(row, [
+          'damageTaken',
+          'damage_taken',
+          'Damage Taken',
+          'DamageTaken',
+        ])
+          ? statsFromRow.damageTaken
+          : existing?.damageTaken || 0,
+        ccHits: hasRawValue(row, ['ccHits', 'cc_hits', 'cc', 'CC Hits', 'CCHits'])
+          ? statsFromRow.ccHits
+          : existing?.ccHits || 0,
+        damageToFort: hasRawValue(row, [
+          'damageToFort',
+          'damage_to_fort',
+          'fortDamage',
+          'damageFort',
+          'Damage to Fort',
+          'DamageToFort',
+        ])
+          ? statsFromRow.damageToFort
+          : existing?.damageToFort || 0,
       };
     });
 
