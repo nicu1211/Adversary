@@ -720,10 +720,10 @@ function PlayerOverview({ players, streaks, feeds, events }) {
       : Math.max(3, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
 
     return (
-      <div className={`ml-auto flex w-full min-w-0 flex-col items-end ${className}`}>
-        <span className="whitespace-nowrap leading-none">{children}</span>
+      <div className={`mx-auto flex w-full min-w-0 flex-col items-center ${className}`}>
+        <span className="whitespace-nowrap text-center leading-none">{children}</span>
 
-        <span className="mt-1.5 block h-[2px] w-full overflow-hidden rounded-full bg-slate-800/55">
+        <span className="mt-1.5 block h-[2px] w-[58%] overflow-hidden rounded-full bg-slate-800/55">
           <span
             className={`relative block h-full rounded-full bg-gradient-to-r ${progressThemes[id] || 'from-slate-500 to-slate-300'} opacity-90`}
             style={{ width: `${width}%`, boxShadow: '0 0 6px rgba(255,255,255,0.08)' }}
@@ -750,8 +750,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
           onClick={() => flip(id)}
           className={
             key === id
-              ? 'font-black text-blue-300'
-              : 'font-black hover:text-blue-300'
+              ? 'w-full font-black text-blue-300'
+              : 'w-full font-black hover:text-blue-300'
           }
         >
           {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
@@ -832,31 +832,31 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                   <Header id="name" className="pl-4 text-left">
                     Family
                   </Header>
-                  <Header id="kills" className="text-right">
+                  <Header id="kills" className="text-center">
                     Kills
                   </Header>
-                  <Header id="deaths" className="text-right">
+                  <Header id="deaths" className="text-center">
                     Deaths
                   </Header>
-                  <Header id="kd" className="text-right">
+                  <Header id="kd" className="text-center">
                     K/D
                   </Header>
-                  <Header id="streak" className="text-right">
+                  <Header id="streak" className="text-center">
                     Killstreak
                   </Header>
-                  <Header id="feed" className="text-right">
+                  <Header id="feed" className="text-center">
                     KillFeed
                   </Header>
-                  <Header id="damageDealt" className="text-right">
+                  <Header id="damageDealt" className="text-center">
                     DMG Dealt
                   </Header>
-                  <Header id="damageTaken" className="text-right">
+                  <Header id="damageTaken" className="text-center">
                     DMG Taken
                   </Header>
-                  <Header id="ccHits" className="text-right">
+                  <Header id="ccHits" className="text-center">
                     CC Hits
                   </Header>
-                  <Header id="fortDamage" className="pr-4 text-right">
+                  <Header id="fortDamage" className="text-center">
                     DMG to Fort
                   </Header>
                 </tr>
@@ -877,55 +877,55 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                       </button>
                     </td>
 
-                    <td className="py-2 text-right font-black text-blue-300">
+                    <td className="py-2 text-center font-black text-blue-300">
                       <ProgressValue id="kills" value={player.kills}>
                         ⚔ {formatNumber(player.kills)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-right font-black text-pink-300">
+                    <td className="py-2 text-center font-black text-pink-300">
                       <ProgressValue id="deaths" value={player.deaths}>
                         ☠ {formatNumber(player.deaths)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-right font-black text-emerald-300">
+                    <td className="py-2 text-center font-black text-emerald-300">
                       <ProgressValue id="kd" value={player.kd}>
                         ✺ {player.kd}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-right font-black">
+                    <td className="py-2 text-center font-black">
                       <ProgressValue id="streak" value={player.streak}>
                         {formatNumber(player.streak)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-right font-black text-orange-300">
+                    <td className="py-2 text-center font-black text-orange-300">
                       <ProgressValue id="feed" value={player.feed}>
                         🔥 {formatNumber(player.feed)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-right font-black text-cyan-300">
+                    <td className="py-2 text-center font-black text-cyan-300">
                       <ProgressValue id="damageDealt" value={player.damageDealt}>
                         {formatNumber(player.damageDealt)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-right font-black text-rose-300">
+                    <td className="py-2 text-center font-black text-rose-300">
                       <ProgressValue id="damageTaken" value={player.damageTaken}>
                         {formatNumber(player.damageTaken)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-right font-black text-violet-300">
+                    <td className="py-2 text-center font-black text-violet-300">
                       <ProgressValue id="ccHits" value={player.ccHits}>
                         {formatNumber(player.ccHits)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 pr-3 text-right font-black text-amber-300">
+                    <td className="py-2 text-center font-black text-amber-300">
                       <ProgressValue id="fortDamage" value={player.fortDamage}>
                         {formatNumber(player.fortDamage)}
                       </ProgressValue>
