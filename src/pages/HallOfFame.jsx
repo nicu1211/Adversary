@@ -249,7 +249,7 @@ function buildHallData(stats) {
       const wars = warsByPlayer[player.name]?.size || 0;
       const matchKills = Object.values(killsByPlayerWar[player.name] || {}).map((value) => num(value));
       const maxMatchKills = Math.max(0, ...matchKills);
-      const avgKillsPerMatch = totalWars ? kills / totalWars : kills;
+      const avgKillsPerMatch = wars ? kills / wars : kills;
       const score = Math.max(
         0,
         Math.round(
@@ -775,7 +775,7 @@ function MilestoneLeaderboards({ data }) {
     return (
       <div>
         <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          First to {threshold} Kills
+          First to {threshold} Kills · Top 10
         </p>
         {rows.length ? (
           rows.map((row, index) => (
@@ -804,7 +804,7 @@ function MilestoneLeaderboards({ data }) {
     return (
       <div>
         <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Fastest to {threshold} Kills
+          Fastest to {threshold} Kills · Top 10
         </p>
         {rows.length ? (
           rows.map((row, index) => (
