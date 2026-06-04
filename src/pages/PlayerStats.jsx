@@ -1007,12 +1007,12 @@ function hasRawValue(row, keys) {
 
   if (presenceFlag !== undefined) return presenceFlag;
 
+  // Non-zero values prove that the metric was actually added in the log.
   if (number !== 0) return true;
 
-  if (typeof row[key] === 'string' && String(row[key]).trim() !== '') {
-    return true;
-  }
-
+  // A plain 0 is often generated automatically for missing secondary-log columns.
+  // Count it only when the original/raw row also contains the metric name, which
+  // means that the 0 was explicitly written in the log for that column.
   return hasMetricNameInRawText(row, keys);
 }
 
