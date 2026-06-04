@@ -517,33 +517,11 @@ function TopLegendCard({ row, rank, wide = false, center = false }) {
   );
 }
 
-function HeaderControls() {
-  return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="relative grid h-14 w-14 place-items-center rounded-2xl border border-blue-400/25 bg-blue-500/10 text-blue-200 shadow-[0_0_40px_rgba(59,130,246,.16)]">
-            <div className="absolute inset-0 rounded-2xl bg-blue-400/10 blur-xl" />
-            <Trophy className="relative h-7 w-7" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-blue-300">
-              <Sparkles className="h-4 w-4" /> Adversary Guild
-            </div>
-            <h2 className="text-3xl font-black tracking-tight text-white md:text-5xl">Hall of Fame</h2>
-            <p className="mt-1 text-sm font-semibold text-slate-400">Featured Legend with Achievement Wall.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EmptyState() {
   return (
     <PremiumPanel className="p-8 text-center">
       <Trophy className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-      <h3 className="text-xl font-black text-white">No Hall of Fame data yet.</h3>
+      <h3 className="text-xl font-black text-white">No data yet.</h3>
       <p className="mt-2 text-sm font-semibold text-slate-500">Selectează un log, o zi sau All Logs ca să fie calculate statisticile.</p>
     </PremiumPanel>
   );
@@ -568,6 +546,62 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
         <div className={cls('h-2 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)} style={{ width: `${width}%` }} />
       </div>
     </div>
+  );
+}
+
+function CombatOutputPanel({ data }) {
+  const maxFraggerKills = Math.max(1, ...data.topKillers.map((player) => player.kills));
+  const averageKills = data.totals.wars
+    ? data.totals.kills / data.totals.wars
+    : data.totals.players
+      ? data.totals.kills / data.totals.players
+      : 0;
+
+  return (
+    <PremiumPanel className="p-5">
+      <SectionTitle icon={Swords} title="Combat Output" />
+      <div className="grid gap-5 md:grid-cols-3">
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills</p>
+          <HallProgressRow
+            label="Guild total"
+            value={data.totals.kills}
+            max={Math.max(1, data.totals.kills)}
+            right={shortNum(data.totals.kills)}
+            tone="rose"
+          />
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills</p>
+          <HallProgressRow
+            label={data.totals.wars ? 'Per recorded war' : 'Per recorded player'}
+            value={averageKills}
+            max={Math.max(1, averageKills)}
+            right={averageKills.toFixed(2)}
+            tone="blue"
+          />
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers</p>
+          {data.topKillers.length ? (
+            data.topKillers.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.kills}
+                max={maxFraggerKills}
+                right={shortNum(player.kills)}
+                tone="emerald"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No fraggers yet.</p>
+          )}
+        </div>
+      </div>
+    </PremiumPanel>
   );
 }
 
@@ -620,45 +654,9 @@ function ArsenalOutputPanel({ data }) {
 }
 
 function Variant1({ data }) {
-  const leader = data.rows[0];
-
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Users} label="Legends" value={data.totals.players} sub="players recorded" tone="blue" />
-        <StatCard icon={Swords} label="Total Kills" value={shortNum(data.totals.kills)} sub="all selected logs" tone="rose" />
-        <StatCard icon={Target} label="Guild K/D" value={data.totals.kd.toFixed(2)} sub="kills / deaths" tone="emerald" />
-        <StatCard icon={CalendarDays} label="Wars" value={data.totals.wars} sub="recorded wars" tone="violet" />
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
-        <PremiumPanel glow className="p-6">
-          <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
-          <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
-          <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
-            <Avatar name={leader.name} size="xl" rank={1} />
-            <div className="min-w-0 flex-1">
-              <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-amber-300">
-                <Crown className="h-4 w-4" /> Featured Legend
-              </div>
-              <div className="truncate text-5xl font-black text-white">{leader.name}</div>
-              <div className="mt-1 text-lg font-bold text-blue-300">{leader.title}</div>
-              <p className="mt-3 max-w-2xl text-sm font-semibold text-slate-400">Playerul cu cel mai mare scor calculat din killuri, K/D, streak, killfeed și participare la war-uri.</p>
-            </div>
-          </div>
-          <div className="relative mt-6 grid gap-3 sm:grid-cols-4">
-            <StatCard icon={Trophy} label="Score" value={nf.format(leader.score)} tone="blue" />
-            <StatCard icon={Swords} label="Kills" value={nf.format(leader.kills)} tone="rose" />
-            <StatCard icon={Skull} label="Deaths" value={nf.format(leader.deaths)} tone="slate" />
-            <StatCard icon={Target} label="K/D" value={leader.kd.toFixed(2)} tone="emerald" />
-          </div>
-        </PremiumPanel>
-
-        <PremiumPanel className="p-5">
-          <SectionTitle icon={Crown} title="Top 5 Legends" action="View ranking" />
-          <div className="space-y-3">{data.rows.slice(0, 5).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 1} />)}</div>
-        </PremiumPanel>
-      </div>
+      <CombatOutputPanel data={data} />
 
       <ArsenalOutputPanel data={data} />
 
@@ -674,31 +672,12 @@ function Variant1({ data }) {
   );
 }
 
-const variants = {
-  1: { name: 'Featured Legend', component: Variant1 },
-};
-
 function PreviewAll({ data }) {
   return (
     <div className="min-h-screen bg-[#050b16] p-4 text-slate-100 md:p-8">
       <div className="mx-auto max-w-[1600px] space-y-10">
         <PageFrame>
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-2xl">
-            <h1 className="text-4xl font-black text-white">Hall of Fame — Featured Legend</h1>
-            <p className="mt-2 text-sm font-semibold text-slate-400">Preview mode: V1 cu Achievement Wall, randat cu date demo.</p>
-          </div>
-          {Object.entries(variants).map(([key, item]) => {
-            const Component = item.component;
-            return (
-              <section key={key} className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl border border-blue-400/25 bg-blue-500/10 text-sm font-black text-blue-100">V{key}</div>
-                  <h2 className="text-2xl font-black text-white">{item.name}</h2>
-                </div>
-                <Component data={data} />
-              </section>
-            );
-          })}
+          <Variant1 data={data} />
         </PageFrame>
       </div>
     </div>
@@ -714,7 +693,6 @@ export default function HallOfFame({ stats, allTimeStats } = {}) {
 
   return (
     <PageFrame>
-      <HeaderControls />
       <Variant1 data={data} />
     </PageFrame>
   );
