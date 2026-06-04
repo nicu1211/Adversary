@@ -917,6 +917,61 @@ function formatMatchNumber(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(2);
 }
 
+function getMatchKdValue(match) {
+  const kills = Number(match?.kills) || 0;
+  const deaths = Number(match?.deaths) || 0;
+
+  return deaths ? kills / deaths : kills;
+}
+
+function formatAverageNumber(value) {
+  const number = Number(value) || 0;
+
+  if (!Number.isFinite(number)) return '0.00';
+
+  return number.toFixed(2);
+}
+
+function buildMatchHistoryAverages(matches) {
+  const count = Math.max(1, matches.length);
+  const totals = matches.reduce(
+    (acc, match) => ({
+      kills: acc.kills + (Number(match.kills) || 0),
+      deaths: acc.deaths + (Number(match.deaths) || 0),
+      kd: acc.kd + getMatchKdValue(match),
+      killstreak: acc.killstreak + (Number(match.killstreak) || 0),
+      killfeed: acc.killfeed + (Number(match.killfeed) || 0),
+      damageDealt: acc.damageDealt + (Number(match.damageDealt) || 0),
+      damageTaken: acc.damageTaken + (Number(match.damageTaken) || 0),
+      ccHits: acc.ccHits + (Number(match.ccHits) || 0),
+      damageToFort: acc.damageToFort + (Number(match.damageToFort) || 0),
+    }),
+    {
+      kills: 0,
+      deaths: 0,
+      kd: 0,
+      killstreak: 0,
+      killfeed: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      damageToFort: 0,
+    },
+  );
+
+  return {
+    kills: totals.kills / count,
+    deaths: totals.deaths / count,
+    kd: totals.kd / count,
+    killstreak: totals.killstreak / count,
+    killfeed: totals.killfeed / count,
+    damageDealt: totals.damageDealt / count,
+    damageTaken: totals.damageTaken / count,
+    ccHits: totals.ccHits / count,
+    damageToFort: totals.damageToFort / count,
+  };
+}
+
 function getSecondaryMatchStats(row) {
   const kills = readNumber(row, ['kills', 'Kills']);
   const deaths = readNumber(row, ['deaths', 'Deaths']);
@@ -970,14 +1025,28 @@ function getSecondaryMatchStats(row) {
   };
 }
 
-function MatchHistoryHeaderCell({ children, color }) {
+function MatchHistoryHeaderCell({ children, color, average = null }) {
   return (
-    <p
-      className="text-center text-[11px] font-black uppercase tracking-[0.16em]"
-      style={{ color }}
-    >
-      {children}
-    </p>
+    <div className="text-center">
+      {average !== null && (
+        <p
+          className="mb-1 text-sm font-black leading-none tracking-tight"
+          style={{ color }}
+        >
+          <span className="mr-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
+            Avg
+          </span>
+          {average}
+        </p>
+      )}
+
+      <p
+        className="text-[11px] font-black uppercase tracking-[0.16em]"
+        style={{ color }}
+      >
+        {children}
+      </p>
+    </div>
   );
 }
 
@@ -996,6 +1065,7 @@ function MatchHistoryValue({ children, color, prefix = null }) {
 function MatchHistoryList({ matches, onOpenMatchHistory }) {
   if (!matches || !matches.length) return null;
 
+  const averages = buildMatchHistoryAverages(matches);
   const gridCols =
     'grid-cols-[32px_minmax(180px,1fr)_72px_72px_82px_104px_96px_124px_124px_92px_124px]';
 
@@ -1018,31 +1088,58 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
               Date
             </p>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.kills}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.kills}
+              average={formatAverageNumber(averages.kills)}
+            >
               Kills
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.deaths}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.deaths}
+              average={formatAverageNumber(averages.deaths)}
+            >
               Deaths
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.kdPositive}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.kdPositive}
+              average={formatAverageNumber(averages.kd)}
+            >
               K/D
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.killstreak}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.killstreak}
+              average={formatAverageNumber(averages.killstreak)}
+            >
               Killstreak
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.killfeed}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.killfeed}
+              average={formatAverageNumber(averages.killfeed)}
+            >
               KillFeed
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.damageDealt}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.damageDealt}
+              average={formatAverageNumber(averages.damageDealt)}
+            >
               Damage Dealt
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.damageTaken}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.damageTaken}
+              average={formatAverageNumber(averages.damageTaken)}
+            >
               Damage Taken
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.ccHits}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.ccHits}
+              average={formatAverageNumber(averages.ccHits)}
+            >
               CC Hits
             </MatchHistoryHeaderCell>
-            <MatchHistoryHeaderCell color={MATCH_HISTORY_COLORS.damageToFort}>
+            <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.damageToFort}
+              average={formatAverageNumber(averages.damageToFort)}
+            >
               Damage to Fort
             </MatchHistoryHeaderCell>
           </div>
