@@ -801,51 +801,27 @@ export function KillDeathChart({
                   setHoveredIndex(null);
                 }}
               >
-                <circle cx="0" cy="0" r={isSkullMarker ? '18' : '12'} fill="transparent" />
+                <circle cx="0" cy="0" r={isSkullMarker ? '12' : '12'} fill="transparent" />
 
                 {isSkullMarker ? (
-                  <>
-                    <circle
-                      cx="0"
-                      cy="0"
-                      r="12.5"
-                      fill={accent}
-                      opacity="0.12"
-                      style={{ filter: 'blur(5px)' }}
-                    />
-                    <circle
-                      cx="0"
-                      cy="0"
-                      r="9.5"
-                      fill="rgba(2, 6, 23, 0.92)"
-                      stroke={accent}
-                      strokeWidth="2"
-                    />
-                    <circle
-                      cx="0"
-                      cy="0"
-                      r="7.5"
-                      fill="rgba(15, 23, 42, 0.78)"
-                    />
-                    <text
-                      x="0"
-                      y="0.3"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize="9.8"
-                      fontWeight="900"
-                      fill={accent}
-                      style={{
-                        paintOrder: 'stroke',
-                        stroke: 'rgba(2,6,23,0.95)',
-                        strokeWidth: '1.6px',
-                        letterSpacing: '-0.2px',
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      ☠
-                    </text>
-                  </>
+                  <text
+                    x="0"
+                    y="0"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize="12"
+                    fontWeight="900"
+                    fill={accent}
+                    style={{
+                      paintOrder: 'stroke',
+                      stroke: 'rgba(2,6,23,0.95)',
+                      strokeWidth: '2px',
+                      filter: `drop-shadow(0 0 6px ${accent})`,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    ☠
+                  </text>
                 ) : (
                   <>
                     <circle
