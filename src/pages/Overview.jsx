@@ -717,17 +717,19 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     const numeric = Number(value) || 0;
     const width = numeric <= 0
       ? 0
-      : Math.max(5, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
+      : Math.max(3, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
 
     return (
       <div className={`ml-auto flex min-w-[58px] flex-col items-end ${className}`}>
         <span className="whitespace-nowrap leading-none">{children}</span>
 
-        <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-slate-800/90 shadow-inner">
+        <span className="mt-1.5 block h-[2px] w-[92%] overflow-hidden rounded-full bg-slate-800/55">
           <span
-            className={`block h-full rounded-full bg-gradient-to-r ${progressThemes[id] || 'from-slate-500 to-slate-300'}`}
-            style={{ width: `${width}%` }}
-          />
+            className={`relative block h-full rounded-full bg-gradient-to-r ${progressThemes[id] || 'from-slate-500 to-slate-300'} opacity-90`}
+            style={{ width: `${width}%`, boxShadow: '0 0 6px rgba(255,255,255,0.08)' }}
+          >
+            <span className="absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full bg-white/55 blur-[0.5px]" />
+          </span>
         </span>
       </div>
     );
