@@ -841,33 +841,36 @@ export function KillDeathChart({
                     />
                   </g>
                 ) : (
-                  <>
-                    <circle
-                      cx="0"
-                      cy="0"
-                      r="8"
+                  <g
+                    transform="scale(0.86)"
+                    style={{
+                      filter: `drop-shadow(0 0 5px ${accent})`,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <path
+                      d="M 0 8.4
+                         C -4.5 8.4 -7.4 5.3 -7.4 1.7
+                         C -7.4 -1.3 -5.7 -3.1 -3.8 -4.6
+                         C -3.5 -1.7 -1.7 -0.9 -1.2 -3.9
+                         C -0.8 -6.1 -1.4 -7.8 1.1 -9.1
+                         C 0.6 -5.4 4.6 -4.1 5.8 -1.2
+                         C 7.1 1.9 5.7 8.4 0 8.4 Z"
                       fill={accent}
-                      opacity="0.10"
-                      style={{ filter: 'blur(4px)' }}
+                      stroke="rgba(2,6,23,0.96)"
+                      strokeWidth="1.25"
+                      strokeLinejoin="round"
                     />
-                    <text
-                      x="0"
-                      y="0"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize="13"
-                      fontWeight="900"
-                      fill={accent}
-                      style={{
-                        paintOrder: 'stroke',
-                        stroke: 'rgba(15,23,42,0.95)',
-                        strokeWidth: '2.5px',
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      {markerIcon(marker.markerType)}
-                    </text>
-                  </>
+                    <path
+                      d="M 0.3 6.9
+                         C -2.1 6.9 -3.8 5.2 -3.8 2.9
+                         C -3.8 1.2 -2.8 0.1 -1.5 -1.1
+                         C -1.2 1.2 0.8 1.4 1.1 -1.6
+                         C 2.8 0.1 3.9 1.9 3.6 4
+                         C 3.3 5.8 2.1 6.9 0.3 6.9 Z"
+                      fill="rgba(2,6,23,0.90)"
+                    />
+                  </g>
                 )}
               </g>
             );
