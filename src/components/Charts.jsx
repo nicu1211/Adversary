@@ -804,24 +804,42 @@ export function KillDeathChart({
                 <circle cx="0" cy="0" r={isSkullMarker ? '12' : '12'} fill="transparent" />
 
                 {isSkullMarker ? (
-                  <text
-                    x="0"
-                    y="0"
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize="12"
-                    fontWeight="900"
-                    fill={accent}
+                  <g
+                    transform="scale(0.86)"
                     style={{
-                      paintOrder: 'stroke',
-                      stroke: 'rgba(2,6,23,0.95)',
-                      strokeWidth: '2px',
-                      filter: `drop-shadow(0 0 6px ${accent})`,
+                      filter: `drop-shadow(0 0 5px ${accent})`,
                       pointerEvents: 'none',
                     }}
                   >
-                    ☠
-                  </text>
+                    <path
+                      d="M 0 -8.6
+                         C -5.2 -8.6 -8.2 -5.3 -8.2 -1.1
+                         C -8.2 2.2 -6.3 4.2 -3.8 5.1
+                         L -3.8 7.5
+                         L -2.1 7.5
+                         L -2.1 5.9
+                         L -0.7 5.9
+                         L -0.7 7.5
+                         L 0.7 7.5
+                         L 0.7 5.9
+                         L 2.1 5.9
+                         L 2.1 7.5
+                         L 3.8 7.5
+                         L 3.8 5.1
+                         C 6.3 4.2 8.2 2.2 8.2 -1.1
+                         C 8.2 -5.3 5.2 -8.6 0 -8.6 Z"
+                      fill={accent}
+                      stroke="rgba(2,6,23,0.96)"
+                      strokeWidth="1.25"
+                      strokeLinejoin="round"
+                    />
+                    <circle cx="-3" cy="-1.8" r="1.75" fill="rgba(2,6,23,0.96)" />
+                    <circle cx="3" cy="-1.8" r="1.75" fill="rgba(2,6,23,0.96)" />
+                    <path
+                      d="M 0 0.3 L -1.35 3 L 1.35 3 Z"
+                      fill="rgba(2,6,23,0.96)"
+                    />
+                  </g>
                 ) : (
                   <>
                     <circle
