@@ -1035,58 +1035,58 @@ function getMatchSortValue(match, key) {
   return getMatchMetricValue(match, key);
 }
 
-function buildMatchHistoryAverages(matches) {
-  const count = matches.length;
+function getMatchMetricExists(match, key) {
+  if (!match) return false;
 
-  if (!count) {
-    return {
-      kills: 0,
-      deaths: 0,
-      kd: 0,
-      killstreak: 0,
-      killfeed: 0,
-      damageDealt: 0,
-      damageTaken: 0,
-      ccHits: 0,
-      damageToFort: 0,
-    };
+  if (key === 'kd') {
+    return getMatchMetricExists(match, 'kills') || getMatchMetricExists(match, 'deaths');
   }
 
-  const totals = matches.reduce(
-    (acc, match) => ({
-      kills: acc.kills + getMatchMetricValue(match, 'kills'),
-      deaths: acc.deaths + getMatchMetricValue(match, 'deaths'),
-      kd: acc.kd + getMatchKdValue(match),
-      killstreak: acc.killstreak + getMatchMetricValue(match, 'killstreak'),
-      killfeed: acc.killfeed + getMatchMetricValue(match, 'killfeed'),
-      damageDealt: acc.damageDealt + getMatchMetricValue(match, 'damageDealt'),
-      damageTaken: acc.damageTaken + getMatchMetricValue(match, 'damageTaken'),
-      ccHits: acc.ccHits + getMatchMetricValue(match, 'ccHits'),
-      damageToFort: acc.damageToFort + getMatchMetricValue(match, 'damageToFort'),
-    }),
-    {
-      kills: 0,
-      deaths: 0,
-      kd: 0,
-      killstreak: 0,
-      killfeed: 0,
-      damageDealt: 0,
-      damageTaken: 0,
-      ccHits: 0,
-      damageToFort: 0,
-    },
-  );
+  if (match.__has && Object.prototype.hasOwnProperty.call(match.__has, key)) {
+    return Boolean(match.__has[key]);
+  }
 
+  return match[key] !== undefined && match[key] !== null && match[key] !== '';
+}
+
+function getAverageFromExistingMatches(matches, key, getValue) {
+  const values = matches
+    .filter((match) => getMatchMetricExists(match, key))
+    .map((match) => Number(getValue(match)))
+    .filter((value) => Number.isFinite(value));
+
+  if (!values.length) return 0;
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function buildMatchHistoryAverages(matches) {
   return {
-    kills: totals.kills / count,
-    deaths: totals.deaths / count,
-    kd: totals.kd / count,
-    killstreak: totals.killstreak / count,
-    killfeed: totals.killfeed / count,
-    damageDealt: totals.damageDealt / count,
-    damageTaken: totals.damageTaken / count,
-    ccHits: totals.ccHits / count,
-    damageToFort: totals.damageToFort / count,
+    kills: getAverageFromExistingMatches(matches, 'kills', (match) =>
+      getMatchMetricValue(match, 'kills'),
+    ),
+    deaths: getAverageFromExistingMatches(matches, 'deaths', (match) =>
+      getMatchMetricValue(match, 'deaths'),
+    ),
+    kd: getAverageFromExistingMatches(matches, 'kd', getMatchKdValue),
+    killstreak: getAverageFromExistingMatches(matches, 'killstreak', (match) =>
+      getMatchMetricValue(match, 'killstreak'),
+    ),
+    killfeed: getAverageFromExistingMatches(matches, 'killfeed', (match) =>
+      getMatchMetricValue(match, 'killfeed'),
+    ),
+    damageDealt: getAverageFromExistingMatches(matches, 'damageDealt', (match) =>
+      getMatchMetricValue(match, 'damageDealt'),
+    ),
+    damageTaken: getAverageFromExistingMatches(matches, 'damageTaken', (match) =>
+      getMatchMetricValue(match, 'damageTaken'),
+    ),
+    ccHits: getAverageFromExistingMatches(matches, 'ccHits', (match) =>
+      getMatchMetricValue(match, 'ccHits'),
+    ),
+    damageToFort: getAverageFromExistingMatches(matches, 'damageToFort', (match) =>
+      getMatchMetricValue(match, 'damageToFort'),
+    ),
   };
 }
 
@@ -1575,6 +1575,16 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
         damageTaken: 0,
         ccHits: 0,
         damageToFort: 0,
+        __has: {
+          kills: true,
+          deaths: true,
+          killstreak: true,
+          killfeed: true,
+          damageDealt: false,
+          damageTaken: false,
+          ccHits: false,
+          damageToFort: false,
+        },
       };
     });
 
@@ -1582,66 +1592,84 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       const warId = secondaryWarId(row, index);
       const statsFromRow = getSecondaryMatchStats(row);
       const existing = matchMap[warId];
+      const existingHas = existing?.__has || {};
       const date = row.date || row.war || existing?.date || warId;
+
+      const hasKills = hasRawValue(row, ['kills', 'Kills']);
+      const hasDeaths = hasRawValue(row, ['deaths', 'Deaths']);
+      const hasKillstreak = hasRawValue(row, [
+        'killStreak',
+        'killstreak',
+        'streak',
+        'Killstreak',
+        'KillStreak',
+      ]);
+      const hasKillfeed = hasRawValue(row, [
+        'killFeed',
+        'killfeed',
+        'feed',
+        'KillFeed',
+        'Killfeed',
+      ]);
+      const hasDamageDealt = hasRawValue(row, [
+        'damageDealt',
+        'damage_dealt',
+        'damageDone',
+        'damage',
+        'Damage Dealt',
+        'DamageDealt',
+      ]);
+      const hasDamageTaken = hasRawValue(row, [
+        'damageTaken',
+        'damage_taken',
+        'Damage Taken',
+        'DamageTaken',
+      ]);
+      const hasCcHits = hasRawValue(row, [
+        'ccHits',
+        'cc_hits',
+        'cc',
+        'CC Hits',
+        'CCHits',
+      ]);
+      const hasDamageToFort = hasRawValue(row, [
+        'damageToFort',
+        'damage_to_fort',
+        'fortDamage',
+        'damageFort',
+        'Damage to Fort',
+        'DamageToFort',
+      ]);
 
       matchMap[warId] = {
         warId,
         date,
-        kills: hasRawValue(row, ['kills', 'Kills'])
-          ? statsFromRow.kills
-          : existing?.kills || 0,
-        deaths: hasRawValue(row, ['deaths', 'Deaths'])
-          ? statsFromRow.deaths
-          : existing?.deaths || 0,
-        killstreak: hasRawValue(row, [
-          'killStreak',
-          'killstreak',
-          'streak',
-          'Killstreak',
-          'KillStreak',
-        ])
+        kills: hasKills ? statsFromRow.kills : existing?.kills || 0,
+        deaths: hasDeaths ? statsFromRow.deaths : existing?.deaths || 0,
+        killstreak: hasKillstreak
           ? statsFromRow.killstreak
           : existing?.killstreak || 0,
-        killfeed: hasRawValue(row, [
-          'killFeed',
-          'killfeed',
-          'feed',
-          'KillFeed',
-          'Killfeed',
-        ])
-          ? statsFromRow.killfeed
-          : existing?.killfeed || 0,
-        damageDealt: hasRawValue(row, [
-          'damageDealt',
-          'damage_dealt',
-          'damageDone',
-          'damage',
-          'Damage Dealt',
-          'DamageDealt',
-        ])
+        killfeed: hasKillfeed ? statsFromRow.killfeed : existing?.killfeed || 0,
+        damageDealt: hasDamageDealt
           ? statsFromRow.damageDealt
           : existing?.damageDealt || 0,
-        damageTaken: hasRawValue(row, [
-          'damageTaken',
-          'damage_taken',
-          'Damage Taken',
-          'DamageTaken',
-        ])
+        damageTaken: hasDamageTaken
           ? statsFromRow.damageTaken
           : existing?.damageTaken || 0,
-        ccHits: hasRawValue(row, ['ccHits', 'cc_hits', 'cc', 'CC Hits', 'CCHits'])
-          ? statsFromRow.ccHits
-          : existing?.ccHits || 0,
-        damageToFort: hasRawValue(row, [
-          'damageToFort',
-          'damage_to_fort',
-          'fortDamage',
-          'damageFort',
-          'Damage to Fort',
-          'DamageToFort',
-        ])
+        ccHits: hasCcHits ? statsFromRow.ccHits : existing?.ccHits || 0,
+        damageToFort: hasDamageToFort
           ? statsFromRow.damageToFort
           : existing?.damageToFort || 0,
+        __has: {
+          kills: hasKills || Boolean(existingHas.kills),
+          deaths: hasDeaths || Boolean(existingHas.deaths),
+          killstreak: hasKillstreak || Boolean(existingHas.killstreak),
+          killfeed: hasKillfeed || Boolean(existingHas.killfeed),
+          damageDealt: hasDamageDealt || Boolean(existingHas.damageDealt),
+          damageTaken: hasDamageTaken || Boolean(existingHas.damageTaken),
+          ccHits: hasCcHits || Boolean(existingHas.ccHits),
+          damageToFort: hasDamageToFort || Boolean(existingHas.damageToFort),
+        },
       };
     });
 
