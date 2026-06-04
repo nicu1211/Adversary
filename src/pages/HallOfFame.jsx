@@ -261,7 +261,7 @@ function buildHallData(stats) {
       const wars = explicitWars || detectedWars;
       const matchKills = Object.values(killsByPlayerWar[player.name] || {}).map((value) => num(value));
       const maxMatchKills = Math.max(0, ...matchKills);
-      const avgKillsPerMatch = wars ? kills / wars : kills;
+      const avgKillsPerMatch = wars ? kills / wars : 0;
       const score = Math.max(
         0,
         Math.round(
@@ -705,8 +705,22 @@ function CombatOutputPanel({ data }) {
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
-    .filter((player) => player.kills > 0)
-    .sort((a, b) => b.avgKillsPerMatch - a.avgKillsPerMatch || b.kills - a.kills || a.name.localeCompare(b.name))
+    .map((player) => {
+      const matches = Number(player.wars) || 0;
+      const averageKills = matches > 0 ? (Number(player.kills) || 0) / matches : 0;
+
+      return {
+        ...player,
+        averageKills,
+      };
+    })
+    .filter((player) => player.averageKills > 0)
+    .sort(
+      (a, b) =>
+        b.averageKills - a.averageKills ||
+        b.kills - a.kills ||
+        a.name.localeCompare(b.name),
+    )
     .slice(0, 10);
 
   const topFraggers = [...data.rows]
@@ -715,7 +729,7 @@ function CombatOutputPanel({ data }) {
     .slice(0, 10);
 
   const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
-  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.avgKillsPerMatch));
+  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.averageKills));
   const maxSingleMatchKills = Math.max(1, ...topFraggers.map((player) => player.maxMatchKills));
 
   return (
@@ -741,15 +755,15 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills · Top 10</p>
           {topAverageKills.length ? (
             topAverageKills.map((player, index) => (
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.avgKillsPerMatch}
+                value={player.averageKills}
                 max={maxAverageKills}
-                right={player.avgKillsPerMatch.toFixed(2)}
+                right={player.averageKills.toFixed(2)}
                 tone="blue"
               />
             ))
