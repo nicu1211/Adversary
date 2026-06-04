@@ -689,6 +689,50 @@ function PlayerOverview({ players, streaks, feeds, events }) {
       return 0;
     });
 
+  const progressMax = {
+    kills: Math.max(1, ...rows.map((player) => Number(player.kills) || 0)),
+    deaths: Math.max(1, ...rows.map((player) => Number(player.deaths) || 0)),
+    kd: Math.max(1, ...rows.map((player) => Number(player.kd) || 0)),
+    streak: Math.max(1, ...rows.map((player) => Number(player.streak) || 0)),
+    feed: Math.max(1, ...rows.map((player) => Number(player.feed) || 0)),
+    damageDealt: Math.max(1, ...rows.map((player) => Number(player.damageDealt) || 0)),
+    damageTaken: Math.max(1, ...rows.map((player) => Number(player.damageTaken) || 0)),
+    ccHits: Math.max(1, ...rows.map((player) => Number(player.ccHits) || 0)),
+    fortDamage: Math.max(1, ...rows.map((player) => Number(player.fortDamage) || 0)),
+  };
+
+  const progressThemes = {
+    kills: 'from-blue-500 to-cyan-300',
+    deaths: 'from-pink-500 to-rose-300',
+    kd: 'from-emerald-500 to-lime-300',
+    streak: 'from-slate-200 to-white',
+    feed: 'from-orange-500 to-amber-300',
+    damageDealt: 'from-cyan-500 to-sky-300',
+    damageTaken: 'from-rose-500 to-pink-300',
+    ccHits: 'from-violet-500 to-fuchsia-300',
+    fortDamage: 'from-amber-500 to-yellow-300',
+  };
+
+  function ProgressValue({ id, value, children, className = '' }) {
+    const numeric = Number(value) || 0;
+    const width = numeric <= 0
+      ? 0
+      : Math.max(5, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
+
+    return (
+      <div className={`ml-auto flex min-w-[58px] flex-col items-end ${className}`}>
+        <span className="whitespace-nowrap leading-none">{children}</span>
+
+        <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-slate-800/90 shadow-inner">
+          <span
+            className={`block h-full rounded-full bg-gradient-to-r ${progressThemes[id] || 'from-slate-500 to-slate-300'}`}
+            style={{ width: `${width}%` }}
+          />
+        </span>
+      </div>
+    );
+  }
+
   function flip(nextKey) {
     setSort(
       key === nextKey
@@ -820,39 +864,57 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                     </td>
 
                     <td className="py-2 text-right font-black text-blue-300">
-                      ⚔ {player.kills}
+                      <ProgressValue id="kills" value={player.kills}>
+                        ⚔ {formatNumber(player.kills)}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 text-right font-black text-pink-300">
-                      ☠ {player.deaths}
+                      <ProgressValue id="deaths" value={player.deaths}>
+                        ☠ {formatNumber(player.deaths)}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 text-right font-black text-emerald-300">
-                      ✺ {player.kd}
+                      <ProgressValue id="kd" value={player.kd}>
+                        ✺ {player.kd}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 text-right font-black">
-                      {player.streak}
+                      <ProgressValue id="streak" value={player.streak}>
+                        {formatNumber(player.streak)}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 text-right font-black text-orange-300">
-                      🔥 {player.feed}
+                      <ProgressValue id="feed" value={player.feed}>
+                        🔥 {formatNumber(player.feed)}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 text-right font-black text-cyan-300">
-                      {formatNumber(player.damageDealt)}
+                      <ProgressValue id="damageDealt" value={player.damageDealt}>
+                        {formatNumber(player.damageDealt)}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 text-right font-black text-rose-300">
-                      {formatNumber(player.damageTaken)}
+                      <ProgressValue id="damageTaken" value={player.damageTaken}>
+                        {formatNumber(player.damageTaken)}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 text-right font-black text-violet-300">
-                      {formatNumber(player.ccHits)}
+                      <ProgressValue id="ccHits" value={player.ccHits}>
+                        {formatNumber(player.ccHits)}
+                      </ProgressValue>
                     </td>
 
                     <td className="py-2 pr-3 text-right font-black text-amber-300">
-                      {formatNumber(player.fortDamage)}
+                      <ProgressValue id="fortDamage" value={player.fortDamage}>
+                        {formatNumber(player.fortDamage)}
+                      </ProgressValue>
                     </td>
                   </tr>
                 ))}
