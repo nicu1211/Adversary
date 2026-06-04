@@ -301,7 +301,8 @@ function buildHallData(stats) {
     const killPlayer = getGuildKillPlayer(event);
 
     if (involvedPlayer) {
-      ensurePlayerMatch(involvedPlayer, id, event.date);
+      const match = ensurePlayerMatch(involvedPlayer, id, event.date);
+      match.hasKills = true;
     }
 
     if (killPlayer) {
@@ -419,6 +420,7 @@ function buildHallData(stats) {
       const ccHits = num(player.ccHits);
       const fortDamage = num(player.fortDamage);
       const matchValues = getPlayerMatchValues(player.name);
+      const avgKillsMatchCount = matchValues.length;
       const wars = Object.keys(playerMatchMap[player.name] || {}).length;
       const maxMatchKills = Math.max(
         0,
@@ -461,6 +463,7 @@ function buildHallData(stats) {
         fortDamage,
         maxMatchKills,
         avgKillsPerMatch,
+        avgKillsMatchCount,
         score,
         title,
       };
@@ -868,7 +871,11 @@ function CombatOutputPanel({ data }) {
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
-    .filter((player) => Number.isFinite(Number(player.avgKillsPerMatch)))
+    .filter(
+      (player) =>
+        Number(player.avgKillsMatchCount) >= 30 &&
+        Number.isFinite(Number(player.avgKillsPerMatch)),
+    )
     .sort(
       (a, b) =>
         b.avgKillsPerMatch - a.avgKillsPerMatch ||
@@ -878,7 +885,11 @@ function CombatOutputPanel({ data }) {
     .slice(0, 10);
 
   const topFraggers = [...data.rows]
-    .filter((player) => player.maxMatchKills > 0)
+    .filter(
+      (player) =>
+        Number(player.avgKillsMatchCount) >= 30 &&
+        player.maxMatchKills > 0,
+    )
     .sort((a, b) => b.maxMatchKills - a.maxMatchKills || b.kills - a.kills || a.name.localeCompare(b.name))
     .slice(0, 10);
 
@@ -909,7 +920,7 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills · Top 10 · Min 30 matches</p>
           {topAverageKills.length ? (
             topAverageKills.map((player, index) => (
               <HallProgressRow
@@ -922,12 +933,12 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average kill data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No players with at least 30 matches yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers · Top 10 · Min 30 matches</p>
           {topFraggers.length ? (
             topFraggers.map((player, index) => (
               <HallProgressRow
@@ -940,7 +951,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single-match frag data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No players with at least 30 matches yet.</p>
           )}
         </div>
       </div>
