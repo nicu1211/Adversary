@@ -893,6 +893,59 @@ const MATCH_HISTORY_COLORS = {
   damageToFort: '#fde047',
 };
 
+
+const SECONDARY_MATCH_METRIC_KEYS = {
+  kills: ['kills', 'Kills'],
+  deaths: ['deaths', 'Deaths'],
+  killstreak: [
+    'killStreak',
+    'killstreak',
+    'streak',
+    'Killstreak',
+    'KillStreak',
+  ],
+  killfeed: [
+    'killFeed',
+    'killfeed',
+    'feed',
+    'KillFeed',
+    'Killfeed',
+  ],
+  damageDealt: [
+    'damageDealt',
+    'damage_dealt',
+    'damageDone',
+    'damage',
+    'Damage Dealt',
+    'DamageDealt',
+  ],
+  damageTaken: [
+    'damageTaken',
+    'damage_taken',
+    'Damage Taken',
+    'DamageTaken',
+  ],
+  ccHits: ['ccHits', 'cc_hits', 'cc', 'CC Hits', 'CCHits'],
+  damageToFort: [
+    'damageToFort',
+    'damage_to_fort',
+    'fortDamage',
+    'damageFort',
+    'Damage to Fort',
+    'DamageToFort',
+  ],
+};
+
+const SECONDARY_CORE_METRICS = new Set(['kills', 'deaths']);
+const SECONDARY_DETAIL_METRICS = [
+  'killstreak',
+  'killfeed',
+  'damageDealt',
+  'damageTaken',
+  'ccHits',
+  'damageToFort',
+];
+
 function findRawKey(row, keys) {
   return keys.find(
     (key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '',
@@ -926,6 +979,157 @@ function getRowRawText(row) {
   ]
     .filter((value) => value !== undefined && value !== null && value !== '')
     .join(' ');
+}
+
+
+function getStructuredPresenceText(value, depth = 0) {
+  if (value === undefined || value === null || depth > 3) return '';
+
+  if (Array.isArray(value)) {
+    return value.map((item) => getStructuredPresenceText(item, depth + 1)).join(' ');
+  }
+
+  if (typeof value === 'object') {
+    return Object.entries(value)
+      .map(([key, item]) => `${key} ${getStructuredPresenceText(item, depth + 1)}`)
+      .join(' ');
+  }
+
+  return String(value);
+}
+
+function hasMetricNameInStructuredFields(row, keys) {
+  if (!row) return false;
+
+  const containers = [
+    row.headers,
+    row.header,
+    row.columns,
+    row.columnNames,
+    row.fieldNames,
+    row.fields,
+    row.providedFields,
+    row.availableFields,
+    row.schema,
+    row.metrics,
+  ];
+
+  const structuredText = normalizeLogText(
+    containers
+      .map((value) => getStructuredPresenceText(value))
+      .filter(Boolean)
+      .join(' '),
+  );
+
+  if (!structuredText) return false;
+
+  return keys.some((key) => {
+    const alias = normalizeLogText(key);
+    const spacedAlias = normalizeLogText(
+      String(key)
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]/g, ' '),
+    );
+
+    return Boolean(
+      (alias && structuredText.includes(alias)) ||
+        (spacedAlias && structuredText.includes(spacedAlias)),
+    );
+  });
+}
+
+function rowHasOwnMetricKey(row, keys) {
+  return Boolean(row && keys.some((key) => Object.prototype.hasOwnProperty.call(row, key)));
+}
+
+function getRowMetricNumber(row, metric, fallback = NaN) {
+  const keys = SECONDARY_MATCH_METRIC_KEYS[metric] || [metric];
+  const key = findRawKey(row, keys);
+
+  if (!key) return fallback;
+
+  return parseNumericValue(row[key], fallback);
+}
+
+function getSecondaryWarMetricPresence(rows) {
+  const output = {};
+
+  (rows || []).forEach((row, index) => {
+    const warId = secondaryWarId(row, index);
+
+    output[warId] ||= {
+      __detailed: false,
+    };
+
+    Object.entries(SECONDARY_MATCH_METRIC_KEYS).forEach(([metric, keys]) => {
+      const key = findRawKey(row, keys);
+      const number = key ? parseNumericValue(row[key], NaN) : NaN;
+      const presenceFlag = getPresenceFlag(row, keys);
+      const explicitPresence =
+        presenceFlag === true ||
+        hasMetricNameInRawText(row, keys) ||
+        hasMetricNameInStructuredFields(row, keys);
+      const nonZeroValue = Number.isFinite(number) && number !== 0;
+
+      if (explicitPresence || nonZeroValue) {
+        output[warId][metric] = true;
+      }
+
+      if (SECONDARY_DETAIL_METRICS.includes(metric) && (explicitPresence || nonZeroValue)) {
+        output[warId].__detailed = true;
+      }
+    });
+  });
+
+  // When one of the extra columns exists in a detailed secondary log, a 0 in
+  // another extra column is still a real cell from that same log table. This is
+  // what makes values like Kawoy -> 2026-05-01 -> Damage to Fort = 0 count in
+  // the average, instead of being treated as an auto-generated missing value.
+  (rows || []).forEach((row, index) => {
+    const warId = secondaryWarId(row, index);
+    const presence = output[warId];
+
+    if (!presence?.__detailed) return;
+
+    SECONDARY_DETAIL_METRICS.forEach((metric) => {
+      const keys = SECONDARY_MATCH_METRIC_KEYS[metric] || [metric];
+      const number = getRowMetricNumber(row, metric, NaN);
+
+      if (rowHasOwnMetricKey(row, keys) && Number.isFinite(number)) {
+        presence[metric] = true;
+      }
+    });
+  });
+
+  return output;
+}
+
+function getSecondaryMetricExists(row, metric, warPresence = {}) {
+  const keys = SECONDARY_MATCH_METRIC_KEYS[metric] || [metric];
+
+  if (hasRawValue(row, keys)) return true;
+
+  const number = getRowMetricNumber(row, metric, NaN);
+
+  if (!Number.isFinite(number)) return false;
+
+  if (SECONDARY_CORE_METRICS.has(metric) && rowHasOwnMetricKey(row, keys)) {
+    return true;
+  }
+
+  if (number !== 0) return true;
+
+  if (warPresence?.[metric]) return true;
+
+  if (
+    SECONDARY_DETAIL_METRICS.includes(metric) &&
+    warPresence?.__detailed &&
+    rowHasOwnMetricKey(row, keys)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function getPresenceFlag(row, keys) {
@@ -1232,55 +1436,15 @@ function buildMatchHistoryAverages(matches) {
 }
 
 function getSecondaryMatchStats(row) {
-  const kills = readNumber(row, ['kills', 'Kills']);
-  const deaths = readNumber(row, ['deaths', 'Deaths']);
-  const killstreak = readNumber(row, [
-    'killStreak',
-    'killstreak',
-    'streak',
-    'Killstreak',
-    'KillStreak',
-  ]);
-  const killfeed = readNumber(row, [
-    'killFeed',
-    'killfeed',
-    'feed',
-    'KillFeed',
-    'Killfeed',
-  ]);
-  const damageDealt = readNumber(row, [
-    'damageDealt',
-    'damage_dealt',
-    'damageDone',
-    'damage',
-    'Damage Dealt',
-    'DamageDealt',
-  ]);
-  const damageTaken = readNumber(row, [
-    'damageTaken',
-    'damage_taken',
-    'Damage Taken',
-    'DamageTaken',
-  ]);
-  const ccHits = readNumber(row, ['ccHits', 'cc_hits', 'cc', 'CC Hits', 'CCHits']);
-  const damageToFort = readNumber(row, [
-    'damageToFort',
-    'damage_to_fort',
-    'fortDamage',
-    'damageFort',
-    'Damage to Fort',
-    'DamageToFort',
-  ]);
-
   return {
-    kills,
-    deaths,
-    killstreak,
-    killfeed,
-    damageDealt,
-    damageTaken,
-    ccHits,
-    damageToFort,
+    kills: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.kills),
+    deaths: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.deaths),
+    killstreak: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killstreak),
+    killfeed: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killfeed),
+    damageDealt: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageDealt),
+    damageTaken: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageTaken),
+    ccHits: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.ccHits),
+    damageToFort: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageToFort),
   };
 }
 
@@ -1647,9 +1811,9 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
     });
 
 
-    const secondaryRowsForPlayer = (stats.secondary?.rows || []).filter(
-      (row) => row.player === player,
-    );
+    const secondaryRows = stats.secondary?.rows || [];
+    const secondaryWarPresence = getSecondaryWarMetricPresence(secondaryRows);
+    const secondaryRowsForPlayer = secondaryRows.filter((row) => row.player === player);
 
     secondaryRowsForPlayer.forEach((row, index) => {
       const warId = secondaryWarId(row, index);
@@ -1744,51 +1908,15 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       const existingHas = existing?.__has || {};
       const date = row.date || row.war || existing?.date || warId;
 
-      const hasKills = hasRawValue(row, ['kills', 'Kills']);
-      const hasDeaths = hasRawValue(row, ['deaths', 'Deaths']);
-      const hasKillstreak = hasRawValue(row, [
-        'killStreak',
-        'killstreak',
-        'streak',
-        'Killstreak',
-        'KillStreak',
-      ]);
-      const hasKillfeed = hasRawValue(row, [
-        'killFeed',
-        'killfeed',
-        'feed',
-        'KillFeed',
-        'Killfeed',
-      ]);
-      const hasDamageDealt = hasRawValue(row, [
-        'damageDealt',
-        'damage_dealt',
-        'damageDone',
-        'damage',
-        'Damage Dealt',
-        'DamageDealt',
-      ]);
-      const hasDamageTaken = hasRawValue(row, [
-        'damageTaken',
-        'damage_taken',
-        'Damage Taken',
-        'DamageTaken',
-      ]);
-      const hasCcHits = hasRawValue(row, [
-        'ccHits',
-        'cc_hits',
-        'cc',
-        'CC Hits',
-        'CCHits',
-      ]);
-      const hasDamageToFort = hasRawValue(row, [
-        'damageToFort',
-        'damage_to_fort',
-        'fortDamage',
-        'damageFort',
-        'Damage to Fort',
-        'DamageToFort',
-      ]);
+      const warPresence = secondaryWarPresence[warId] || {};
+      const hasKills = getSecondaryMetricExists(row, 'kills', warPresence);
+      const hasDeaths = getSecondaryMetricExists(row, 'deaths', warPresence);
+      const hasKillstreak = getSecondaryMetricExists(row, 'killstreak', warPresence);
+      const hasKillfeed = getSecondaryMetricExists(row, 'killfeed', warPresence);
+      const hasDamageDealt = getSecondaryMetricExists(row, 'damageDealt', warPresence);
+      const hasDamageTaken = getSecondaryMetricExists(row, 'damageTaken', warPresence);
+      const hasCcHits = getSecondaryMetricExists(row, 'ccHits', warPresence);
+      const hasDamageToFort = getSecondaryMetricExists(row, 'damageToFort', warPresence);
 
       matchMap[warId] = {
         warId,
@@ -1909,7 +2037,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       wars: involvedWarIds.size,
       averageRank: formatAverageRank([
         ...buildAverageRankValuesFromPlayedWars(stats.ev, player),
-        ...buildSecondaryRankValues(stats.secondary?.rows || [], player, eventWarIdsForPlayer),
+        ...buildSecondaryRankValues(secondaryRows, player, eventWarIdsForPlayer),
       ]),
       streakItems,
       feedItems,
