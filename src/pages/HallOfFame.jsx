@@ -115,26 +115,124 @@ const demoStats = {
 function buildHallData(stats) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
+  const playerNames = new Set((safe.players || []).map((player) => player.name));
   const warsByPlayer = {};
   const killsByPlayerWar = {};
+  const warMap = {};
+
+  function eventWarId(event) {
+    return String(event.id || event.war || event.date || 'war');
+  }
+
+  function eventSortKey(event) {
+    return [
+      String(event.date || '9999-99-99'),
+      String(event.sec ?? 0).padStart(8, '0'),
+      String(event.i ?? 0).padStart(8, '0'),
+      eventWarId(event),
+    ].join(' ');
+  }
+
+  function getGuildKillPlayer(event) {
+    if (event.guildPlayer && event.type === 'kill') return event.guildPlayer;
+    if (event.type === 'kill' && playerNames.has(event.killer)) return event.killer;
+    if (event.type !== 'death' && playerNames.has(event.killer)) return event.killer;
+
+    return '';
+  }
+
+  function getGuildInvolvedPlayer(event) {
+    if (event.guildPlayer) return event.guildPlayer;
+    if (event.type === 'kill' && playerNames.has(event.killer)) return event.killer;
+    if (event.type === 'death' && playerNames.has(event.victim)) return event.victim;
+    if (playerNames.has(event.killer)) return event.killer;
+    if (playerNames.has(event.victim)) return event.victim;
+
+    return '';
+  }
 
   events.forEach((event) => {
-    const id = String(event.id || event.date || 'war');
+    const id = eventWarId(event);
+    warMap[id] ||= {
+      id,
+      date: String(event.date || ''),
+      sortKey: eventSortKey(event),
+      events: [],
+    };
+    warMap[id].events.push(event);
 
-    if (event.killer) {
-      warsByPlayer[event.killer] ||= new Set();
-      warsByPlayer[event.killer].add(id);
+    const involvedPlayer = getGuildInvolvedPlayer(event);
+    const killPlayer = getGuildKillPlayer(event);
 
-      if (event.type !== 'death') {
-        killsByPlayerWar[event.killer] ||= {};
-        killsByPlayerWar[event.killer][id] = (killsByPlayerWar[event.killer][id] || 0) + 1;
+    if (involvedPlayer) {
+      warsByPlayer[involvedPlayer] ||= new Set();
+      warsByPlayer[involvedPlayer].add(id);
+    }
+
+    if (killPlayer) {
+      warsByPlayer[killPlayer] ||= new Set();
+      warsByPlayer[killPlayer].add(id);
+      killsByPlayerWar[killPlayer] ||= {};
+      killsByPlayerWar[killPlayer][id] = (killsByPlayerWar[killPlayer][id] || 0) + 1;
+    }
+  });
+
+  const warList = Object.values(warMap).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  const totalWars = warList.length || new Set(events.map((event) => String(event.id || event.date))).size;
+  const thresholds = [1000, 3000, 5000];
+
+  const firstSeenWarIndex = {};
+  const cumulativeKills = {};
+  const thresholdReached = Object.fromEntries(
+    thresholds.map((threshold) => [threshold, []]),
+  );
+
+  warList.forEach((war, warIndex) => {
+    const killsThisWar = {};
+    const involvedThisWar = new Set();
+
+    war.events.forEach((event) => {
+      const involvedPlayer = getGuildInvolvedPlayer(event);
+      const killPlayer = getGuildKillPlayer(event);
+
+      if (involvedPlayer) involvedThisWar.add(involvedPlayer);
+      if (killPlayer) {
+        involvedThisWar.add(killPlayer);
+        killsThisWar[killPlayer] = (killsThisWar[killPlayer] || 0) + 1;
       }
-    }
+    });
 
-    if (event.victim) {
-      warsByPlayer[event.victim] ||= new Set();
-      warsByPlayer[event.victim].add(id);
-    }
+    involvedThisWar.forEach((name) => {
+      if (firstSeenWarIndex[name] == null) {
+        firstSeenWarIndex[name] = warIndex;
+      }
+    });
+
+    Object.entries(killsThisWar).forEach(([name, killsInWar]) => {
+      const before = cumulativeKills[name] || 0;
+      const after = before + killsInWar;
+      cumulativeKills[name] = after;
+
+      thresholds.forEach((threshold) => {
+        if (
+          before < threshold &&
+          after >= threshold &&
+          !thresholdReached[threshold].some((item) => item.name === name)
+        ) {
+          thresholdReached[threshold].push({
+            name,
+            threshold,
+            date: war.date || war.id,
+            warId: war.id,
+            globalWarIndex: warIndex,
+            fromFirstLogWars: warIndex + 1,
+            fromPlayerFirstLogWars:
+              warIndex - (firstSeenWarIndex[name] ?? warIndex) + 1,
+            totalKillsAtReach: after,
+          });
+        }
+      });
+    });
   });
 
   const rows = (safe.players || [])
@@ -151,7 +249,7 @@ function buildHallData(stats) {
       const wars = warsByPlayer[player.name]?.size || 0;
       const matchKills = Object.values(killsByPlayerWar[player.name] || {}).map((value) => num(value));
       const maxMatchKills = Math.max(0, ...matchKills);
-      const avgKillsPerMatch = wars ? kills / wars : kills;
+      const avgKillsPerMatch = totalWars ? kills / totalWars : kills;
       const score = Math.max(
         0,
         Math.round(
@@ -194,7 +292,6 @@ function buildHallData(stats) {
     })
     .sort((a, b) => b.score - a.score || b.kills - a.kills || a.name.localeCompare(b.name));
 
-  const totalWars = new Set(events.map((event) => String(event.id || event.date))).size;
   const bestKd = [...rows].filter((row) => row.kills >= 5).sort((a, b) => b.kd - a.kd)[0] || rows[0];
   const topKills = [...rows].sort((a, b) => b.kills - a.kills)[0] || rows[0];
   const topStreak = [...rows].sort((a, b) => b.streak - a.streak)[0] || rows[0];
@@ -215,7 +312,7 @@ function buildHallData(stats) {
       const month = String(event.date || '').slice(0, 7) || 'Unknown';
       acc[month] ||= { month, kills: 0, deaths: 0, wars: new Set() };
       if (event.type === 'death') acc[month].deaths += 1;
-      else acc[month].kills += 1;
+      else if (getGuildKillPlayer(event)) acc[month].kills += 1;
       acc[month].wars.add(String(event.id || event.date));
       return acc;
     }, {}),
@@ -223,18 +320,42 @@ function buildHallData(stats) {
     .map((item) => ({ ...item, wars: item.wars.size }))
     .sort((a, b) => b.month.localeCompare(a.month));
 
+  const thresholdLeaderboards = Object.fromEntries(
+    thresholds.map((threshold) => [
+      threshold,
+      {
+        first: [...thresholdReached[threshold]]
+          .sort(
+            (a, b) =>
+              a.globalWarIndex - b.globalWarIndex ||
+              a.name.localeCompare(b.name),
+          )
+          .slice(0, 10),
+        fastest: [...thresholdReached[threshold]]
+          .sort(
+            (a, b) =>
+              a.fromPlayerFirstLogWars - b.fromPlayerFirstLogWars ||
+              a.globalWarIndex - b.globalWarIndex ||
+              a.name.localeCompare(b.name),
+          )
+          .slice(0, 10),
+      },
+    ]),
+  );
+
   return {
     rows,
     achievements,
     months,
+    thresholdLeaderboards,
     topKillers: [...rows]
       .filter((row) => row.kills > 0)
       .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
-      .slice(0, 6),
+      .slice(0, 10),
     topDamagePlayers: [...rows]
       .filter((row) => row.damageDealt > 0)
       .sort((a, b) => b.damageDealt - a.damageDealt || a.name.localeCompare(b.name))
-      .slice(0, 6),
+      .slice(0, 10),
     totals: {
       kills: num(safe.kills) || rows.reduce((sum, row) => sum + row.kills, 0),
       deaths: num(safe.deaths) || rows.reduce((sum, row) => sum + row.deaths, 0),
@@ -570,11 +691,7 @@ function CombatOutputPanel({ data }) {
 
   const topAverageKills = [...data.rows]
     .filter((player) => player.kills > 0)
-    .map((player) => ({
-      ...player,
-      avgKills: player.avgKillsPerMatch ?? (player.wars ? player.kills / player.wars : player.kills),
-    }))
-    .sort((a, b) => b.avgKills - a.avgKills || b.kills - a.kills || a.name.localeCompare(b.name))
+    .sort((a, b) => b.avgKillsPerMatch - a.avgKillsPerMatch || b.kills - a.kills || a.name.localeCompare(b.name))
     .slice(0, 10);
 
   const topFraggers = [...data.rows]
@@ -583,7 +700,7 @@ function CombatOutputPanel({ data }) {
     .slice(0, 10);
 
   const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
-  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.avgKills));
+  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.avgKillsPerMatch));
   const maxSingleMatchKills = Math.max(1, ...topFraggers.map((player) => player.maxMatchKills));
 
   return (
@@ -615,9 +732,9 @@ function CombatOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.avgKills}
+                value={player.avgKillsPerMatch}
                 max={maxAverageKills}
-                right={player.avgKills.toFixed(2)}
+                right={player.avgKillsPerMatch.toFixed(2)}
                 tone="blue"
               />
             ))
@@ -645,6 +762,94 @@ function CombatOutputPanel({ data }) {
         </div>
       </div>
     </PremiumPanel>
+  );
+}
+
+function MilestoneLeaderboards({ data }) {
+  const thresholds = [1000, 3000, 5000];
+
+  function renderFirstLeaderboard(threshold) {
+    const rows = data.thresholdLeaderboards?.[threshold]?.first || [];
+    const maxValue = Math.max(1, ...rows.map((row) => row.fromFirstLogWars || 0));
+
+    return (
+      <div>
+        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+          First to {threshold} Kills
+        </p>
+        {rows.length ? (
+          rows.map((row, index) => (
+            <HallProgressRow
+              key={`${threshold}-first-${row.name}`}
+              label={`${index + 1}. ${row.name}`}
+              value={Math.max(1, maxValue - row.fromFirstLogWars + 1)}
+              max={maxValue}
+              right={row.date || `Log ${row.fromFirstLogWars}`}
+              tone="amber"
+            />
+          ))
+        ) : (
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
+            No player reached {threshold} kills yet.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  function renderFastestLeaderboard(threshold) {
+    const rows = data.thresholdLeaderboards?.[threshold]?.fastest || [];
+    const maxValue = Math.max(1, ...rows.map((row) => row.fromPlayerFirstLogWars || 0));
+
+    return (
+      <div>
+        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+          Fastest to {threshold} Kills
+        </p>
+        {rows.length ? (
+          rows.map((row, index) => (
+            <HallProgressRow
+              key={`${threshold}-fastest-${row.name}`}
+              label={`${index + 1}. ${row.name}`}
+              value={Math.max(1, maxValue - row.fromPlayerFirstLogWars + 1)}
+              max={maxValue}
+              right={`${row.fromPlayerFirstLogWars} logs`}
+              tone="cyan"
+            />
+          ))
+        ) : (
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
+            No player reached {threshold} kills yet.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <PremiumPanel className="p-5">
+        <SectionTitle icon={Trophy} title="First Milestones" />
+        <div className="grid gap-5 md:grid-cols-3">
+          {thresholds.map((threshold) => (
+            <React.Fragment key={`first-${threshold}`}>
+              {renderFirstLeaderboard(threshold)}
+            </React.Fragment>
+          ))}
+        </div>
+      </PremiumPanel>
+
+      <PremiumPanel className="p-5">
+        <SectionTitle icon={Zap} title="Fastest Milestones" />
+        <div className="grid gap-5 md:grid-cols-3">
+          {thresholds.map((threshold) => (
+            <React.Fragment key={`fastest-${threshold}`}>
+              {renderFastestLeaderboard(threshold)}
+            </React.Fragment>
+          ))}
+        </div>
+      </PremiumPanel>
+    </div>
   );
 }
 
@@ -700,6 +905,8 @@ function Variant1({ data }) {
   return (
     <div className="space-y-5">
       <CombatOutputPanel data={data} />
+
+      <MilestoneLeaderboards data={data} />
 
       <ArsenalOutputPanel data={data} />
 
