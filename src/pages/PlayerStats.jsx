@@ -1076,7 +1076,7 @@ function MatchHistoryHeaderCell({
     <button
       type="button"
       onClick={() => sortKey && onSort?.(sortKey)}
-      className={`flex w-full flex-col ${justify} rounded-xl px-1 py-1 transition hover:bg-white/5`}
+      className={`flex min-w-0 w-full flex-col ${justify} rounded-xl px-0.5 py-1 transition hover:bg-white/5`}
     >
       {average !== null && (
         <p
@@ -1091,7 +1091,7 @@ function MatchHistoryHeaderCell({
       )}
 
       <p
-        className="text-[11px] font-black uppercase tracking-[0.16em]"
+        className="text-[10px] font-black uppercase leading-tight tracking-[0.1em]"
         style={{ color }}
       >
         {children} <span className={active ? 'text-blue-300' : 'text-slate-600'}>{arrow}</span>
@@ -1103,11 +1103,11 @@ function MatchHistoryHeaderCell({
 function MatchHistoryValue({ children, color, prefix = null }) {
   return (
     <p
-      className="flex items-center justify-center gap-1.5 text-center text-sm font-black"
+      className="flex min-w-0 items-center justify-center gap-1 text-center text-sm font-black"
       style={{ color }}
     >
-      {prefix && <span className="text-xs leading-none">{prefix}</span>}
-      <span>{children}</span>
+      {prefix && <span className="shrink-0 text-xs leading-none">{prefix}</span>}
+      <span className="min-w-0 truncate">{children}</span>
     </p>
   );
 }
@@ -1154,7 +1154,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
   if (!safeMatches.length) return null;
 
   const gridCols =
-    'grid-cols-[38px_minmax(220px,1.15fr)_88px_88px_96px_128px_116px_148px_148px_112px_148px]';
+    'grid-cols-[34px_minmax(140px,170px)_60px_60px_70px_90px_80px_106px_106px_74px_108px]';
 
   return (
     <Panel>
@@ -1166,10 +1166,10 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
       </div>
 
       <div className={`max-h-[420px] overflow-auto pr-2 ${scrollCls}`}>
-        <div className="min-w-[1360px] space-y-2">
+        <div className="min-w-[1040px] space-y-2">
           {/* Header */}
           <div
-            className={`sticky top-0 z-10 grid ${gridCols} gap-5 rounded-2xl border border-slate-800 bg-slate-950/95 px-4 py-2.5 backdrop-blur`}
+            className={`sticky top-0 z-10 grid ${gridCols} gap-2 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur`}
           >
             <div />
             <MatchHistoryHeaderCell
@@ -1274,7 +1274,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
                 type="button"
                 key={`${match.warId}-${match.date}-${index}`}
                 onClick={() => onOpenMatchHistory?.(match)}
-                className={`grid ${gridCols} w-full cursor-pointer items-center gap-5 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-4 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                className={`grid ${gridCols} w-full cursor-pointer items-center gap-2 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
                 title="Open this match in Overview"
               >
                 {/* Index */}
