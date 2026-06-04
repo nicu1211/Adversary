@@ -893,8 +893,18 @@ const MATCH_HISTORY_COLORS = {
   damageToFort: '#fde047',
 };
 
+function findRawKey(row, keys) {
+  return keys.find(
+    (key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '',
+  );
+}
+
 function hasRawValue(row, keys) {
-  return keys.some((key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '');
+  const key = findRawKey(row, keys);
+
+  if (!key) return false;
+
+  return Number.isFinite(parseNumericValue(row[key], NaN));
 }
 
 function parseNumericValue(value, fallback = 0) {
@@ -965,9 +975,7 @@ function parseNumericValue(value, fallback = 0) {
 }
 
 function readNumber(row, keys, fallback = 0) {
-  const key = keys.find(
-    (item) => row?.[item] !== undefined && row?.[item] !== null && row?.[item] !== '',
-  );
+  const key = findRawKey(row, keys);
 
   if (!key) return fallback;
 
@@ -1009,12 +1017,20 @@ function formatMatchNumber(value) {
   return formatCompactNumber(value, 2);
 }
 
+function formatNullableMatchNumber(value) {
+  return value === null ? null : formatMatchNumber(value);
+}
+
 function formatKdNumber(value) {
-  const number = Number(value) || 0;
+  const number = Number(value);
 
   if (!Number.isFinite(number)) return '0.00';
 
   return number.toFixed(2);
+}
+
+function formatNullableKdNumber(value) {
+  return value === null ? null : formatKdNumber(value);
 }
 
 function getMatchMetricValue(match, key) {
@@ -1028,25 +1044,29 @@ function getMatchKdValue(match) {
   return deaths ? kills / deaths : kills;
 }
 
-function getMatchSortValue(match, key) {
-  if (key === 'date') return String(match?.date || '');
-  if (key === 'kd') return getMatchKdValue(match);
-
-  return getMatchMetricValue(match, key);
-}
-
 function getMatchMetricExists(match, key) {
   if (!match) return false;
 
   if (key === 'kd') {
-    return getMatchMetricExists(match, 'kills') || getMatchMetricExists(match, 'deaths');
+    return getMatchMetricExists(match, 'kills') && getMatchMetricExists(match, 'deaths');
   }
 
   if (match.__has && Object.prototype.hasOwnProperty.call(match.__has, key)) {
     return Boolean(match.__has[key]);
   }
 
-  return match[key] !== undefined && match[key] !== null && match[key] !== '';
+  const value = match[key];
+
+  if (value === undefined || value === null || value === '') return false;
+
+  return Number.isFinite(parseNumericValue(value, NaN));
+}
+
+function getMatchSortValue(match, key) {
+  if (key === 'date') return String(match?.date || '');
+  if (key === 'kd') return getMatchKdValue(match);
+
+  return getMatchMetricValue(match, key);
 }
 
 function getAverageFromExistingMatches(matches, key, getValue) {
@@ -1055,9 +1075,21 @@ function getAverageFromExistingMatches(matches, key, getValue) {
     .map((match) => Number(getValue(match)))
     .filter((value) => Number.isFinite(value));
 
-  if (!values.length) return 0;
+  if (!values.length) return null;
 
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function formatMatchCell(match, key) {
+  if (!getMatchMetricExists(match, key)) return '—';
+
+  return formatMatchNumber(getMatchMetricValue(match, key));
+}
+
+function formatMatchKdCell(match) {
+  if (!getMatchMetricExists(match, 'kd')) return '—';
+
+  return formatKdNumber(getMatchKdValue(match));
 }
 
 function buildMatchHistoryAverages(matches) {
@@ -1207,6 +1239,14 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 
   const sortedMatches = useMemo(() => {
     return [...safeMatches].sort((a, b) => {
+      const metricSort = sort.key !== 'date';
+      const aExists = !metricSort || getMatchMetricExists(a, sort.key);
+      const bExists = !metricSort || getMatchMetricExists(b, sort.key);
+
+      if (aExists !== bExists) {
+        return aExists ? -1 : 1;
+      }
+
       const av = getMatchSortValue(a, sort.key);
       const bv = getMatchSortValue(b, sort.key);
 
@@ -1267,7 +1307,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.kills}
-              average={formatMatchNumber(averages.kills)}
+              average={formatNullableMatchNumber(averages.kills)}
               sortKey="kills"
               sort={sort}
               onSort={toggleSort}
@@ -1276,7 +1316,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.deaths}
-              average={formatMatchNumber(averages.deaths)}
+              average={formatNullableMatchNumber(averages.deaths)}
               sortKey="deaths"
               sort={sort}
               onSort={toggleSort}
@@ -1285,7 +1325,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.kdPositive}
-              average={formatKdNumber(averages.kd)}
+              average={formatNullableKdNumber(averages.kd)}
               sortKey="kd"
               sort={sort}
               onSort={toggleSort}
@@ -1294,7 +1334,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.killstreak}
-              average={formatMatchNumber(averages.killstreak)}
+              average={formatNullableMatchNumber(averages.killstreak)}
               sortKey="killstreak"
               sort={sort}
               onSort={toggleSort}
@@ -1303,7 +1343,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.killfeed}
-              average={formatMatchNumber(averages.killfeed)}
+              average={formatNullableMatchNumber(averages.killfeed)}
               sortKey="killfeed"
               sort={sort}
               onSort={toggleSort}
@@ -1312,7 +1352,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageDealt}
-              average={formatMatchNumber(averages.damageDealt)}
+              average={formatNullableMatchNumber(averages.damageDealt)}
               sortKey="damageDealt"
               sort={sort}
               onSort={toggleSort}
@@ -1321,7 +1361,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageTaken}
-              average={formatMatchNumber(averages.damageTaken)}
+              average={formatNullableMatchNumber(averages.damageTaken)}
               sortKey="damageTaken"
               sort={sort}
               onSort={toggleSort}
@@ -1330,7 +1370,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.ccHits}
-              average={formatMatchNumber(averages.ccHits)}
+              average={formatNullableMatchNumber(averages.ccHits)}
               sortKey="ccHits"
               sort={sort}
               onSort={toggleSort}
@@ -1339,7 +1379,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageToFort}
-              average={formatMatchNumber(averages.damageToFort)}
+              average={formatNullableMatchNumber(averages.damageToFort)}
               sortKey="damageToFort"
               sort={sort}
               onSort={toggleSort}
@@ -1353,7 +1393,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
             const matchKills = getMatchMetricValue(match, 'kills');
             const matchDeaths = getMatchMetricValue(match, 'deaths');
             const positive = matchKills >= matchDeaths;
-            const kdValue = formatKdNumber(getMatchKdValue(match));
+            const kdValue = formatMatchKdCell(match);
 
             return (
               <button
@@ -1375,12 +1415,12 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 
                 {/* Kills */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.kills} prefix="⚔">
-                  {formatMatchNumber(getMatchMetricValue(match, 'kills'))}
+                  {formatMatchCell(match, 'kills')}
                 </MatchHistoryValue>
 
                 {/* Deaths */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.deaths} prefix="☠">
-                  {formatMatchNumber(getMatchMetricValue(match, 'deaths'))}
+                  {formatMatchCell(match, 'deaths')}
                 </MatchHistoryValue>
 
                 {/* K/D */}
@@ -1397,32 +1437,32 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 
                 {/* Killstreak */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.killstreak}>
-                  {formatMatchNumber(getMatchMetricValue(match, 'killstreak'))}
+                  {formatMatchCell(match, 'killstreak')}
                 </MatchHistoryValue>
 
                 {/* KillFeed */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.killfeed} prefix="🔥">
-                  {formatMatchNumber(getMatchMetricValue(match, 'killfeed'))}
+                  {formatMatchCell(match, 'killfeed')}
                 </MatchHistoryValue>
 
                 {/* Damage Dealt */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageDealt}>
-                  {formatMatchNumber(getMatchMetricValue(match, 'damageDealt'))}
+                  {formatMatchCell(match, 'damageDealt')}
                 </MatchHistoryValue>
 
                 {/* Damage Taken */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageTaken}>
-                  {formatMatchNumber(getMatchMetricValue(match, 'damageTaken'))}
+                  {formatMatchCell(match, 'damageTaken')}
                 </MatchHistoryValue>
 
                 {/* CC Hits */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.ccHits}>
-                  {formatMatchNumber(getMatchMetricValue(match, 'ccHits'))}
+                  {formatMatchCell(match, 'ccHits')}
                 </MatchHistoryValue>
 
                 {/* Damage to Fort */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageToFort}>
-                  {formatMatchNumber(getMatchMetricValue(match, 'damageToFort'))}
+                  {formatMatchCell(match, 'damageToFort')}
                 </MatchHistoryValue>
               </button>
             );
