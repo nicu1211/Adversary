@@ -198,7 +198,13 @@ function markerColor(markerType) {
   if (markerType === 'bluefeed') return '#3b82f6';
   if (markerType === 'redfeed') return '#ef4444';
 
-  return '#facc15';
+  return '#f97316';
+}
+
+function markerIcon(markerType) {
+  if (markerType === 'bluefeed' || markerType === 'redfeed') return '☠';
+
+  return '🔥';
 }
 
 function markerTooltip(marker) {
@@ -782,19 +788,39 @@ export function KillDeathChart({
           })}
 
           {markerPoints.map((marker) => (
-            <circle
+            <g
               key={marker.id || `timeline-marker-${marker.markerIndex}`}
-              cx={marker.x}
-              cy={marker.y}
-              r="4"
-              fill={markerColor(marker.markerType)}
-              stroke="rgba(15,23,42,0.95)"
-              strokeWidth="1.5"
+              transform={`translate(${marker.x} ${marker.y})`}
               onMouseEnter={() => {
                 setHoveredMarker(marker);
                 setHoveredIndex(null);
               }}
-            />
+            >
+              <circle
+                cx="0"
+                cy="0"
+                r="10"
+                fill="transparent"
+              />
+
+              <text
+                x="0"
+                y="0"
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={marker.markerType === 'bluefeed' || marker.markerType === 'redfeed' ? '12' : '13'}
+                fontWeight="900"
+                fill={markerColor(marker.markerType)}
+                style={{
+                  paintOrder: 'stroke',
+                  stroke: 'rgba(15,23,42,0.95)',
+                  strokeWidth: '2.5px',
+                  pointerEvents: 'none',
+                }}
+              >
+                {markerIcon(marker.markerType)}
+              </text>
+            </g>
           ))}
         </svg>
       </div>
