@@ -116,13 +116,21 @@ function buildHallData(stats) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
   const warsByPlayer = {};
+  const killsByPlayerWar = {};
 
   events.forEach((event) => {
     const id = String(event.id || event.date || 'war');
+
     if (event.killer) {
       warsByPlayer[event.killer] ||= new Set();
       warsByPlayer[event.killer].add(id);
+
+      if (event.type !== 'death') {
+        killsByPlayerWar[event.killer] ||= {};
+        killsByPlayerWar[event.killer][id] = (killsByPlayerWar[event.killer][id] || 0) + 1;
+      }
     }
+
     if (event.victim) {
       warsByPlayer[event.victim] ||= new Set();
       warsByPlayer[event.victim].add(id);
@@ -141,6 +149,9 @@ function buildHallData(stats) {
       const ccHits = num(player.ccHits);
       const fortDamage = num(player.fortDamage);
       const wars = warsByPlayer[player.name]?.size || 0;
+      const matchKills = Object.values(killsByPlayerWar[player.name] || {}).map((value) => num(value));
+      const maxMatchKills = Math.max(0, ...matchKills);
+      const avgKillsPerMatch = wars ? kills / wars : kills;
       const score = Math.max(
         0,
         Math.round(
@@ -175,6 +186,8 @@ function buildHallData(stats) {
         damageTaken,
         ccHits,
         fortDamage,
+        maxMatchKills,
+        avgKillsPerMatch,
         score,
         title,
       };
@@ -553,33 +566,25 @@ function CombatOutputPanel({ data }) {
   const topTotalKills = [...data.rows]
     .filter((player) => player.kills > 0)
     .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
-    .slice(0, 6);
+    .slice(0, 10);
 
   const topAverageKills = [...data.rows]
     .filter((player) => player.kills > 0)
     .map((player) => ({
       ...player,
-      avgKills: player.wars ? player.kills / player.wars : player.kills,
+      avgKills: player.avgKillsPerMatch ?? (player.wars ? player.kills / player.wars : player.kills),
     }))
     .sort((a, b) => b.avgKills - a.avgKills || b.kills - a.kills || a.name.localeCompare(b.name))
-    .slice(0, 6);
+    .slice(0, 10);
 
   const topFraggers = [...data.rows]
-    .filter((player) => player.kills > 0)
-    .map((player) => ({
-      ...player,
-      fragScore:
-        player.kills +
-        player.kd * 35 +
-        player.streak * 18 +
-        player.feed * 24,
-    }))
-    .sort((a, b) => b.fragScore - a.fragScore || b.kills - a.kills || a.name.localeCompare(b.name))
-    .slice(0, 6);
+    .filter((player) => player.maxMatchKills > 0)
+    .sort((a, b) => b.maxMatchKills - a.maxMatchKills || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 10);
 
   const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
   const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.avgKills));
-  const maxFraggerScore = Math.max(1, ...topFraggers.map((player) => player.fragScore));
+  const maxSingleMatchKills = Math.max(1, ...topFraggers.map((player) => player.maxMatchKills));
 
   return (
     <PremiumPanel className="p-5">
@@ -628,14 +633,14 @@ function CombatOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.fragScore}
-                max={maxFraggerScore}
-                right={shortNum(player.kills)}
+                value={player.maxMatchKills}
+                max={maxSingleMatchKills}
+                right={shortNum(player.maxMatchKills)}
                 tone="emerald"
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No fraggers yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single-match frag data yet.</p>
           )}
         </div>
       </div>
