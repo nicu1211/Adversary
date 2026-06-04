@@ -909,12 +909,47 @@ function readNumber(row, keys, fallback = 0) {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function formatMatchNumber(value) {
+function trimCompactZeros(value) {
+  return String(value)
+    .replace(/\.0+$/, '')
+    .replace(/(\.\d*?)0+$/, '$1');
+}
+
+function formatCompactNumber(value, decimals = 2) {
   const number = Number(value) || 0;
 
   if (!Number.isFinite(number)) return '0';
 
-  return Number.isInteger(number) ? String(number) : number.toFixed(2);
+  const abs = Math.abs(number);
+  const sign = number < 0 ? '-' : '';
+
+  if (abs >= 1000000000) {
+    return `${sign}${trimCompactZeros((abs / 1000000000).toFixed(1))}b`;
+  }
+
+  if (abs >= 1000000) {
+    return `${sign}${trimCompactZeros((abs / 1000000).toFixed(1))}m`;
+  }
+
+  if (abs >= 1000) {
+    return `${sign}${trimCompactZeros((abs / 1000).toFixed(1))}k`;
+  }
+
+  if (Number.isInteger(number)) return String(number);
+
+  return trimCompactZeros(number.toFixed(decimals));
+}
+
+function formatMatchNumber(value) {
+  return formatCompactNumber(value, 2);
+}
+
+function formatKdNumber(value) {
+  const number = Number(value) || 0;
+
+  if (!Number.isFinite(number)) return '0.00';
+
+  return number.toFixed(2);
 }
 
 function getMatchKdValue(match) {
@@ -924,12 +959,11 @@ function getMatchKdValue(match) {
   return deaths ? kills / deaths : kills;
 }
 
-function formatAverageNumber(value) {
-  const number = Number(value) || 0;
+function getMatchSortValue(match, key) {
+  if (key === 'date') return String(match?.date || '');
+  if (key === 'kd') return getMatchKdValue(match);
 
-  if (!Number.isFinite(number)) return '0.00';
-
-  return number.toFixed(2);
+  return Number(match?.[key]) || 0;
 }
 
 function buildMatchHistoryAverages(matches) {
@@ -1025,9 +1059,25 @@ function getSecondaryMatchStats(row) {
   };
 }
 
-function MatchHistoryHeaderCell({ children, color, average = null }) {
+function MatchHistoryHeaderCell({
+  children,
+  color,
+  average = null,
+  sortKey = '',
+  sort,
+  onSort,
+  align = 'center',
+}) {
+  const active = sortKey && sort?.key === sortKey;
+  const arrow = active ? (sort.dir === 'desc' ? '↓' : '↑') : '↕';
+  const justify = align === 'left' ? 'items-start text-left' : 'items-center text-center';
+
   return (
-    <div className="text-center">
+    <button
+      type="button"
+      onClick={() => sortKey && onSort?.(sortKey)}
+      className={`flex w-full flex-col ${justify} rounded-xl px-1 py-1 transition hover:bg-white/5`}
+    >
       {average !== null && (
         <p
           className="mb-1 text-sm font-black leading-none tracking-tight"
@@ -1044,9 +1094,9 @@ function MatchHistoryHeaderCell({ children, color, average = null }) {
         className="text-[11px] font-black uppercase tracking-[0.16em]"
         style={{ color }}
       >
-        {children}
+        {children} <span className={active ? 'text-blue-300' : 'text-slate-600'}>{arrow}</span>
       </p>
-    </div>
+    </button>
   );
 }
 
@@ -1063,101 +1113,169 @@ function MatchHistoryValue({ children, color, prefix = null }) {
 }
 
 function MatchHistoryList({ matches, onOpenMatchHistory }) {
-  if (!matches || !matches.length) return null;
+  const [sort, setSort] = useState({
+    key: 'date',
+    dir: 'desc',
+  });
 
-  const averages = buildMatchHistoryAverages(matches);
+  const safeMatches = matches || [];
+  const averages = buildMatchHistoryAverages(safeMatches);
+
+  const sortedMatches = useMemo(() => {
+    return [...safeMatches].sort((a, b) => {
+      const av = getMatchSortValue(a, sort.key);
+      const bv = getMatchSortValue(b, sort.key);
+
+      let result;
+
+      if (typeof av === 'string' || typeof bv === 'string') {
+        result = String(av).localeCompare(String(bv));
+      } else if (av === bv) {
+        result = String(b.date || '').localeCompare(String(a.date || ''));
+      } else {
+        result = av - bv;
+      }
+
+      if (!result) {
+        result = String(a.warId || '').localeCompare(String(b.warId || ''));
+      }
+
+      return sort.dir === 'asc' ? result : -result;
+    });
+  }, [safeMatches, sort]);
+
+  function toggleSort(key) {
+    setSort((current) => ({
+      key,
+      dir: current.key === key && current.dir === 'desc' ? 'asc' : 'desc',
+    }));
+  }
+
+  if (!safeMatches.length) return null;
+
   const gridCols =
-    'grid-cols-[32px_minmax(180px,1fr)_72px_72px_82px_104px_96px_124px_124px_92px_124px]';
+    'grid-cols-[38px_minmax(220px,1.15fr)_88px_88px_96px_128px_116px_148px_148px_112px_148px]';
 
   return (
     <Panel>
       <div className="mb-4">
         <h3 className="text-2xl font-black">Match History</h3>
         <p className="mt-0.5 text-xs font-bold text-slate-500">
-          All matches for this player · {matches.length} total
+          All matches for this player · {safeMatches.length} total
         </p>
       </div>
 
       <div className={`max-h-[420px] overflow-auto pr-2 ${scrollCls}`}>
-        <div className="min-w-[1120px] space-y-2">
+        <div className="min-w-[1360px] space-y-2">
           {/* Header */}
           <div
-            className={`sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur`}
+            className={`sticky top-0 z-10 grid ${gridCols} gap-5 rounded-2xl border border-slate-800 bg-slate-950/95 px-4 py-2.5 backdrop-blur`}
           >
             <div />
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            <MatchHistoryHeaderCell
+              color="#94a3b8"
+              sortKey="date"
+              sort={sort}
+              onSort={toggleSort}
+              align="left"
+            >
               Date
-            </p>
+            </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.kills}
-              average={formatAverageNumber(averages.kills)}
+              average={formatMatchNumber(averages.kills)}
+              sortKey="kills"
+              sort={sort}
+              onSort={toggleSort}
             >
               Kills
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.deaths}
-              average={formatAverageNumber(averages.deaths)}
+              average={formatMatchNumber(averages.deaths)}
+              sortKey="deaths"
+              sort={sort}
+              onSort={toggleSort}
             >
               Deaths
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.kdPositive}
-              average={formatAverageNumber(averages.kd)}
+              average={formatKdNumber(averages.kd)}
+              sortKey="kd"
+              sort={sort}
+              onSort={toggleSort}
             >
               K/D
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.killstreak}
-              average={formatAverageNumber(averages.killstreak)}
+              average={formatMatchNumber(averages.killstreak)}
+              sortKey="killstreak"
+              sort={sort}
+              onSort={toggleSort}
             >
               Killstreak
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.killfeed}
-              average={formatAverageNumber(averages.killfeed)}
+              average={formatMatchNumber(averages.killfeed)}
+              sortKey="killfeed"
+              sort={sort}
+              onSort={toggleSort}
             >
               KillFeed
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageDealt}
-              average={formatAverageNumber(averages.damageDealt)}
+              average={formatMatchNumber(averages.damageDealt)}
+              sortKey="damageDealt"
+              sort={sort}
+              onSort={toggleSort}
             >
               Damage Dealt
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageTaken}
-              average={formatAverageNumber(averages.damageTaken)}
+              average={formatMatchNumber(averages.damageTaken)}
+              sortKey="damageTaken"
+              sort={sort}
+              onSort={toggleSort}
             >
               Damage Taken
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.ccHits}
-              average={formatAverageNumber(averages.ccHits)}
+              average={formatMatchNumber(averages.ccHits)}
+              sortKey="ccHits"
+              sort={sort}
+              onSort={toggleSort}
             >
               CC Hits
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageToFort}
-              average={formatAverageNumber(averages.damageToFort)}
+              average={formatMatchNumber(averages.damageToFort)}
+              sortKey="damageToFort"
+              sort={sort}
+              onSort={toggleSort}
             >
               Damage to Fort
             </MatchHistoryHeaderCell>
           </div>
 
           {/* Rows */}
-          {matches.map((match, index) => {
+          {sortedMatches.map((match, index) => {
             const positive = match.kills >= match.deaths;
-            const kdValue = match.deaths
-              ? (match.kills / match.deaths).toFixed(2)
-              : match.kills.toFixed(2);
+            const kdValue = formatKdNumber(getMatchKdValue(match));
 
             return (
               <button
                 type="button"
                 key={`${match.warId}-${match.date}-${index}`}
                 onClick={() => onOpenMatchHistory?.(match)}
-                className={`grid ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
-                title="Open this day in Match History"
+                className={`grid ${gridCols} w-full cursor-pointer items-center gap-5 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-4 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                title="Open this match in Overview"
               >
                 {/* Index */}
                 <span className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-[10px] font-black text-slate-400">
