@@ -1,14 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Activity,
   Award,
   BarChart3,
   CalendarDays,
   ChevronRight,
   Crown,
   Flame,
-  Medal,
-  Search,
   Shield,
   Skull,
   Sparkles,
@@ -520,7 +517,7 @@ function TopLegendCard({ row, rank, wide = false, center = false }) {
   );
 }
 
-function HeaderControls({ active, setActive }) {
+function HeaderControls() {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
@@ -534,25 +531,9 @@ function HeaderControls({ active, setActive }) {
               <Sparkles className="h-4 w-4" /> Adversary Guild
             </div>
             <h2 className="text-3xl font-black tracking-tight text-white md:text-5xl">Hall of Fame</h2>
-            <p className="mt-1 text-sm font-semibold text-slate-400">8 variante mai stilizate, dar încă potrivite cu Match History.</p>
+            <p className="mt-1 text-sm font-semibold text-slate-400">Featured Legend with Achievement Wall.</p>
           </div>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {Array.from({ length: 8 }, (_, index) => index + 1).map((id) => (
-          <button
-            key={id}
-            onClick={() => setActive(id)}
-            className={cls(
-              'rounded-xl border px-3 py-2 text-xs font-black transition',
-              active === id
-                ? 'border-blue-400 bg-blue-500/20 text-blue-100 shadow-[0_0_24px_rgba(59,130,246,.2)]'
-                : 'border-slate-800 bg-slate-950/80 text-slate-500 hover:border-slate-700 hover:text-slate-300',
-            )}
-          >
-            V{id}
-          </button>
-        ))}
       </div>
     </div>
   );
@@ -681,209 +662,20 @@ function Variant1({ data }) {
 
       <ArsenalOutputPanel data={data} />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} compact />)}</div>
-    </div>
-  );
-}
-
-function Variant2({ data }) {
-  const podium = [data.rows[1], data.rows[0], data.rows[2]].filter(Boolean);
-
-  return (
-    <div className="space-y-5">
-      <PremiumPanel className="p-5" glow>
-        <SectionTitle icon={Medal} title="Top 3 Podium" action="All time" />
-        <div className="grid items-end gap-4 lg:grid-cols-3">
-          {podium.map((row) => {
-            const rank = data.rows.findIndex((item) => item.name === row.name) + 1;
-            return <TopLegendCard key={row.name} row={row} rank={rank} wide={rank === 1} center={rank === 1} />;
-          })}
-        </div>
-      </PremiumPanel>
-      <Leaderboard rows={data.rows} limit={8} title="All Legends Ranking" />
-    </div>
-  );
-}
-
-function Variant3({ data }) {
-  return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_.72fr]">
       <PremiumPanel className="p-5" glow>
         <SectionTitle icon={Award} title="Achievement Wall" action="View all" />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} />)}</div>
-      </PremiumPanel>
-      <div className="space-y-5">
-        <PremiumPanel className="p-5">
-          <SectionTitle icon={BarChart3} title="Guild Records" />
-          <div className="space-y-3">
-            <StatCard icon={Trophy} label="Prestige" value={shortNum(data.totals.score)} tone="blue" />
-            <StatCard icon={Swords} label="Top Kill Count" value={nf.format(data.achievements[1].player?.kills || 0)} tone="rose" />
-            <StatCard icon={Flame} label="Longest Streak" value={nf.format(data.achievements[3].player?.streak || 0)} tone="orange" />
-          </div>
-        </PremiumPanel>
-        <PremiumPanel className="p-5">
-          <SectionTitle icon={Crown} title="Mini Leaderboard" />
-          <div className="space-y-3">{data.rows.slice(0, 4).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 1} />)}</div>
-        </PremiumPanel>
-      </div>
-    </div>
-  );
-}
-
-function Variant4({ data }) {
-  return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-5">
-        <StatCard icon={Crown} label="Total Legends" value={data.totals.players} sub="calculated" tone="amber" />
-        <StatCard icon={Medal} label="Hall Score" value={shortNum(data.totals.score)} sub="guild total" tone="blue" />
-        <StatCard icon={Swords} label="Record Kills" value={nf.format(data.rows[0]?.kills || 0)} sub={data.rows[0]?.name} tone="rose" />
-        <StatCard icon={Target} label="Best K/D" value={data.achievements[2].value} sub={data.achievements[2].player?.name} tone="emerald" />
-        <StatCard icon={Shield} label="Wars" value={data.totals.wars} sub="selected logs" tone="violet" />
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[1fr_.42fr]">
-        <div>
-          <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 shadow-xl">
-            <Search className="h-4 w-4 text-slate-500" />
-            <input disabled placeholder="Search players..." className="w-full bg-transparent text-sm font-bold text-slate-400 outline-none placeholder:text-slate-600" />
-          </div>
-          <Leaderboard rows={data.rows} limit={10} title="Data Leaderboard" />
-        </div>
-        <div className="space-y-5">
-          <PremiumPanel className="p-5">
-            <SectionTitle icon={Users} title="Latest Inducted" action="View all" />
-            <div className="space-y-3">{data.rows.slice(0, 5).map((row) => <TopLegendCard key={row.name} row={row} rank={data.rows.indexOf(row) + 1} />)}</div>
-          </PremiumPanel>
-          <PremiumPanel className="p-5">
-            <SectionTitle icon={Activity} title="Badge Summary" />
-            <div className="space-y-3">
-              {data.achievements.slice(0, 5).map((item) => (
-                <div key={item.title} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-sm">
-                  <span className="font-bold text-slate-300">{item.title}</span>
-                  <span className="font-black text-blue-300">{item.player?.name}</span>
-                </div>
-              ))}
-            </div>
-          </PremiumPanel>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Variant5({ data }) {
-  return (
-    <div className="grid gap-5 xl:grid-cols-[.75fr_1.25fr]">
-      <PremiumPanel className="p-5">
-        <SectionTitle icon={CalendarDays} title="Legacy Timeline" action="Archive" />
-        <div className="space-y-4">
-          {data.months.slice(0, 6).map((month, index) => (
-            <div key={month.month} className="relative rounded-2xl border border-slate-800 bg-slate-950/80 p-4 shadow-lg">
-              <div className="absolute left-0 top-4 h-10 w-1 rounded-r-full bg-blue-500/60" />
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-black text-white">Season {month.month}</div>
-                  <div className="mt-1 text-xs font-bold text-slate-500">{month.wars} wars recorded</div>
-                </div>
-                <div className="grid h-10 w-10 place-items-center rounded-xl border border-blue-400/20 bg-blue-500/10 text-sm font-black text-blue-200">{index + 1}</div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div className="rounded-xl bg-slate-900/80 p-2"><span className="text-slate-500">Kills</span><div className="font-black text-slate-100">{month.kills}</div></div>
-                <div className="rounded-xl bg-slate-900/80 p-2"><span className="text-slate-500">Deaths</span><div className="font-black text-slate-100">{month.deaths}</div></div>
-                <div className="rounded-xl bg-slate-900/80 p-2"><span className="text-slate-500">K/D</span><div className="font-black text-slate-100">{kd(month.kills, month.deaths).toFixed(2)}</div></div>
-              </div>
-            </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data.achievements.map((item) => (
+            <AchievementCard key={item.title} item={item} />
           ))}
         </div>
       </PremiumPanel>
-      <div className="space-y-5"><Variant1 data={data} /></div>
-    </div>
-  );
-}
-
-function Variant6({ data }) {
-  const leader = data.rows[0];
-
-  return (
-    <div className="space-y-5">
-      <PremiumPanel className="p-8 text-center" glow>
-        <div className="mx-auto grid h-24 w-24 place-items-center rounded-[2rem] border border-blue-400/25 bg-blue-500/10 text-4xl font-black text-blue-200 shadow-[0_0_44px_rgba(59,130,246,.18)]">{initials(leader.name)}</div>
-        <div className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-blue-300">Minimal Prestige</div>
-        <div className="mt-2 text-5xl font-black text-white">{leader.name}</div>
-        <div className="mt-2 text-lg font-bold text-slate-400">{leader.title}</div>
-        <div className="mx-auto mt-6 grid max-w-5xl gap-3 md:grid-cols-5">
-          <StatCard icon={Trophy} label="Score" value={nf.format(leader.score)} tone="blue" />
-          <StatCard icon={Swords} label="Kills" value={nf.format(leader.kills)} tone="rose" />
-          <StatCard icon={Skull} label="Deaths" value={nf.format(leader.deaths)} tone="slate" />
-          <StatCard icon={Target} label="K/D" value={leader.kd.toFixed(2)} tone="emerald" />
-          <StatCard icon={Flame} label="Streak" value={leader.streak} tone="orange" />
-        </div>
-      </PremiumPanel>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">{data.rows.slice(1, 6).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 2} />)}</div>
-    </div>
-  );
-}
-
-function Variant7({ data }) {
-  return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        {data.achievements.map((item) => {
-          const Icon = item.icon;
-          const toneInfo = getTone(item.tone);
-          return (
-            <div key={item.title} className="group rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-4 text-center shadow-2xl transition hover:-translate-y-1 hover:border-blue-400/30">
-              <div className={cls('mx-auto grid h-16 w-16 place-items-center rounded-2xl border shadow-lg', toneInfo.soft, toneInfo.glow)}>
-                <Icon className="h-8 w-8" />
-              </div>
-              <div className="mt-4 text-sm font-black uppercase tracking-wide text-white">{item.title}</div>
-              <div className={cls('mt-2 text-2xl font-black', toneInfo.text)}>{item.value}</div>
-              <div className="mt-1 text-xs font-bold text-slate-500">{item.player?.name}</div>
-            </div>
-          );
-        })}
-      </div>
-      <Leaderboard rows={data.rows} limit={10} title="Trophy Room Ranking" />
-    </div>
-  );
-}
-
-function Variant8({ data }) {
-  return (
-    <div className="space-y-5">
-      <div className="grid gap-5 xl:grid-cols-[.7fr_1fr_.75fr]">
-        <PremiumPanel className="p-5">
-          <SectionTitle icon={Crown} title="Top Legends" />
-          <div className="space-y-3">{data.rows.slice(0, 5).map((row, index) => <TopLegendCard key={row.name} row={row} rank={index + 1} />)}</div>
-        </PremiumPanel>
-        <PremiumPanel className="p-5" glow>
-          <SectionTitle icon={Award} title="Hall Achievements" action="View all" />
-          <div className="grid gap-3 sm:grid-cols-2">{data.achievements.map((item) => <AchievementCard key={item.title} item={item} compact />)}</div>
-        </PremiumPanel>
-        <PremiumPanel className="p-5">
-          <SectionTitle icon={BarChart3} title="Personal Records" />
-          <div className="space-y-3">
-            <StatCard icon={Trophy} label="Best Score" value={shortNum(data.rows[0]?.score)} sub={data.rows[0]?.name} tone="blue" />
-            <StatCard icon={Swords} label="Most Kills" value={nf.format(data.achievements[1].player?.kills || 0)} sub={data.achievements[1].player?.name} tone="rose" />
-            <StatCard icon={Target} label="Best K/D" value={data.achievements[2].value} sub={data.achievements[2].player?.name} tone="emerald" />
-            <StatCard icon={Shield} label="Most Wars" value={data.achievements[5].value} sub={data.achievements[5].player?.name} tone="violet" />
-          </div>
-        </PremiumPanel>
-      </div>
-      <Leaderboard rows={data.rows} limit={7} title="Recent Hall Entries" />
     </div>
   );
 }
 
 const variants = {
   1: { name: 'Featured Legend', component: Variant1 },
-  2: { name: 'Podium + Table', component: Variant2 },
-  3: { name: 'Achievement Wall', component: Variant3 },
-  4: { name: 'Data Leaderboard', component: Variant4 },
-  5: { name: 'Legacy Timeline', component: Variant5 },
-  6: { name: 'Minimal Prestige', component: Variant6 },
-  7: { name: 'Trophy Room', component: Variant7 },
-  8: { name: 'Command Center', component: Variant8 },
 };
 
 function PreviewAll({ data }) {
@@ -892,8 +684,8 @@ function PreviewAll({ data }) {
       <div className="mx-auto max-w-[1600px] space-y-10">
         <PageFrame>
           <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-2xl">
-            <h1 className="text-4xl font-black text-white">Hall of Fame — Premium Style Variants</h1>
-            <p className="mt-2 text-sm font-semibold text-slate-400">Preview mode: toate variantele sunt randate cu date demo, cu stil mai premium dar compatibil cu tema Match History.</p>
+            <h1 className="text-4xl font-black text-white">Hall of Fame — Featured Legend</h1>
+            <p className="mt-2 text-sm font-semibold text-slate-400">Preview mode: V1 cu Achievement Wall, randat cu date demo.</p>
           </div>
           {Object.entries(variants).map(([key, item]) => {
             const Component = item.component;
@@ -915,17 +707,15 @@ function PreviewAll({ data }) {
 
 export default function HallOfFame({ stats, allTimeStats } = {}) {
   const previewMode = !stats && !allTimeStats;
-  const [active, setActive] = useState(1);
   const data = useMemo(() => buildHallData(allTimeStats?.players?.length ? allTimeStats : stats), [stats, allTimeStats]);
-  const ActiveVariant = variants[active]?.component || Variant1;
 
   if (!data.rows.length) return <EmptyState />;
   if (previewMode) return <PreviewAll data={buildHallData(demoStats)} />;
 
   return (
     <PageFrame>
-      <HeaderControls active={active} setActive={setActive} />
-      <ActiveVariant data={data} />
+      <HeaderControls />
+      <Variant1 data={data} />
     </PageFrame>
   );
 }
