@@ -109,6 +109,42 @@ function cleanGuild(value) {
   return text;
 }
 
+function normalizePlayerName(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function samePlayerName(left, right) {
+  const a = normalizePlayerName(left);
+  const b = normalizePlayerName(right);
+
+  return Boolean(a && b && a === b);
+}
+
+function getPlayerKeyFromObject(object, playerName) {
+  if (!object) return null;
+
+  if (Object.prototype.hasOwnProperty.call(object, playerName)) {
+    return playerName;
+  }
+
+  const target = normalizePlayerName(playerName);
+
+  if (!target) return null;
+
+  return Object.keys(object).find((key) => normalizePlayerName(key) === target) || null;
+}
+
+function getPlayerObjectValue(object, playerName, fallback = 0) {
+  const key = getPlayerKeyFromObject(object, playerName);
+
+  return key == null ? fallback : object[key];
+}
+
 function majorityGuildFromEvents(events = []) {
   const guildCounts = {};
 
@@ -138,7 +174,7 @@ function majorityGuildForKillFeed(feed, events = []) {
   [...(events || [])]
     .filter((event) => {
       if (event.type !== 'kill') return false;
-      if (event.killer !== feed.name) return false;
+      if (!samePlayerName(event.killer, feed.name)) return false;
 
       const eventSec = timeToSecondsValue(event.time);
       const insideWindow =
@@ -271,13 +307,15 @@ function BestOverall({
       )
       .filter((event) => event.type === 'kill')
       .forEach((event) => {
-        run[event.killer] = (run[event.killer] || 0) + 1;
+        const rowPlayer = rows.find((player) => samePlayerName(player.name, event.killer));
+        const playerName = rowPlayer?.name || event.killer;
 
-        const finalKills =
-          rows.find((player) => player.name === event.killer)?.kills || 0;
+        run[playerName] = (run[playerName] || 0) + 1;
 
-        if (finalKills && run[event.killer] === finalKills) {
-          reach[event.killer] =
+        const finalKills = rowPlayer?.kills || 0;
+
+        if (finalKills && run[playerName] === finalKills) {
+          reach[playerName] =
             event.date +
             ' ' +
             String(event.sec).padStart(5, '0') +
@@ -315,7 +353,9 @@ function BestOverall({
     const feedMeta = {};
 
     feedDetails.forEach((feed) => {
-      const current = feedMeta[feed.name];
+      const rowPlayer = rows.find((player) => samePlayerName(player.name, feed.name));
+      const playerName = rowPlayer?.name || feed.name;
+      const current = feedMeta[playerName];
       const next = {
         count: Number(feed.count) || 0,
         firstKey: feedTimeKey(feed),
@@ -326,7 +366,7 @@ function BestOverall({
         next.count > current.count ||
         (next.count === current.count && next.firstKey < current.firstKey)
       ) {
-        feedMeta[feed.name] = next;
+        feedMeta[playerName] = next;
       }
     });
 
@@ -522,7 +562,7 @@ function BestOverall({
   });
 
   const final = rows
-    .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
+    .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
     .sort((a, b) => a.average - b.average);
 
   function formatAverageRank(value) {
@@ -679,7 +719,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
       ccHits: Number(player.ccHits) || 0,
       fortDamage: Number(player.fortDamage) || 0,
     }))
-    .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
+    .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
     .sort((a, b) => {
       const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
       const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
@@ -764,17 +804,18 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     ? events
         .filter(
           (event) =>
-            event.killer === selected.name || event.victim === selected.name,
+            samePlayerName(event.killer, selected.name) ||
+            samePlayerName(event.victim, selected.name),
         )
         .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec)
     : [];
 
   const kills = history.filter(
-    (event) => event.killer === selected?.name,
+    (event) => samePlayerName(event.killer, selected?.name),
   ).length;
 
   const deaths = history.filter(
-    (event) => event.victim === selected?.name,
+    (event) => samePlayerName(event.victim, selected?.name),
   ).length;
 
   const kd = deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2);
@@ -783,8 +824,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
   const nemesis = {};
 
   history.forEach((event) => {
-    if (event.killer === selected?.name) add(victims, event.victim);
-    if (event.victim === selected?.name) add(nemesis, event.killer);
+    if (samePlayerName(event.killer, selected?.name)) add(victims, event.victim);
+    if (samePlayerName(event.victim, selected?.name)) add(nemesis, event.killer);
   });
 
   const favourite =
@@ -1011,17 +1052,17 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                       <td className="py-3">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-black ${
-                            event.killer === selected.name
+                            samePlayerName(event.killer, selected.name)
                               ? 'bg-blue-500/15 text-blue-300'
                               : 'bg-pink-500/15 text-pink-300'
                           }`}
                         >
-                          {event.killer === selected.name ? 'KILL' : 'DEATH'}
+                          {samePlayerName(event.killer, selected.name) ? 'KILL' : 'DEATH'}
                         </span>
                       </td>
 
                       <td className="py-3 font-bold">
-                        {event.killer === selected.name
+                        {samePlayerName(event.killer, selected.name)
                           ? event.victim
                           : event.killer}
                       </td>
