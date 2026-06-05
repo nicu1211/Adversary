@@ -331,17 +331,39 @@ function normalizeSecondaryPlayerName(parts) {
 
   if (!name || isSecondaryNumber(name)) return '';
 
-  const lower = name.toLowerCase();
+  const normalized = name
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 
-  if (
-    lower.includes('kill') ||
-    lower.includes('death') ||
-    lower.includes('damage') ||
-    lower.includes('streak') ||
-    lower.includes('total') ||
-    lower.includes('fort') ||
-    lower.includes('cc')
-  ) {
+  const headerWords = new Set([
+    'player',
+    'name',
+    'family',
+    'kills',
+    'kill',
+    'deaths',
+    'death',
+    'kd',
+    'k d',
+    'damage',
+    'damage dealt',
+    'damage taken',
+    'killstreak',
+    'kill streak',
+    'streak',
+    'killfeed',
+    'kill feed',
+    'feed',
+    'total',
+    'fort',
+    'damage to fort',
+    'cc hits',
+    'cc',
+  ]);
+
+  if (headerWords.has(normalized)) {
     return '';
   }
 
