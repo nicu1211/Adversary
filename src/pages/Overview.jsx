@@ -1155,7 +1155,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
                     <td className="py-2 text-center font-black text-blue-300">
                       <ProgressValue id="kills" value={player.kills}>
-                        <MetricGlyph type="kills" color="#6ee7b7" /> {formatNumber(player.kills)}
+                        <MetricGlyph type="kills" color="#60a5fa" /> {formatNumber(player.kills)}
                       </ProgressValue>
                     </td>
 
@@ -1167,7 +1167,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
                     <td className="py-2 text-center font-black text-emerald-300">
                       <ProgressValue id="kd" value={player.kd}>
-                        <MetricGlyph type="kd" color="#a78bfa" /> {player.kd}
+                        <MetricGlyph type="kd" color={Number(player.kd) < 1 ? "#ef4444" : "#22c55e"} /> {player.kd}
                       </ProgressValue>
                     </td>
 
