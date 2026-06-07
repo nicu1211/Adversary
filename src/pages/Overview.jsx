@@ -1155,19 +1155,19 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
                     <td className="py-2 text-center font-black text-blue-300">
                       <ProgressValue id="kills" value={player.kills}>
-                        ⚔ {formatNumber(player.kills)}
+                        <MetricGlyph type="kills" color="#6ee7b7" /> {formatNumber(player.kills)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-pink-300">
                       <ProgressValue id="deaths" value={player.deaths}>
-                        ☠ {formatNumber(player.deaths)}
+                        <MetricGlyph type="deaths" color="#f9a8d4" /> {formatNumber(player.deaths)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-emerald-300">
                       <ProgressValue id="kd" value={player.kd}>
-                        ✺ {player.kd}
+                        <MetricGlyph type="kd" color="#a78bfa" /> {player.kd}
                       </ProgressValue>
                     </td>
 
@@ -1717,9 +1717,9 @@ function EnemyGuilds({ guilds, events }) {
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
           <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-700/80 bg-white/[0.035] backdrop-blur-sm">
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(239,68,68,0.12)_0%,rgba(255,255,255,0.03)_46%,rgba(255,255,255,0.03)_54%,rgba(34,197,94,0.12)_100%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left_center,rgba(239,68,68,0.12),transparent_42%),radial-gradient(circle_at_right_center,rgba(34,197,94,0.12),transparent_42%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.015))]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(239,68,68,0.045)_0%,rgba(255,255,255,0.018)_46%,rgba(255,255,255,0.018)_54%,rgba(34,197,94,0.045)_100%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left_center,rgba(239,68,68,0.05),transparent_42%),radial-gradient(circle_at_right_center,rgba(34,197,94,0.05),transparent_42%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.008))]" />
             <Bubble
               ref={chartRef}
               data={bubbleData}
