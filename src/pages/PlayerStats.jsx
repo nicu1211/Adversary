@@ -1675,6 +1675,51 @@ function MatchHistoryMetricIcon({ type, color }) {
     );
   }
 
+  if (type === 'damageDealt') {
+    return (
+      <svg {...commonProps}>
+        <g transform="rotate(-12)">
+          <path
+            d="M -7.9 0.9
+               C -7.9 -1.6 -6.1 -3.4 -3.8 -3.4
+               L -1.8 -3.4
+               C -0.4 -3.4 0.9 -2.8 1.8 -1.8
+               L 3.4 -0.2
+               C 4.6 1 6.2 1.6 7.9 1.6
+               L 7.9 4.1
+               C 5.2 4.1 2.8 3.1 1.1 1.4
+               L -0.6 -0.3
+               C -1.1 -0.8 -1.7 -1.1 -2.4 -1.1
+               L -3.8 -1.1
+               C -4.9 -1.1 -5.7 -0.3 -5.7 0.9
+               C -5.7 2 -4.9 2.8 -3.8 2.8
+               L -0.2 2.8"
+            fill="none"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M -0.4 5.6 L 3.1 2.8 L -0.4 0"
+            fill="none"
+            stroke={color}
+            strokeWidth="2.35"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M 2.5 2.8 L 7.2 2.8"
+            stroke={darkStroke}
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            opacity="0.9"
+          />
+        </g>
+      </svg>
+    );
+  }
+
   if (type === 'damageTaken') {
     return (
       <svg {...commonProps}>
@@ -1699,41 +1744,51 @@ function MatchHistoryMetricIcon({ type, color }) {
   if (type === 'ccHits') {
     return (
       <svg {...commonProps}>
-        <g transform="rotate(-18)">
+        <g transform="rotate(-16)">
           <path
-            d="M -8 -1.4
-               C -8 -3.9 -6.2 -5.7 -3.8 -5.7
-               L -1.2 -5.7
-               C 1.1 -5.7 2.9 -3.9 2.9 -1.6
-               C 2.9 0.8 1.1 2.6 -1.2 2.6
-               L -2.6 2.6"
+            d="M -8.1 1.6
+               C -8.1 -0.8 -6.4 -2.6 -4 -2.6
+               L -1.5 -2.6
+               C 0.8 -2.6 2.6 -0.8 2.6 1.5
+               C 2.6 3.9 0.8 5.7 -1.5 5.7
+               L -2.3 5.7"
             fill="none"
             stroke={color}
-            strokeWidth="2.1"
+            strokeWidth="2.25"
             strokeLinecap="round"
           />
           <path
-            d="M 8 1.4
-               C 8 3.9 6.2 5.7 3.8 5.7
-               L 1.2 5.7
-               C -1.1 5.7 -2.9 3.9 -2.9 1.6
-               C -2.9 -0.8 -1.1 -2.6 1.2 -2.6
-               L 2.6 -2.6"
+            d="M 8.1 -1.6
+               C 8.1 0.8 6.4 2.6 4 2.6
+               L 1.5 2.6
+               C -0.8 2.6 -2.6 0.8 -2.6 -1.5
+               C -2.6 -3.9 -0.8 -5.7 1.5 -5.7
+               L 2.3 -5.7"
             fill="none"
             stroke={color}
-            strokeWidth="2.1"
+            strokeWidth="2.25"
             strokeLinecap="round"
           />
           <path
-            d="M -1.1 -1.1 L 1.1 1.1 M -1.1 1.1 L 1.1 -1.1"
+            d="M -0.95 -4.9 L 1.4 -2.45
+               M -1.45 -2.15 L 0.95 0.25
+               M -1.3 2.15 L 1.15 4.6"
             stroke={darkStroke}
-            strokeWidth="1.4"
+            strokeWidth="1.45"
             strokeLinecap="round"
           />
           <path
-            d="M -0.4 -5.1 L 0.8 -7.9 M 0.4 5.1 L -0.8 7.9"
+            d="M -1.75 -0.15 L 1.75 0.15
+               M -0.25 -1.75 L 0.25 1.75"
             stroke={color}
-            strokeWidth="1.4"
+            strokeWidth="1.25"
+            strokeLinecap="round"
+          />
+          <path
+            d="M -2.15 -6.7 L -0.7 -5.25
+               M 2.15 6.7 L 0.7 5.25"
+            stroke={color}
+            strokeWidth="1.2"
             strokeLinecap="round"
           />
         </g>
@@ -1994,7 +2049,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
                 </MatchHistoryValue>
 
                 {/* Damage Dealt */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageDealt}>
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageDealt} icon="damageDealt">
                   {formatMatchCell(match, 'damageDealt')}
                 </MatchHistoryValue>
 
