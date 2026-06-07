@@ -858,9 +858,14 @@ function buildHallData(stats) {
   }
 
   function getJoinParticipation(name) {
-    if (!totalWars) return 0;
+    const playerWarIndices = getPlayerWarIndices(name);
 
-    return (Object.keys(playerMatchMap[name] || {}).length / totalWars) * 100;
+    if (!playerWarIndices.length || !totalWars) return 0;
+
+    const firstWarIndex = playerWarIndices[0];
+    const possibleWarsFromFirstAppearance = Math.max(1, totalWars - firstWarIndex);
+
+    return (playerWarIndices.length / possibleWarsFromFirstAppearance) * 100;
   }
 
   const rows = (safe.players || [])
@@ -2065,7 +2070,7 @@ function NodeWarsRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation · From First Log · Top 10 · Min 30 matches</p>
           {topJoinParticipation.length ? (
             topJoinParticipation.map((player, index) => (
               <HallProgressRow
