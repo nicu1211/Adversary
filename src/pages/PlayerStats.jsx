@@ -7,7 +7,7 @@ function PlayerSelect({ players, value, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
-  const selected = players.find((player) => player.name === value);
+  const selected = players.find((player) => samePlayerName(player.name, value));
 
   const list = players.filter((player) =>
     `${player.name} ${player.family || ''}`
@@ -81,7 +81,7 @@ function PlayerSelect({ players, value, onChange }) {
                       setQuery('');
                     }}
                     className={`mb-1 flex w-full rounded-xl px-3 py-2 text-left text-sm ${
-                      value === player.name
+                      samePlayerName(value, player.name)
                         ? 'bg-blue-500/25 text-blue-100'
                         : 'text-slate-300 hover:bg-white/5'
                     }`}
@@ -472,6 +472,48 @@ function EnemyGuildTable({ rows }) {
   );
 }
 
+function normalizePlayerName(value) {
+  const key = String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (key === 'mrsracoon' || key === 'mrsraccoon') {
+    return 'mrsraccoon';
+  }
+
+  return key;
+}
+
+function samePlayerName(left, right) {
+  const a = normalizePlayerName(left);
+  const b = normalizePlayerName(right);
+
+  return Boolean(a && b && a === b);
+}
+
+function getPlayerKeyFromObject(object, playerName) {
+  if (!object) return null;
+
+  if (Object.prototype.hasOwnProperty.call(object, playerName)) {
+    return playerName;
+  }
+
+  const target = normalizePlayerName(playerName);
+
+  if (!target) return null;
+
+  return Object.keys(object).find((key) => normalizePlayerName(key) === target) || null;
+}
+
+function getPlayerObjectValue(object, playerName, fallback = 0) {
+  const key = getPlayerKeyFromObject(object, playerName);
+
+  return key == null ? fallback : object[key];
+}
+
 function getGuildPlayerFromEvent(event) {
   return event?.guildPlayer || (event?.type === 'kill' ? event?.killer : event?.victim) || '';
 }
@@ -499,12 +541,12 @@ function getBestKillstreakForWar(events, playerName) {
   sorted.forEach((event) => {
     const guildPlayer = getGuildPlayerFromEvent(event);
 
-    if (event.type === 'kill' && guildPlayer === playerName) {
+    if (event.type === 'kill' && samePlayerName(guildPlayer, playerName)) {
       current += 1;
       best = Math.max(best, current);
     }
 
-    if (event.type === 'death' && guildPlayer === playerName) {
+    if (event.type === 'death' && samePlayerName(guildPlayer, playerName)) {
       current = 0;
     }
   });
@@ -515,7 +557,7 @@ function getBestKillstreakForWar(events, playerName) {
 function getBestKillfeedForWar(events, playerName, seconds = 10) {
   const kills = events
     .filter(
-      (event) => event.type === 'kill' && getGuildPlayerFromEvent(event) === playerName,
+      (event) => event.type === 'kill' && samePlayerName(getGuildPlayerFromEvent(event), playerName),
     )
     .sort((a, b) => Number(a.sec) - Number(b.sec));
 
@@ -670,7 +712,7 @@ function buildSecondaryRankValues(rows, playerName, excludedWarIds = new Set()) 
   const values = [];
 
   Object.values(warMap).forEach((rowsForWar) => {
-    if (!rowsForWar.some((row) => row.name === playerName)) return;
+    if (!rowsForWar.some((row) => samePlayerName(row.name, playerName))) return;
 
     const ranks = {
       kills: buildTieAwareRank(rowsForWar, 'kills', true),
@@ -680,10 +722,10 @@ function buildSecondaryRankValues(rows, playerName, excludedWarIds = new Set()) 
     };
 
     values.push(
-      (ranks.kills[playerName] +
-        ranks.deaths[playerName] +
-        ranks.kd[playerName] +
-        ranks.streak[playerName]) /
+      (getPlayerObjectValue(ranks.kills, playerName) +
+        getPlayerObjectValue(ranks.deaths, playerName) +
+        getPlayerObjectValue(ranks.kd, playerName) +
+        getPlayerObjectValue(ranks.streak, playerName)) /
         4,
     );
   });
@@ -715,7 +757,7 @@ function buildAverageRankValuesFromPlayedWars(events, playerName) {
   Object.values(warMap).forEach((warEvents) => {
     const rows = getOurPlayerRowsForWar(warEvents);
 
-    if (!rows.some((row) => row.name === playerName)) {
+    if (!rows.some((row) => samePlayerName(row.name, playerName))) {
       return;
     }
 
@@ -728,11 +770,11 @@ function buildAverageRankValuesFromPlayedWars(events, playerName) {
     };
 
     const averageForThisWar =
-      (ranks.kills[playerName] +
-        ranks.deaths[playerName] +
-        ranks.kd[playerName] +
-        ranks.streak[playerName] +
-        ranks.feed[playerName]) /
+      (getPlayerObjectValue(ranks.kills, playerName) +
+        getPlayerObjectValue(ranks.deaths, playerName) +
+        getPlayerObjectValue(ranks.kd, playerName) +
+        getPlayerObjectValue(ranks.streak, playerName) +
+        getPlayerObjectValue(ranks.feed, playerName)) /
       5;
 
     playedWarAverages.push(averageForThisWar);
@@ -1489,13 +1531,169 @@ function MatchHistoryHeaderCell({
   );
 }
 
-function MatchHistoryValue({ children, color, prefix = null }) {
+function MatchHistoryMetricIcon({ type, color }) {
+  const commonProps = {
+    width: 16,
+    height: 16,
+    viewBox: '-10 -10 20 20',
+    className: 'shrink-0',
+    style: {
+      filter: `drop-shadow(0 0 5px ${color})`,
+    },
+    'aria-hidden': true,
+  };
+
+  const darkStroke = 'rgba(2,6,23,0.96)';
+
+  if (type === 'kills') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M -7.5 6.8 L -5.3 8.2 L 7.5 -5.9 L 5.9 -7.5 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.15"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M -7.8 -6.4 L -6.4 -7.8 L 7.8 6.4 L 6.4 7.8 Z"
+          fill={color}
+          opacity="0.75"
+          stroke={darkStroke}
+          strokeWidth="1.05"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M -4.6 4.1 L -7.2 7.2 M 4.6 4.1 L 7.2 7.2"
+          stroke={darkStroke}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'deaths') {
+    return (
+      <svg {...commonProps}>
+        <g transform="scale(0.86)">
+          <path
+            d="M 0 -8.6
+               C -5.2 -8.6 -8.2 -5.3 -8.2 -1.1
+               C -8.2 2.2 -6.3 4.2 -3.8 5.1
+               L -3.8 7.5
+               L -2.1 7.5
+               L -2.1 5.9
+               L -0.7 5.9
+               L -0.7 7.5
+               L 0.7 7.5
+               L 0.7 5.9
+               L 2.1 5.9
+               L 2.1 7.5
+               L 3.8 7.5
+               L 3.8 5.1
+               C 6.3 4.2 8.2 2.2 8.2 -1.1
+               C 8.2 -5.3 5.2 -8.6 0 -8.6 Z"
+            fill={color}
+            stroke={darkStroke}
+            strokeWidth="1.25"
+            strokeLinejoin="round"
+          />
+          <circle cx="-3" cy="-1.8" r="1.75" fill={darkStroke} />
+          <circle cx="3" cy="-1.8" r="1.75" fill={darkStroke} />
+          <path d="M 0 0.3 L -1.35 3 L 1.35 3 Z" fill={darkStroke} />
+        </g>
+      </svg>
+    );
+  }
+
+  if (type === 'kd') {
+    return (
+      <svg {...commonProps}>
+        <circle
+          cx="0"
+          cy="0"
+          r="7.2"
+          fill="rgba(2,6,23,0.88)"
+          stroke={color}
+          strokeWidth="2"
+        />
+        <circle cx="0" cy="0" r="3.7" fill={color} stroke={darkStroke} strokeWidth="1" />
+        <path
+          d="M 0 -9 L 0 -5.8 M 0 5.8 L 0 9 M -9 0 L -5.8 0 M 5.8 0 L 9 0"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'damageTaken') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M 0 -8.4 L 7.1 -5.8 L 6.1 1.7 C 5.5 5.4 3.3 7.4 0 8.6 C -3.3 7.4 -5.5 5.4 -6.1 1.7 L -7.1 -5.8 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.3"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M 0 -5.9 L 0 5.7"
+          stroke={darkStroke}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          opacity="0.75"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'ccHits') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M 1 -8.4 L -6.8 1.4 L -1.4 1.4 L -3.1 8.4 L 6.9 -2.6 L 1.3 -2.6 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.25"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'damageToFort') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M -7.6 -5.2 L -5.2 -5.2 L -5.2 -7.5 L -2.8 -7.5 L -2.8 -5.2 L -1.2 -5.2 L -1.2 -7.5 L 1.2 -7.5 L 1.2 -5.2 L 2.8 -5.2 L 2.8 -7.5 L 5.2 -7.5 L 5.2 -5.2 L 7.6 -5.2 L 7.6 7.5 L 4.7 7.5 L 4.7 3.6 C 4.7 1 2.6 -1.2 0 -1.2 C -2.6 -1.2 -4.7 1 -4.7 3.6 L -4.7 7.5 L -7.6 7.5 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.25"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M -1.6 7.5 L -1.6 3.8 C -1.6 2.8 -0.9 2.1 0 2.1 C 0.9 2.1 1.6 2.8 1.6 3.8 L 1.6 7.5"
+          fill={darkStroke}
+          opacity="0.85"
+        />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
+function MatchHistoryValue({ children, color, prefix = null, icon = null }) {
   return (
     <p
       className="flex min-w-0 items-center justify-center gap-1 text-center text-sm font-black"
       style={{ color }}
     >
-      {prefix && <span className="shrink-0 text-xs leading-none">{prefix}</span>}
+      {icon && <MatchHistoryMetricIcon type={icon} color={color} />}
+      {prefix && !icon && <span className="shrink-0 text-xs leading-none">{prefix}</span>}
       <span className="min-w-0 truncate">{children}</span>
     </p>
   );
@@ -1687,12 +1885,12 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
                 </p>
 
                 {/* Kills */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.kills} prefix="⚔">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.kills} icon="kills">
                   {formatMatchCell(match, 'kills')}
                 </MatchHistoryValue>
 
                 {/* Deaths */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.deaths} prefix="☠">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.deaths} icon="deaths">
                   {formatMatchCell(match, 'deaths')}
                 </MatchHistoryValue>
 
@@ -1703,7 +1901,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
                       ? MATCH_HISTORY_COLORS.kdPositive
                       : MATCH_HISTORY_COLORS.kdNegative
                   }
-                  prefix="●"
+                  icon="kd"
                 >
                   {kdValue}
                 </MatchHistoryValue>
@@ -1724,17 +1922,17 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
                 </MatchHistoryValue>
 
                 {/* Damage Taken */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageTaken}>
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageTaken} icon="damageTaken">
                   {formatMatchCell(match, 'damageTaken')}
                 </MatchHistoryValue>
 
                 {/* CC Hits */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.ccHits}>
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.ccHits} icon="ccHits">
                   {formatMatchCell(match, 'ccHits')}
                 </MatchHistoryValue>
 
                 {/* Damage to Fort */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageToFort}>
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.damageToFort} icon="damageToFort">
                   {formatMatchCell(match, 'damageToFort')}
                 </MatchHistoryValue>
               </button>
@@ -1768,7 +1966,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
 
       const guildPlayer = getGuildPlayerFromEvent(event);
       const enemyPlayer = getEnemyPlayerFromEvent(event);
-      const involved = guildPlayer === player;
+      const involved = samePlayerName(guildPlayer, player);
 
       if (!involved) return;
 
@@ -1813,7 +2011,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
 
     const secondaryRows = stats.secondary?.rows || [];
     const secondaryWarPresence = getSecondaryWarMetricPresence(secondaryRows);
-    const secondaryRowsForPlayer = secondaryRows.filter((row) => row.player === player);
+    const secondaryRowsForPlayer = secondaryRows.filter((row) => samePlayerName(row.player, player));
 
     secondaryRowsForPlayer.forEach((row, index) => {
       const warId = secondaryWarId(row, index);
@@ -1838,7 +2036,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
     });
 
     const playerRow =
-      stats.players.find((item) => item.name === player) || {
+      stats.players.find((item) => samePlayerName(item.name, player)) || {
         kills: 0,
         deaths: 0,
         kd: '0.00',
@@ -1868,7 +2066,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
 
     Object.entries(warMap).forEach(([warId, events]) => {
       const playerEvents = events.filter(
-        (event) => getGuildPlayerFromEvent(event) === player,
+        (event) => samePlayerName(getGuildPlayerFromEvent(event), player),
       );
 
       if (!playerEvents.length) return;
@@ -1983,7 +2181,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       .map(([warId, events]) => {
         const rows = getOurPlayerRowsForWar(events);
 
-        if (!rows.some((row) => row.name === player)) {
+        if (!rows.some((row) => samePlayerName(row.name, player))) {
           return null;
         }
 
@@ -2007,7 +2205,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       .map(([warId, events]) => {
         const rows = getOurPlayerRowsForWar(events);
 
-        if (!rows.some((row) => row.name === player)) {
+        if (!rows.some((row) => samePlayerName(row.name, player))) {
           return null;
         }
 
