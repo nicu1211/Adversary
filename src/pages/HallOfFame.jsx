@@ -228,6 +228,26 @@ function buildHallData(stats) {
 
   const secondaryKillKeys = ['kills', 'Kills', 'kill', 'Kill', 'k', 'K'];
   const secondaryDeathKeys = ['deaths', 'Deaths', 'death', 'Death', 'd', 'D'];
+  const secondaryDamageDealtKeys = [
+    'damageDealt',
+    'damage_dealt',
+    'damage dealt',
+    'Damage Dealt',
+    'dmgDealt',
+    'dmg dealt',
+    'DMG Dealt',
+  ];
+  const secondaryFortDamageKeys = [
+    'fortDamage',
+    'damageToFort',
+    'damage_to_fort',
+    'damage to fort',
+    'Damage to Fort',
+    'fort damage',
+    'Fort Damage',
+    'dmgToFort',
+    'DMG to Fort',
+  ];
 
   function getSecondaryPlayerName(row) {
     const key = findRowKey(row, secondaryPlayerKeys);
@@ -249,6 +269,24 @@ function buildHallData(stats) {
 
   function getSecondaryDeaths(row) {
     const key = findRowKey(row, secondaryDeathKeys);
+    return key ? parseHallNumber(row[key], 0) : 0;
+  }
+
+  function hasSecondaryDamageDealt(row) {
+    return Boolean(findRowKey(row, secondaryDamageDealtKeys));
+  }
+
+  function getSecondaryDamageDealt(row) {
+    const key = findRowKey(row, secondaryDamageDealtKeys);
+    return key ? parseHallNumber(row[key], 0) : 0;
+  }
+
+  function hasSecondaryFortDamage(row) {
+    return Boolean(findRowKey(row, secondaryFortDamageKeys));
+  }
+
+  function getSecondaryFortDamage(row) {
+    const key = findRowKey(row, secondaryFortDamageKeys);
     return key ? parseHallNumber(row[key], 0) : 0;
   }
 
@@ -293,8 +331,12 @@ function buildHallData(stats) {
       date,
       kills: 0,
       deaths: 0,
+      damageDealt: 0,
+      fortDamage: 0,
       hasKills: false,
       hasDeaths: false,
+      hasDamageDealt: false,
+      hasFortDamage: false,
     };
 
     if (!playerMatchMap[name][warId].date && date) {
@@ -350,6 +392,16 @@ function buildHallData(stats) {
     if (hasSecondaryDeaths(row)) {
       match.deaths = getSecondaryDeaths(row);
       match.hasDeaths = true;
+    }
+
+    if (hasSecondaryDamageDealt(row)) {
+      match.damageDealt = getSecondaryDamageDealt(row);
+      match.hasDamageDealt = true;
+    }
+
+    if (hasSecondaryFortDamage(row)) {
+      match.fortDamage = getSecondaryFortDamage(row);
+      match.hasFortDamage = true;
     }
   });
 
@@ -444,6 +496,19 @@ function buildHallData(stats) {
     );
   }
 
+  function getPlayerAvgDamageDealt(name) {
+    const matches = Object.values(playerMatchMap[name] || {}).filter(
+      (match) => match.hasDamageDealt,
+    );
+
+    if (!matches.length) return null;
+
+    return (
+      matches.reduce((sum, match) => sum + (Number(match.damageDealt) || 0), 0) /
+      matches.length
+    );
+  }
+
   const rows = (safe.players || [])
     .map((player) => {
       const kills = num(player.kills);
@@ -474,6 +539,11 @@ function buildHallData(stats) {
       const avgKillsPerMatch = getPlayerAvgKills(player.name);
       const avgKdPerMatch = getPlayerAvgKd(player.name);
       const avgKdMatchCount = kdMatchValues.length;
+      const damageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) => match.hasDamageDealt,
+      );
+      const avgDamageDealtPerMatch = getPlayerAvgDamageDealt(player.name);
+      const avgDamageDealtMatchCount = damageMatchValues.length;
       const score = Math.max(
         0,
         Math.round(
@@ -514,6 +584,8 @@ function buildHallData(stats) {
         avgKillsMatchCount,
         avgKdPerMatch,
         avgKdMatchCount,
+        avgDamageDealtPerMatch,
+        avgDamageDealtMatchCount,
         score,
         title,
       };
@@ -963,7 +1035,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
   return (
     <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         <HallHeaderCard
           icon={Swords}
           title="Kills"
@@ -982,6 +1054,16 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           tone="emerald"
           active={activeTab === 'highlights'}
           onClick={() => onTabChange('highlights')}
+        />
+
+        <HallHeaderCard
+          icon={BarChart3}
+          title="Damage"
+          value={shortNum(data.totals.damageDealt)}
+          sub="Damage dealt"
+          tone="cyan"
+          active={activeTab === 'damage'}
+          onClick={() => onTabChange('damage')}
         />
       </div>
     </header>
@@ -1348,6 +1430,97 @@ function ArsenalOutputPanel({ data }) {
   );
 }
 
+function DamageRecordsPanel({ data }) {
+  const topDamageDealt = [...data.rows]
+    .filter((player) => player.damageDealt > 0)
+    .sort((a, b) => b.damageDealt - a.damageDealt || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 10);
+
+  const topAverageDamageDealt = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.avgDamageDealtMatchCount) > 0 &&
+        Number.isFinite(Number(player.avgDamageDealtPerMatch)),
+    )
+    .sort(
+      (a, b) =>
+        b.avgDamageDealtPerMatch - a.avgDamageDealtPerMatch ||
+        b.damageDealt - a.damageDealt ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
+  const topFortDamage = [...data.rows]
+    .filter((player) => player.fortDamage > 0)
+    .sort((a, b) => b.fortDamage - a.fortDamage || b.damageDealt - a.damageDealt || a.name.localeCompare(b.name))
+    .slice(0, 10);
+
+  const maxDamageDealt = Math.max(1, ...topDamageDealt.map((player) => player.damageDealt));
+  const maxAverageDamageDealt = Math.max(1, ...topAverageDamageDealt.map((player) => player.avgDamageDealtPerMatch));
+  const maxFortDamage = Math.max(1, ...topFortDamage.map((player) => player.fortDamage));
+
+  return (
+    <PremiumPanel className="p-5">
+      <SectionTitle icon={BarChart3} title="Damage" />
+      <div className="grid gap-5 md:grid-cols-3">
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest DMG Dealt · Top 10</p>
+          {topDamageDealt.length ? (
+            topDamageDealt.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.damageDealt}
+                max={maxDamageDealt}
+                right={shortNum(player.damageDealt)}
+                tone="cyan"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No damage dealt data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Top 10</p>
+          {topAverageDamageDealt.length ? (
+            topAverageDamageDealt.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.avgDamageDealtPerMatch}
+                max={maxAverageDamageDealt}
+                right={shortNum(player.avgDamageDealtPerMatch)}
+                tone="blue"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average damage dealt data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most DMG Dealt to Fort · Top 10</p>
+          {topFortDamage.length ? (
+            topFortDamage.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.fortDamage}
+                max={maxFortDamage}
+                right={shortNum(player.fortDamage)}
+                tone="amber"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No fort damage data yet.</p>
+          )}
+        </div>
+      </div>
+    </PremiumPanel>
+  );
+}
+
 function Variant1({ data }) {
   const [activeTab, setActiveTab] = useState('kills');
 
@@ -1367,6 +1540,8 @@ function Variant1({ data }) {
 
           <FastestMilestonesPanel data={data} />
         </>
+      ) : activeTab === 'damage' ? (
+        <DamageRecordsPanel data={data} />
       ) : (
         <CombatRecordsPanel data={data} />
       )}
