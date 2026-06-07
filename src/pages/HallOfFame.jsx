@@ -868,6 +868,189 @@ function buildHallData(stats) {
     return (playerWarIndices.length / possibleWarsFromFirstAppearance) * 100;
   }
 
+  function getWarEventsSorted(warEvents) {
+    return [...(warEvents || [])].sort(
+      (a, b) =>
+        Number(a.sec || 0) - Number(b.sec || 0) ||
+        Number(a.i || 0) - Number(b.i || 0) ||
+        String(a.killer || '').localeCompare(String(b.killer || '')) ||
+        String(a.victim || '').localeCompare(String(b.victim || '')),
+    );
+  }
+
+  function getBestWarKillstreak(warEvents, playerName) {
+    const sortedEvents = getWarEventsSorted(warEvents);
+
+    let current = 0;
+    let best = 0;
+
+    sortedEvents.forEach((event) => {
+      const involvedPlayer = getGuildInvolvedPlayer(event);
+      const killPlayer = getGuildKillPlayer(event);
+
+      if (event.type === 'kill' && killPlayer === playerName) {
+        current += 1;
+        best = Math.max(best, current);
+      }
+
+      if (event.type === 'death' && involvedPlayer === playerName) {
+        current = 0;
+      }
+    });
+
+    return best;
+  }
+
+  function getBestWarKillfeed(warEvents, playerName, seconds = 10) {
+    const kills = getWarEventsSorted(warEvents)
+      .filter((event) => event.type === 'kill' && getGuildKillPlayer(event) === playerName)
+      .map((event) => Number(event.sec) || 0);
+
+    let left = 0;
+    let best = 0;
+
+    for (let right = 0; right < kills.length; right += 1) {
+      while (kills[right] - kills[left] > seconds) {
+        left += 1;
+      }
+
+      best = Math.max(best, right - left + 1);
+    }
+
+    return best;
+  }
+
+  function buildTieAwareRank(rowsForWar, key, desc = true) {
+    const sortedRows = [...rowsForWar].sort((a, b) => {
+      const av = Number(a[key]) || 0;
+      const bv = Number(b[key]) || 0;
+
+      if (av === bv) return a.name.localeCompare(b.name);
+
+      return desc ? bv - av : av - bv;
+    });
+
+    const output = {};
+    let lastValue;
+    let rankNumber = 0;
+
+    sortedRows.forEach((row, index) => {
+      const value = Number(row[key]) || 0;
+
+      if (index === 0 || value !== lastValue) {
+        rankNumber = index + 1;
+      }
+
+      output[row.name] = rankNumber;
+      lastValue = value;
+    });
+
+    return output;
+  }
+
+  function buildKillsRankLikePlayerStats(rowsForWar, warEvents) {
+    const sortedEvents = getWarEventsSorted(warEvents);
+    const byName = Object.fromEntries(rowsForWar.map((row) => [row.name, row]));
+    const runningKills = {};
+    const reached = {};
+
+    sortedEvents
+      .filter((event) => event.type === 'kill')
+      .forEach((event) => {
+        const guildPlayer = getGuildKillPlayer(event);
+
+        if (!guildPlayer) return;
+
+        runningKills[guildPlayer] = (runningKills[guildPlayer] || 0) + 1;
+
+        const finalKills = byName[guildPlayer]?.kills || 0;
+
+        if (finalKills && runningKills[guildPlayer] === finalKills && !reached[guildPlayer]) {
+          reached[guildPlayer] = `${String(event.sec || 0).padStart(8, '0')} ${String(
+            event.i || 0,
+          ).padStart(8, '0')}`;
+        }
+      });
+
+    return Object.fromEntries(
+      [...rowsForWar]
+        .sort(
+          (a, b) =>
+            b.kills - a.kills ||
+            (reached[a.name] || '99999999').localeCompare(reached[b.name] || '99999999') ||
+            a.name.localeCompare(b.name),
+        )
+        .map((row, index) => [row.name, index + 1]),
+    );
+  }
+
+  function getRankRowsForWar(warId) {
+    const warEvents = warMap[warId]?.events || [];
+
+    return Object.entries(playerMatchMap)
+      .map(([name, matchesByWar]) => {
+        const match = matchesByWar[warId];
+
+        if (!match) return null;
+
+        const kills = Number(match.kills) || 0;
+        const deaths = Number(match.deaths) || 0;
+        const eventStreak = getBestWarKillstreak(warEvents, name);
+        const eventFeed = getBestWarKillfeed(warEvents, name);
+
+        return {
+          name,
+          kills,
+          deaths,
+          kdNumber: kd(kills, deaths),
+          streak: eventStreak,
+          feed: eventFeed,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function getPlayerAverageRankValues(name) {
+    return Object.keys(playerMatchMap[name] || {})
+      .map((warId) => {
+        const rowsForWar = getRankRowsForWar(warId);
+
+        if (!rowsForWar.some((row) => row.name === name)) return null;
+
+        const warEvents = warMap[warId]?.events || [];
+        const hasEventData = warEvents.length > 0;
+
+        const ranks = {
+          kills: hasEventData
+            ? buildKillsRankLikePlayerStats(rowsForWar, warEvents)
+            : buildTieAwareRank(rowsForWar, 'kills', true),
+          deaths: buildTieAwareRank(rowsForWar, 'deaths', false),
+          kd: buildTieAwareRank(rowsForWar, 'kdNumber', true),
+          streak: buildTieAwareRank(rowsForWar, 'streak', true),
+          feed: buildTieAwareRank(rowsForWar, 'feed', true),
+        };
+
+        const rankParts = hasEventData
+          ? [ranks.kills[name], ranks.deaths[name], ranks.kd[name], ranks.streak[name], ranks.feed[name]]
+          : [ranks.kills[name], ranks.deaths[name], ranks.kd[name], ranks.streak[name]];
+
+        const cleanParts = rankParts.filter((value) => Number.isFinite(Number(value)));
+
+        if (!cleanParts.length) return null;
+
+        return cleanParts.reduce((sum, value) => sum + Number(value), 0) / cleanParts.length;
+      })
+      .filter((value) => Number.isFinite(Number(value)));
+  }
+
+  function getPlayerAverageRank(name) {
+    const values = getPlayerAverageRankValues(name);
+
+    if (!values.length) return null;
+
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }
+
   const rows = (safe.players || [])
     .map((player) => {
       const kills = num(player.kills);
@@ -934,6 +1117,9 @@ function buildHallData(stats) {
       const avgCcHitsMatchCount = ccHitsMatchValues.length;
       const joinParticipation = getJoinParticipation(player.name);
       const consecutiveWars = getLongestConsecutiveWarStreak(player.name);
+      const averageRankValues = getPlayerAverageRankValues(player.name);
+      const averageRank = getPlayerAverageRank(player.name);
+      const averageRankMatchCount = averageRankValues.length;
       const score = Math.max(
         0,
         Math.round(
@@ -984,6 +1170,8 @@ function buildHallData(stats) {
         avgCcHitsMatchCount,
         joinParticipation,
         consecutiveWars,
+        averageRank,
+        averageRankMatchCount,
         score,
         title,
       };
@@ -1092,6 +1280,36 @@ const toneClasses = {
     text: 'text-emerald-300',
     bar: 'from-emerald-500 to-lime-300',
     glow: 'shadow-[0_0_35px_rgba(16,185,129,.15)]',
+  },
+  greenDeep: {
+    soft: 'border-emerald-700/30 bg-emerald-950/20 text-emerald-300 shadow-emerald-900/10',
+    text: 'text-emerald-300',
+    bar: 'from-emerald-900 to-emerald-500',
+    glow: 'shadow-[0_0_35px_rgba(6,78,59,.16)]',
+  },
+  greenEmerald: {
+    soft: 'border-emerald-500/28 bg-emerald-500/12 text-emerald-200 shadow-emerald-500/10',
+    text: 'text-emerald-200',
+    bar: 'from-emerald-600 to-green-300',
+    glow: 'shadow-[0_0_35px_rgba(16,185,129,.16)]',
+  },
+  greenMint: {
+    soft: 'border-teal-400/28 bg-teal-500/10 text-teal-200 shadow-teal-400/10',
+    text: 'text-teal-200',
+    bar: 'from-teal-500 to-emerald-200',
+    glow: 'shadow-[0_0_35px_rgba(45,212,191,.14)]',
+  },
+  greenLime: {
+    soft: 'border-lime-400/28 bg-lime-500/10 text-lime-300 shadow-lime-400/10',
+    text: 'text-lime-300',
+    bar: 'from-lime-500 to-green-300',
+    glow: 'shadow-[0_0_35px_rgba(132,204,22,.14)]',
+  },
+  greenTeal: {
+    soft: 'border-green-400/28 bg-green-500/10 text-green-300 shadow-green-400/10',
+    text: 'text-green-300',
+    bar: 'from-green-600 to-teal-300',
+    glow: 'shadow-[0_0_35px_rgba(34,197,94,.14)]',
   },
   orange: {
     soft: 'border-orange-400/25 bg-orange-500/10 text-orange-300 shadow-orange-500/10',
@@ -1407,6 +1625,11 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
     blueIndigo: 'from-indigo-700 via-indigo-500 to-blue-300',
     blueIce: 'from-cyan-500 via-sky-300 to-blue-100',
     emerald: 'from-emerald-500 to-lime-300',
+    greenDeep: 'from-emerald-950 via-emerald-700 to-green-500',
+    greenEmerald: 'from-emerald-600 via-green-400 to-lime-200',
+    greenMint: 'from-teal-500 via-emerald-300 to-green-100',
+    greenLime: 'from-lime-500 via-green-300 to-emerald-200',
+    greenTeal: 'from-green-700 via-teal-400 to-emerald-200',
     amber: 'from-amber-500 to-yellow-300',
     rose: 'from-rose-500 to-red-300',
   };
@@ -1484,7 +1707,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           title="Kills"
           value={shortNum(totalEligibleKills)}
           sub={`Min ${MIN_HALL_MATCHES} matches`}
-          tone="blue"
+          tone="blueRoyal"
           active={activeTab === 'kills'}
           onClick={() => onTabChange('kills')}
         />
@@ -1652,6 +1875,21 @@ function CombatRecordsPanel({ data }) {
     )
     .slice(0, 10);
 
+  const topAverageRank = [...data.rows]
+    .filter(
+      (player) =>
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
+        Number(player.averageRankMatchCount) > 0 &&
+        Number.isFinite(Number(player.averageRank)),
+    )
+    .sort(
+      (a, b) =>
+        a.averageRank - b.averageRank ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
   const topStreaks = [...data.rows]
     .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.streak > 0)
     .sort((a, b) => b.streak - a.streak || b.kills - a.kills || a.name.localeCompare(b.name))
@@ -1664,13 +1902,14 @@ function CombatRecordsPanel({ data }) {
 
   const maxAverageKd = Math.max(1, ...topAverageKd.map((player) => player.avgKdPerMatch));
   const maxHighestMatchKd = Math.max(1, ...topHighestMatchKd.map((player) => player.maxMatchKd));
+  const maxAverageRank = Math.max(1, ...topAverageRank.map((player) => player.averageRank));
   const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
   const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
 
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={Target} title="Highlights" />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <div>
           <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average K/D · Top 10 · Min 30 matches</p>
           {topAverageKd.length ? (
@@ -1681,7 +1920,7 @@ function CombatRecordsPanel({ data }) {
                 value={player.avgKdPerMatch}
                 max={maxAverageKd}
                 right={player.avgKdPerMatch.toFixed(2)}
-                tone="blue"
+                tone="greenDeep"
               />
             ))
           ) : (
@@ -1699,11 +1938,29 @@ function CombatRecordsPanel({ data }) {
                 value={player.maxMatchKd}
                 max={maxHighestMatchKd}
                 right={player.maxMatchKd.toFixed(2)}
-                tone="emerald"
+                tone="greenEmerald"
               />
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-match K/D data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average Rank · Top 10 · Min 30 matches</p>
+          {topAverageRank.length ? (
+            topAverageRank.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={Math.max(0.01, maxAverageRank - player.averageRank + 1)}
+                max={maxAverageRank}
+                right={player.averageRank.toFixed(2)}
+                tone="greenMint"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average rank data yet.</p>
           )}
         </div>
 
@@ -1717,7 +1974,7 @@ function CombatRecordsPanel({ data }) {
                 value={player.streak}
                 max={maxStreak}
                 right={shortNum(player.streak)}
-                tone="orange"
+                tone="greenLime"
               />
             ))
           ) : (
@@ -1735,7 +1992,7 @@ function CombatRecordsPanel({ data }) {
                 value={player.feed}
                 max={maxFeed}
                 right={shortNum(player.feed)}
-                tone="cyan"
+                tone="greenTeal"
               />
             ))
           ) : (
