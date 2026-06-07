@@ -1,4 +1,4 @@
- import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Award,
   BarChart3,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 const nf = new Intl.NumberFormat('en-US');
+const MIN_HALL_MATCHES = 30;
 
 function num(value) {
   return Number(value) || 0;
@@ -579,6 +580,15 @@ function buildHallData(stats) {
       const avgKillsPerMatch = getPlayerAvgKills(player.name);
       const avgKdPerMatch = getPlayerAvgKd(player.name);
       const avgKdMatchCount = kdMatchValues.length;
+      const allTrackedMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) =>
+          match.hasKills ||
+          match.hasDeaths ||
+          match.hasDamageDealt ||
+          match.hasFortDamage ||
+          match.hasCcHits,
+      );
+      const hallMatchCount = allTrackedMatchValues.length;
       const damageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
         (match) => match.hasDamageDealt,
       );
@@ -640,6 +650,7 @@ function buildHallData(stats) {
         fortDamage,
         maxMatchKills,
         maxMatchKd,
+        hallMatchCount,
         avgKillsPerMatch,
         avgKillsMatchCount,
         avgKdPerMatch,
@@ -657,11 +668,14 @@ function buildHallData(stats) {
     })
     .sort((a, b) => b.score - a.score || b.kills - a.kills || a.name.localeCompare(b.name));
 
-  const bestKd = [...rows].filter((row) => row.kills >= 5).sort((a, b) => b.kd - a.kd)[0] || rows[0];
-  const topKills = [...rows].sort((a, b) => b.kills - a.kills)[0] || rows[0];
-  const topStreak = [...rows].sort((a, b) => b.streak - a.streak)[0] || rows[0];
-  const topFeed = [...rows].sort((a, b) => b.feed - a.feed)[0] || rows[0];
-  const topWars = [...rows].sort((a, b) => b.wars - a.wars)[0] || rows[0];
+  const leaderboardRows = rows.filter((row) => row.hallMatchCount >= MIN_HALL_MATCHES);
+  const eligiblePlayerNames = new Set(leaderboardRows.map((row) => row.name));
+
+  const bestKd = [...leaderboardRows].filter((row) => row.kills >= 5).sort((a, b) => b.kd - a.kd)[0] || leaderboardRows[0];
+  const topKills = [...leaderboardRows].sort((a, b) => b.kills - a.kills)[0] || leaderboardRows[0];
+  const topStreak = [...leaderboardRows].sort((a, b) => b.streak - a.streak)[0] || leaderboardRows[0];
+  const topFeed = [...leaderboardRows].sort((a, b) => b.feed - a.feed)[0] || leaderboardRows[0];
+  const topWars = [...leaderboardRows].sort((a, b) => b.wars - a.wars)[0] || leaderboardRows[0];
 
   const achievements = [
     { title: 'Hall MVP', icon: Crown, player: rows[0], value: shortNum(rows[0]?.score), sub: 'Highest total score', tone: 'amber' },
@@ -693,6 +707,7 @@ function buildHallData(stats) {
       threshold,
       {
         first: [...thresholdReached[threshold]]
+          .filter((item) => eligiblePlayerNames.has(item.name))
           .sort(
             (a, b) =>
               a.globalWarIndex - b.globalWarIndex ||
@@ -700,6 +715,7 @@ function buildHallData(stats) {
           )
           .slice(0, 10),
         fastest: [...thresholdReached[threshold]]
+          .filter((item) => eligiblePlayerNames.has(item.name))
           .sort(
             (a, b) =>
               a.fromPlayerFirstLogWars - b.fromPlayerFirstLogWars ||
@@ -716,11 +732,11 @@ function buildHallData(stats) {
     achievements,
     months,
     thresholdLeaderboards,
-    topKillers: [...rows]
+    topKillers: [...leaderboardRows]
       .filter((row) => row.kills > 0)
       .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
       .slice(0, 10),
-    topDamagePlayers: [...rows]
+    topDamagePlayers: [...leaderboardRows]
       .filter((row) => row.damageDealt > 0)
       .sort((a, b) => b.damageDealt - a.damageDealt || a.name.localeCompare(b.name))
       .slice(0, 10),
@@ -1091,12 +1107,17 @@ function HallHeaderCard({
 }
 
 function HallTopHeaders({ data, activeTab, onTabChange }) {
-  const bestKd = [...data.rows]
+  const leaderboardRows = data.rows.filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES);
+
+  const bestKd = [...leaderboardRows]
     .filter((player) => player.kills >= 5)
     .sort((a, b) => b.kd - a.kd || b.kills - a.kills || a.name.localeCompare(b.name))[0];
 
-  const topStreak = [...data.rows]
+  const topStreak = [...leaderboardRows]
     .sort((a, b) => b.streak - a.streak || b.kills - a.kills || a.name.localeCompare(b.name))[0];
+
+  const totalEligibleKills = leaderboardRows.reduce((sum, player) => sum + player.kills, 0);
+  const totalEligibleDamage = leaderboardRows.reduce((sum, player) => sum + player.damageDealt, 0);
 
   return (
     <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
@@ -1104,8 +1125,8 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
         <HallHeaderCard
           icon={Swords}
           title="Kills"
-          value={shortNum(data.totals.kills)}
-          sub="Total kills"
+          value={shortNum(totalEligibleKills)}
+          sub={`Min ${MIN_HALL_MATCHES} matches`}
           tone="blue"
           active={activeTab === 'kills'}
           onClick={() => onTabChange('kills')}
@@ -1124,8 +1145,8 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
         <HallHeaderCard
           icon={BarChart3}
           title="Damage"
-          value={shortNum(data.totals.damageDealt)}
-          sub="Damage dealt"
+          value={shortNum(totalEligibleDamage)}
+          sub={`Min ${MIN_HALL_MATCHES} matches`}
           tone="cyan"
           active={activeTab === 'damage'}
           onClick={() => onTabChange('damage')}
@@ -1137,14 +1158,15 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
 function CombatOutputPanel({ data }) {
   const topTotalKills = [...data.rows]
-    .filter((player) => player.kills > 0)
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.kills > 0)
     .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name))
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
     .filter(
       (player) =>
-        Number(player.avgKillsMatchCount) >= 30 &&
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
+        Number(player.avgKillsMatchCount) > 0 &&
         Number.isFinite(Number(player.avgKillsPerMatch)),
     )
     .sort(
@@ -1158,7 +1180,8 @@ function CombatOutputPanel({ data }) {
   const topFraggers = [...data.rows]
     .filter(
       (player) =>
-        Number(player.avgKillsMatchCount) >= 30 &&
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
+        Number(player.avgKillsMatchCount) > 0 &&
         player.maxMatchKills > 0,
     )
     .sort((a, b) => b.maxMatchKills - a.maxMatchKills || b.kills - a.kills || a.name.localeCompare(b.name))
@@ -1173,7 +1196,7 @@ function CombatOutputPanel({ data }) {
       <SectionTitle icon={Swords} title="Kills" />
       <div className="grid gap-5 md:grid-cols-3">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills · Top 10 · Min 30 matches</p>
           {topTotalKills.length ? (
             topTotalKills.map((player, index) => (
               <HallProgressRow
@@ -1186,7 +1209,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kills yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
           )}
         </div>
 
@@ -1204,7 +1227,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
           )}
         </div>
 
@@ -1222,7 +1245,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
           )}
         </div>
       </div>
@@ -1234,6 +1257,7 @@ function CombatRecordsPanel({ data }) {
   const topAverageKd = [...data.rows]
     .filter(
       (player) =>
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
         Number(player.avgKdMatchCount) > 0 &&
         Number.isFinite(Number(player.avgKdPerMatch)),
     )
@@ -1248,6 +1272,7 @@ function CombatRecordsPanel({ data }) {
   const topHighestMatchKd = [...data.rows]
     .filter(
       (player) =>
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
         Number(player.maxMatchKd) > 0 &&
         Number.isFinite(Number(player.maxMatchKd)),
     )
@@ -1261,12 +1286,12 @@ function CombatRecordsPanel({ data }) {
     .slice(0, 10);
 
   const topStreaks = [...data.rows]
-    .filter((player) => player.streak > 0)
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.streak > 0)
     .sort((a, b) => b.streak - a.streak || b.kills - a.kills || a.name.localeCompare(b.name))
     .slice(0, 10);
 
   const topFeeds = [...data.rows]
-    .filter((player) => player.feed > 0)
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.feed > 0)
     .sort((a, b) => b.feed - a.feed || b.kills - a.kills || a.name.localeCompare(b.name))
     .slice(0, 10);
 
@@ -1280,7 +1305,7 @@ function CombatRecordsPanel({ data }) {
       <SectionTitle icon={Target} title="Highlights" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average K/D · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average K/D · Top 10 · Min 30 matches</p>
           {topAverageKd.length ? (
             topAverageKd.map((player, index) => (
               <HallProgressRow
@@ -1293,12 +1318,12 @@ function CombatRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average K/D data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average K/D data yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest K/D · Top 10 · Single Match</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest K/D · Top 10 · Single Match · Min 30 matches</p>
           {topHighestMatchKd.length ? (
             topHighestMatchKd.map((player, index) => (
               <HallProgressRow
@@ -1311,12 +1336,12 @@ function CombatRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single match K/D data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-match K/D data yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Kill Streak</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Kill Streak · Top 10 · Min 30 matches</p>
           {topStreaks.length ? (
             topStreaks.map((player, index) => (
               <HallProgressRow
@@ -1329,12 +1354,12 @@ function CombatRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kill streak data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible kill streak data yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Biggest Kill Feed</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Biggest Kill Feed · Top 10 · Min 30 matches</p>
           {topFeeds.length ? (
             topFeeds.map((player, index) => (
               <HallProgressRow
@@ -1347,7 +1372,7 @@ function CombatRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kill feed data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible kill feed data yet.</p>
           )}
         </div>
       </div>
@@ -1365,7 +1390,7 @@ function FirstMilestonesPanel({ data }) {
     return (
       <div>
         <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          First to {threshold} Kills · Top 10
+          First to {threshold} Kills · Top 10 · Min 30 matches
         </p>
         {rows.length ? (
           rows.map((row, index) => (
@@ -1411,7 +1436,7 @@ function FastestMilestonesPanel({ data }) {
     return (
       <div>
         <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Fastest to {threshold} Kills · Top 10
+          Fastest to {threshold} Kills · Top 10 · Min 30 matches
         </p>
         {rows.length ? (
           rows.map((row, index) => (
@@ -1497,7 +1522,7 @@ function ArsenalOutputPanel({ data }) {
 
 function DamageRecordsPanel({ data }) {
   const topSingleGameDamageDealt = [...data.rows]
-    .filter((player) => player.maxMatchDamageDealt > 0)
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.maxMatchDamageDealt > 0)
     .sort(
       (a, b) =>
         b.maxMatchDamageDealt - a.maxMatchDamageDealt ||
@@ -1509,6 +1534,7 @@ function DamageRecordsPanel({ data }) {
   const topAverageDamageDealt = [...data.rows]
     .filter(
       (player) =>
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
         Number(player.avgDamageDealtMatchCount) > 0 &&
         Number.isFinite(Number(player.avgDamageDealtPerMatch)),
     )
@@ -1521,7 +1547,7 @@ function DamageRecordsPanel({ data }) {
     .slice(0, 10);
 
   const topSingleGameFortDamage = [...data.rows]
-    .filter((player) => player.maxMatchFortDamage > 0)
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.maxMatchFortDamage > 0)
     .sort(
       (a, b) =>
         b.maxMatchFortDamage - a.maxMatchFortDamage ||
@@ -1531,7 +1557,7 @@ function DamageRecordsPanel({ data }) {
     .slice(0, 10);
 
   const topSingleGameCcHits = [...data.rows]
-    .filter((player) => player.maxMatchCcHits > 0)
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.maxMatchCcHits > 0)
     .sort(
       (a, b) =>
         b.maxMatchCcHits - a.maxMatchCcHits ||
@@ -1543,6 +1569,7 @@ function DamageRecordsPanel({ data }) {
   const topAverageCcHits = [...data.rows]
     .filter(
       (player) =>
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
         Number(player.avgCcHitsMatchCount) > 0 &&
         Number.isFinite(Number(player.avgCcHitsPerMatch)),
     )
@@ -1565,7 +1592,7 @@ function DamageRecordsPanel({ data }) {
       <SectionTitle icon={BarChart3} title="Damage" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game · Top 10 · Min 30 matches</p>
           {topSingleGameDamageDealt.length ? (
             topSingleGameDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -1578,12 +1605,12 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single game damage dealt data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game damage dealt data yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Top 10 · Min 30 matches</p>
           {topAverageDamageDealt.length ? (
             topAverageDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -1596,12 +1623,12 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average damage dealt data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average damage dealt data yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fort Damage in 1 Game · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fort Damage in 1 Game · Top 10 · Min 30 matches</p>
           {topSingleGameFortDamage.length ? (
             topSingleGameFortDamage.map((player, index) => (
               <HallProgressRow
@@ -1614,12 +1641,12 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single game fort damage data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game fort damage data yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most CC Hits in 1 Game · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most CC Hits in 1 Game · Top 10 · Min 30 matches</p>
           {topSingleGameCcHits.length ? (
             topSingleGameCcHits.map((player, index) => (
               <HallProgressRow
@@ -1632,12 +1659,12 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single game CC hits data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game CC hits data yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Top 10 · Min 30 matches</p>
           {topAverageCcHits.length ? (
             topAverageCcHits.map((player, index) => (
               <HallProgressRow
@@ -1650,7 +1677,7 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average CC hits data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average CC hits data yet.</p>
           )}
         </div>
       </div>
