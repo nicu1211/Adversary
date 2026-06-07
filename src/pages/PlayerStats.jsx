@@ -1726,6 +1726,61 @@ function MatchHistoryMetricIcon({ type, color }) {
     );
   }
 
+  if (type === 'wars') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M -6.9 8.4 L -6.9 -8.1"
+          fill="none"
+          stroke={darkStroke}
+          strokeWidth="1.45"
+          strokeLinecap="round"
+        />
+        <path
+          d="M -5.9 -7.2
+             L 5.8 -6.1
+             L 3.2 -2.2
+             L 5.4 2.4
+             L -5.9 1.1 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.15"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M -3.6 -4.4 L 1.8 -3.9"
+          fill="none"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth="0.9"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'averageRank') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M -7.2 -4.8 L -4 -4.8 L -1.8 0.8 L 0 -4.8 L 1.8 0.8 L 4 -4.8 L 7.2 -4.8 L 5.2 3.2 L -5.2 3.2 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.15"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M -4.9 3.2 H 4.9 V 6.1 H -4.9 Z"
+          fill={color}
+          opacity="0.92"
+          stroke={darkStroke}
+          strokeWidth="1.05"
+          strokeLinejoin="round"
+        />
+        <circle cx="0" cy="-1" r="1.35" fill={darkStroke} />
+      </svg>
+    );
+  }
+
   if (type === 'damageTaken') {
     return (
       <svg {...commonProps}>
@@ -1814,6 +1869,14 @@ function MatchHistoryMetricIcon({ type, color }) {
   }
 
   return null;
+}
+
+function SummaryHeaderIcon({ type, color }) {
+  return (
+    <span className="inline-flex h-5 w-5 items-center justify-center">
+      <MatchHistoryMetricIcon type={type} color={color} />
+    </span>
+  );
 }
 
 function MatchHistoryValue({ children, color, prefix = null, icon = null }) {
@@ -2388,7 +2451,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
         <>
           <div className="grid gap-4 md:grid-cols-5">
             <Metric
-              icon="⚔"
+              icon={<SummaryHeaderIcon type="kills" color="#6ee7b7" />}
               label="Kills"
               value={selectedStats.kills}
               sub={player}
@@ -2396,7 +2459,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
             />
 
             <Metric
-              icon="☠"
+              icon={<SummaryHeaderIcon type="deaths" color="#f9a8d4" />}
               label="Deaths"
               value={selectedStats.deaths}
               sub="Total deaths"
@@ -2404,7 +2467,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
             />
 
             <Metric
-              icon="✦"
+              icon={<SummaryHeaderIcon type="kd" color="#93c5fd" />}
               label="K/D"
               value={selectedStats.kd}
               sub="Overall ratio"
@@ -2412,7 +2475,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
             />
 
             <Metric
-              icon="⚑"
+              icon={<SummaryHeaderIcon type="wars" color="#fcd34d" />}
               label="Wars"
               value={selectedStats.wars}
               sub="Wars participated"
@@ -2420,7 +2483,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
             />
 
             <Metric
-              icon="♛"
+              icon={<SummaryHeaderIcon type="averageRank" color="#c4b5fd" />}
               label="Average Rank"
               value={selectedStats.averageRank || '0.00'}
               sub=""
