@@ -1719,31 +1719,46 @@ function MatchHistoryMetricIcon({ type, color }) {
             strokeLinecap="round"
             opacity="0.88"
           />
-          <g transform="translate(3.8 -4.1) scale(-1 1) translate(-3.8 4.1)">
-            <path
-              d="M 0.7 0.8
-                 C 1.2 -1.2 1.3 -3.2 1.2 -4.6
-                 C 1.1 -5.7 1.6 -6.6 2.5 -7
-                 C 3.4 -7.4 4.5 -7.1 5.2 -6.4
-                 L 6.5 -5.1
-                 C 7.3 -4.3 7.3 -3.1 6.6 -2.3
-                 L 5.6 -1.2"
-              fill="none"
-              stroke={color}
-              strokeWidth="1.95"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M 3.4 -4.8
-                 C 4.2 -4.5 4.8 -4 5.2 -3.3"
-              fill="none"
-              stroke={darkStroke}
-              strokeWidth="1.05"
-              strokeLinecap="round"
-              opacity="0.88"
-            />
-          </g>
+          <path
+            d="M 0.7 0.8
+               C 1.1 -1.3 1.2 -3.1 1.1 -4.4
+               C 1 -5.6 1.5 -6.5 2.5 -7
+               C 3.4 -7.5 4.4 -7.3 5.2 -6.7
+               L 6.4 -5.7
+               C 7.2 -5 7.3 -3.8 6.7 -3
+               L 5.7 -1.9"
+            fill="none"
+            stroke={color}
+            strokeWidth="1.95"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M 5.5 -6.1
+               L 4.4 -5.2
+               C 3.7 -4.7 3.6 -3.8 4.2 -3.2
+               L 5.1 -2.3
+               C 5.8 -1.6 6.9 -1.7 7.4 -2.5
+               L 7.8 -3.1
+               C 8.3 -3.8 8.2 -4.7 7.6 -5.3
+               L 6.8 -6"
+            fill="none"
+            stroke={color}
+            strokeWidth="1.95"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M 5.7 -5.4
+               C 5 -5.2 4.5 -4.8 4.3 -4.1
+               M 6.6 -4.6 L 5.4 -3.6
+               M 6.3 -2.8 L 5.2 -1.9"
+            fill="none"
+            stroke={darkStroke}
+            strokeWidth="1.05"
+            strokeLinecap="round"
+            opacity="0.88"
+          />
         </g>
         <g transform="translate(6.2 -6.4) scale(0.72)">
           <path
