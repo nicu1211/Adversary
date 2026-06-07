@@ -826,6 +826,43 @@ function buildHallData(stats) {
     );
   }
 
+  function getPlayerWarIndices(name) {
+    return Object.values(playerMatchMap[name] || {})
+      .map((match) => warIndexById[match.warId])
+      .filter((index) => Number.isFinite(Number(index)))
+      .map((index) => Number(index))
+      .sort((a, b) => a - b);
+  }
+
+  function getLongestConsecutiveWarStreak(name) {
+    const indices = getPlayerWarIndices(name);
+
+    if (!indices.length) return 0;
+
+    let best = 1;
+    let current = 1;
+
+    for (let index = 1; index < indices.length; index += 1) {
+      if (indices[index] === indices[index - 1]) continue;
+
+      if (indices[index] === indices[index - 1] + 1) {
+        current += 1;
+      } else {
+        current = 1;
+      }
+
+      best = Math.max(best, current);
+    }
+
+    return best;
+  }
+
+  function getJoinParticipation(name) {
+    if (!totalWars) return 0;
+
+    return (Object.keys(playerMatchMap[name] || {}).length / totalWars) * 100;
+  }
+
   const rows = (safe.players || [])
     .map((player) => {
       const kills = num(player.kills);
@@ -890,6 +927,8 @@ function buildHallData(stats) {
       const avgDamageDealtMatchCount = damageMatchValues.length;
       const avgCcHitsPerMatch = getPlayerAvgCcHits(player.name);
       const avgCcHitsMatchCount = ccHitsMatchValues.length;
+      const joinParticipation = getJoinParticipation(player.name);
+      const consecutiveWars = getLongestConsecutiveWarStreak(player.name);
       const score = Math.max(
         0,
         Math.round(
@@ -938,6 +977,8 @@ function buildHallData(stats) {
         avgDamageDealtMatchCount,
         avgCcHitsPerMatch,
         avgCcHitsMatchCount,
+        joinParticipation,
+        consecutiveWars,
         score,
         title,
       };
@@ -1397,7 +1438,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
   return (
     <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         <HallHeaderCard
           icon={Swords}
           title="Kills"
@@ -1426,6 +1467,16 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           tone="cyan"
           active={activeTab === 'damage'}
           onClick={() => onTabChange('damage')}
+        />
+
+        <HallHeaderCard
+          icon={CalendarDays}
+          title="Node Wars"
+          value={shortNum(data.totals.wars)}
+          sub={`Min ${MIN_HALL_MATCHES} matches`}
+          tone="violet"
+          active={activeTab === 'nodeWars'}
+          onClick={() => onTabChange('nodeWars')}
         />
       </div>
     </header>
@@ -1961,6 +2012,98 @@ function DamageRecordsPanel({ data }) {
   );
 }
 
+function NodeWarsRecordsPanel({ data }) {
+  const topMostNodeWars = [...data.rows]
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.wars > 0)
+    .sort((a, b) => b.wars - a.wars || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 10);
+
+  const topJoinParticipation = [...data.rows]
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.wars > 0)
+    .sort(
+      (a, b) =>
+        b.joinParticipation - a.joinParticipation ||
+        b.wars - a.wars ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
+  const topConsecutiveWars = [...data.rows]
+    .filter((player) => player.hallMatchCount >= MIN_HALL_MATCHES && player.consecutiveWars > 0)
+    .sort(
+      (a, b) =>
+        b.consecutiveWars - a.consecutiveWars ||
+        b.wars - a.wars ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
+  const maxNodeWars = Math.max(1, ...topMostNodeWars.map((player) => player.wars));
+  const maxJoinParticipation = Math.max(1, ...topJoinParticipation.map((player) => player.joinParticipation));
+  const maxConsecutiveWars = Math.max(1, ...topConsecutiveWars.map((player) => player.consecutiveWars));
+
+  return (
+    <PremiumPanel className="p-5">
+      <SectionTitle icon={CalendarDays} title="Node Wars" />
+      <div className="grid gap-5 md:grid-cols-3">
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Node Wars · Top 10 · Min 30 matches</p>
+          {topMostNodeWars.length ? (
+            topMostNodeWars.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.wars}
+                max={maxNodeWars}
+                right={shortNum(player.wars)}
+                tone="violet"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible Node Wars data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation · Top 10 · Min 30 matches</p>
+          {topJoinParticipation.length ? (
+            topJoinParticipation.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.joinParticipation}
+                max={maxJoinParticipation}
+                right={`${player.joinParticipation.toFixed(1).replace(/\.0$/, '')}%`}
+                tone="emerald"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible participation data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Consecutive Matches · Top 10 · Min 30 matches</p>
+          {topConsecutiveWars.length ? (
+            topConsecutiveWars.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.consecutiveWars}
+                max={maxConsecutiveWars}
+                right={shortNum(player.consecutiveWars)}
+                tone="amber"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible consecutive match data yet.</p>
+          )}
+        </div>
+      </div>
+    </PremiumPanel>
+  );
+}
+
 function Variant1({ data }) {
   const [activeTab, setActiveTab] = useState('kills');
 
@@ -1982,6 +2125,8 @@ function Variant1({ data }) {
         </>
       ) : activeTab === 'damage' ? (
         <DamageRecordsPanel data={data} />
+      ) : activeTab === 'nodeWars' ? (
+        <NodeWarsRecordsPanel data={data} />
       ) : (
         <CombatRecordsPanel data={data} />
       )}
