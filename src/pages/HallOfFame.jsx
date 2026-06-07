@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Award,
   BarChart3,
@@ -906,14 +906,25 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
   );
 }
 
-function HallHeaderCard({ icon: Icon, title, value, sub, tone = 'blue' }) {
+function HallHeaderCard({
+  icon: Icon,
+  title,
+  value,
+  sub,
+  tone = 'blue',
+  active = false,
+  onClick,
+}) {
   const toneInfo = getTone(tone);
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className={cls(
-        'relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 shadow-xl',
+        'relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-xl transition duration-200 hover:-translate-y-0.5',
         toneInfo.soft,
+        active && 'ring-2 ring-white/20',
       )}
     >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent)]" />
@@ -930,11 +941,11 @@ function HallHeaderCard({ icon: Icon, title, value, sub, tone = 'blue' }) {
           <Icon className="h-5 w-5" />
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
-function HallTopHeaders({ data }) {
+function HallTopHeaders({ data, activeTab, onTabChange }) {
   const bestKd = [...data.rows]
     .filter((player) => player.kills >= 5)
     .sort((a, b) => b.kd - a.kd || b.kills - a.kills || a.name.localeCompare(b.name))[0];
@@ -951,6 +962,8 @@ function HallTopHeaders({ data }) {
           value={shortNum(data.totals.kills)}
           sub="Total kills"
           tone="blue"
+          active={activeTab === 'kills'}
+          onClick={() => onTabChange('kills')}
         />
 
         <HallHeaderCard
@@ -959,6 +972,8 @@ function HallTopHeaders({ data }) {
           value={bestKd ? bestKd.kd.toFixed(2) : '0.00'}
           sub={topStreak ? `Best K/D · Streak ${shortNum(topStreak.streak)}` : 'Best K/D · Streak'}
           tone="emerald"
+          active={activeTab === 'highlights'}
+          onClick={() => onTabChange('highlights')}
         />
       </div>
     </header>
@@ -1175,7 +1190,7 @@ function CombatRecordsPanel({ data }) {
   );
 }
 
-function MilestoneLeaderboards({ data }) {
+function FirstMilestonesPanel({ data }) {
   const thresholds = [1000, 3000, 5000];
 
   function renderFirstLeaderboard(threshold) {
@@ -1207,59 +1222,17 @@ function MilestoneLeaderboards({ data }) {
     );
   }
 
-  function renderFastestLeaderboard(threshold) {
-    const rows = data.thresholdLeaderboards?.[threshold]?.fastest || [];
-    const maxValue = Math.max(1, ...rows.map((row) => row.fromPlayerFirstLogWars || 0));
-
-    return (
-      <div>
-        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Fastest to {threshold} Kills · Top 10
-        </p>
-        {rows.length ? (
-          rows.map((row, index) => (
-            <HallProgressRow
-              key={`${threshold}-fastest-${row.name}`}
-              label={`${index + 1}. ${row.name}`}
-              value={Math.max(1, maxValue - row.fromPlayerFirstLogWars + 1)}
-              max={maxValue}
-              right={`${row.fromPlayerFirstLogWars} logs`}
-              tone="cyan"
-            />
-          ))
-        ) : (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
-            No player reached {threshold} kills yet.
-          </p>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
-      <PremiumPanel className="p-5">
-        <SectionTitle icon={Trophy} title="First Milestones" />
-        <div className="grid gap-5 md:grid-cols-3">
-          {thresholds.map((threshold) => (
-            <React.Fragment key={`first-${threshold}`}>
-              {renderFirstLeaderboard(threshold)}
-            </React.Fragment>
-          ))}
-        </div>
-      </PremiumPanel>
-
-      <PremiumPanel className="p-5">
-        <SectionTitle icon={Zap} title="Fastest Milestones" />
-        <div className="grid gap-5 md:grid-cols-3">
-          {thresholds.map((threshold) => (
-            <React.Fragment key={`fastest-${threshold}`}>
-              {renderFastestLeaderboard(threshold)}
-            </React.Fragment>
-          ))}
-        </div>
-      </PremiumPanel>
-    </div>
+    <PremiumPanel className="p-5">
+      <SectionTitle icon={Trophy} title="First Milestones" />
+      <div className="grid gap-5 md:grid-cols-3">
+        {thresholds.map((threshold) => (
+          <React.Fragment key={`first-${threshold}`}>
+            {renderFirstLeaderboard(threshold)}
+          </React.Fragment>
+        ))}
+      </div>
+    </PremiumPanel>
   );
 }
 
@@ -1312,26 +1285,25 @@ function ArsenalOutputPanel({ data }) {
 }
 
 function Variant1({ data }) {
+  const [activeTab, setActiveTab] = useState('kills');
+
   return (
     <div className="space-y-5">
-      <HallTopHeaders data={data} />
+      <HallTopHeaders
+        data={data}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
-      <CombatOutputPanel data={data} />
+      {activeTab === 'kills' ? (
+        <>
+          <CombatOutputPanel data={data} />
 
-      <CombatRecordsPanel data={data} />
-
-      <MilestoneLeaderboards data={data} />
-
-      <ArsenalOutputPanel data={data} />
-
-      <PremiumPanel className="p-5" glow>
-        <SectionTitle icon={Award} title="Achievement Wall" action="View all" />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {data.achievements.map((item) => (
-            <AchievementCard key={item.title} item={item} />
-          ))}
-        </div>
-      </PremiumPanel>
+          <FirstMilestonesPanel data={data} />
+        </>
+      ) : (
+        <CombatRecordsPanel data={data} />
+      )}
     </div>
   );
 }
