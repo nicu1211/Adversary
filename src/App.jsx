@@ -735,7 +735,7 @@ export default function App() {
     ['nodewars', 'Node Wars'],
     ['players', 'Player Stats'],
     ['hall', 'Hall of Fame'],
-    ['raw', 'Raw Log'],
+    ['raw', 'Raw Logs'],
   ];
 
   function isMenuActive(id) {
@@ -770,12 +770,12 @@ export default function App() {
     const warId = String(match?.warId || '');
 
     setNodeWarsWarning('');
-    setMatchHistoryDateFilter('');
+    setMatchHistoryDateFilter(matchDate);
     setSelectedDays(matchDate ? [matchDate] : ['all']);
     setSelectedWars(warId ? [warId] : ['all']);
     setPeriodDays('all');
     loadNodeLogs('all');
-    setPage('overview');
+    setPage('nodewars');
   }
 
   const rawHistoryLogs = allLogs || nodeLogs;
@@ -832,58 +832,74 @@ export default function App() {
       </div>
 
       <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="hidden border-r border-slate-800 bg-slate-950 p-4 lg:block">
+        <aside className="hidden min-h-screen flex-col border-r border-slate-800 bg-slate-950 p-4 lg:flex">
           <h1 className="mb-6 text-2xl font-black text-white">☾ Battle Analytics</h1>
 
-          <nav>
-            {menu.map(([id, title]) => {
-              const isNodeWars = id === 'nodewars';
+          <nav className="flex-1">
+            {menu
+              .filter(([id]) => id !== 'raw')
+              .map(([id, title]) => {
+                const isNodeWars = id === 'nodewars';
 
-              return (
-                <div key={id} className="mb-2">
-                  <button
-                    type="button"
-                    onClick={() => openPage(id)}
-                    className={`w-full rounded-xl px-4 py-3 text-left font-bold ${
-                      isMenuActive(id)
-                        ? 'border border-blue-400 bg-blue-500/20'
-                        : 'hover:bg-slate-900'
-                    }`}
-                  >
-                    {title}
-                  </button>
+                return (
+                  <div key={id} className="mb-2">
+                    <button
+                      type="button"
+                      onClick={() => openPage(id)}
+                      className={`w-full rounded-xl px-4 py-3 text-left font-bold ${
+                        isMenuActive(id)
+                          ? 'border border-blue-400 bg-blue-500/20'
+                          : 'hover:bg-slate-900'
+                      }`}
+                    >
+                      {title}
+                    </button>
 
-                  {isNodeWars && (
-                    <div className="ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
-                      <button
-                        type="button"
-                        onClick={() => openPage('nodewars')}
-                        className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
-                          page === 'nodewars'
-                            ? 'bg-blue-500/20 text-white'
-                            : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-                        }`}
-                      >
-                        Match History
-                      </button>
+                    {isNodeWars && (
+                      <div className="ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
+                        <button
+                          type="button"
+                          onClick={() => openPage('nodewars')}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
+                            page === 'nodewars'
+                              ? 'bg-blue-500/20 text-white'
+                              : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                          }`}
+                        >
+                          Match History
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={openOverviewFromMenu}
-                        className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
-                          page === 'overview'
-                            ? 'bg-blue-500/20 text-white'
-                            : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-                        }`}
-                      >
-                        Overview
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                        <button
+                          type="button"
+                          onClick={openOverviewFromMenu}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
+                            page === 'overview'
+                              ? 'bg-blue-500/20 text-white'
+                              : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                          }`}
+                        >
+                          Overview
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </nav>
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={() => openPage('raw')}
+              className={`w-full rounded-xl px-4 py-3 text-left font-bold ${
+                isMenuActive('raw')
+                  ? 'border border-blue-400 bg-blue-500/20'
+                  : 'hover:bg-slate-900'
+              }`}
+            >
+              Raw Logs
+            </button>
+          </div>
         </aside>
 
         <main className="min-w-0 p-3 sm:p-5 lg:p-6">
