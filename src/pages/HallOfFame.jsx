@@ -1111,6 +1111,36 @@ const toneClasses = {
     bar: 'from-blue-500 to-sky-300',
     glow: 'shadow-[0_0_35px_rgba(59,130,246,.18)]',
   },
+  blueDark: {
+    soft: 'border-blue-700/30 bg-blue-900/18 text-blue-300 shadow-blue-800/10',
+    text: 'text-blue-300',
+    bar: 'from-blue-800 to-blue-500',
+    glow: 'shadow-[0_0_35px_rgba(30,64,175,.16)]',
+  },
+  blueRoyal: {
+    soft: 'border-blue-500/28 bg-blue-600/12 text-blue-200 shadow-blue-600/10',
+    text: 'text-blue-200',
+    bar: 'from-blue-600 to-blue-300',
+    glow: 'shadow-[0_0_35px_rgba(37,99,235,.16)]',
+  },
+  blueSky: {
+    soft: 'border-sky-400/28 bg-sky-500/10 text-sky-300 shadow-sky-500/10',
+    text: 'text-sky-300',
+    bar: 'from-sky-500 to-cyan-300',
+    glow: 'shadow-[0_0_35px_rgba(14,165,233,.15)]',
+  },
+  blueIce: {
+    soft: 'border-cyan-300/25 bg-cyan-500/10 text-cyan-200 shadow-cyan-400/10',
+    text: 'text-cyan-200',
+    bar: 'from-cyan-400 to-blue-200',
+    glow: 'shadow-[0_0_35px_rgba(34,211,238,.14)]',
+  },
+  blueIndigo: {
+    soft: 'border-indigo-400/28 bg-indigo-500/10 text-indigo-300 shadow-indigo-500/10',
+    text: 'text-indigo-300',
+    bar: 'from-indigo-500 to-blue-300',
+    glow: 'shadow-[0_0_35px_rgba(99,102,241,.15)]',
+  },
   violet: {
     soft: 'border-violet-400/25 bg-violet-500/10 text-violet-300 shadow-violet-500/10',
     text: 'text-violet-300',
@@ -1537,7 +1567,7 @@ function CombatOutputPanel({ data }) {
                 value={player.kills}
                 max={maxTotalKills}
                 right={shortNum(player.kills)}
-                tone="rose"
+                tone="blueDark"
               />
             ))
           ) : (
@@ -1555,7 +1585,7 @@ function CombatOutputPanel({ data }) {
                 value={player.avgKillsPerMatch}
                 max={maxAverageKills}
                 right={player.avgKillsPerMatch.toFixed(2)}
-                tone="blue"
+                tone="blueRoyal"
               />
             ))
           ) : (
@@ -1573,7 +1603,7 @@ function CombatOutputPanel({ data }) {
                 value={player.maxMatchKills}
                 max={maxSingleMatchKills}
                 right={shortNum(player.maxMatchKills)}
-                tone="emerald"
+                tone="blueSky"
               />
             ))
           ) : (
@@ -1732,7 +1762,7 @@ function FirstMilestonesPanel({ data }) {
               value={Math.max(1, maxValue - row.fromFirstLogWars + 1)}
               max={maxValue}
               right={row.date ? `${row.date} · log ${row.fromFirstLogWars}` : `Log ${row.fromFirstLogWars}`}
-              tone="amber"
+              tone="blueIndigo"
             />
           ))
         ) : (
@@ -1778,7 +1808,7 @@ function FastestMilestonesPanel({ data }) {
               value={Math.max(1, maxValue - row.fromPlayerFirstLogWars + 1)}
               max={maxValue}
               right={`${row.fromPlayerFirstLogWars} logs`}
-              tone="cyan"
+              tone="blueIce"
             />
           ))
         ) : (
