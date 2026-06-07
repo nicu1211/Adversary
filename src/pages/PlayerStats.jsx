@@ -1629,6 +1629,52 @@ function MatchHistoryMetricIcon({ type, color }) {
     );
   }
 
+  if (type === 'killstreak') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M 1 -8.4 L -6.8 1.4 L -1.4 1.4 L -3.1 8.4 L 6.9 -2.6 L 1.3 -2.6 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.25"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'killfeed') {
+    return (
+      <svg {...commonProps}>
+        <g transform="scale(0.86)">
+          <path
+            d="M 0 8.4
+               C -4.5 8.4 -7.4 5.3 -7.4 1.7
+               C -7.4 -1.3 -5.7 -3.1 -3.8 -4.6
+               C -3.5 -1.7 -1.7 -0.9 -1.2 -3.9
+               C -0.8 -6.1 -1.4 -7.8 1.1 -9.1
+               C 0.6 -5.4 4.6 -4.1 5.8 -1.2
+               C 7.1 1.9 5.7 8.4 0 8.4 Z"
+            fill={color}
+            stroke={darkStroke}
+            strokeWidth="1.25"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M 0.3 6.9
+               C -2.1 6.9 -3.8 5.2 -3.8 2.9
+               C -3.8 1.2 -2.8 0.1 -1.5 -1.1
+               C -1.2 1.2 0.8 1.4 1.1 -1.6
+               C 2.8 0.1 3.9 1.9 3.6 4
+               C 3.3 5.8 2.1 6.9 0.3 6.9 Z"
+            fill={darkStroke}
+            opacity="0.9"
+          />
+        </g>
+      </svg>
+    );
+  }
+
   if (type === 'damageTaken') {
     return (
       <svg {...commonProps}>
@@ -1653,13 +1699,44 @@ function MatchHistoryMetricIcon({ type, color }) {
   if (type === 'ccHits') {
     return (
       <svg {...commonProps}>
-        <path
-          d="M 1 -8.4 L -6.8 1.4 L -1.4 1.4 L -3.1 8.4 L 6.9 -2.6 L 1.3 -2.6 Z"
-          fill={color}
-          stroke={darkStroke}
-          strokeWidth="1.25"
-          strokeLinejoin="round"
-        />
+        <g transform="rotate(-18)">
+          <path
+            d="M -8 -1.4
+               C -8 -3.9 -6.2 -5.7 -3.8 -5.7
+               L -1.2 -5.7
+               C 1.1 -5.7 2.9 -3.9 2.9 -1.6
+               C 2.9 0.8 1.1 2.6 -1.2 2.6
+               L -2.6 2.6"
+            fill="none"
+            stroke={color}
+            strokeWidth="2.1"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 8 1.4
+               C 8 3.9 6.2 5.7 3.8 5.7
+               L 1.2 5.7
+               C -1.1 5.7 -2.9 3.9 -2.9 1.6
+               C -2.9 -0.8 -1.1 -2.6 1.2 -2.6
+               L 2.6 -2.6"
+            fill="none"
+            stroke={color}
+            strokeWidth="2.1"
+            strokeLinecap="round"
+          />
+          <path
+            d="M -1.1 -1.1 L 1.1 1.1 M -1.1 1.1 L 1.1 -1.1"
+            stroke={darkStroke}
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+          <path
+            d="M -0.4 -5.1 L 0.8 -7.9 M 0.4 5.1 L -0.8 7.9"
+            stroke={color}
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </g>
       </svg>
     );
   }
@@ -1907,12 +1984,12 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
                 </MatchHistoryValue>
 
                 {/* Killstreak */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.killstreak}>
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.killstreak} icon="killstreak">
                   {formatMatchCell(match, 'killstreak')}
                 </MatchHistoryValue>
 
                 {/* KillFeed */}
-                <MatchHistoryValue color={MATCH_HISTORY_COLORS.killfeed} prefix="🔥">
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.killfeed} icon="killfeed">
                   {formatMatchCell(match, 'killfeed')}
                 </MatchHistoryValue>
 
