@@ -227,6 +227,7 @@ function buildHallData(stats) {
   ];
 
   const secondaryKillKeys = ['kills', 'Kills', 'kill', 'Kill', 'k', 'K'];
+  const secondaryDeathKeys = ['deaths', 'Deaths', 'death', 'Death', 'd', 'D'];
 
   function getSecondaryPlayerName(row) {
     const key = findRowKey(row, secondaryPlayerKeys);
@@ -239,6 +240,15 @@ function buildHallData(stats) {
 
   function getSecondaryKills(row) {
     const key = findRowKey(row, secondaryKillKeys);
+    return key ? parseHallNumber(row[key], 0) : 0;
+  }
+
+  function hasSecondaryDeaths(row) {
+    return Boolean(findRowKey(row, secondaryDeathKeys));
+  }
+
+  function getSecondaryDeaths(row) {
+    const key = findRowKey(row, secondaryDeathKeys);
     return key ? parseHallNumber(row[key], 0) : 0;
   }
 
@@ -282,7 +292,9 @@ function buildHallData(stats) {
       warId,
       date,
       kills: 0,
+      deaths: 0,
       hasKills: false,
+      hasDeaths: false,
     };
 
     if (!playerMatchMap[name][warId].date && date) {
@@ -303,6 +315,11 @@ function buildHallData(stats) {
     if (involvedPlayer) {
       const match = ensurePlayerMatch(involvedPlayer, id, event.date);
       match.hasKills = true;
+      match.hasDeaths = true;
+
+      if (event.type === 'death') {
+        match.deaths += 1;
+      }
     }
 
     if (killPlayer) {
@@ -324,11 +341,15 @@ function buildHallData(stats) {
     const match = ensurePlayerMatch(name, id, date);
 
     // Same behavior as Player Stats Match History:
-    // if a secondary/manual row has a Kills cell, that cell is the match value
-    // used by the Avg header above Kills.
+    // if a secondary/manual row has a Kills/Deaths cell, that cell is the match value.
     if (hasSecondaryKills(row)) {
       match.kills = getSecondaryKills(row);
       match.hasKills = true;
+    }
+
+    if (hasSecondaryDeaths(row)) {
+      match.deaths = getSecondaryDeaths(row);
+      match.hasDeaths = true;
     }
   });
 
@@ -408,6 +429,21 @@ function buildHallData(stats) {
     );
   }
 
+  function getPlayerAvgKd(name) {
+    const matches = Object.values(playerMatchMap[name] || {}).filter(
+      (match) => match.hasKills || match.hasDeaths,
+    );
+
+    if (!matches.length) return null;
+
+    return (
+      matches.reduce(
+        (sum, match) => sum + kd(Number(match.kills) || 0, Number(match.deaths) || 0),
+        0,
+      ) / matches.length
+    );
+  }
+
   const rows = (safe.players || [])
     .map((player) => {
       const kills = num(player.kills);
@@ -427,6 +463,10 @@ function buildHallData(stats) {
         ...matchValues.map((match) => Number(match.kills) || 0),
       );
       const avgKillsPerMatch = getPlayerAvgKills(player.name);
+      const avgKdPerMatch = getPlayerAvgKd(player.name);
+      const avgKdMatchCount = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) => match.hasKills || match.hasDeaths,
+      ).length;
       const score = Math.max(
         0,
         Math.round(
@@ -464,6 +504,8 @@ function buildHallData(stats) {
         maxMatchKills,
         avgKillsPerMatch,
         avgKillsMatchCount,
+        avgKdPerMatch,
+        avgKdMatchCount,
         score,
         title,
       };
@@ -899,7 +941,7 @@ function CombatOutputPanel({ data }) {
 
   return (
     <PremiumPanel className="p-5">
-      <SectionTitle icon={Swords} title="Combat Output" />
+      <SectionTitle icon={Swords} title="Kills" />
       <div className="grid gap-5 md:grid-cols-3">
         <div>
           <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills</p>
@@ -952,6 +994,121 @@ function CombatOutputPanel({ data }) {
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No players with at least 30 matches yet.</p>
+          )}
+        </div>
+      </div>
+    </PremiumPanel>
+  );
+}
+
+function CombatRecordsPanel({ data }) {
+  const topBestKd = [...data.rows]
+    .filter((player) => player.kills >= 5)
+    .sort((a, b) => b.kd - a.kd || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 10);
+
+  const topAverageKd = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.avgKdMatchCount) > 0 &&
+        Number.isFinite(Number(player.avgKdPerMatch)),
+    )
+    .sort(
+      (a, b) =>
+        b.avgKdPerMatch - a.avgKdPerMatch ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
+  const topStreaks = [...data.rows]
+    .filter((player) => player.streak > 0)
+    .sort((a, b) => b.streak - a.streak || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 10);
+
+  const topFeeds = [...data.rows]
+    .filter((player) => player.feed > 0)
+    .sort((a, b) => b.feed - a.feed || b.kills - a.kills || a.name.localeCompare(b.name))
+    .slice(0, 10);
+
+  const maxBestKd = Math.max(1, ...topBestKd.map((player) => player.kd));
+  const maxAverageKd = Math.max(1, ...topAverageKd.map((player) => player.avgKdPerMatch));
+  const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
+  const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
+
+  return (
+    <PremiumPanel className="p-5">
+      <SectionTitle icon={Target} title="K/D & Highlights" />
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best K/D</p>
+          {topBestKd.length ? (
+            topBestKd.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.kd}
+                max={maxBestKd}
+                right={player.kd.toFixed(2)}
+                tone="emerald"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No K/D data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average K/D</p>
+          {topAverageKd.length ? (
+            topAverageKd.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.avgKdPerMatch}
+                max={maxAverageKd}
+                right={player.avgKdPerMatch.toFixed(2)}
+                tone="blue"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average K/D data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Kill Streak</p>
+          {topStreaks.length ? (
+            topStreaks.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.streak}
+                max={maxStreak}
+                right={shortNum(player.streak)}
+                tone="orange"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kill streak data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Biggest Kill Feed</p>
+          {topFeeds.length ? (
+            topFeeds.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.feed}
+                max={maxFeed}
+                right={shortNum(player.feed)}
+                tone="cyan"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kill feed data yet.</p>
           )}
         </div>
       </div>
@@ -1099,6 +1256,8 @@ function Variant1({ data }) {
   return (
     <div className="space-y-5">
       <CombatOutputPanel data={data} />
+
+      <CombatRecordsPanel data={data} />
 
       <MilestoneLeaderboards data={data} />
 
