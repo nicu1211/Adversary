@@ -37,6 +37,147 @@ function compactNumber(value, digits = 1) {
   return number.toLocaleString('en-US');
 }
 
+function OverviewMetricIcon({ type, color }) {
+  const commonProps = {
+    width: 16,
+    height: 16,
+    viewBox: '-10 -10 20 20',
+    className: 'shrink-0',
+    style: {
+      filter: `drop-shadow(0 0 5px ${color})`,
+    },
+    'aria-hidden': true,
+  };
+
+  const darkStroke = 'rgba(2,6,23,0.96)';
+
+  if (type === 'kills') {
+    return (
+      <svg {...commonProps}>
+        <path
+          d="M -7.5 6.8 L -5.3 8.2 L 7.5 -5.9 L 5.9 -7.5 Z"
+          fill={color}
+          stroke={darkStroke}
+          strokeWidth="1.15"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M -7.8 -6.4 L -6.4 -7.8 L 7.8 6.4 L 6.4 7.8 Z"
+          fill={color}
+          opacity="0.75"
+          stroke={darkStroke}
+          strokeWidth="1.05"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M -4.6 4.1 L -7.2 7.2 M 4.6 4.1 L 7.2 7.2"
+          stroke={darkStroke}
+          strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  if (type === 'deaths') {
+    return (
+      <svg {...commonProps}>
+        <g transform="scale(0.86)">
+          <path
+            d="M 0 -8.6 C -5.2 -8.6 -8.2 -5.3 -8.2 -1.1 C -8.2 2.2 -6.3 4.2 -3.8 5.1 L -3.8 7.5 L -2.1 7.5 L -2.1 5.9 L -0.7 5.9 L -0.7 7.5 L 0.7 7.5 L 0.7 5.9 L 2.1 5.9 L 2.1 7.5 L 3.8 7.5 L 3.8 5.1 C 6.3 4.2 8.2 2.2 8.2 -1.1 C 8.2 -5.3 5.2 -8.6 0 -8.6 Z"
+            fill={color}
+            stroke={darkStroke}
+            strokeWidth="1.25"
+            strokeLinejoin="round"
+          />
+          <circle cx="-3" cy="-1.8" r="1.75" fill={darkStroke} />
+          <circle cx="3" cy="-1.8" r="1.75" fill={darkStroke} />
+          <path d="M 0 0.3 L -1.35 3 L 1.35 3 Z" fill={darkStroke} />
+        </g>
+      </svg>
+    );
+  }
+
+  if (type === 'kd') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="0" cy="0" r="7.2" fill="rgba(2,6,23,0.88)" stroke={color} strokeWidth="2" />
+        <circle cx="0" cy="0" r="3.7" fill={color} stroke={darkStroke} strokeWidth="1" />
+        <path d="M 0 -9 L 0 -5.8 M 0 5.8 L 0 9 M -9 0 L -5.8 0 M 5.8 0 L 9 0" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (type === 'players') {
+    return (
+      <svg {...commonProps}>
+        <circle cx="-2.8" cy="-2.2" r="2.2" fill={color} stroke={darkStroke} strokeWidth="1" />
+        <circle cx="3.3" cy="-1.2" r="1.9" fill={color} opacity="0.92" stroke={darkStroke} strokeWidth="1" />
+        <path d="M -6.4 7.2 C -6.4 4.4 -4.3 2.2 -1.7 2.2 H 0.2 C 2.9 2.2 5 4.4 5 7.2" fill={color} stroke={darkStroke} strokeWidth="1.1" strokeLinejoin="round" />
+        <path d="M 0.6 6.7 C 0.9 5 2.3 3.6 4 3.6 H 5.5 C 7 3.6 8.2 4.8 8.4 6.3" fill={color} opacity="0.9" stroke={darkStroke} strokeWidth="1" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (type === 'damageDealt') {
+    return (
+      <svg {...commonProps}>
+        <g transform="translate(0.1 0.15) scale(0.94)">
+          <path
+            d="M -9.1 7.5 C -9.1 4.2 -8.4 1.7 -7.1 -0.1 L -5.8 -1.9 C -5 -3 -3.9 -3.8 -2.6 -4.4 L 1.6 -6.4 C 3.8 -7.5 5.9 -7.7 7.7 -7.1 L 9 -6.6 C 9.8 -6.3 10.2 -5.3 9.8 -4.5 L 8.9 -2.9 C 8.5 -2.2 7.8 -1.8 7 -1.8 L 5.7 -1.8 C 4.2 -1.8 3 -1.3 2.1 -0.4 L 0.3 1.4 L -1 2.7 C -1.7 3.4 -1.6 4.7 -0.7 5.3 L 0.1 5.9 C 0.9 6.5 1.9 6.8 2.9 6.7 L 4 6.5 C 5.8 6.3 7.4 6.8 8.8 7.9 L 10 8.9 C 10.5 9.3 10.6 10.1 10.2 10.6 L 8.9 12.2 C 8.4 12.7 7.6 12.8 7.1 12.3 L 5.4 10.8 C 4.1 9.6 2.4 9 0.6 9 L -1.5 9 C -4.4 9 -6.8 8.6 -9.1 7.5 Z"
+            fill={color}
+            stroke={darkStroke}
+            strokeWidth="1.05"
+            strokeLinejoin="round"
+          />
+          <path d="M -2.4 1.1 C -1.3 -0.7 0.1 -1.9 2 -2.6 C 3.6 -3.1 5.4 -3 7 -2.5" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="0.95" strokeLinecap="round" />
+        </g>
+      </svg>
+    );
+  }
+
+  if (type === 'damageTaken') {
+    return (
+      <svg {...commonProps}>
+        <path d="M 0 -8.4 L 7.1 -5.8 L 6.1 1.7 C 5.5 5.4 3.3 7.4 0 8.6 C -3.3 7.4 -5.5 5.4 -6.1 1.7 L -7.1 -5.8 Z" fill={color} stroke={darkStroke} strokeWidth="1.3" strokeLinejoin="round" />
+        <path d="M 0 -5.9 L 0 5.7" stroke={darkStroke} strokeWidth="1.4" strokeLinecap="round" opacity="0.75" />
+      </svg>
+    );
+  }
+
+  if (type === 'ccHits') {
+    return (
+      <svg {...commonProps}>
+        <g transform="rotate(-18)">
+          <path d="M -7 2.8 C -7 0.5 -5.4 -1.1 -3.1 -1.1 L -0.8 -1.1 C 0.8 -1.1 2 0.1 2 1.7 C 2 3.4 0.8 4.6 -0.8 4.6 L -2 4.6" fill="none" stroke={color} strokeWidth="2.15" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M 7 -2.8 C 7 -0.5 5.4 1.1 3.1 1.1 L 0.8 1.1 C -0.8 1.1 -2 -0.1 -2 -1.7 C -2 -3.4 -0.8 -4.6 0.8 -4.6 L 2 -4.6" fill="none" stroke={color} strokeWidth="2.15" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M -0.7 -0.8 L 0.7 0.8 M -0.7 0.8 L 0.7 -0.8" stroke={darkStroke} strokeWidth="1.35" strokeLinecap="round" />
+          <path d="M -1.7 -2 L -2.7 -3.1 M 1.7 2 L 2.7 3.1" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+        </g>
+      </svg>
+    );
+  }
+
+  if (type === 'damageToFort') {
+    return (
+      <svg {...commonProps}>
+        <path d="M -7.6 -5.2 L -5.2 -5.2 L -5.2 -7.5 L -2.8 -7.5 L -2.8 -5.2 L -1.2 -5.2 L -1.2 -7.5 L 1.2 -7.5 L 1.2 -5.2 L 2.8 -5.2 L 2.8 -7.5 L 5.2 -7.5 L 5.2 -5.2 L 7.6 -5.2 L 7.6 7.5 L 4.7 7.5 L 4.7 3.6 C 4.7 1 2.6 -1.2 0 -1.2 C -2.6 -1.2 -4.7 1 -4.7 3.6 L -4.7 7.5 L -7.6 7.5 Z" fill={color} stroke={darkStroke} strokeWidth="1.25" strokeLinejoin="round" />
+        <path d="M -1.6 7.5 L -1.6 3.8 C -1.6 2.8 -0.9 2.1 0 2.1 C 0.9 2.1 1.6 2.8 1.6 3.8 L 1.6 7.5" fill={darkStroke} opacity="0.85" />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
+function OverviewHeaderIcon({ type, color }) {
+  return (
+    <span className="inline-flex h-8 w-8 items-center justify-center scale-[1.55]">
+      <OverviewMetricIcon type={type} color={color} />
+    </span>
+  );
+}
+
 function RankList({ title, items, valueKey }) {
   const rows = items.slice(0, 5);
   const max = Math.max(1, ...rows.map((x) => Number(x[valueKey]) || 0));
@@ -109,42 +250,6 @@ function cleanGuild(value) {
   return text;
 }
 
-function normalizePlayerName(value) {
-  return String(value || '')
-    .normalize('NFKC')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .replace(/\s+/g, '')
-    .trim()
-    .toLowerCase();
-}
-
-function samePlayerName(left, right) {
-  const a = normalizePlayerName(left);
-  const b = normalizePlayerName(right);
-
-  return Boolean(a && b && a === b);
-}
-
-function getPlayerKeyFromObject(object, playerName) {
-  if (!object) return null;
-
-  if (Object.prototype.hasOwnProperty.call(object, playerName)) {
-    return playerName;
-  }
-
-  const target = normalizePlayerName(playerName);
-
-  if (!target) return null;
-
-  return Object.keys(object).find((key) => normalizePlayerName(key) === target) || null;
-}
-
-function getPlayerObjectValue(object, playerName, fallback = 0) {
-  const key = getPlayerKeyFromObject(object, playerName);
-
-  return key == null ? fallback : object[key];
-}
-
 function majorityGuildFromEvents(events = []) {
   const guildCounts = {};
 
@@ -174,7 +279,7 @@ function majorityGuildForKillFeed(feed, events = []) {
   [...(events || [])]
     .filter((event) => {
       if (event.type !== 'kill') return false;
-      if (!samePlayerName(event.killer, feed.name)) return false;
+      if (event.killer !== feed.name) return false;
 
       const eventSec = timeToSecondsValue(event.time);
       const insideWindow =
@@ -307,15 +412,13 @@ function BestOverall({
       )
       .filter((event) => event.type === 'kill')
       .forEach((event) => {
-        const rowPlayer = rows.find((player) => samePlayerName(player.name, event.killer));
-        const playerName = rowPlayer?.name || event.killer;
+        run[event.killer] = (run[event.killer] || 0) + 1;
 
-        run[playerName] = (run[playerName] || 0) + 1;
+        const finalKills =
+          rows.find((player) => player.name === event.killer)?.kills || 0;
 
-        const finalKills = rowPlayer?.kills || 0;
-
-        if (finalKills && run[playerName] === finalKills) {
-          reach[playerName] =
+        if (finalKills && run[event.killer] === finalKills) {
+          reach[event.killer] =
             event.date +
             ' ' +
             String(event.sec).padStart(5, '0') +
@@ -353,9 +456,7 @@ function BestOverall({
     const feedMeta = {};
 
     feedDetails.forEach((feed) => {
-      const rowPlayer = rows.find((player) => samePlayerName(player.name, feed.name));
-      const playerName = rowPlayer?.name || feed.name;
-      const current = feedMeta[playerName];
+      const current = feedMeta[feed.name];
       const next = {
         count: Number(feed.count) || 0,
         firstKey: feedTimeKey(feed),
@@ -366,7 +467,7 @@ function BestOverall({
         next.count > current.count ||
         (next.count === current.count && next.firstKey < current.firstKey)
       ) {
-        feedMeta[playerName] = next;
+        feedMeta[feed.name] = next;
       }
     });
 
@@ -562,7 +663,7 @@ function BestOverall({
   });
 
   const final = rows
-    .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
+    .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => a.average - b.average);
 
   function formatAverageRank(value) {
@@ -719,7 +820,7 @@ function PlayerOverview({ players, streaks, feeds, events }) {
       ccHits: Number(player.ccHits) || 0,
       fortDamage: Number(player.fortDamage) || 0,
     }))
-    .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
+    .filter((player) => player.name.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => {
       const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
       const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
@@ -757,19 +858,17 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     const numeric = Number(value) || 0;
     const width = numeric <= 0
       ? 0
-      : Math.max(3, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
+      : Math.max(5, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
 
     return (
-      <div className={`mx-auto flex w-full min-w-0 flex-col items-center ${className}`}>
-        <span className="whitespace-nowrap text-center leading-none">{children}</span>
+      <div className={`ml-auto flex min-w-[58px] flex-col items-end ${className}`}>
+        <span className="whitespace-nowrap leading-none">{children}</span>
 
-        <span className="mt-1.5 block h-[2px] w-[58%] overflow-hidden rounded-full bg-slate-800/55">
+        <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-slate-800/90 shadow-inner">
           <span
-            className={`relative block h-full rounded-full bg-gradient-to-r ${progressThemes[id] || 'from-slate-500 to-slate-300'} opacity-90`}
-            style={{ width: `${width}%`, boxShadow: '0 0 6px rgba(255,255,255,0.08)' }}
-          >
-            <span className="absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full bg-white/55 blur-[0.5px]" />
-          </span>
+            className={`block h-full rounded-full bg-gradient-to-r ${progressThemes[id] || 'from-slate-500 to-slate-300'}`}
+            style={{ width: `${width}%` }}
+          />
         </span>
       </div>
     );
@@ -790,8 +889,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
           onClick={() => flip(id)}
           className={
             key === id
-              ? 'w-full font-black text-blue-300'
-              : 'w-full font-black hover:text-blue-300'
+              ? 'font-black text-blue-300'
+              : 'font-black hover:text-blue-300'
           }
         >
           {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
@@ -804,18 +903,17 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     ? events
         .filter(
           (event) =>
-            samePlayerName(event.killer, selected.name) ||
-            samePlayerName(event.victim, selected.name),
+            event.killer === selected.name || event.victim === selected.name,
         )
         .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec)
     : [];
 
   const kills = history.filter(
-    (event) => samePlayerName(event.killer, selected?.name),
+    (event) => event.killer === selected?.name,
   ).length;
 
   const deaths = history.filter(
-    (event) => samePlayerName(event.victim, selected?.name),
+    (event) => event.victim === selected?.name,
   ).length;
 
   const kd = deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2);
@@ -824,8 +922,8 @@ function PlayerOverview({ players, streaks, feeds, events }) {
   const nemesis = {};
 
   history.forEach((event) => {
-    if (samePlayerName(event.killer, selected?.name)) add(victims, event.victim);
-    if (samePlayerName(event.victim, selected?.name)) add(nemesis, event.killer);
+    if (event.killer === selected?.name) add(victims, event.victim);
+    if (event.victim === selected?.name) add(nemesis, event.killer);
   });
 
   const favourite =
@@ -855,50 +953,38 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
         <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
           <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
-            <table className="w-full table-fixed text-xs">
-              <colgroup>
-                <col className="w-[13%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-              </colgroup>
+            <table className="w-full text-xs">
               <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
                   <Header id="name" className="pl-4 text-left">
                     Family
                   </Header>
-                  <Header id="kills" className="text-center">
+                  <Header id="kills" className="text-right">
                     Kills
                   </Header>
-                  <Header id="deaths" className="text-center">
+                  <Header id="deaths" className="text-right">
                     Deaths
                   </Header>
-                  <Header id="kd" className="text-center">
+                  <Header id="kd" className="text-right">
                     K/D
                   </Header>
-                  <Header id="streak" className="text-center">
+                  <Header id="streak" className="text-right">
                     Killstreak
                   </Header>
-                  <Header id="feed" className="text-center">
+                  <Header id="feed" className="text-right">
                     KillFeed
                   </Header>
-                  <Header id="damageDealt" className="text-center">
-                    DMG Dealt
+                  <Header id="damageDealt" className="text-right">
+                    Damage Dealt
                   </Header>
-                  <Header id="damageTaken" className="text-center">
-                    DMG Taken
+                  <Header id="damageTaken" className="text-right">
+                    Damage Taken
                   </Header>
-                  <Header id="ccHits" className="text-center">
+                  <Header id="ccHits" className="text-right">
                     CC Hits
                   </Header>
-                  <Header id="fortDamage" className="text-center">
-                    DMG to Fort
+                  <Header id="fortDamage" className="pr-4 text-right">
+                    Damage to Fort
                   </Header>
                 </tr>
               </thead>
@@ -918,55 +1004,55 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                       </button>
                     </td>
 
-                    <td className="py-2 text-center font-black text-blue-300">
+                    <td className="py-2 text-right font-black text-blue-300">
                       <ProgressValue id="kills" value={player.kills}>
                         ⚔ {formatNumber(player.kills)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-pink-300">
+                    <td className="py-2 text-right font-black text-pink-300">
                       <ProgressValue id="deaths" value={player.deaths}>
                         ☠ {formatNumber(player.deaths)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-emerald-300">
+                    <td className="py-2 text-right font-black text-emerald-300">
                       <ProgressValue id="kd" value={player.kd}>
                         ✺ {player.kd}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black">
+                    <td className="py-2 text-right font-black">
                       <ProgressValue id="streak" value={player.streak}>
                         {formatNumber(player.streak)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-orange-300">
+                    <td className="py-2 text-right font-black text-orange-300">
                       <ProgressValue id="feed" value={player.feed}>
                         🔥 {formatNumber(player.feed)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-cyan-300">
+                    <td className="py-2 text-right font-black text-cyan-300">
                       <ProgressValue id="damageDealt" value={player.damageDealt}>
                         {formatNumber(player.damageDealt)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-rose-300">
+                    <td className="py-2 text-right font-black text-rose-300">
                       <ProgressValue id="damageTaken" value={player.damageTaken}>
                         {formatNumber(player.damageTaken)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-violet-300">
+                    <td className="py-2 text-right font-black text-violet-300">
                       <ProgressValue id="ccHits" value={player.ccHits}>
                         {formatNumber(player.ccHits)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-amber-300">
+                    <td className="py-2 pr-3 text-right font-black text-amber-300">
                       <ProgressValue id="fortDamage" value={player.fortDamage}>
                         {formatNumber(player.fortDamage)}
                       </ProgressValue>
@@ -1052,17 +1138,17 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                       <td className="py-3">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-black ${
-                            samePlayerName(event.killer, selected.name)
+                            event.killer === selected.name
                               ? 'bg-blue-500/15 text-blue-300'
                               : 'bg-pink-500/15 text-pink-300'
                           }`}
                         >
-                          {samePlayerName(event.killer, selected.name) ? 'KILL' : 'DEATH'}
+                          {event.killer === selected.name ? 'KILL' : 'DEATH'}
                         </span>
                       </td>
 
                       <td className="py-3 font-bold">
-                        {samePlayerName(event.killer, selected.name)
+                        {event.killer === selected.name
                           ? event.victim
                           : event.killer}
                       </td>
@@ -1804,7 +1890,7 @@ export default function OverviewPage({
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
           <Metric
-            icon="⚔"
+            icon={<OverviewHeaderIcon type="kills" color="#6ee7b7" />}
             label="Total Kills"
             value={stats.kills}
             sub="Eliminations"
@@ -1812,7 +1898,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon="☠"
+            icon={<OverviewHeaderIcon type="deaths" color="#f9a8d4" />}
             label="Total Deaths"
             value={stats.deaths}
             sub="Deaths"
@@ -1820,7 +1906,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon="✦"
+            icon={<OverviewHeaderIcon type="kd" color="#a78bfa" />}
             label="K/D"
             value={stats.kd}
             sub="Ratio"
@@ -1828,7 +1914,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon="♟"
+            icon={<OverviewHeaderIcon type="players" color="#60a5fa" />}
             label="Players"
             value={stats.players.length}
             sub="Active"
@@ -1836,7 +1922,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon="⚡"
+            icon={<OverviewHeaderIcon type="damageDealt" color="#fbbf24" />}
             label="Damage"
             value={compactNumber(damageDealt)}
             sub="Dealt"
@@ -1844,7 +1930,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon="🛡"
+            icon={<OverviewHeaderIcon type="damageTaken" color="#f472b6" />}
             label="Damage Taken"
             value={compactNumber(damageTaken)}
             sub="Taken"
@@ -1852,7 +1938,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon="◎"
+            icon={<OverviewHeaderIcon type="ccHits" color="#22d3ee" />}
             label="CC Hits"
             value={compactNumber(ccHits)}
             sub="Control"
@@ -1860,7 +1946,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon="♜"
+            icon={<OverviewHeaderIcon type="damageToFort" color="#a78bfa" />}
             label="Fort Damage"
             value={compactNumber(fortDamage)}
             sub="Structure"
