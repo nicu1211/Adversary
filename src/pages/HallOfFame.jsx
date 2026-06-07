@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+ import React, { useMemo, useState } from 'react';
 import {
   Award,
   BarChart3,
@@ -248,6 +248,17 @@ function buildHallData(stats) {
     'dmgToFort',
     'DMG to Fort',
   ];
+  const secondaryCcHitsKeys = [
+    'ccHits',
+    'cc_hits',
+    'cc hits',
+    'CC Hits',
+    'cc',
+    'CC',
+    'crowdControl',
+    'crowd control',
+    'Crowd Control',
+  ];
 
   function getSecondaryPlayerName(row) {
     const key = findRowKey(row, secondaryPlayerKeys);
@@ -287,6 +298,15 @@ function buildHallData(stats) {
 
   function getSecondaryFortDamage(row) {
     const key = findRowKey(row, secondaryFortDamageKeys);
+    return key ? parseHallNumber(row[key], 0) : 0;
+  }
+
+  function hasSecondaryCcHits(row) {
+    return Boolean(findRowKey(row, secondaryCcHitsKeys));
+  }
+
+  function getSecondaryCcHits(row) {
+    const key = findRowKey(row, secondaryCcHitsKeys);
     return key ? parseHallNumber(row[key], 0) : 0;
   }
 
@@ -333,10 +353,12 @@ function buildHallData(stats) {
       deaths: 0,
       damageDealt: 0,
       fortDamage: 0,
+      ccHits: 0,
       hasKills: false,
       hasDeaths: false,
       hasDamageDealt: false,
       hasFortDamage: false,
+      hasCcHits: false,
     };
 
     if (!playerMatchMap[name][warId].date && date) {
@@ -402,6 +424,11 @@ function buildHallData(stats) {
     if (hasSecondaryFortDamage(row)) {
       match.fortDamage = getSecondaryFortDamage(row);
       match.hasFortDamage = true;
+    }
+
+    if (hasSecondaryCcHits(row)) {
+      match.ccHits = getSecondaryCcHits(row);
+      match.hasCcHits = true;
     }
   });
 
@@ -509,6 +536,19 @@ function buildHallData(stats) {
     );
   }
 
+  function getPlayerAvgCcHits(name) {
+    const matches = Object.values(playerMatchMap[name] || {}).filter(
+      (match) => match.hasCcHits,
+    );
+
+    if (!matches.length) return null;
+
+    return (
+      matches.reduce((sum, match) => sum + (Number(match.ccHits) || 0), 0) /
+      matches.length
+    );
+  }
+
   const rows = (safe.players || [])
     .map((player) => {
       const kills = num(player.kills);
@@ -542,8 +582,28 @@ function buildHallData(stats) {
       const damageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
         (match) => match.hasDamageDealt,
       );
+      const fortDamageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) => match.hasFortDamage,
+      );
+      const ccHitsMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) => match.hasCcHits,
+      );
+      const maxMatchDamageDealt = Math.max(
+        0,
+        ...damageMatchValues.map((match) => Number(match.damageDealt) || 0),
+      );
+      const maxMatchFortDamage = Math.max(
+        0,
+        ...fortDamageMatchValues.map((match) => Number(match.fortDamage) || 0),
+      );
+      const maxMatchCcHits = Math.max(
+        0,
+        ...ccHitsMatchValues.map((match) => Number(match.ccHits) || 0),
+      );
       const avgDamageDealtPerMatch = getPlayerAvgDamageDealt(player.name);
       const avgDamageDealtMatchCount = damageMatchValues.length;
+      const avgCcHitsPerMatch = getPlayerAvgCcHits(player.name);
+      const avgCcHitsMatchCount = ccHitsMatchValues.length;
       const score = Math.max(
         0,
         Math.round(
@@ -584,8 +644,13 @@ function buildHallData(stats) {
         avgKillsMatchCount,
         avgKdPerMatch,
         avgKdMatchCount,
+        maxMatchDamageDealt,
+        maxMatchFortDamage,
+        maxMatchCcHits,
         avgDamageDealtPerMatch,
         avgDamageDealtMatchCount,
+        avgCcHitsPerMatch,
+        avgCcHitsMatchCount,
         score,
         title,
       };
@@ -1431,9 +1496,14 @@ function ArsenalOutputPanel({ data }) {
 }
 
 function DamageRecordsPanel({ data }) {
-  const topDamageDealt = [...data.rows]
-    .filter((player) => player.damageDealt > 0)
-    .sort((a, b) => b.damageDealt - a.damageDealt || b.kills - a.kills || a.name.localeCompare(b.name))
+  const topSingleGameDamageDealt = [...data.rows]
+    .filter((player) => player.maxMatchDamageDealt > 0)
+    .sort(
+      (a, b) =>
+        b.maxMatchDamageDealt - a.maxMatchDamageDealt ||
+        b.damageDealt - a.damageDealt ||
+        a.name.localeCompare(b.name),
+    )
     .slice(0, 10);
 
   const topAverageDamageDealt = [...data.rows]
@@ -1450,34 +1520,65 @@ function DamageRecordsPanel({ data }) {
     )
     .slice(0, 10);
 
-  const topFortDamage = [...data.rows]
-    .filter((player) => player.fortDamage > 0)
-    .sort((a, b) => b.fortDamage - a.fortDamage || b.damageDealt - a.damageDealt || a.name.localeCompare(b.name))
+  const topSingleGameFortDamage = [...data.rows]
+    .filter((player) => player.maxMatchFortDamage > 0)
+    .sort(
+      (a, b) =>
+        b.maxMatchFortDamage - a.maxMatchFortDamage ||
+        b.fortDamage - a.fortDamage ||
+        a.name.localeCompare(b.name),
+    )
     .slice(0, 10);
 
-  const maxDamageDealt = Math.max(1, ...topDamageDealt.map((player) => player.damageDealt));
+  const topSingleGameCcHits = [...data.rows]
+    .filter((player) => player.maxMatchCcHits > 0)
+    .sort(
+      (a, b) =>
+        b.maxMatchCcHits - a.maxMatchCcHits ||
+        b.ccHits - a.ccHits ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
+  const topAverageCcHits = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.avgCcHitsMatchCount) > 0 &&
+        Number.isFinite(Number(player.avgCcHitsPerMatch)),
+    )
+    .sort(
+      (a, b) =>
+        b.avgCcHitsPerMatch - a.avgCcHitsPerMatch ||
+        b.ccHits - a.ccHits ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
+  const maxSingleGameDamageDealt = Math.max(1, ...topSingleGameDamageDealt.map((player) => player.maxMatchDamageDealt));
   const maxAverageDamageDealt = Math.max(1, ...topAverageDamageDealt.map((player) => player.avgDamageDealtPerMatch));
-  const maxFortDamage = Math.max(1, ...topFortDamage.map((player) => player.fortDamage));
+  const maxSingleGameFortDamage = Math.max(1, ...topSingleGameFortDamage.map((player) => player.maxMatchFortDamage));
+  const maxSingleGameCcHits = Math.max(1, ...topSingleGameCcHits.map((player) => player.maxMatchCcHits));
+  const maxAverageCcHits = Math.max(1, ...topAverageCcHits.map((player) => player.avgCcHitsPerMatch));
 
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={BarChart3} title="Damage" />
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest DMG Dealt · Top 10</p>
-          {topDamageDealt.length ? (
-            topDamageDealt.map((player, index) => (
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game · Top 10</p>
+          {topSingleGameDamageDealt.length ? (
+            topSingleGameDamageDealt.map((player, index) => (
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.damageDealt}
-                max={maxDamageDealt}
-                right={shortNum(player.damageDealt)}
+                value={player.maxMatchDamageDealt}
+                max={maxSingleGameDamageDealt}
+                right={shortNum(player.maxMatchDamageDealt)}
                 tone="cyan"
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No damage dealt data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single game damage dealt data yet.</p>
           )}
         </div>
 
@@ -1500,20 +1601,56 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most DMG Dealt to Fort · Top 10</p>
-          {topFortDamage.length ? (
-            topFortDamage.map((player, index) => (
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fort Damage in 1 Game · Top 10</p>
+          {topSingleGameFortDamage.length ? (
+            topSingleGameFortDamage.map((player, index) => (
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.fortDamage}
-                max={maxFortDamage}
-                right={shortNum(player.fortDamage)}
+                value={player.maxMatchFortDamage}
+                max={maxSingleGameFortDamage}
+                right={shortNum(player.maxMatchFortDamage)}
                 tone="amber"
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No fort damage data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single game fort damage data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most CC Hits in 1 Game · Top 10</p>
+          {topSingleGameCcHits.length ? (
+            topSingleGameCcHits.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.maxMatchCcHits}
+                max={maxSingleGameCcHits}
+                right={shortNum(player.maxMatchCcHits)}
+                tone="violet"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single game CC hits data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Top 10</p>
+          {topAverageCcHits.length ? (
+            topAverageCcHits.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.avgCcHitsPerMatch}
+                max={maxAverageCcHits}
+                right={player.avgCcHitsPerMatch.toFixed(1).replace(/\.0$/, '')}
+                tone="blue"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average CC hits data yet.</p>
           )}
         </div>
       </div>
