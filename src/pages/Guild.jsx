@@ -801,7 +801,7 @@ function EnemyGuildTierList({ groups }) {
 
   return (
     <Panel className="p-3">
-      <SectionTitle icon={Trophy} title="Enemy Guild Tier List" sub="Last 45 days" />
+      <SectionTitle icon={Trophy} title="Enemy Guild Tier List" />
 
       {!hasGuilds ? (
         <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-4 text-sm font-bold text-slate-500">
@@ -825,7 +825,6 @@ function EnemyGuildTierList({ groups }) {
                   {group.tier !== 'Trash' && (
                     <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Tier</p>
                   )}
-                  <p className="truncate text-[10px] font-bold text-slate-300">{group.meta.range}</p>
                 </div>
               </div>
 
@@ -941,7 +940,6 @@ function Arsenal({ data }) {
               <Activity size={18} className="text-blue-300" />
               Averages
             </h3>
-            <p className="mt-0.5 text-[11px] font-bold text-slate-500">Per saved match</p>
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-4">
