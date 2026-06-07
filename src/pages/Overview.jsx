@@ -2050,15 +2050,15 @@ export default function OverviewPage({
             label="Total Kills"
             value={stats.kills}
             sub="Eliminations"
-            className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
+            className="border-blue-800/30 from-blue-900/20 text-blue-700"
           />
 
           <Metric
-            icon={<MetricGlyph type="deaths" color="#f9a8d4" />}
+            icon={<MetricGlyph type="deaths" color="#dc2626" />}
             label="Total Deaths"
             value={stats.deaths}
             sub="Deaths"
-            className="border-pink-400/25 from-pink-500/20 text-pink-300"
+            className="border-red-800/30 from-red-900/20 text-red-700"
           />
 
           <Metric
@@ -2066,7 +2066,11 @@ export default function OverviewPage({
             label="K/D"
             value={stats.kd}
             sub="Ratio"
-            className="border-violet-400/25 from-violet-500/20 text-violet-300"
+            className={
+              Number(stats.kd) < 1
+                ? "border-red-500/30 from-red-900/20 text-red-400"
+                : "border-emerald-500/30 from-emerald-900/20 text-emerald-400"
+            }
           />
 
           <Metric
@@ -2074,7 +2078,7 @@ export default function OverviewPage({
             label="Players"
             value={stats.players.length}
             sub="Active"
-            className="border-blue-400/25 from-blue-500/20 text-blue-300"
+            className="border-purple-500/30 from-purple-900/20 text-purple-400"
           />
 
           <Metric
@@ -2082,7 +2086,7 @@ export default function OverviewPage({
             label="Damage"
             value={compactNumber(damageDealt)}
             sub="Dealt"
-            className="border-amber-400/25 from-amber-500/20 text-amber-300"
+            className="border-sky-400/30 from-sky-900/20 text-sky-300"
           />
 
           <Metric
@@ -2090,7 +2094,7 @@ export default function OverviewPage({
             label="Damage Taken"
             value={compactNumber(damageTaken)}
             sub="Taken"
-            className="border-pink-400/25 from-pink-500/20 text-pink-300"
+            className="border-orange-500/30 from-orange-900/20 text-orange-400"
           />
 
           <Metric
@@ -2098,7 +2102,7 @@ export default function OverviewPage({
             label="CC Hits"
             value={compactNumber(ccHits)}
             sub="Control"
-            className="border-cyan-400/25 from-cyan-500/20 text-cyan-300"
+            className="border-yellow-400/30 from-yellow-900/20 text-yellow-300"
           />
 
           <Metric
@@ -2106,7 +2110,7 @@ export default function OverviewPage({
             label="Fort Damage"
             value={compactNumber(fortDamage)}
             sub="Structure"
-            className="border-violet-400/25 from-violet-500/20 text-violet-300"
+            className="border-amber-900/40 from-amber-950/25 text-amber-800"
           />
         </div>
       </header>
