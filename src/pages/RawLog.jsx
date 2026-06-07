@@ -292,11 +292,7 @@ export default function RawLog({
               <div>
                 <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-900 p-4">
                   <span className="block text-sm font-black text-white">
-                    Main log status
-                  </span>
-
-                  <span className="mt-1 block text-xs text-slate-400">
-                    Logul principal este folosit la calculele actuale.
+                    Combat Log
                   </span>
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -338,21 +334,12 @@ export default function RawLog({
                   className="h-96 w-full rounded-2xl border border-slate-700 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-blue-400"
                 />
 
-                <p className="mt-2 text-xs text-slate-500">
-                  Formatul actual acceptat rămâne cel normal, de tip kill/death
-                  log.
-                </p>
               </div>
 
               <div>
                 <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
                   <span className="block text-sm font-black text-emerald-100">
-                    Secondary manual log
-                  </span>
-
-                  <span className="mt-1 block text-xs text-emerald-200/80">
-                    Poți salva și doar Secondary Manual Log. Format scurt: Player, Kills, Deaths.
-                    Format complet: Kills, Deaths, Kill streak, Damage dealt, Damage taken, CC hits și Fort damage.
+                    Stats log
                   </span>
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -376,7 +363,7 @@ export default function RawLog({
 
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">
-                    Secondary Manual Log
+                    Stats Log
                   </p>
 
                   <button
@@ -395,10 +382,6 @@ export default function RawLog({
                   placeholder="Lipește aici secondary log. Acceptă: Player Kills Deaths sau format complet: 1 Kills, 2 Deaths, 3 Kill streak, 4 Damage dealt, 5 Damage taken, 6 CC hits, 9 Fort damage."
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
-
-                <p className="mt-2 text-xs text-slate-500">
-                  Restul coloanelor sunt ignorate. Dacă există doar player, kills și deaths, logul poate fi salvat fără Main Raw Log.
-                </p>
 
                 {secondaryRows.length > 0 && (
                   <p className="mt-2 text-xs text-emerald-200/80">
@@ -422,7 +405,7 @@ export default function RawLog({
                   </p>
 
                   <p className="text-xs text-slate-400">
-                    La Save se salvează ce ai completat: Main Raw Log + Secondary Manual Log sau doar Secondary Manual Log.
+                    La Save se salvează ce ai completat: Main Raw Log + Stats Log sau doar Stats Log.
                   </p>
                 </div>
 
@@ -434,11 +417,6 @@ export default function RawLog({
               </div>
             )}
 
-            {!canSave && (
-              <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-                Pentru Save, completează Main Raw Log cu cel puțin o linie validă de kill/death sau Secondary Manual Log cu cel puțin un rând valid.
-              </div>
-            )}
           </Panel>
         </div>
 
