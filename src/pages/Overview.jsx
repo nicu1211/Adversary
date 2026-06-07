@@ -1161,11 +1161,15 @@ function PlayerOverview({ players, streaks, feeds, events }) {
 
                     <td className="py-2 text-center font-black text-pink-300">
                       <ProgressValue id="deaths" value={player.deaths}>
-                        <MetricGlyph type="deaths" color="#f9a8d4" /> {formatNumber(player.deaths)}
+                        <MetricGlyph type="deaths" color="#dc2626" /> {formatNumber(player.deaths)}
                       </ProgressValue>
                     </td>
 
-                    <td className="py-2 text-center font-black text-emerald-300">
+                    <td
+                      className={`py-2 text-center font-black ${
+                        Number(player.kd) < 1 ? 'text-red-400' : 'text-emerald-300'
+                      }`}
+                    >
                       <ProgressValue id="kd" value={player.kd}>
                         <MetricGlyph type="kd" color={Number(player.kd) < 1 ? "#ef4444" : "#22c55e"} /> {player.kd}
                       </ProgressValue>
@@ -2042,7 +2046,7 @@ export default function OverviewPage({
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
           <Metric
-            icon={<MetricGlyph type="kills" color="#6ee7b7" />}
+            icon={<MetricGlyph type="kills" color="#1d4ed8" />}
             label="Total Kills"
             value={stats.kills}
             sub="Eliminations"
@@ -2058,7 +2062,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon={<MetricGlyph type="kd" color="#a78bfa" />}
+            icon={<MetricGlyph type="kd" color={Number(stats.kd) < 1 ? "#ef4444" : "#22c55e"} />}
             label="K/D"
             value={stats.kd}
             sub="Ratio"
@@ -2066,7 +2070,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon={<MetricGlyph type="players" color="#60a5fa" />}
+            icon={<MetricGlyph type="players" color="#a855f7" />}
             label="Players"
             value={stats.players.length}
             sub="Active"
@@ -2074,7 +2078,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon={<MetricGlyph type="damageDealt" color="#fbbf24" />}
+            icon={<MetricGlyph type="damageDealt" color="#38bdf8" />}
             label="Damage"
             value={compactNumber(damageDealt)}
             sub="Dealt"
@@ -2082,7 +2086,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon={<MetricGlyph type="damageTaken" color="#f472b6" />}
+            icon={<MetricGlyph type="damageTaken" color="#f97316" />}
             label="Damage Taken"
             value={compactNumber(damageTaken)}
             sub="Taken"
@@ -2090,7 +2094,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon={<MetricGlyph type="ccHits" color="#22d3ee" />}
+            icon={<MetricGlyph type="ccHits" color="#facc15" />}
             label="CC Hits"
             value={compactNumber(ccHits)}
             sub="Control"
@@ -2098,7 +2102,7 @@ export default function OverviewPage({
           />
 
           <Metric
-            icon={<MetricGlyph type="damageToFort" color="#a78bfa" />}
+            icon={<MetricGlyph type="damageToFort" color="#92400e" />}
             label="Fort Damage"
             value={compactNumber(fortDamage)}
             sub="Structure"
