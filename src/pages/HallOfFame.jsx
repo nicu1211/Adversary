@@ -1311,6 +1311,60 @@ const toneClasses = {
     bar: 'from-green-600 to-teal-300',
     glow: 'shadow-[0_0_35px_rgba(34,197,94,.14)]',
   },
+  yellowGold: {
+    soft: 'border-yellow-400/28 bg-yellow-500/10 text-yellow-300 shadow-yellow-400/10',
+    text: 'text-yellow-300',
+    bar: 'from-yellow-500 to-amber-300',
+    glow: 'shadow-[0_0_35px_rgba(234,179,8,.15)]',
+  },
+  yellowAmber: {
+    soft: 'border-amber-400/28 bg-amber-500/10 text-amber-300 shadow-amber-400/10',
+    text: 'text-amber-300',
+    bar: 'from-amber-500 to-yellow-200',
+    glow: 'shadow-[0_0_35px_rgba(245,158,11,.15)]',
+  },
+  yellowLemon: {
+    soft: 'border-yellow-300/28 bg-yellow-300/10 text-yellow-200 shadow-yellow-300/10',
+    text: 'text-yellow-200',
+    bar: 'from-yellow-300 to-lime-200',
+    glow: 'shadow-[0_0_35px_rgba(250,204,21,.14)]',
+  },
+  yellowHoney: {
+    soft: 'border-orange-300/26 bg-orange-400/10 text-orange-200 shadow-orange-300/10',
+    text: 'text-orange-200',
+    bar: 'from-orange-400 to-yellow-300',
+    glow: 'shadow-[0_0_35px_rgba(251,146,60,.14)]',
+  },
+  yellowSand: {
+    soft: 'border-amber-200/24 bg-amber-200/10 text-amber-100 shadow-amber-200/10',
+    text: 'text-amber-100',
+    bar: 'from-amber-200 to-yellow-100',
+    glow: 'shadow-[0_0_35px_rgba(253,230,138,.12)]',
+  },
+  redDeep: {
+    soft: 'border-red-700/30 bg-red-950/20 text-red-300 shadow-red-900/10',
+    text: 'text-red-300',
+    bar: 'from-red-900 to-red-500',
+    glow: 'shadow-[0_0_35px_rgba(127,29,29,.16)]',
+  },
+  redCrimson: {
+    soft: 'border-red-500/28 bg-red-500/12 text-red-200 shadow-red-500/10',
+    text: 'text-red-200',
+    bar: 'from-red-600 to-rose-300',
+    glow: 'shadow-[0_0_35px_rgba(239,68,68,.15)]',
+  },
+  redRose: {
+    soft: 'border-rose-400/28 bg-rose-500/10 text-rose-200 shadow-rose-400/10',
+    text: 'text-rose-200',
+    bar: 'from-rose-600 to-red-300',
+    glow: 'shadow-[0_0_35px_rgba(244,63,94,.14)]',
+  },
+  redRuby: {
+    soft: 'border-red-400/28 bg-red-500/10 text-red-300 shadow-red-400/10',
+    text: 'text-red-300',
+    bar: 'from-red-500 to-orange-300',
+    glow: 'shadow-[0_0_35px_rgba(248,113,113,.14)]',
+  },
   orange: {
     soft: 'border-orange-400/25 bg-orange-500/10 text-orange-300 shadow-orange-500/10',
     text: 'text-orange-300',
@@ -1630,6 +1684,15 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
     greenMint: 'from-teal-500 via-emerald-300 to-green-100',
     greenLime: 'from-lime-500 via-green-300 to-emerald-200',
     greenTeal: 'from-green-700 via-teal-400 to-emerald-200',
+    yellowGold: 'from-yellow-500 via-amber-300 to-yellow-100',
+    yellowAmber: 'from-amber-600 via-yellow-400 to-amber-100',
+    yellowLemon: 'from-yellow-300 via-lime-200 to-yellow-50',
+    yellowHoney: 'from-orange-400 via-amber-300 to-yellow-200',
+    yellowSand: 'from-amber-200 via-yellow-100 to-white',
+    redDeep: 'from-red-950 via-red-700 to-red-500',
+    redCrimson: 'from-red-700 via-red-500 to-rose-300',
+    redRose: 'from-rose-700 via-rose-500 to-red-200',
+    redRuby: 'from-red-500 via-orange-400 to-red-200',
     amber: 'from-amber-500 to-yellow-300',
     rose: 'from-rose-500 to-red-300',
   };
@@ -1717,7 +1780,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           title="Highlights"
           value={bestKd ? bestKd.kd.toFixed(2) : '0.00'}
           sub={topStreak ? `Best K/D · Streak ${shortNum(topStreak.streak)}` : 'Best K/D · Streak'}
-          tone="emerald"
+          tone="greenDeep"
           active={activeTab === 'highlights'}
           onClick={() => onTabChange('highlights')}
         />
@@ -1727,7 +1790,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           title="Damage"
           value={shortNum(totalEligibleDamage)}
           sub={`Min ${MIN_HALL_MATCHES} matches`}
-          tone="cyan"
+          tone="yellowGold"
           active={activeTab === 'damage'}
           onClick={() => onTabChange('damage')}
         />
@@ -1737,7 +1800,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           title="Node Wars"
           value={shortNum(data.totals.wars)}
           sub={`Min ${MIN_HALL_MATCHES} matches`}
-          tone="violet"
+          tone="redDeep"
           active={activeTab === 'nodeWars'}
           onClick={() => onTabChange('nodeWars')}
         />
@@ -2225,7 +2288,7 @@ function DamageRecordsPanel({ data }) {
                 value={player.maxMatchDamageDealt}
                 max={maxSingleGameDamageDealt}
                 right={shortNum(player.maxMatchDamageDealt)}
-                tone="cyan"
+                tone="yellowGold"
               />
             ))
           ) : (
@@ -2243,7 +2306,7 @@ function DamageRecordsPanel({ data }) {
                 value={player.avgDamageDealtPerMatch}
                 max={maxAverageDamageDealt}
                 right={shortNum(player.avgDamageDealtPerMatch)}
-                tone="blue"
+                tone="yellowAmber"
               />
             ))
           ) : (
@@ -2261,7 +2324,7 @@ function DamageRecordsPanel({ data }) {
                 value={player.maxMatchFortDamage}
                 max={maxSingleGameFortDamage}
                 right={shortNum(player.maxMatchFortDamage)}
-                tone="amber"
+                tone="yellowLemon"
               />
             ))
           ) : (
@@ -2279,7 +2342,7 @@ function DamageRecordsPanel({ data }) {
                 value={player.maxMatchCcHits}
                 max={maxSingleGameCcHits}
                 right={shortNum(player.maxMatchCcHits)}
-                tone="violet"
+                tone="yellowHoney"
               />
             ))
           ) : (
@@ -2297,7 +2360,7 @@ function DamageRecordsPanel({ data }) {
                 value={player.avgCcHitsPerMatch}
                 max={maxAverageCcHits}
                 right={player.avgCcHitsPerMatch.toFixed(1).replace(/\.0$/, '')}
-                tone="blue"
+                tone="yellowSand"
               />
             ))
           ) : (
@@ -2353,7 +2416,7 @@ function NodeWarsRecordsPanel({ data }) {
                 value={player.wars}
                 max={maxNodeWars}
                 right={shortNum(player.wars)}
-                tone="violet"
+                tone="redDeep"
               />
             ))
           ) : (
@@ -2371,7 +2434,7 @@ function NodeWarsRecordsPanel({ data }) {
                 value={player.joinParticipation}
                 max={maxJoinParticipation}
                 right={`${player.joinParticipation.toFixed(1).replace(/\.0$/, '')}%`}
-                tone="emerald"
+                tone="redCrimson"
               />
             ))
           ) : (
@@ -2389,7 +2452,7 @@ function NodeWarsRecordsPanel({ data }) {
                 value={player.consecutiveWars}
                 max={maxConsecutiveWars}
                 right={shortNum(player.consecutiveWars)}
-                tone="amber"
+                tone="redRose"
               />
             ))
           ) : (
