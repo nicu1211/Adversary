@@ -1312,34 +1312,34 @@ const toneClasses = {
     glow: 'shadow-[0_0_35px_rgba(34,197,94,.14)]',
   },
   yellowGold: {
-    soft: 'border-yellow-400/28 bg-yellow-500/10 text-yellow-300 shadow-yellow-400/10',
-    text: 'text-yellow-300',
-    bar: 'from-yellow-500 to-amber-300',
-    glow: 'shadow-[0_0_35px_rgba(234,179,8,.15)]',
+    soft: 'border-yellow-700/30 bg-yellow-900/14 text-yellow-600 shadow-yellow-900/10',
+    text: 'text-yellow-600',
+    bar: 'from-yellow-800 via-yellow-700 to-amber-600',
+    glow: 'shadow-[0_0_35px_rgba(161,98,7,.13)]',
   },
   yellowAmber: {
-    soft: 'border-amber-400/28 bg-amber-500/10 text-amber-300 shadow-amber-400/10',
-    text: 'text-amber-300',
-    bar: 'from-amber-500 to-yellow-200',
-    glow: 'shadow-[0_0_35px_rgba(245,158,11,.15)]',
+    soft: 'border-amber-700/30 bg-amber-900/14 text-amber-600 shadow-amber-900/10',
+    text: 'text-amber-600',
+    bar: 'from-amber-800 via-amber-700 to-yellow-600',
+    glow: 'shadow-[0_0_35px_rgba(180,83,9,.13)]',
   },
   yellowLemon: {
-    soft: 'border-yellow-300/28 bg-yellow-300/10 text-yellow-200 shadow-yellow-300/10',
-    text: 'text-yellow-200',
-    bar: 'from-yellow-300 to-lime-200',
-    glow: 'shadow-[0_0_35px_rgba(250,204,21,.14)]',
+    soft: 'border-yellow-600/28 bg-yellow-800/12 text-yellow-500 shadow-yellow-800/10',
+    text: 'text-yellow-500',
+    bar: 'from-yellow-700 via-yellow-600 to-lime-500',
+    glow: 'shadow-[0_0_35px_rgba(202,138,4,.12)]',
   },
   yellowHoney: {
-    soft: 'border-orange-300/26 bg-orange-400/10 text-orange-200 shadow-orange-300/10',
-    text: 'text-orange-200',
-    bar: 'from-orange-400 to-yellow-300',
-    glow: 'shadow-[0_0_35px_rgba(251,146,60,.14)]',
+    soft: 'border-orange-700/28 bg-orange-900/12 text-orange-500 shadow-orange-900/10',
+    text: 'text-orange-500',
+    bar: 'from-orange-800 via-amber-700 to-yellow-600',
+    glow: 'shadow-[0_0_35px_rgba(194,65,12,.12)]',
   },
   yellowSand: {
-    soft: 'border-amber-200/24 bg-amber-200/10 text-amber-100 shadow-amber-200/10',
-    text: 'text-amber-100',
-    bar: 'from-amber-200 to-yellow-100',
-    glow: 'shadow-[0_0_35px_rgba(253,230,138,.12)]',
+    soft: 'border-amber-700/24 bg-amber-950/14 text-amber-500 shadow-amber-950/10',
+    text: 'text-amber-500',
+    bar: 'from-amber-900 via-yellow-800 to-amber-600',
+    glow: 'shadow-[0_0_35px_rgba(120,53,15,.12)]',
   },
   redDeep: {
     soft: 'border-red-700/30 bg-red-950/20 text-red-300 shadow-red-900/10',
@@ -1684,11 +1684,11 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
     greenMint: 'from-teal-500 via-emerald-300 to-green-100',
     greenLime: 'from-lime-500 via-green-300 to-emerald-200',
     greenTeal: 'from-green-700 via-teal-400 to-emerald-200',
-    yellowGold: 'from-yellow-500 via-amber-300 to-yellow-100',
-    yellowAmber: 'from-amber-600 via-yellow-400 to-amber-100',
-    yellowLemon: 'from-yellow-300 via-lime-200 to-yellow-50',
-    yellowHoney: 'from-orange-400 via-amber-300 to-yellow-200',
-    yellowSand: 'from-amber-200 via-yellow-100 to-white',
+    yellowGold: 'from-yellow-800 via-yellow-700 to-amber-600',
+    yellowAmber: 'from-amber-800 via-amber-700 to-yellow-600',
+    yellowLemon: 'from-yellow-700 via-yellow-600 to-lime-500',
+    yellowHoney: 'from-orange-800 via-amber-700 to-yellow-600',
+    yellowSand: 'from-amber-900 via-yellow-800 to-amber-600',
     redDeep: 'from-red-950 via-red-700 to-red-500',
     redCrimson: 'from-red-700 via-red-500 to-rose-300',
     redRose: 'from-rose-700 via-rose-500 to-red-200',
@@ -1737,8 +1737,8 @@ function HallHeaderCard({
           <p className="text-xs font-black uppercase tracking-[0.18em] opacity-75">
             {title}
           </p>
-          <p className="mt-2 text-3xl font-black leading-none">{value}</p>
-          {sub && <p className="mt-2 text-xs font-bold opacity-70">{sub}</p>}
+          {false && <p className="mt-2 text-3xl font-black leading-none">{value}</p>}
+          {false && sub && <p className="mt-2 text-xs font-bold opacity-70">{sub}</p>}
         </div>
 
         <div className={cls('grid h-11 w-11 shrink-0 place-items-center rounded-2xl border bg-slate-950/55', toneInfo.soft)}>
@@ -1849,7 +1849,7 @@ function CombatOutputPanel({ data }) {
       <SectionTitle icon={Swords} title="Kills" />
       <div className="grid gap-5 md:grid-cols-3">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills</p>
           {topTotalKills.length ? (
             topTotalKills.map((player, index) => (
               <HallProgressRow
@@ -1867,7 +1867,7 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills</p>
           {topAverageKills.length ? (
             topAverageKills.map((player, index) => (
               <HallProgressRow
@@ -1885,7 +1885,7 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers</p>
           {topFraggers.length ? (
             topFraggers.map((player, index) => (
               <HallProgressRow
@@ -1974,7 +1974,7 @@ function CombatRecordsPanel({ data }) {
       <SectionTitle icon={Target} title="Highlights" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average K/D · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average K/D</p>
           {topAverageKd.length ? (
             topAverageKd.map((player, index) => (
               <HallProgressRow
@@ -1992,7 +1992,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest K/D · Top 10 · Single Match · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest K/D · Single Match</p>
           {topHighestMatchKd.length ? (
             topHighestMatchKd.map((player, index) => (
               <HallProgressRow
@@ -2010,7 +2010,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average Rank · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average Rank</p>
           {topAverageRank.length ? (
             topAverageRank.map((player, index) => (
               <HallProgressRow
@@ -2028,7 +2028,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Kill Streak · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Kill Streak</p>
           {topStreaks.length ? (
             topStreaks.map((player, index) => (
               <HallProgressRow
@@ -2046,7 +2046,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Biggest Kill Feed · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Biggest Kill Feed</p>
           {topFeeds.length ? (
             topFeeds.map((player, index) => (
               <HallProgressRow
@@ -2077,7 +2077,7 @@ function FirstMilestonesPanel({ data }) {
     return (
       <div>
         <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          First to {threshold} Kills · Top 10 · Min 30 matches
+          First to {threshold} Kills
         </p>
         {rows.length ? (
           rows.map((row, index) => (
@@ -2123,7 +2123,7 @@ function FastestMilestonesPanel({ data }) {
     return (
       <div>
         <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Fastest to {threshold} Kills · Top 10 · Min 30 matches
+          Fastest to {threshold} Kills
         </p>
         {rows.length ? (
           rows.map((row, index) => (
@@ -2279,7 +2279,7 @@ function DamageRecordsPanel({ data }) {
       <SectionTitle icon={BarChart3} title="Damage" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game</p>
           {topSingleGameDamageDealt.length ? (
             topSingleGameDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -2297,7 +2297,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Top 10 · Match History · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Match History</p>
           {topAverageDamageDealt.length ? (
             topAverageDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -2315,7 +2315,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fort Damage in 1 Game · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fort Damage in 1 Game</p>
           {topSingleGameFortDamage.length ? (
             topSingleGameFortDamage.map((player, index) => (
               <HallProgressRow
@@ -2333,7 +2333,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most CC Hits in 1 Game · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most CC Hits in 1 Game</p>
           {topSingleGameCcHits.length ? (
             topSingleGameCcHits.map((player, index) => (
               <HallProgressRow
@@ -2351,7 +2351,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Top 10 · Match History · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Match History</p>
           {topAverageCcHits.length ? (
             topAverageCcHits.map((player, index) => (
               <HallProgressRow
@@ -2407,7 +2407,7 @@ function NodeWarsRecordsPanel({ data }) {
       <SectionTitle icon={CalendarDays} title="Node Wars" />
       <div className="grid gap-5 md:grid-cols-3">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Node Wars · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Node Wars</p>
           {topMostNodeWars.length ? (
             topMostNodeWars.map((player, index) => (
               <HallProgressRow
@@ -2425,7 +2425,7 @@ function NodeWarsRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation · From First Log · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation · From First Log</p>
           {topJoinParticipation.length ? (
             topJoinParticipation.map((player, index) => (
               <HallProgressRow
@@ -2443,7 +2443,7 @@ function NodeWarsRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Consecutive Matches · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Consecutive Matches</p>
           {topConsecutiveWars.length ? (
             topConsecutiveWars.map((player, index) => (
               <HallProgressRow
