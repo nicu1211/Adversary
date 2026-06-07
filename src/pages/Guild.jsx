@@ -822,7 +822,9 @@ function EnemyGuildTierList({ groups }) {
                   {group.meta.label}
                 </div>
                 <div className="min-w-0 lg:text-center">
-                  {group.tier !== 'Trash' && (
+                  {group.tier === 'Trash' ? (
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Trash</p>
+                  ) : (
                     <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Tier</p>
                   )}
                 </div>
