@@ -1873,7 +1873,7 @@ function MatchHistoryMetricIcon({ type, color }) {
 
 function SummaryHeaderIcon({ type, color }) {
   return (
-    <span className="inline-flex h-5 w-5 items-center justify-center">
+    <span className="inline-flex h-9 w-9 items-center justify-center scale-[1.65]">
       <MatchHistoryMetricIcon type={type} color={color} />
     </span>
   );
