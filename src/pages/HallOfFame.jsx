@@ -906,6 +906,65 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
   );
 }
 
+function HallHeaderCard({ icon: Icon, title, value, sub, tone = 'blue' }) {
+  const toneInfo = getTone(tone);
+
+  return (
+    <div
+      className={cls(
+        'relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 shadow-xl',
+        toneInfo.soft,
+      )}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent)]" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] opacity-75">
+            {title}
+          </p>
+          <p className="mt-2 text-3xl font-black leading-none">{value}</p>
+          {sub && <p className="mt-2 text-xs font-bold opacity-70">{sub}</p>}
+        </div>
+
+        <div className={cls('grid h-11 w-11 shrink-0 place-items-center rounded-2xl border bg-slate-950/55', toneInfo.soft)}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HallTopHeaders({ data }) {
+  const bestKd = [...data.rows]
+    .filter((player) => player.kills >= 5)
+    .sort((a, b) => b.kd - a.kd || b.kills - a.kills || a.name.localeCompare(b.name))[0];
+
+  const topStreak = [...data.rows]
+    .sort((a, b) => b.streak - a.streak || b.kills - a.kills || a.name.localeCompare(b.name))[0];
+
+  return (
+    <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
+      <div className="grid gap-3 md:grid-cols-2">
+        <HallHeaderCard
+          icon={Swords}
+          title="Kills"
+          value={shortNum(data.totals.kills)}
+          sub="Total kills"
+          tone="blue"
+        />
+
+        <HallHeaderCard
+          icon={Target}
+          title="Highlights"
+          value={bestKd ? bestKd.kd.toFixed(2) : '0.00'}
+          sub={topStreak ? `Best K/D · Streak ${shortNum(topStreak.streak)}` : 'Best K/D · Streak'}
+          tone="emerald"
+        />
+      </div>
+    </header>
+  );
+}
+
 function CombatOutputPanel({ data }) {
   const topTotalKills = [...data.rows]
     .filter((player) => player.kills > 0)
@@ -1038,7 +1097,7 @@ function CombatRecordsPanel({ data }) {
 
   return (
     <PremiumPanel className="p-5">
-      <SectionTitle icon={Target} title="K/D & Highlights" />
+      <SectionTitle icon={Target} title="Highlights" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
           <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best K/D</p>
@@ -1255,6 +1314,8 @@ function ArsenalOutputPanel({ data }) {
 function Variant1({ data }) {
   return (
     <div className="space-y-5">
+      <HallTopHeaders data={data} />
+
       <CombatOutputPanel data={data} />
 
       <CombatRecordsPanel data={data} />
