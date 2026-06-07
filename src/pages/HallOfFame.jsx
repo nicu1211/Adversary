@@ -1401,6 +1401,11 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
   const width = max ? Math.max(5, Math.min(100, (num(value) / max) * 100)) : 0;
   const colors = {
     blue: 'from-blue-500 to-sky-300',
+    blueDark: 'from-blue-950 via-blue-800 to-blue-600',
+    blueRoyal: 'from-blue-700 via-blue-500 to-blue-300',
+    blueSky: 'from-sky-600 via-sky-400 to-cyan-200',
+    blueIndigo: 'from-indigo-700 via-indigo-500 to-blue-300',
+    blueIce: 'from-cyan-500 via-sky-300 to-blue-100',
     emerald: 'from-emerald-500 to-lime-300',
     amber: 'from-amber-500 to-yellow-300',
     rose: 'from-rose-500 to-red-300',
