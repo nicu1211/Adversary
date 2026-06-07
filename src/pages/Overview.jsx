@@ -1453,23 +1453,23 @@ function EnemyGuilds({ guilds, events }) {
   }, [chartRows]);
 
   function kdColorChannels(kd) {
-    if (kd >= 2) {
-      return [0, 250, 250];
+    if (kd > 1.5) {
+      return [59, 130, 246];
     }
 
-    if (kd >= 1.5) {
-      return [50, 150, 150];
+    if (kd >= 1.3) {
+      return [34, 197, 94];
+    }
+
+    if (kd >= 1.1) {
+      return [250, 204, 21];
     }
 
     if (kd >= 1) {
-      return [0, 150, 250];
+      return [249, 115, 22];
     }
 
-    if (kd >= 0.75) {
-      return [150, 50, 150];
-    }
-
-    return [250, 0, 0];
+    return [239, 68, 68];
   }
 
   function isHighlightedGuild(context) {
@@ -1716,7 +1716,10 @@ function EnemyGuilds({ guilds, events }) {
         {!chartRows.length ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-700/80 bg-white/[0.035] backdrop-blur-sm">
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(239,68,68,0.12)_0%,rgba(255,255,255,0.03)_46%,rgba(255,255,255,0.03)_54%,rgba(34,197,94,0.12)_100%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left_center,rgba(239,68,68,0.12),transparent_42%),radial-gradient(circle_at_right_center,rgba(34,197,94,0.12),transparent_42%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.015))]" />
             <Bubble
               ref={chartRef}
               data={bubbleData}
