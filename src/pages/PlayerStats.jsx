@@ -1678,49 +1678,52 @@ function MatchHistoryMetricIcon({ type, color }) {
   if (type === 'damageDealt') {
     return (
       <svg {...commonProps}>
-        <g transform="translate(0.2 0.3) scale(0.92)">
+        <g transform="translate(0.1 0.25) scale(0.92)">
           <path
-            d="M -6.9 5.9
-               C -7.6 4.2 -7.2 2.2 -5.7 1.1
-               L -4.3 0
-               C -3.5 -0.6 -3.1 -1.6 -3.1 -2.6
-               L -3.1 -4.7
-               C -3.1 -5.8 -2.2 -6.7 -1.1 -6.7
-               C -0.1 -6.7 0.7 -5.9 0.7 -4.9
-               L 0.7 -2.8
-               L 2.6 -4.1
-               C 4.1 -5.1 6.1 -4.8 7.1 -3.3
-               C 8.2 -1.7 7.8 0.4 6.2 1.4
-               L 4.2 2.8
-               C 3.2 3.5 2 3.9 0.8 3.9
-               L -0.9 3.9
-               C -1.8 3.9 -2.6 4.4 -3.1 5.2
-               L -4 6.5
-               L -6.1 6.5
-               C -6.5 6.5 -6.8 6.3 -6.9 5.9 Z"
-            fill={color}
-            stroke={darkStroke}
-            strokeWidth="1.15"
+            d="M -3.2 -6.9
+               C -1.9 -7.4 -0.8 -6.7 -0.2 -5.6
+               L 0.6 -4
+               C 1 -3.2 1.8 -2.8 2.7 -2.8
+               L 3.8 -2.8
+               C 5.8 -2.8 7.4 -1.2 7.4 0.7
+               C 7.4 2.5 6 4 4.2 4.1
+               L 2.1 4.2
+               C 1.1 4.3 0.3 4.8 -0.2 5.5
+               L -1 6.8
+               L -3.2 6.8
+               C -4.7 6.8 -5.9 6.3 -6.6 5.3
+               C -7.3 4.2 -7.4 2.8 -6.8 1.6
+               L -5.4 -1.3
+               C -4.9 -2.3 -4.7 -3.4 -4.7 -4.6
+               L -4.7 -5.6
+               C -4.7 -6.1 -4.2 -6.6 -3.2 -6.9 Z"
+            fill="none"
+            stroke={color}
+            strokeWidth="1.95"
+            strokeLinecap="round"
             strokeLinejoin="round"
           />
           <path
-            d="M -3.1 -2.7
-               C -1.9 -2.7 -0.8 -2 0.1 -0.8
-               C 0.9 0.3 2 0.9 3.2 0.9
-               L 4.7 0.9"
+            d="M -4.7 -3.2
+               C -3.4 -2.5 -2.1 -2.3 -0.8 -2.5
+               C 0.6 -2.7 1.8 -2 2.6 -0.9
+               C 3.2 -0.1 4.2 0.4 5.2 0.4"
             fill="none"
-            stroke={darkStroke}
-            strokeWidth="1.15"
+            stroke={color}
+            strokeWidth="1.55"
             strokeLinecap="round"
           />
           <path
-            d="M 3.2 -1.2
-               C 4.1 -1.8 5 -1.7 5.6 -0.9
-               C 6.2 -0.1 6 0.9 5.2 1.5"
-            fill="none"
+            d="M 0.3 -0.6
+               L -1 1.4
+               L 0.4 1.4
+               L -0.4 3.4
+               L 1.8 0.8
+               L 0.5 0.8 Z"
+            fill={color}
             stroke={darkStroke}
-            strokeWidth="1.05"
-            strokeLinecap="round"
+            strokeWidth="0.9"
+            strokeLinejoin="round"
           />
         </g>
       </svg>
