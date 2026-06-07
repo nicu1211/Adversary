@@ -1115,7 +1115,7 @@ function CombatRecordsPanel({ data }) {
       <SectionTitle icon={Target} title="Highlights" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best K/D · Top 10</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest K/D · Top 10</p>
           {topBestKd.length ? (
             topBestKd.map((player, index) => (
               <HallProgressRow
