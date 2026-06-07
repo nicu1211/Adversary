@@ -462,11 +462,18 @@ function buildHallData(stats) {
         0,
         ...matchValues.map((match) => Number(match.kills) || 0),
       );
+      const kdMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) => match.hasKills || match.hasDeaths,
+      );
+      const maxMatchKd = Math.max(
+        0,
+        ...kdMatchValues.map((match) =>
+          kd(Number(match.kills) || 0, Number(match.deaths) || 0),
+        ),
+      );
       const avgKillsPerMatch = getPlayerAvgKills(player.name);
       const avgKdPerMatch = getPlayerAvgKd(player.name);
-      const avgKdMatchCount = Object.values(playerMatchMap[player.name] || {}).filter(
-        (match) => match.hasKills || match.hasDeaths,
-      ).length;
+      const avgKdMatchCount = kdMatchValues.length;
       const score = Math.max(
         0,
         Math.round(
@@ -502,6 +509,7 @@ function buildHallData(stats) {
         ccHits,
         fortDamage,
         maxMatchKills,
+        maxMatchKd,
         avgKillsPerMatch,
         avgKillsMatchCount,
         avgKdPerMatch,
@@ -1076,11 +1084,6 @@ function CombatOutputPanel({ data }) {
 }
 
 function CombatRecordsPanel({ data }) {
-  const topBestKd = [...data.rows]
-    .filter((player) => player.kills >= 5)
-    .sort((a, b) => b.kd - a.kd || b.kills - a.kills || a.name.localeCompare(b.name))
-    .slice(0, 10);
-
   const topAverageKd = [...data.rows]
     .filter(
       (player) =>
@@ -1095,6 +1098,21 @@ function CombatRecordsPanel({ data }) {
     )
     .slice(0, 10);
 
+  const topHighestMatchKd = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.maxMatchKd) > 0 &&
+        Number.isFinite(Number(player.maxMatchKd)),
+    )
+    .sort(
+      (a, b) =>
+        b.maxMatchKd - a.maxMatchKd ||
+        b.maxMatchKills - a.maxMatchKills ||
+        b.kills - a.kills ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
   const topStreaks = [...data.rows]
     .filter((player) => player.streak > 0)
     .sort((a, b) => b.streak - a.streak || b.kills - a.kills || a.name.localeCompare(b.name))
@@ -1105,8 +1123,8 @@ function CombatRecordsPanel({ data }) {
     .sort((a, b) => b.feed - a.feed || b.kills - a.kills || a.name.localeCompare(b.name))
     .slice(0, 10);
 
-  const maxBestKd = Math.max(1, ...topBestKd.map((player) => player.kd));
   const maxAverageKd = Math.max(1, ...topAverageKd.map((player) => player.avgKdPerMatch));
+  const maxHighestMatchKd = Math.max(1, ...topHighestMatchKd.map((player) => player.maxMatchKd));
   const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
   const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
 
@@ -1115,25 +1133,7 @@ function CombatRecordsPanel({ data }) {
       <SectionTitle icon={Target} title="Highlights" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest K/D · Top 10</p>
-          {topBestKd.length ? (
-            topBestKd.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.kd}
-                max={maxBestKd}
-                right={player.kd.toFixed(2)}
-                tone="emerald"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No K/D data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average K/D</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average K/D · Top 10</p>
           {topAverageKd.length ? (
             topAverageKd.map((player, index) => (
               <HallProgressRow
@@ -1147,6 +1147,24 @@ function CombatRecordsPanel({ data }) {
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No average K/D data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest K/D · Top 10 · Single Match</p>
+          {topHighestMatchKd.length ? (
+            topHighestMatchKd.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.maxMatchKd}
+                max={maxHighestMatchKd}
+                right={player.maxMatchKd.toFixed(2)}
+                tone="emerald"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No single match K/D data yet.</p>
           )}
         </div>
 
