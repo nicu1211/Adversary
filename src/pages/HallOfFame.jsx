@@ -233,17 +233,22 @@ function buildHallData(stats) {
     'damageDealt',
     'damage_dealt',
     'damage dealt',
+    'damageDone',
+    'damage',
     'Damage Dealt',
+    'DamageDealt',
+    'DMG Dealt',
     'dmgDealt',
     'dmg dealt',
-    'DMG Dealt',
   ];
   const secondaryFortDamageKeys = [
     'fortDamage',
     'damageToFort',
     'damage_to_fort',
     'damage to fort',
+    'damageFort',
     'Damage to Fort',
+    'DamageToFort',
     'fort damage',
     'Fort Damage',
     'dmgToFort',
@@ -254,6 +259,7 @@ function buildHallData(stats) {
     'cc_hits',
     'cc hits',
     'CC Hits',
+    'CCHits',
     'cc',
     'CC',
     'crowdControl',
@@ -261,54 +267,319 @@ function buildHallData(stats) {
     'Crowd Control',
   ];
 
+  const secondaryMetricKeys = {
+    kills: secondaryKillKeys,
+    deaths: secondaryDeathKeys,
+    damageDealt: secondaryDamageDealtKeys,
+    fortDamage: secondaryFortDamageKeys,
+    ccHits: secondaryCcHitsKeys,
+  };
+
+  const secondaryCoreMetrics = new Set(['kills', 'deaths']);
+  const secondaryDetailMetrics = ['damageDealt', 'fortDamage', 'ccHits'];
+
+  function normalizeHallMetricText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  function getRowRawText(row) {
+    if (!row) return '';
+
+    return [
+      row.raw,
+      row.rawLine,
+      row.original,
+      row.originalLine,
+      row.source,
+      row.sourceLine,
+      row.text,
+      row.line,
+      row.input,
+      row.entry,
+      row.content,
+      row.note,
+    ]
+      .filter((value) => value !== undefined && value !== null && value !== '')
+      .join(' ');
+  }
+
+  function getStructuredPresenceText(value, depth = 0) {
+    if (value === undefined || value === null || depth > 3) return '';
+
+    if (Array.isArray(value)) {
+      return value.map((item) => getStructuredPresenceText(item, depth + 1)).join(' ');
+    }
+
+    if (typeof value === 'object') {
+      return Object.entries(value)
+        .map(([key, item]) => `${key} ${getStructuredPresenceText(item, depth + 1)}`)
+        .join(' ');
+    }
+
+    return String(value);
+  }
+
+  function hasMetricNameInStructuredFields(row, keys) {
+    if (!row) return false;
+
+    const containers = [
+      row.headers,
+      row.header,
+      row.columns,
+      row.columnNames,
+      row.fieldNames,
+      row.fields,
+      row.providedFields,
+      row.availableFields,
+      row.schema,
+      row.metrics,
+    ];
+
+    const structuredText = normalizeHallMetricText(
+      containers
+        .map((value) => getStructuredPresenceText(value))
+        .filter(Boolean)
+        .join(' '),
+    );
+
+    if (!structuredText) return false;
+
+    return keys.some((key) => {
+      const alias = normalizeHallMetricText(key);
+      const spacedAlias = normalizeHallMetricText(
+        String(key)
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/[_-]/g, ' '),
+      );
+
+      return Boolean(
+        (alias && structuredText.includes(alias)) ||
+          (spacedAlias && structuredText.includes(spacedAlias)),
+      );
+    });
+  }
+
+  function rowHasOwnMetricKey(row, keys) {
+    return Boolean(row && keys.some((key) => Object.prototype.hasOwnProperty.call(row, key)));
+  }
+
+  function getPresenceFlag(row, keys) {
+    if (!row) return undefined;
+
+    const suffixes = [
+      'HasValue',
+      'hasValue',
+      'Exists',
+      'exists',
+      'Present',
+      'present',
+      'Provided',
+      'provided',
+      'Added',
+      'added',
+    ];
+
+    for (const key of keys) {
+      const keyText = String(key);
+      const compact = keyText.replace(/[^a-zA-Z0-9]/g, '');
+      const camel = compact.charAt(0).toLowerCase() + compact.slice(1);
+      const pascal = compact.charAt(0).toUpperCase() + compact.slice(1);
+      const snake = keyText
+        .replace(/([a-z])([A-Z])/g, '$1_$2')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .toLowerCase();
+
+      const candidates = [
+        `has_${snake}`,
+        `${snake}_exists`,
+        `${snake}_present`,
+        `${snake}_provided`,
+        `${snake}_added`,
+        ...suffixes.flatMap((suffix) => [`${camel}${suffix}`, `${pascal}${suffix}`]),
+      ];
+
+      const found = candidates.find((candidate) =>
+        Object.prototype.hasOwnProperty.call(row, candidate),
+      );
+
+      if (found) return Boolean(row[found]);
+    }
+
+    return undefined;
+  }
+
+  function hasMetricNameInRawText(row, keys) {
+    const rawText = normalizeHallMetricText(getRowRawText(row));
+
+    if (!rawText) return false;
+
+    return keys.some((key) => {
+      const alias = normalizeHallMetricText(key);
+      const spacedAlias = normalizeHallMetricText(
+        String(key)
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/[_-]/g, ' '),
+      );
+
+      return Boolean(
+        (alias && rawText.includes(alias)) ||
+          (spacedAlias && rawText.includes(spacedAlias)),
+      );
+    });
+  }
+
+  function getSecondaryMetricNumber(row, metric, fallback = NaN) {
+    const keys = secondaryMetricKeys[metric] || [metric];
+    const key = findRowKey(row, keys);
+
+    if (!key) return fallback;
+
+    return parseHallNumber(row[key], fallback);
+  }
+
+  function hasRawMetricValue(row, keys) {
+    const key = findRowKey(row, keys);
+
+    if (!key) return false;
+
+    const number = parseHallNumber(row[key], NaN);
+
+    if (!Number.isFinite(number)) return false;
+
+    const presenceFlag = getPresenceFlag(row, keys);
+
+    if (presenceFlag !== undefined) return presenceFlag;
+
+    if (number !== 0) return true;
+
+    return hasMetricNameInRawText(row, keys);
+  }
+
+  function getSecondaryWarMetricPresence(rows) {
+    const output = {};
+
+    (rows || []).forEach((row, index) => {
+      const warId = secondaryWarId(row, index);
+
+      output[warId] ||= {
+        __detailed: false,
+      };
+
+      Object.entries(secondaryMetricKeys).forEach(([metric, keys]) => {
+        const key = findRowKey(row, keys);
+        const number = key ? parseHallNumber(row[key], NaN) : NaN;
+        const presenceFlag = getPresenceFlag(row, keys);
+        const explicitPresence =
+          presenceFlag === true ||
+          hasMetricNameInRawText(row, keys) ||
+          hasMetricNameInStructuredFields(row, keys);
+        const nonZeroValue = Number.isFinite(number) && number !== 0;
+
+        if (explicitPresence || nonZeroValue) {
+          output[warId][metric] = true;
+        }
+
+        if (secondaryDetailMetrics.includes(metric) && (explicitPresence || nonZeroValue)) {
+          output[warId].__detailed = true;
+        }
+      });
+    });
+
+    (rows || []).forEach((row, index) => {
+      const warId = secondaryWarId(row, index);
+      const presence = output[warId];
+
+      if (!presence?.__detailed) return;
+
+      secondaryDetailMetrics.forEach((metric) => {
+        const keys = secondaryMetricKeys[metric] || [metric];
+        const number = getSecondaryMetricNumber(row, metric, NaN);
+
+        if (rowHasOwnMetricKey(row, keys) && Number.isFinite(number)) {
+          presence[metric] = true;
+        }
+      });
+    });
+
+    return output;
+  }
+
+  function getSecondaryMetricExists(row, metric, warPresence = {}) {
+    const keys = secondaryMetricKeys[metric] || [metric];
+
+    if (hasRawMetricValue(row, keys)) return true;
+
+    const number = getSecondaryMetricNumber(row, metric, NaN);
+
+    if (!Number.isFinite(number)) return false;
+
+    if (secondaryCoreMetrics.has(metric) && rowHasOwnMetricKey(row, keys)) {
+      return true;
+    }
+
+    if (number !== 0) return true;
+
+    if (warPresence?.[metric]) return true;
+
+    if (
+      secondaryDetailMetrics.includes(metric) &&
+      warPresence?.__detailed &&
+      rowHasOwnMetricKey(row, keys)
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   function getSecondaryPlayerName(row) {
     const key = findRowKey(row, secondaryPlayerKeys);
     return key ? String(row[key] || '').trim() : '';
   }
 
-  function hasSecondaryKills(row) {
-    return Boolean(findRowKey(row, secondaryKillKeys));
+  function hasSecondaryKills(row, warPresence = {}) {
+    return getSecondaryMetricExists(row, 'kills', warPresence);
   }
 
   function getSecondaryKills(row) {
-    const key = findRowKey(row, secondaryKillKeys);
-    return key ? parseHallNumber(row[key], 0) : 0;
+    return getSecondaryMetricNumber(row, 'kills', 0);
   }
 
-  function hasSecondaryDeaths(row) {
-    return Boolean(findRowKey(row, secondaryDeathKeys));
+  function hasSecondaryDeaths(row, warPresence = {}) {
+    return getSecondaryMetricExists(row, 'deaths', warPresence);
   }
 
   function getSecondaryDeaths(row) {
-    const key = findRowKey(row, secondaryDeathKeys);
-    return key ? parseHallNumber(row[key], 0) : 0;
+    return getSecondaryMetricNumber(row, 'deaths', 0);
   }
 
-  function hasSecondaryDamageDealt(row) {
-    return Boolean(findRowKey(row, secondaryDamageDealtKeys));
+  function hasSecondaryDamageDealt(row, warPresence = {}) {
+    return getSecondaryMetricExists(row, 'damageDealt', warPresence);
   }
 
   function getSecondaryDamageDealt(row) {
-    const key = findRowKey(row, secondaryDamageDealtKeys);
-    return key ? parseHallNumber(row[key], 0) : 0;
+    return getSecondaryMetricNumber(row, 'damageDealt', 0);
   }
 
-  function hasSecondaryFortDamage(row) {
-    return Boolean(findRowKey(row, secondaryFortDamageKeys));
+  function hasSecondaryFortDamage(row, warPresence = {}) {
+    return getSecondaryMetricExists(row, 'fortDamage', warPresence);
   }
 
   function getSecondaryFortDamage(row) {
-    const key = findRowKey(row, secondaryFortDamageKeys);
-    return key ? parseHallNumber(row[key], 0) : 0;
+    return getSecondaryMetricNumber(row, 'fortDamage', 0);
   }
 
-  function hasSecondaryCcHits(row) {
-    return Boolean(findRowKey(row, secondaryCcHitsKeys));
+  function hasSecondaryCcHits(row, warPresence = {}) {
+    return getSecondaryMetricExists(row, 'ccHits', warPresence);
   }
 
   function getSecondaryCcHits(row) {
-    const key = findRowKey(row, secondaryCcHitsKeys);
-    return key ? parseHallNumber(row[key], 0) : 0;
+    return getSecondaryMetricNumber(row, 'ccHits', 0);
   }
 
   function getGuildKillPlayer(event) {
@@ -394,6 +665,10 @@ function buildHallData(stats) {
     }
   });
 
+  const secondaryWarPresence = getSecondaryWarMetricPresence(
+    Array.isArray(secondaryRows) ? secondaryRows : [],
+  );
+
   (Array.isArray(secondaryRows) ? secondaryRows : []).forEach((row, index) => {
     const name = getSecondaryPlayerName(row);
 
@@ -404,30 +679,31 @@ function buildHallData(stats) {
     ensureWar(id, date);
 
     const match = ensurePlayerMatch(name, id, date);
+    const warPresence = secondaryWarPresence[id] || {};
 
     // Same behavior as Player Stats Match History:
-    // if a secondary/manual row has a Kills/Deaths cell, that cell is the match value.
-    if (hasSecondaryKills(row)) {
+    // averages use only values that actually exist in the match-history row.
+    if (hasSecondaryKills(row, warPresence)) {
       match.kills = getSecondaryKills(row);
       match.hasKills = true;
     }
 
-    if (hasSecondaryDeaths(row)) {
+    if (hasSecondaryDeaths(row, warPresence)) {
       match.deaths = getSecondaryDeaths(row);
       match.hasDeaths = true;
     }
 
-    if (hasSecondaryDamageDealt(row)) {
+    if (hasSecondaryDamageDealt(row, warPresence)) {
       match.damageDealt = getSecondaryDamageDealt(row);
       match.hasDamageDealt = true;
     }
 
-    if (hasSecondaryFortDamage(row)) {
+    if (hasSecondaryFortDamage(row, warPresence)) {
       match.fortDamage = getSecondaryFortDamage(row);
       match.hasFortDamage = true;
     }
 
-    if (hasSecondaryCcHits(row)) {
+    if (hasSecondaryCcHits(row, warPresence)) {
       match.ccHits = getSecondaryCcHits(row);
       match.hasCcHits = true;
     }
@@ -1610,7 +1886,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Top 10 · Match History · Min 30 matches</p>
           {topAverageDamageDealt.length ? (
             topAverageDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -1664,7 +1940,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Top 10 · Min 30 matches</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Top 10 · Match History · Min 30 matches</p>
           {topAverageCcHits.length ? (
             topAverageCcHits.map((player, index) => (
               <HallProgressRow
