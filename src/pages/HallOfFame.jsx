@@ -1115,7 +1115,7 @@ function CombatRecordsPanel({ data }) {
       <SectionTitle icon={Target} title="Highlights" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best K/D</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best K/D · Top 10</p>
           {topBestKd.length ? (
             topBestKd.map((player, index) => (
               <HallProgressRow
@@ -1236,6 +1236,52 @@ function FirstMilestonesPanel({ data }) {
   );
 }
 
+function FastestMilestonesPanel({ data }) {
+  const thresholds = [1000, 3000, 5000];
+
+  function renderFastestLeaderboard(threshold) {
+    const rows = data.thresholdLeaderboards?.[threshold]?.fastest || [];
+    const maxValue = Math.max(1, ...rows.map((row) => row.fromPlayerFirstLogWars || 0));
+
+    return (
+      <div>
+        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+          Fastest to {threshold} Kills · Top 10
+        </p>
+        {rows.length ? (
+          rows.map((row, index) => (
+            <HallProgressRow
+              key={`${threshold}-fastest-${row.name}`}
+              label={`${index + 1}. ${row.name}`}
+              value={Math.max(1, maxValue - row.fromPlayerFirstLogWars + 1)}
+              max={maxValue}
+              right={`${row.fromPlayerFirstLogWars} logs`}
+              tone="cyan"
+            />
+          ))
+        ) : (
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
+            No player reached {threshold} kills yet.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <PremiumPanel className="p-5">
+      <SectionTitle icon={Zap} title="Fastest Milestones" />
+      <div className="grid gap-5 md:grid-cols-3">
+        {thresholds.map((threshold) => (
+          <React.Fragment key={`fastest-${threshold}`}>
+            {renderFastestLeaderboard(threshold)}
+          </React.Fragment>
+        ))}
+      </div>
+    </PremiumPanel>
+  );
+}
+
 function ArsenalOutputPanel({ data }) {
   const maxKills = Math.max(1, ...data.topKillers.map((player) => player.kills));
   const maxDamage = Math.max(1, ...data.topDamagePlayers.map((player) => player.damageDealt));
@@ -1300,6 +1346,8 @@ function Variant1({ data }) {
           <CombatOutputPanel data={data} />
 
           <FirstMilestonesPanel data={data} />
+
+          <FastestMilestonesPanel data={data} />
         </>
       ) : (
         <CombatRecordsPanel data={data} />
