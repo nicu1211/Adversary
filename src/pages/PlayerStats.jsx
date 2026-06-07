@@ -1678,7 +1678,7 @@ function MatchHistoryMetricIcon({ type, color }) {
   if (type === 'damageDealt') {
     return (
       <svg {...commonProps}>
-        <g transform="translate(0.1 0.2) scale(0.92)">
+        <g transform="translate(-0.2 0.2) scale(-0.92 0.92)">
           <path
             d="M -6.6 5.9
                L -6.6 0.3
@@ -1741,6 +1741,15 @@ function MatchHistoryMetricIcon({ type, color }) {
             strokeWidth="1.05"
             strokeLinecap="round"
             opacity="0.88"
+          />
+        </g>
+        <g transform="translate(6.2 -6.4) scale(0.72)">
+          <path
+            d="M 0 -3.8 L 0.9 -0.9 L 3.8 0 L 0.9 0.9 L 0 3.8 L -0.9 0.9 L -3.8 0 L -0.9 -0.9 Z"
+            fill={color}
+            stroke={darkStroke}
+            strokeWidth="0.95"
+            strokeLinejoin="round"
           />
         </g>
       </svg>
