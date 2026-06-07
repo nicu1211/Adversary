@@ -2086,7 +2086,7 @@ function FirstMilestonesPanel({ data }) {
               label={`${index + 1}. ${row.name}`}
               value={Math.max(1, maxValue - row.fromFirstLogWars + 1)}
               max={maxValue}
-              right={row.date ? `${row.date} · log ${row.fromFirstLogWars}` : `Log ${row.fromFirstLogWars}`}
+              right={row.date || '-'}
               tone="blueIndigo"
             />
           ))
@@ -2132,7 +2132,7 @@ function FastestMilestonesPanel({ data }) {
               label={`${index + 1}. ${row.name}`}
               value={Math.max(1, maxValue - row.fromPlayerFirstLogWars + 1)}
               max={maxValue}
-              right={`${row.fromPlayerFirstLogWars} logs`}
+              right={`${row.fromPlayerFirstLogWars} Node Wars`}
               tone="blueIce"
             />
           ))
@@ -2297,7 +2297,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt · Match History</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt</p>
           {topAverageDamageDealt.length ? (
             topAverageDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -2351,7 +2351,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits · Match History</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits</p>
           {topAverageCcHits.length ? (
             topAverageCcHits.map((player, index) => (
               <HallProgressRow
@@ -2425,7 +2425,7 @@ function NodeWarsRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation · From First Log</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation</p>
           {topJoinParticipation.length ? (
             topJoinParticipation.map((player, index) => (
               <HallProgressRow
