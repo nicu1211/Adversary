@@ -314,7 +314,7 @@ export default function RawLog({
 
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                    Main Raw Log
+                    Combat Log
                   </p>
 
                   <button
@@ -379,7 +379,7 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder="Lipește aici secondary log. Acceptă: Player Kills Deaths sau format complet: 1 Kills, 2 Deaths, 3 Kill streak, 4 Damage dealt, 5 Damage taken, 6 CC hits, 9 Fort damage."
+                  placeholder=""
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
 
@@ -405,7 +405,7 @@ export default function RawLog({
                   </p>
 
                   <p className="text-xs text-slate-400">
-                    La Save se salvează ce ai completat: Main Raw Log + Stats Log sau doar Stats Log.
+                    La Save se salvează ce ai completat: Combat Log + Stats Log sau doar Stats Log.
                   </p>
                 </div>
 
@@ -420,8 +420,9 @@ export default function RawLog({
           </Panel>
         </div>
 
-        <Panel>
-          <h2 className="mb-4 text-2xl font-black">History</h2>
+        <div className="lg:self-end">
+          <Panel>
+            <h2 className="mb-4 text-2xl font-black">History</h2>
 
           {!logs.length ? (
             <p className="text-sm text-slate-500">No saved logs yet.</p>
@@ -495,7 +496,8 @@ export default function RawLog({
               })}
             </div>
           )}
-        </Panel>
+          </Panel>
+        </div>
       </div>
 
       <DeletePopup
