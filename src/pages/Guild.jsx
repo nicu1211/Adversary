@@ -370,7 +370,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
       const score = enemyGuildScore({ kills, deaths, matches, kdNumber });
       return { name: guild.name, kills, deaths, totalInteractions, kdNumber, matches, score, tier: 'D' };
     })
-    .filter((guild) => guild.name && guild.totalInteractions >= 30)
+    .filter((guild) => guild.name && guild.totalInteractions >= 100)
     .sort(
       (a, b) =>
         b.score - a.score ||
@@ -805,7 +805,7 @@ function EnemyGuildTierList({ groups }) {
 
       {!hasGuilds ? (
         <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-4 text-sm font-bold text-slate-500">
-          No enemy guild reached 30 K+D in the last 45 days.
+          No enemy guild reached 100 K+D in the last 45 days.
         </p>
       ) : (
         <div className="space-y-2">
