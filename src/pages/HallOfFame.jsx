@@ -739,8 +739,11 @@ function buildHallData(stats) {
     }
 
     let cumulativeKills = 0;
+    let participatedWarCount = 0;
 
     orderedMatches.forEach((match) => {
+      participatedWarCount += 1;
+
       if (!match.hasKills) return;
 
       const globalWarIndex = warIndexById[match.warId] ?? 0;
@@ -761,8 +764,7 @@ function buildHallData(stats) {
             warId: match.warId,
             globalWarIndex,
             fromFirstLogWars: globalWarIndex + 1,
-            fromPlayerFirstLogWars:
-              globalWarIndex - (firstSeenWarIndex[name] ?? globalWarIndex) + 1,
+            fromPlayerFirstLogWars: participatedWarCount,
             totalKillsAtReach: after,
           });
         }
@@ -1069,6 +1071,9 @@ function buildHallData(stats) {
         0,
         ...matchValues.map((match) => Number(match.kills) || 0),
       );
+      const fiftyPlusKillWars = matchValues.filter(
+        (match) => (Number(match.kills) || 0) >= 50,
+      ).length;
       const kdMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
         (match) => match.hasKills || match.hasDeaths,
       );
@@ -1155,6 +1160,7 @@ function buildHallData(stats) {
         ccHits,
         fortDamage,
         maxMatchKills,
+        fiftyPlusKillWars,
         maxMatchKd,
         hallMatchCount,
         avgKillsPerMatch,
@@ -1963,16 +1969,35 @@ function CombatRecordsPanel({ data }) {
     .sort((a, b) => b.feed - a.feed || b.kills - a.kills || a.name.localeCompare(b.name))
     .slice(0, 10);
 
+  const topFiftyPlusKillWars = [...data.rows]
+    .filter(
+      (player) =>
+        player.hallMatchCount >= MIN_HALL_MATCHES &&
+        Number(player.fiftyPlusKillWars) > 0,
+    )
+    .sort(
+      (a, b) =>
+        b.fiftyPlusKillWars - a.fiftyPlusKillWars ||
+        b.maxMatchKills - a.maxMatchKills ||
+        b.kills - a.kills ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 10);
+
   const maxAverageKd = Math.max(1, ...topAverageKd.map((player) => player.avgKdPerMatch));
   const maxHighestMatchKd = Math.max(1, ...topHighestMatchKd.map((player) => player.maxMatchKd));
   const maxAverageRank = Math.max(1, ...topAverageRank.map((player) => player.averageRank));
   const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
   const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
+  const maxFiftyPlusKillWars = Math.max(
+    1,
+    ...topFiftyPlusKillWars.map((player) => player.fiftyPlusKillWars),
+  );
 
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={Target} title="Highlights" />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-6">
         <div>
           <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average K/D</p>
           {topAverageKd.length ? (
@@ -2060,6 +2085,24 @@ function CombatRecordsPanel({ data }) {
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible kill feed data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">50+ Kills in Wars</p>
+          {topFiftyPlusKillWars.length ? (
+            topFiftyPlusKillWars.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.fiftyPlusKillWars}
+                max={maxFiftyPlusKillWars}
+                right={`${shortNum(player.fiftyPlusKillWars)} Wars`}
+                tone="greenTeal"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible 50+ kills wars data yet.</p>
           )}
         </div>
       </div>
