@@ -14,7 +14,6 @@ import {
 
 const nf = new Intl.NumberFormat('en-US');
 const MIN_ENEMY_INTERACTIONS_PER_WAR = 50;
-const ENEMY_SCORE_PRIOR_WEIGHT = 50;
 
 function num(value) {
   const parsed = Number(value);
@@ -134,61 +133,58 @@ function cleanGuildName(value) {
 
 function getTierByScore(value) {
   const score = num(value);
-  if (score >= 1.8) return 'S';
-  if (score >= 1.5) return 'A';
-  if (score >= 1.25) return 'B';
-  if (score >= 1) return 'C';
-  if (score >= 0.75) return 'D';
+  if (score >= 5) return 'S';
+  if (score >= 4) return 'A';
+  if (score >= 3) return 'B';
+  if (score >= 2) return 'C';
+  if (score >= 1) return 'D';
   return 'Trash';
 }
 
-function enemyGuildScore({ kills, deaths }) {
-  const adjustedKills = Math.max(0, num(kills)) + ENEMY_SCORE_PRIOR_WEIGHT;
-  const adjustedDeaths = Math.max(0, num(deaths)) + ENEMY_SCORE_PRIOR_WEIGHT;
-  const score = adjustedKills / adjustedDeaths;
-
+function enemyGuildScore({ matches, kdNumber }) {
+  const score = Math.max(0, kdNumber) * Math.log2(Math.max(0, matches) + 1);
   return Math.round(score * 100) / 100;
 }
 
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: '1.80+ adjusted K/D',
+    range: '5.00+ score',
     className: 'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
     tone: 'amber',
   },
   A: {
     label: 'A',
-    range: '1.50 - 1.79 adjusted K/D',
+    range: '4.00 - 4.99 score',
     className: 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
     tone: 'emerald',
   },
   B: {
     label: 'B',
-    range: '1.25 - 1.49 adjusted K/D',
+    range: '3.00 - 3.99 score',
     className: 'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
     tone: 'blue',
   },
   C: {
     label: 'C',
-    range: '1.00 - 1.24 adjusted K/D',
+    range: '2.00 - 2.99 score',
     className: 'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
     tone: 'violet',
   },
   D: {
     label: 'D',
-    range: '0.75 - 0.99 adjusted K/D',
+    range: '1.00 - 1.99 score',
     className: 'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
     tone: 'rose',
   },
   Trash: {
     label: 'T',
-    range: 'Under 0.75 adjusted K/D',
+    range: 'Under 1.00 score',
     className: 'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
     tone: 'slate',
@@ -434,7 +430,7 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
       const matches = guild.matchIds?.size || 0;
       const totalInteractions = kills + deaths;
       const kdNumber = kd(kills, deaths);
-      const score = enemyGuildScore({ kills, deaths });
+      const score = enemyGuildScore({ matches, kdNumber });
 
       return {
         name: guild.name,
@@ -830,7 +826,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
           {guild.name}
         </p>
         <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black text-slate-300">
-          Score {decimal(guild.score, 2)}
+          {decimal(guild.score, 2)}
         </span>
       </div>
 
@@ -840,7 +836,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
           style={{ width: `${width}%` }}
         />
         <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[380px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
-          <div className="grid grid-cols-5 gap-3 text-center">
+          <div className="grid grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-[9px] uppercase tracking-wider text-blue-300/80">M</p>
               <p>{compact(guild.matches, 0)}</p>
@@ -856,10 +852,6 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
             <div>
               <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">K/D</p>
               <p>{decimal(guild.kdNumber)}</p>
-            </div>
-            <div>
-              <p className="text-[9px] uppercase tracking-wider text-amber-300/80">Score</p>
-              <p>{decimal(guild.score)}</p>
             </div>
           </div>
         </div>
@@ -883,7 +875,7 @@ function EnemyGuildTierList({ groups }) {
       <SectionTitle
         icon={Trophy}
         title="Enemy Guild Tier List"
-        sub="Only wars with 50+ combined K+D count • Adjusted score = (Kills + 50) / (Deaths + 50)"
+        sub="Only wars with 50+ combined K+D count • Score = K/D × log₂(Wars + 1)"
       />
 
       {!hasGuilds ? (
