@@ -1977,7 +1977,18 @@ function EnemyGuilds({ guilds, events }) {
 }
 
 function KillFeedPanel({ killFeeds, events }) {
-  const rows = killFeeds.slice(0, 5);
+  const rows = [...(killFeeds || [])]
+    .sort(
+      (a, b) =>
+        (Number(b.count) || 0) - (Number(a.count) || 0) ||
+        String(a.date || '9999-99-99').localeCompare(
+          String(b.date || '9999-99-99'),
+        ) ||
+        timeToSecondsValue(a.start) - timeToSecondsValue(b.start) ||
+        timeToSecondsValue(a.end) - timeToSecondsValue(b.end) ||
+        String(a.name || '').localeCompare(String(b.name || '')),
+    )
+    .slice(0, 5);
 
   return (
     <Panel cls="h-[520px]">
