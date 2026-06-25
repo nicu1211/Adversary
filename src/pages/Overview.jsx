@@ -1976,133 +1976,8 @@ function EnemyGuilds({ guilds, events }) {
   );
 }
 
-function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
-  const records = [];
-
-  (selectedLogs || []).forEach((log, logIndex) => {
-    const oneStats = calculateStats([log]);
-    const secondaryRows = Array.isArray(oneStats?.secondary?.rows)
-      ? oneStats.secondary.rows
-      : [];
-
-    const fallbackDate = String(
-      log?.date ||
-        log?.warDate ||
-        log?.war_date ||
-        log?.createdAt ||
-        log?.created_at ||
-        '',
-    ).slice(0, 10);
-
-    const fallbackWar = String(
-      log?.name ||
-        log?.title ||
-        fallbackDate ||
-        'Battle log',
-    );
-
-    const officialRows = secondaryRows
-      .filter(
-        (row) =>
-          row?.player &&
-          (row?.killFeed != null || row?.killStreak != null),
-      )
-      .map((row, rowIndex) => ({
-        name: row.player,
-        count: Number(row.killFeed ?? row.killStreak) || 0,
-        date: String(row.date || fallbackDate || '').slice(0, 10),
-        war: String(row.war || fallbackWar),
-        source: 'stats',
-        sourceOrder: logIndex,
-        rowOrder: Number(row.line) || rowIndex,
-      }));
-
-    // Saved summaries may not retain the original secondary rows, so use the
-    // per-player Kill Feed field generated from that Stats Log.
-    const summaryRows = officialRows.length
-      ? []
-      : (oneStats?.players || [])
-          .filter(
-            (player) =>
-              player?.name &&
-              (player?.killFeed != null || player?.killStreak != null),
-          )
-          .map((player, rowIndex) => ({
-            name: player.name,
-            count: Number(player.killFeed ?? player.killStreak) || 0,
-            date: fallbackDate,
-            war: fallbackWar,
-            source: 'stats',
-            sourceOrder: logIndex,
-            rowOrder: rowIndex,
-          }));
-
-    const sourceRows = officialRows.length ? officialRows : summaryRows;
-    const bestByPlayer = {};
-
-    sourceRows.forEach((row) => {
-      if (!row.name || row.count <= 0) return;
-
-      const key = normalizePlayerName(row.name);
-      const current = bestByPlayer[key];
-
-      if (
-        !current ||
-        row.count > current.count ||
-        (row.count === current.count && row.rowOrder < current.rowOrder)
-      ) {
-        bestByPlayer[key] = row;
-      }
-    });
-
-    const officialRecords = Object.values(bestByPlayer);
-
-    if (officialRecords.length) {
-      records.push(...officialRecords);
-      return;
-    }
-
-    // Fallback only for older wars that have no Stats Log Kill Feed value.
-    calculateKillFeed(oneStats?.ev || [], 10, true).forEach(
-      (feed, feedIndex) => {
-        records.push({
-          ...feed,
-          source: 'timeline',
-          sourceOrder: logIndex,
-          rowOrder: feedIndex,
-          war: feed.war || fallbackWar,
-          date: String(feed.date || fallbackDate || '').slice(0, 10),
-        });
-      },
-    );
-  });
-
-  if (records.length) return records;
-
-  return calculateKillFeed(fallbackEvents || [], 10, true).map(
-    (feed, index) => ({
-      ...feed,
-      source: 'timeline',
-      sourceOrder: index,
-      rowOrder: index,
-    }),
-  );
-}
-
 function KillFeedPanel({ killFeeds, events }) {
-  const rows = [...(killFeeds || [])]
-    .sort(
-      (a, b) =>
-        (Number(b.count) || 0) - (Number(a.count) || 0) ||
-        String(a.date || '9999-99-99').localeCompare(
-          String(b.date || '9999-99-99'),
-        ) ||
-        timeToSecondsValue(a.start) - timeToSecondsValue(b.start) ||
-        (Number(a.sourceOrder) || 0) - (Number(b.sourceOrder) || 0) ||
-        (Number(a.rowOrder) || 0) - (Number(b.rowOrder) || 0) ||
-        String(a.name || '').localeCompare(String(b.name || '')),
-    )
-    .slice(0, 5);
+  const rows = killFeeds.slice(0, 5);
 
   return (
     <Panel cls="h-[520px]">
@@ -2114,18 +1989,11 @@ function KillFeedPanel({ killFeeds, events }) {
         ) : (
           <div className="grid gap-2">
             {rows.map((feed, index) => {
-              const isStatsValue = feed.source === 'stats';
-              const guild = isStatsValue
-                ? ''
-                : majorityGuildForKillFeed(feed, events);
-
-              const detail = isStatsValue
-                ? [feed.date, feed.war].filter(Boolean).join(' · ')
-                : `${feed.date ? `${feed.date} · ` : ''}${feed.start || '-'}-${feed.end || '-'}`;
+              const guild = majorityGuildForKillFeed(feed, events);
 
               return (
                 <div
-                  key={`${feed.source || 'feed'}-${feed.date || ''}-${feed.name || ''}-${feed.sourceOrder || 0}-${feed.rowOrder || index}`}
+                  key={index}
                   className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
@@ -2134,16 +2002,16 @@ function KillFeedPanel({ killFeeds, events }) {
                     </b>
 
                     <b className="shrink-0 text-sm text-orange-300">
-                      🔥 {Number(feed.count) || 0}
+                      🔥 {feed.count}
                     </b>
                   </div>
 
                   <p className="truncate text-[11px] text-slate-400">
-                    {detail || '-'}
+                    {feed.date ? `${feed.date} · ` : ''}{feed.start}-{feed.end}
                   </p>
 
                   <p className="truncate text-[11px] font-bold text-slate-300">
-                    {isStatsValue ? 'Stats Log' : guild}
+                    {guild}
                   </p>
                 </div>
               );
@@ -2161,11 +2029,7 @@ export default function OverviewPage({
   members,
   selectedLogs,
 }) {
-  const timelineKillFeeds = calculateKillFeed(stats.ev, 10, true);
-  const panelKillFeeds = useMemo(
-    () => buildKillFeedPanelRows(selectedLogs, stats.ev),
-    [selectedLogs, stats.ev],
-  );
+  const killFeeds = calculateKillFeed(stats.ev, 10, true);
   const showTimelineMarkers = (selectedLogs || []).length === 1;
 
   function eventSortValue(event) {
@@ -2234,7 +2098,7 @@ export default function OverviewPage({
   }
 
   const topKillFeedMarkers = showTimelineMarkers
-    ? timelineKillFeeds.slice(0, 5).map((feed, index) => {
+    ? killFeeds.slice(0, 5).map((feed, index) => {
         const markerTime = feed.start;
         const markerSeconds = timeToSecondsValue(markerTime);
         const guild = majorityGuildForKillFeed(feed, stats.ev || []);
@@ -2383,7 +2247,7 @@ export default function OverviewPage({
       <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
 
-        <KillFeedPanel killFeeds={panelKillFeeds} events={stats.ev} />
+        <KillFeedPanel killFeeds={killFeeds} events={stats.ev} />
       </section>
     </>
   );
