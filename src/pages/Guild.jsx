@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 const nf = new Intl.NumberFormat('en-US');
+const MIN_ENEMY_INTERACTIONS_PER_WAR = 50;
 
 function num(value) {
   const parsed = Number(value);
@@ -132,61 +133,58 @@ function cleanGuildName(value) {
 
 function getTierByScore(value) {
   const score = num(value);
-  if (score >= 50) return 'S';
-  if (score >= 40) return 'A';
-  if (score >= 30) return 'B';
-  if (score >= 20) return 'C';
-  if (score >= 15) return 'D';
+  if (score >= 5) return 'S';
+  if (score >= 4) return 'A';
+  if (score >= 3) return 'B';
+  if (score >= 2) return 'C';
+  if (score >= 1) return 'D';
   return 'Trash';
 }
 
-function enemyGuildScore({ kills, deaths, matches, kdNumber }) {
-  const kdScore = Math.min(3, Math.max(0, kdNumber)) / 3 * 65;
-  const deathVolumeScore = Math.min(400, Math.max(0, deaths)) / 400 * 15;
-  const matchVolumeScore = Math.min(30, Math.max(0, matches)) / 30 * 15;
-  const pressureScore = Math.max(0, deaths - kills) / Math.max(1, deaths, kills) * 5;
-  return Math.round((kdScore + deathVolumeScore + matchVolumeScore + pressureScore) * 10) / 10;
+function enemyGuildScore({ matches, kdNumber }) {
+  const score = Math.max(0, kdNumber) * Math.log2(Math.max(0, matches) + 1);
+  return Math.round(score * 100) / 100;
 }
 
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: '50+ score',
+    range: '5.00+ score',
     className: 'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
     tone: 'amber',
   },
   A: {
     label: 'A',
-    range: '40 - 50 score',
+    range: '4.00 - 4.99 score',
     className: 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
     tone: 'emerald',
   },
   B: {
     label: 'B',
-    range: '30 - 40 score',
+    range: '3.00 - 3.99 score',
     className: 'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
     tone: 'blue',
   },
   C: {
     label: 'C',
-    range: '20 - 30 score',
+    range: '2.00 - 2.99 score',
     className: 'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
     tone: 'violet',
   },
   D: {
     label: 'D',
-    range: '15 - 20 score',
+    range: '1.00 - 1.99 score',
     className: 'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
     tone: 'rose',
   },
   Trash: {
     label: 'T',
-    range: 'Under 15 score',
+    range: 'Under 1.00 score',
     className: 'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
     tone: 'slate',
@@ -321,6 +319,34 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
   const cutoffTime = latestTime - 45 * 24 * 60 * 60 * 1000;
   const byGuild = {};
 
+  // A war is included only when that enemy guild recorded at least
+  // 50 combined kills + deaths in that individual war.
+  function addQualifiedWar(name, kills, deaths, matchId) {
+    const cleanName = cleanGuildName(name);
+    const enemyKills = num(kills);
+    const enemyDeaths = num(deaths);
+    const totalInteractions = enemyKills + enemyDeaths;
+
+    if (
+      !cleanName ||
+      !matchId ||
+      totalInteractions < MIN_ENEMY_INTERACTIONS_PER_WAR
+    ) {
+      return;
+    }
+
+    byGuild[cleanName] ||= {
+      name: cleanName,
+      kills: 0,
+      deaths: 0,
+      matchIds: new Set(),
+    };
+
+    byGuild[cleanName].kills += enemyKills;
+    byGuild[cleanName].deaths += enemyDeaths;
+    byGuild[cleanName].matchIds.add(String(matchId));
+  }
+
   (logs || []).forEach((log) => {
     const logTime = getLogTime(log);
     if (!logTime || logTime < cutoffTime) return;
@@ -333,30 +359,67 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
       const name = cleanGuildName(guild?.name);
       if (!name) return;
 
-      byGuild[name] ||= { name, kills: 0, deaths: 0, matchIds: new Set() };
-      byGuild[name].kills += num(guild?.kills);
-      byGuild[name].deaths += num(guild?.deaths);
-      byGuild[name].matchIds.add(matchId);
+      /*
+       * In the stored guild summary:
+       * - guild.deaths = kills made by the enemy guild
+       * - guild.kills  = deaths suffered by the enemy guild
+       *
+       * Convert them here so every row below uses normal enemy K/D semantics.
+       */
+      const enemyKills = num(guild?.deaths);
+      const enemyDeaths = num(guild?.kills);
+
+      addQualifiedWar(name, enemyKills, enemyDeaths, matchId);
     });
   });
 
+  // Fallback for older data that only has raw kill/death events.
   if (!Object.keys(byGuild).length) {
     const events = Array.isArray(stats?.ev) ? stats.ev : [];
     const eventTimes = events
       .map((event) => new Date(event?.date || '').getTime())
       .filter((time) => time > 0);
-    const eventLatestTime = eventTimes.length ? Math.max(...eventTimes) : Date.now();
-    const eventCutoffTime = eventLatestTime - 45 * 24 * 60 * 60 * 1000;
+    const eventLatestTime = eventTimes.length
+      ? Math.max(...eventTimes)
+      : Date.now();
+    const eventCutoffTime =
+      eventLatestTime - 45 * 24 * 60 * 60 * 1000;
+    const warsByGuild = {};
 
     events.forEach((event) => {
       const guildName = cleanGuildName(event?.guild);
       const eventTime = new Date(event?.date || '').getTime();
+
       if (!guildName || !eventTime || eventTime < eventCutoffTime) return;
 
-      byGuild[guildName] ||= { name: guildName, kills: 0, deaths: 0, matchIds: new Set() };
-      if (event.type === 'kill') byGuild[guildName].kills += 1;
-      if (event.type === 'death') byGuild[guildName].deaths += 1;
-      byGuild[guildName].matchIds.add(String(event?.id || event?.date || guildName));
+      const matchId = String(
+        event?.logId ||
+          event?.warId ||
+          event?.matchId ||
+          event?.war ||
+          event?.date ||
+          '',
+      );
+
+      if (!matchId) return;
+
+      const key = `${guildName}::${matchId}`;
+      warsByGuild[key] ||= {
+        name: guildName,
+        matchId,
+        kills: 0,
+        deaths: 0,
+      };
+
+      // Killing an enemy adds one death to that enemy guild.
+      if (event.type === 'kill') warsByGuild[key].deaths += 1;
+
+      // One of our deaths adds one kill to the enemy guild.
+      if (event.type === 'death') warsByGuild[key].kills += 1;
+    });
+
+    Object.values(warsByGuild).forEach((war) => {
+      addQualifiedWar(war.name, war.kills, war.deaths, war.matchId);
     });
   }
 
@@ -366,27 +429,35 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
       const deaths = num(guild.deaths);
       const matches = guild.matchIds?.size || 0;
       const totalInteractions = kills + deaths;
-      const kdNumber = kills > 0 ? deaths / kills : deaths > 0 ? deaths : 0;
-      const score = enemyGuildScore({ kills, deaths, matches, kdNumber });
-      return { name: guild.name, kills, deaths, totalInteractions, kdNumber, matches, score, tier: 'D' };
+      const kdNumber = kd(kills, deaths);
+      const score = enemyGuildScore({ matches, kdNumber });
+
+      return {
+        name: guild.name,
+        kills,
+        deaths,
+        totalInteractions,
+        kdNumber,
+        matches,
+        score,
+        tier: getTierByScore(score),
+      };
     })
-    .filter((guild) => guild.name && guild.totalInteractions >= 100)
+    .filter((guild) => guild.name && guild.matches > 0)
     .sort(
       (a, b) =>
         b.score - a.score ||
         b.kdNumber - a.kdNumber ||
         b.matches - a.matches ||
-        b.deaths - a.deaths ||
+        b.kills - a.kills ||
         a.name.localeCompare(b.name),
     );
-
-  const tieredRows = rows.map((guild) => ({ ...guild, tier: getTierByScore(guild.score) }));
 
   return ['S', 'A', 'B', 'C', 'D', 'Trash']
     .map((tier) => ({
       tier,
       meta: enemyTierMeta[tier],
-      guilds: tieredRows.filter((guild) => guild.tier === tier),
+      guilds: rows.filter((guild) => guild.tier === tier),
     }))
     .filter((group) => group.guilds.length > 0);
 }
@@ -755,7 +826,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
           {guild.name}
         </p>
         <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black text-slate-300">
-          {decimal(guild.score, 1)}
+          {decimal(guild.score, 2)}
         </span>
       </div>
 
@@ -772,11 +843,11 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
             </div>
             <div>
               <p className="text-[9px] uppercase tracking-wider text-emerald-300/80">K</p>
-              <p>{compact(guild.deaths)}</p>
+              <p>{compact(guild.kills)}</p>
             </div>
             <div>
               <p className="text-[9px] uppercase tracking-wider text-rose-300/80">D</p>
-              <p>{compact(guild.kills)}</p>
+              <p>{compact(guild.deaths)}</p>
             </div>
             <div>
               <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">K/D</p>
@@ -801,11 +872,15 @@ function EnemyGuildTierList({ groups }) {
 
   return (
     <Panel className="p-3">
-      <SectionTitle icon={Trophy} title="Enemy Guild Tier List" />
+      <SectionTitle
+        icon={Trophy}
+        title="Enemy Guild Tier List"
+        sub="Only wars with 50+ combined K+D count • Score = K/D × log₂(Wars + 1)"
+      />
 
       {!hasGuilds ? (
         <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-4 text-sm font-bold text-slate-500">
-          No enemy guild reached 100 K+D in the last 45 days.
+          No enemy guild has a qualifying war with 50+ combined K+D in the last 45 days.
         </p>
       ) : (
         <div className="space-y-2">
