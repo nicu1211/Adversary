@@ -13,6 +13,7 @@ import {
   add,
   scrollCls,
   calculateKillFeed,
+  calculateStreaks,
   calculateStats,
 } from '../lib/logUtils';
 
@@ -471,6 +472,12 @@ function BestOverall({
 
   function buildRowsFromStats(oneStats) {
     const hasTimeline = statsHasTimeline(oneStats);
+    const timelineStreaks = hasTimeline
+      ? calculateStreaks(oneStats.ev || [])
+      : {};
+    const timelineFeeds = hasTimeline
+      ? calculateKillFeed(oneStats.ev || [], 10)
+      : {};
 
     const oneByName = Object.fromEntries(
       oneStats.players.map((player) => [player.name, player]),
@@ -484,11 +491,31 @@ function BestOverall({
         kd: '0.00',
       };
 
+      // Killstreak is consecutive kills before dying and must come from
+      // timestamped combat events.
+      const killStreak = hasTimeline
+        ? getPlayerObjectValue(timelineStreaks, player.name, 0)
+        : null;
+
+      // Kill Feed comes from the Stats Log third column. The fd map and
+      // timeline calculation are retained as fallbacks for older logs.
+      const savedKillFeed =
+        fullPlayer.killFeed ??
+        fullPlayer.feed ??
+        getPlayerObjectValue(oneStats.fd, player.name, null);
+
+      const timelineKillFeed = hasTimeline
+        ? getPlayerObjectValue(timelineFeeds, player.name, 0)
+        : null;
+
+      const killFeed =
+        savedKillFeed == null ? timelineKillFeed : Number(savedKillFeed) || 0;
+
       return {
         ...fullPlayer,
         kdNumber: Number(fullPlayer.kd),
-        streak: hasTimeline ? oneStats.st[player.name] || 0 : null,
-        feed: hasTimeline ? oneStats.fd[player.name] || 0 : null,
+        streak: killStreak,
+        feed: killFeed,
       };
     });
   }
@@ -579,16 +606,87 @@ function BestOverall({
     ].join(' ');
   }
 
+  function eventTimeKey(event) {
+    return [
+      event?.date || '9999-99-99',
+      String(Number(event?.sec) || timeToSecondsValue(event?.time)).padStart(
+        8,
+        '0',
+      ),
+      String(Number(event?.i) || 0).padStart(8, '0'),
+    ].join(' ');
+  }
+
+  function rankStreakForStats(oneStats, rows) {
+    if (!statsHasTimeline(oneStats)) return {};
+
+    const current = {};
+    const best = {};
+    const firstKey = {};
+
+    [...(oneStats.ev || [])]
+      .filter(
+        (event) =>
+          event?.hasTimestamp !== false &&
+          event?.source !== 'summary' &&
+          (event?.type === 'kill' || event?.type === 'death'),
+      )
+      .sort(
+        (a, b) =>
+          eventTimeKey(a).localeCompare(eventTimeKey(b)) ||
+          Number(a?.i || 0) - Number(b?.i || 0),
+      )
+      .forEach((event) => {
+        const rawPlayer =
+          event?.guildPlayer ||
+          (event?.type === 'kill' ? event?.killer : event?.victim) ||
+          '';
+
+        const rowPlayer = rows.find((player) =>
+          samePlayerName(player.name, rawPlayer),
+        );
+        const playerName = rowPlayer?.name || rawPlayer;
+
+        if (!playerName) return;
+
+        if (event.type === 'death') {
+          current[playerName] = 0;
+          return;
+        }
+
+        current[playerName] = (current[playerName] || 0) + 1;
+
+        if (current[playerName] > (best[playerName] || 0)) {
+          best[playerName] = current[playerName];
+          firstKey[playerName] = eventTimeKey(event);
+        }
+      });
+
+    return Object.fromEntries(
+      [...rows]
+        .sort(
+          (a, b) =>
+            (Number(b.streak) || 0) - (Number(a.streak) || 0) ||
+            (firstKey[a.name] || '9999-99-99 99999999').localeCompare(
+              firstKey[b.name] || '9999-99-99 99999999',
+            ) ||
+            a.name.localeCompare(b.name),
+        )
+        .map((player, index) => [player.name, index + 1]),
+    );
+  }
+
   function rankFeedForStats(oneStats, rows) {
     const hasTimeline = statsHasTimeline(oneStats);
-
-    if (!hasTimeline) return {};
-
-    const feedDetails = calculateKillFeed(oneStats.ev || [], 10, true);
+    const feedDetails = hasTimeline
+      ? calculateKillFeed(oneStats.ev || [], 10, true)
+      : [];
     const feedMeta = {};
 
     feedDetails.forEach((feed) => {
-      const rowPlayer = rows.find((player) => samePlayerName(player.name, feed.name));
+      const rowPlayer = rows.find((player) =>
+        samePlayerName(player.name, feed.name),
+      );
       const playerName = rowPlayer?.name || feed.name;
       const current = feedMeta[playerName];
       const next = {
@@ -607,20 +705,21 @@ function BestOverall({
 
     return Object.fromEntries(
       [...rows]
+        .map((player, originalIndex) => ({
+          ...player,
+          originalIndex,
+        }))
         .sort((a, b) => {
-          const aFeed = feedMeta[a.name] || {
-            count: Number(a.feed) || 0,
-            firstKey: '9999-99-99 99999999',
-          };
-
-          const bFeed = feedMeta[b.name] || {
-            count: Number(b.feed) || 0,
-            firstKey: '9999-99-99 99999999',
-          };
+          const aFirstKey =
+            feedMeta[a.name]?.firstKey ||
+            `9999-99-99 ${String(a.originalIndex).padStart(8, '0')}`;
+          const bFirstKey =
+            feedMeta[b.name]?.firstKey ||
+            `9999-99-99 ${String(b.originalIndex).padStart(8, '0')}`;
 
           return (
-            bFeed.count - aFeed.count ||
-            aFeed.firstKey.localeCompare(bFeed.firstKey) ||
+            (Number(b.feed) || 0) - (Number(a.feed) || 0) ||
+            aFirstKey.localeCompare(bFirstKey) ||
             a.name.localeCompare(b.name)
           );
         })
@@ -638,6 +737,8 @@ function BestOverall({
 
       if (!rows.length) return;
 
+      const hasStreak = hasTimeline && hasAnyValue(rows, 'streak');
+      const hasFeed = hasAnyValue(rows, 'feed');
       const hasDamageDealt = hasAnyValue(rows, 'damageDealt');
       const hasDamageTaken = hasAnyValue(rows, 'damageTaken');
       const hasCcHits = hasAnyValue(rows, 'ccHits');
@@ -647,8 +748,8 @@ function BestOverall({
         kills: rankKillsForStats(oneStats, rows),
         deaths: rankRows(rows, 'deaths', false),
         kd: rankRows(rows, 'kdNumber', true),
-        streak: hasTimeline ? rankRows(rows, 'streak', true) : {},
-        feed: hasTimeline ? rankFeedForStats(oneStats, rows) : {},
+        streak: hasStreak ? rankStreakForStats(oneStats, rows) : {},
+        feed: hasFeed ? rankFeedForStats(oneStats, rows) : {},
         damageDealt: hasDamageDealt ? rankRows(rows, 'damageDealt', true) : {},
         damageTaken: hasDamageTaken ? rankRows(rows, 'damageTaken', false) : {},
         ccHits: hasCcHits ? rankRows(rows, 'ccHits', true) : {},
@@ -687,12 +788,16 @@ function BestOverall({
         result[name].kd += ranks.kd[name] || 0;
         result[name].metricCount += 3;
 
-        if (hasTimeline) {
+        if (hasStreak) {
           result[name].streak += ranks.streak[name] || 0;
-          result[name].feed += ranks.feed[name] || 0;
           result[name].streakMatches += 1;
+          result[name].metricCount += 1;
+        }
+
+        if (hasFeed) {
+          result[name].feed += ranks.feed[name] || 0;
           result[name].feedMatches += 1;
-          result[name].metricCount += 2;
+          result[name].metricCount += 1;
         }
 
         if (hasDamageDealt) {
