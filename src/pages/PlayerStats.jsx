@@ -718,15 +718,13 @@ function buildSecondaryRankValues(rows, playerName, excludedWarIds = new Set()) 
       kills: buildTieAwareRank(rowsForWar, 'kills', true),
       deaths: buildTieAwareRank(rowsForWar, 'deaths', false),
       kd: buildTieAwareRank(rowsForWar, 'kdNumber', true),
-      feed: buildTieAwareRank(rowsForWar, 'feed', true),
     };
 
     values.push(
       (getPlayerObjectValue(ranks.kills, playerName) +
         getPlayerObjectValue(ranks.deaths, playerName) +
-        getPlayerObjectValue(ranks.kd, playerName) +
-        getPlayerObjectValue(ranks.feed, playerName)) /
-        4,
+        getPlayerObjectValue(ranks.kd, playerName)) /
+        3,
     );
   });
 
@@ -766,16 +764,14 @@ function buildAverageRankValuesFromPlayedWars(events, playerName) {
       deaths: buildTieAwareRank(rows, 'deaths', false),
       kd: buildTieAwareRank(rows, 'kdNumber', true),
       streak: buildTieAwareRank(rows, 'streak', true),
-      feed: buildTieAwareRank(rows, 'feed', true),
     };
 
     const averageForThisWar =
       (getPlayerObjectValue(ranks.kills, playerName) +
         getPlayerObjectValue(ranks.deaths, playerName) +
         getPlayerObjectValue(ranks.kd, playerName) +
-        getPlayerObjectValue(ranks.streak, playerName) +
-        getPlayerObjectValue(ranks.feed, playerName)) /
-      5;
+        getPlayerObjectValue(ranks.streak, playerName)) /
+      4;
 
     playedWarAverages.push(averageForThisWar);
   });
@@ -2386,7 +2382,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       .sort(
         (a, b) =>
           b.value - a.value ||
-          String(b.date).localeCompare(String(a.date)) ||
+          String(a.date).localeCompare(String(b.date)) ||
           String(a.war).localeCompare(String(b.war)),
       )
       .slice(0, 10);
@@ -2406,7 +2402,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       .sort(
         (a, b) =>
           b.value - a.value ||
-          String(b.date).localeCompare(String(a.date)) ||
+          String(a.date).localeCompare(String(b.date)) ||
           String(a.war).localeCompare(String(b.war)),
       )
       .slice(0, 10);
