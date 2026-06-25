@@ -704,8 +704,8 @@ function buildSecondaryRankValues(rows, playerName, excludedWarIds = new Set()) 
         kdNumber: Number(row.deaths)
           ? Number(((Number(row.kills) || 0) / Number(row.deaths)).toFixed(2))
           : Number((Number(row.kills) || 0).toFixed(2)),
-        streak: Number(row.killStreak) || 0,
-        feed: 0,
+        streak: 0,
+        feed: Number(row.killFeed ?? row.killStreak) || 0,
       });
     });
 
@@ -718,14 +718,14 @@ function buildSecondaryRankValues(rows, playerName, excludedWarIds = new Set()) 
       kills: buildTieAwareRank(rowsForWar, 'kills', true),
       deaths: buildTieAwareRank(rowsForWar, 'deaths', false),
       kd: buildTieAwareRank(rowsForWar, 'kdNumber', true),
-      streak: buildTieAwareRank(rowsForWar, 'streak', true),
+      feed: buildTieAwareRank(rowsForWar, 'feed', true),
     };
 
     values.push(
       (getPlayerObjectValue(ranks.kills, playerName) +
         getPlayerObjectValue(ranks.deaths, playerName) +
         getPlayerObjectValue(ranks.kd, playerName) +
-        getPlayerObjectValue(ranks.streak, playerName)) /
+        getPlayerObjectValue(ranks.feed, playerName)) /
         4,
     );
   });
@@ -939,19 +939,19 @@ const MATCH_HISTORY_COLORS = {
 const SECONDARY_MATCH_METRIC_KEYS = {
   kills: ['kills', 'Kills'],
   deaths: ['deaths', 'Deaths'],
-  killstreak: [
-    'killStreak',
-    'killstreak',
-    'streak',
-    'Killstreak',
-    'KillStreak',
-  ],
+  killstreak: [],
   killfeed: [
     'killFeed',
     'killfeed',
     'feed',
     'KillFeed',
     'Killfeed',
+    // Legacy aliases from summaries created before the parser fix.
+    'killStreak',
+    'killstreak',
+    'streak',
+    'Killstreak',
+    'KillStreak',
   ],
   damageDealt: [
     'damageDealt',
@@ -1481,7 +1481,7 @@ function getSecondaryMatchStats(row) {
   return {
     kills: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.kills),
     deaths: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.deaths),
-    killstreak: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killstreak),
+    killstreak: 0,
     killfeed: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killfeed),
     damageDealt: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageDealt),
     damageTaken: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageTaken),
@@ -2302,7 +2302,6 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       const warPresence = secondaryWarPresence[warId] || {};
       const hasKills = getSecondaryMetricExists(row, 'kills', warPresence);
       const hasDeaths = getSecondaryMetricExists(row, 'deaths', warPresence);
-      const hasKillstreak = getSecondaryMetricExists(row, 'killstreak', warPresence);
       const hasKillfeed = getSecondaryMetricExists(row, 'killfeed', warPresence);
       const hasDamageDealt = getSecondaryMetricExists(row, 'damageDealt', warPresence);
       const hasDamageTaken = getSecondaryMetricExists(row, 'damageTaken', warPresence);
@@ -2314,9 +2313,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
         date,
         kills: hasKills ? statsFromRow.kills : existing?.kills || 0,
         deaths: hasDeaths ? statsFromRow.deaths : existing?.deaths || 0,
-        killstreak: hasKillstreak
-          ? statsFromRow.killstreak
-          : existing?.killstreak || 0,
+        killstreak: existing?.killstreak || 0,
         killfeed: hasKillfeed ? statsFromRow.killfeed : existing?.killfeed || 0,
         damageDealt: hasDamageDealt
           ? statsFromRow.damageDealt
@@ -2331,7 +2328,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
         __has: {
           kills: hasKills || Boolean(existingHas.kills),
           deaths: hasDeaths || Boolean(existingHas.deaths),
-          killstreak: hasKillstreak || Boolean(existingHas.killstreak),
+          killstreak: Boolean(existingHas.killstreak),
           killfeed: hasKillfeed || Boolean(existingHas.killfeed),
           damageDealt: hasDamageDealt || Boolean(existingHas.damageDealt),
           damageTaken: hasDamageTaken || Boolean(existingHas.damageTaken),
@@ -2394,22 +2391,18 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       )
       .slice(0, 10);
 
-    const feedItems = Object.entries(warMap)
-      .map(([warId, events]) => {
-        const rows = getOurPlayerRowsForWar(events);
-
-        if (!rows.some((row) => samePlayerName(row.name, player))) {
-          return null;
-        }
-
-        return {
-          id: warId,
-          date: events[0]?.date || '-',
-          war: events[0]?.war || 'Battle log',
-          value: getBestKillfeedForWar(events, player),
-        };
-      })
-      .filter((item) => item && item.value > 0)
+    const feedItems = matchList
+      .filter(
+        (match) =>
+          getMatchMetricExists(match, 'killfeed') &&
+          Number(match.killfeed) > 0,
+      )
+      .map((match) => ({
+        id: match.warId,
+        date: match.date || '-',
+        war: 'Battle log',
+        value: Number(match.killfeed) || 0,
+      }))
       .sort(
         (a, b) =>
           b.value - a.value ||
