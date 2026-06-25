@@ -92,7 +92,7 @@ function getSecondaryTotals(rows) {
     (totals, row) => ({
       kills: totals.kills + (Number(row.kills) || 0),
       deaths: totals.deaths + (Number(row.deaths) || 0),
-      killStreak: Math.max(totals.killStreak, Number(row.killStreak) || 0),
+      killFeed: Math.max(totals.killFeed, Number(row.killFeed) || 0),
       damageDealt: totals.damageDealt + (Number(row.damageDealt) || 0),
       damageTaken: totals.damageTaken + (Number(row.damageTaken) || 0),
       ccHits: totals.ccHits + (Number(row.ccHits) || 0),
@@ -101,7 +101,7 @@ function getSecondaryTotals(rows) {
     {
       kills: 0,
       deaths: 0,
-      killStreak: 0,
+      killFeed: 0,
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
@@ -387,7 +387,7 @@ export default function RawLog({
                   <p className="mt-2 text-xs text-emerald-200/80">
                     Secondary totals: {secondaryTotals.kills} kills ·{" "}
                     {secondaryTotals.deaths} deaths ·{" "}
-                    {secondaryTotals.killStreak} max streak ·{" "}
+                    {secondaryTotals.killFeed} max kill feed ·{" "}
                     {compactNumber(secondaryTotals.damageDealt)} damage dealt ·{" "}
                     {compactNumber(secondaryTotals.damageTaken)} damage taken ·{" "}
                     {secondaryTotals.ccHits} CC hits ·{" "}
