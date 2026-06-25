@@ -397,7 +397,7 @@ function parseSecondaryLine(line, index) {
     thirdNumber >= 0 &&
     thirdNumber <= 50;
 
-  const killStreak = Math.round(
+  const killFeed = Math.round(
     parseSecondaryNumber(
       looksLikeKdColumn ? numericColumns[4] : numericColumns[2],
     ),
@@ -431,7 +431,7 @@ function parseSecondaryLine(line, index) {
     !player &&
     kills === 0 &&
     deaths === 0 &&
-    killStreak === 0 &&
+    killFeed === 0 &&
     damageDealt === 0 &&
     damageTaken === 0 &&
     ccHits === 0 &&
@@ -444,7 +444,7 @@ function parseSecondaryLine(line, index) {
     player,
     kills,
     deaths,
-    killStreak,
+    killFeed,
     damageDealt,
     damageTaken,
     ccHits,
@@ -468,7 +468,7 @@ function secondaryRowsTotals(rows) {
     (totals, row) => ({
       kills: totals.kills + (Number(row.kills) || 0),
       deaths: totals.deaths + (Number(row.deaths) || 0),
-      killStreak: Math.max(totals.killStreak, Number(row.killStreak) || 0),
+      killFeed: Math.max(totals.killFeed, Number(row.killFeed) || 0),
       damageDealt: totals.damageDealt + (Number(row.damageDealt) || 0),
       damageTaken: totals.damageTaken + (Number(row.damageTaken) || 0),
       ccHits: totals.ccHits + (Number(row.ccHits) || 0),
@@ -477,7 +477,7 @@ function secondaryRowsTotals(rows) {
     {
       kills: 0,
       deaths: 0,
-      killStreak: 0,
+      killFeed: 0,
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
@@ -875,9 +875,9 @@ function calculateStatsFromRaw(items) {
       war: row.war,
       kills: (Number(current.kills) || 0) + (Number(row.kills) || 0),
       deaths: (Number(current.deaths) || 0) + (Number(row.deaths) || 0),
-      killStreak: Math.max(
-        Number(current.killStreak) || 0,
-        Number(row.killStreak) || 0,
+      killFeed: Math.max(
+        Number(current.killFeed) || 0,
+        Number(row.killFeed) || 0,
       ),
       damageDealt:
         (Number(current.damageDealt) || 0) + (Number(row.damageDealt) || 0),
@@ -897,7 +897,7 @@ function calculateStatsFromRaw(items) {
       war: row.war,
       kills: 0,
       deaths: 0,
-      killStreak: 0,
+      killFeed: 0,
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
@@ -1102,7 +1102,7 @@ function calculateStatsFromRaw(items) {
         kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
         ...(secondary
           ? {
-              killStreak: secondary.killStreak,
+              killFeed: secondary.killFeed,
               damageDealt: secondary.damageDealt,
               damageTaken: secondary.damageTaken,
               ccHits: secondary.ccHits,
@@ -1138,10 +1138,15 @@ function calculateStatsFromRaw(items) {
   );
 
   const classicStreaks = hasTimeline ? calculateStreaks(classicEvents) : {};
+  const classicKillFeed = hasTimeline ? calculateKillFeed(classicEvents) : {};
   const st = { ...classicStreaks };
+  const fd = { ...classicKillFeed };
 
   Object.values(secondaryByPlayer).forEach((row) => {
-    st[row.player] = Math.max(Number(st[row.player]) || 0, Number(row.killStreak) || 0);
+    fd[row.player] = Math.max(
+      Number(fd[row.player]) || 0,
+      Number(row.killFeed) || 0,
+    );
   });
 
   return {
@@ -1153,7 +1158,7 @@ function calculateStatsFromRaw(items) {
     deaths,
     kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
     st,
-    fd: hasTimeline ? calculateKillFeed(classicEvents) : {},
+    fd,
     secondary: {
       rows: secondaryRows,
       totals: secondaryTotals,
@@ -1176,7 +1181,7 @@ function mergeStatsFromSummaries(items) {
   const secondaryTotals = {
     kills: 0,
     deaths: 0,
-    killStreak: 0,
+    killFeed: 0,
     damageDealt: 0,
     damageTaken: 0,
     ccHits: 0,
@@ -1205,6 +1210,7 @@ function mergeStatsFromSummaries(items) {
         player.family || playerFamilies[player.name] || '-';
 
       if (
+        player.killFeed != null ||
         player.killStreak != null ||
         player.damageDealt != null ||
         player.damageTaken != null ||
@@ -1212,15 +1218,19 @@ function mergeStatsFromSummaries(items) {
         player.fortDamage != null
       ) {
         const current = secondaryByPlayer[player.name] || {
-          killStreak: 0,
+          killFeed: 0,
           damageDealt: 0,
           damageTaken: 0,
           ccHits: 0,
           fortDamage: 0,
         };
 
+        // Legacy summaries stored the third stats column as killStreak.
+        const playerKillFeed =
+          Number(player.killFeed ?? player.killStreak) || 0;
+
         secondaryByPlayer[player.name] = {
-          killStreak: Math.max(current.killStreak, Number(player.killStreak) || 0),
+          killFeed: Math.max(current.killFeed, playerKillFeed),
           damageDealt: current.damageDealt + (Number(player.damageDealt) || 0),
           damageTaken: current.damageTaken + (Number(player.damageTaken) || 0),
           ccHits: current.ccHits + (Number(player.ccHits) || 0),
@@ -1232,9 +1242,15 @@ function mergeStatsFromSummaries(items) {
     if (summary.secondary?.totals) {
       secondaryTotals.kills += Number(summary.secondary.totals.kills) || 0;
       secondaryTotals.deaths += Number(summary.secondary.totals.deaths) || 0;
-      secondaryTotals.killStreak = Math.max(
-        secondaryTotals.killStreak,
-        Number(summary.secondary.totals.killStreak) || 0,
+      const summaryKillFeed =
+        Number(
+          summary.secondary.totals.killFeed ??
+            summary.secondary.totals.killStreak,
+        ) || 0;
+
+      secondaryTotals.killFeed = Math.max(
+        secondaryTotals.killFeed,
+        summaryKillFeed,
       );
       secondaryTotals.damageDealt += Number(summary.secondary.totals.damageDealt) || 0;
       secondaryTotals.damageTaken += Number(summary.secondary.totals.damageTaken) || 0;
@@ -1272,6 +1288,13 @@ function mergeStatsFromSummaries(items) {
     });
   });
 
+  Object.entries(secondaryByPlayer).forEach(([name, secondary]) => {
+    fd[name] = Math.max(
+      Number(fd[name]) || 0,
+      Number(secondary.killFeed) || 0,
+    );
+  });
+
   const players = [
     ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
   ]
@@ -1289,7 +1312,7 @@ function mergeStatsFromSummaries(items) {
         kd: pd ? (pk / pd).toFixed(2) : pk.toFixed(2),
         ...(secondary
           ? {
-              killStreak: secondary.killStreak,
+              killFeed: secondary.killFeed,
               damageDealt: secondary.damageDealt,
               damageTaken: secondary.damageTaken,
               ccHits: secondary.ccHits,
@@ -1427,7 +1450,7 @@ export function buildLogSummary(log) {
     topEnemies,
     enemyNames: stats.guilds.map((guild) => guild.name).filter(Boolean),
     st: stats.st || {},
-    fd: stats.hasTimeline ? stats.fd : {},
+    fd: stats.fd || {},
     secondary: stats.secondary,
     hasTimeline: stats.hasTimeline,
     summaryOnly: stats.summaryOnly,
