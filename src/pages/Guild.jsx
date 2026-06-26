@@ -136,53 +136,61 @@ function cleanGuildName(value) {
 
 function getTierByKd(value) {
   const ratio = num(value);
-  if (ratio >= 1.7) return 'S';
-  if (ratio >= 1.4) return 'A';
-  if (ratio >= 1.15) return 'B';
-  if (ratio >= 0.95) return 'C';
-  if (ratio >= 0.75) return 'D';
-  return 'Trash';
+  if (ratio >= 1.5) return 'S';
+  if (ratio >= 1.3) return 'A';
+  if (ratio >= 1.1) return 'B';
+  if (ratio >= 0.9) return 'C';
+  if (ratio >= 0.7) return 'D';
+  if (ratio >= 0.5) return 'F';
+  return 'T';
 }
 
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: '1.70+ K/D',
+    range: '1.50+ K/D',
     className: 'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
     tone: 'amber',
   },
   A: {
     label: 'A',
-    range: '1.40 - 1.69 K/D',
+    range: '1.30 - 1.49 K/D',
     className: 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
     tone: 'emerald',
   },
   B: {
     label: 'B',
-    range: '1.15 - 1.39 K/D',
+    range: '1.10 - 1.29 K/D',
     className: 'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
     tone: 'blue',
   },
   C: {
     label: 'C',
-    range: '0.95 - 1.14 K/D',
+    range: '0.90 - 1.09 K/D',
     className: 'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
     tone: 'violet',
   },
   D: {
     label: 'D',
-    range: '0.75 - 0.94 K/D',
+    range: '0.70 - 0.89 K/D',
     className: 'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
     tone: 'rose',
   },
-  Trash: {
+  F: {
+    label: 'F',
+    range: '0.50 - 0.69 K/D',
+    className: 'border-orange-300/25 bg-orange-500/10 text-orange-100 shadow-orange-500/10',
+    badge: 'border-orange-300/35 bg-orange-400/15 text-orange-100',
+    tone: 'amber',
+  },
+  T: {
     label: 'T',
-    range: 'Under 0.75 K/D',
+    range: 'Under 0.50 K/D',
     className: 'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
     tone: 'slate',
@@ -496,7 +504,7 @@ function groupEnemyGuildRows(
         Math.max(0, num(minWars)),
   );
 
-  return ['S', 'A', 'B', 'C', 'D', 'Trash']
+  return ['S', 'A', 'B', 'C', 'D', 'F', 'T']
     .map((tier) => ({
       tier,
       meta: enemyTierMeta[tier],
@@ -1070,8 +1078,13 @@ function EnemyGuildTierList({ stats, logs }) {
               <span className="text-[9px] font-black uppercase tracking-[0.07em] text-blue-300">
                 Minimum Node Wars
               </span>
-              <span className="text-sm font-black tabular-nums text-white">
-                {minWars}
+              <span className="flex flex-col items-end leading-none">
+                <span className="text-sm font-black tabular-nums text-white">
+                  {minWars}
+                </span>
+                <span className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-blue-300">
+                  Adversary
+                </span>
               </span>
             </div>
 
@@ -1180,9 +1193,7 @@ function EnemyGuildTierList({ stats, logs }) {
 
                 <div className="min-w-0 lg:text-center">
                   <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    {group.tier === 'Trash'
-                      ? 'Trash'
-                      : 'Tier'}
+                    Tier
                   </p>
                   <p className="mt-0.5 text-[8px] font-bold text-slate-500">
                     {group.meta.range}
