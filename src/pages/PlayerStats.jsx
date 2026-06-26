@@ -2,6 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Panel, Metric } from '../components/UI';
 import { AveragePerformanceChart } from '../components/Charts';
 import { add, scrollCls } from '../lib/logUtils';
+import {
+  useBestOverallRanks,
+} from '../lib/bestOverallStore';
 
 function PlayerSelect({ players, value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -2535,10 +2538,9 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 export default function PlayerStats({ stats, onOpenMatchHistory }) {
   const [player, setPlayer] = useState('');
 
-  const averageRankTable = useMemo(
-    () => buildBestOverallAverageRankTable(stats),
-    [stats],
-  );
+  // This is the exact object produced by Overview -> Best Overall.
+  // No Average Rank formula is recalculated on this page.
+  const bestOverallRanks = useBestOverallRanks();
 
   const selectedStats = useMemo(() => {
     if (!player) return null;
@@ -2817,13 +2819,19 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
       matchList,
       enemyGuildRows,
       wars: involvedWarIds.size,
-      averageRank:
-        averageRankTable[normalizePlayerName(player)]?.formatted ||
-        '0.00',
+      averageRank: (() => {
+        const bestOverall =
+          bestOverallRanks[normalizePlayerName(player)];
+        const average = Number(bestOverall?.average);
+
+        return Number.isFinite(average) && average !== 9999
+          ? average.toFixed(2)
+          : '—';
+      })(),
       streakItems,
       feedItems,
     };
-  }, [player, stats, averageRankTable]);
+  }, [player, stats, bestOverallRanks]);
 
   return (
     <Panel>
@@ -2875,7 +2883,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
             <Metric
               icon={<SummaryHeaderIcon type="averageRank" color="#c4b5fd" />}
               label="Average Rank"
-              value={selectedStats.averageRank || '0.00'}
+              value={selectedStats.averageRank}
               sub=""
               className="border-violet-400/25 from-violet-500/20 text-violet-300"
             />
