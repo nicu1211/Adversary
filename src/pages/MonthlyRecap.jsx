@@ -5,7 +5,6 @@ import {
   Castle,
   ChevronRight,
   Crosshair,
-  Download,
   Flag,
   Flame,
   Gauge,
@@ -2699,15 +2698,6 @@ export default function MonthlyRecap({
               ))}
             </select>
           </label>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="flex h-10 items-center gap-2 rounded-[8px] border border-[#23364f] bg-[#020813] px-4 text-[12px] font-bold text-[#d8e5f7] transition hover:border-[#4ea1ff]"
-          >
-            <Download size={14} />
-            Export Report
-          </button>
         </div>
       </div>
 
