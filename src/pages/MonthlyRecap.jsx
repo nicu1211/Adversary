@@ -69,7 +69,14 @@ function compact(value, digits = 1) {
 }
 
 function ratio(kills, deaths) {
-  return num(deaths) ? num(kills) / num(deaths) : num(kills);
+  const safeKills = num(kills);
+  const safeDeaths = num(deaths);
+
+  return safeDeaths > 0
+    ? safeKills / safeDeaths
+    : safeKills > 0
+      ? safeKills
+      : 0;
 }
 
 function monthFromDate(value) {
@@ -199,8 +206,11 @@ function getWarGuildBreakdown(log) {
   return guilds
     .map((guild) => ({
       name: cleanGuild(guild?.name),
-      kills: num(guild?.kills),
-      deaths: num(guild?.deaths),
+      // Same interpretation used by Overview:
+      // our kills are the enemy guild's recorded deaths,
+      // our deaths are the enemy guild's recorded kills.
+      kills: num(guild?.deaths),
+      deaths: num(guild?.kills),
     }))
     .filter(
       (guild) =>
@@ -249,12 +259,14 @@ function buildEnemyRows(logs, stats) {
     const warId = log?.id || dateOf(log) || `log-${index}`;
 
     guilds.forEach((guild) => {
-      const guildKills = num(guild?.kills);
-      const guildDeaths = num(guild?.deaths);
+      // Same formula and field direction as Overview.
+      const ourKills = num(guild?.deaths);
+      const ourDeaths = num(guild?.kills);
+      const totalInteractions = ourKills + ourDeaths;
 
-      if (guildKills + guildDeaths < 30) return;
+      if (totalInteractions < 30) return;
 
-      add(guild?.name, guildKills, guildDeaths, warId);
+      add(guild?.name, ourKills, ourDeaths, warId);
     });
   });
 
@@ -269,14 +281,26 @@ function buildEnemyRows(logs, stats) {
   }
 
   return Object.values(byGuild)
-    .map((guild) => ({
-      name: guild.name,
-      wars: guild.wars.size,
-      kills: guild.kills,
-      deaths: guild.deaths,
-      kd: ratio(guild.kills, guild.deaths),
-    }))
-    .filter((guild) => guild.wars > 0)
+    .map((guild) => {
+      const kills = num(guild.kills);
+      const deaths = num(guild.deaths);
+      const totalInteractions = kills + deaths;
+      const kd = ratio(kills, deaths);
+
+      return {
+        name: guild.name,
+        wars: guild.wars.size,
+        kills,
+        deaths,
+        totalInteractions,
+        kd,
+      };
+    })
+    .filter(
+      (guild) =>
+        guild.wars > 0 &&
+        guild.totalInteractions >= 30,
+    )
     .sort(
       (a, b) =>
         b.wars - a.wars ||
