@@ -682,14 +682,12 @@ function buildReview(logs, selectedMonth) {
     50,
   ).map((enemy) => {
     const matchingRows = rows
-      .filter((row) => {
-        const guild = getFeaturedWarGuild(
+      .filter((row) =>
+        getWarGuildBreakdown(
           sourceLogForRow(row),
           50,
-        );
-
-        return guild?.name === enemy.name;
-      })
+        ).some((guild) => guild.name === enemy.name),
+      )
       .sort(
         (a, b) =>
           String(b.date || '').localeCompare(String(a.date || '')),
@@ -697,7 +695,7 @@ function buildReview(logs, selectedMonth) {
 
     return {
       ...enemy,
-      latestWar: matchingRows[0] || null,
+      warRows: matchingRows,
     };
   });
 
@@ -903,6 +901,7 @@ function MatchupCard({
   value,
   accent,
   onClick,
+  openLabel,
 }) {
   const classes = {
     violet:
@@ -951,7 +950,7 @@ function MatchupCard({
 
         {onClick && (
           <p className="mt-1 flex items-center gap-1 text-[9px] font-black text-slate-500 group-hover:text-white">
-            Open latest node war
+            {openLabel || 'Open node wars'}
             <ChevronRight size={11} />
           </p>
         )}
@@ -1478,8 +1477,15 @@ export default function MonthlyRecap({
                 }
                 accent="violet"
                 onClick={
-                  mostFought?.latestWar
-                    ? () => onOpenMatchOverview(mostFought.latestWar)
+                  mostFought?.warRows?.length
+                    ? () => onOpenMatchOverview(mostFought.warRows)
+                    : undefined
+                }
+                openLabel={
+                  mostFought?.warRows?.length
+                    ? `Open all ${mostFought.warRows.length} node war${
+                        mostFought.warRows.length === 1 ? '' : 's'
+                      }`
                     : undefined
                 }
               />
@@ -1496,8 +1502,15 @@ export default function MonthlyRecap({
                 }
                 accent="cyan"
                 onClick={
-                  bestMatchup?.latestWar
-                    ? () => onOpenMatchOverview(bestMatchup.latestWar)
+                  bestMatchup?.warRows?.length
+                    ? () => onOpenMatchOverview(bestMatchup.warRows)
+                    : undefined
+                }
+                openLabel={
+                  bestMatchup?.warRows?.length
+                    ? `Open all ${bestMatchup.warRows.length} node war${
+                        bestMatchup.warRows.length === 1 ? '' : 's'
+                      }`
                     : undefined
                 }
               />
@@ -1514,8 +1527,15 @@ export default function MonthlyRecap({
                 }
                 accent="rose"
                 onClick={
-                  toughestMatchup?.latestWar
-                    ? () => onOpenMatchOverview(toughestMatchup.latestWar)
+                  toughestMatchup?.warRows?.length
+                    ? () => onOpenMatchOverview(toughestMatchup.warRows)
+                    : undefined
+                }
+                openLabel={
+                  toughestMatchup?.warRows?.length
+                    ? `Open all ${toughestMatchup.warRows.length} node war${
+                        toughestMatchup.warRows.length === 1 ? '' : 's'
+                      }`
                     : undefined
                 }
               />
