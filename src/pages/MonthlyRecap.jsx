@@ -543,6 +543,225 @@ function buildStatsLogPlayers(stats) {
     );
 }
 
+function buildSingleGamePlayerHighlights(stats) {
+  const sourceRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+
+  const uniqueRows = new Map();
+
+  sourceRows.forEach((row, sourceOrder) => {
+    const name = String(row?.player || row?.name || '').trim();
+
+    if (!name) return;
+
+    const warId = String(
+      row?.warId ||
+        row?.war_id ||
+        row?.war ||
+        row?.id ||
+        row?.date ||
+        `stats-war-${sourceOrder}`,
+    );
+
+    const key = `${warId}::${name.toLowerCase()}`;
+    const current = uniqueRows.get(key);
+    const interactions = num(row?.kills) + num(row?.deaths);
+    const currentInteractions = current
+      ? num(current?.kills) + num(current?.deaths)
+      : -1;
+
+    if (
+      !current ||
+      interactions > currentInteractions ||
+      (
+        interactions === currentInteractions &&
+        sourceOrder < current.__sourceOrder
+      )
+    ) {
+      uniqueRows.set(key, {
+        ...row,
+        player: name,
+        __warId: warId,
+        __sourceOrder: sourceOrder,
+        __time: chronologyTimestamp(row),
+      });
+    }
+  });
+
+  const statRecords = [...uniqueRows.values()].map((row) => {
+    const kills = num(row?.kills);
+    const deaths = num(row?.deaths);
+
+    return {
+      name: String(row?.player || row?.name || '').trim(),
+      warId: String(row.__warId),
+      date:
+        row?.date ||
+        row?.datetime ||
+        row?.dateTime ||
+        row?.timestamp ||
+        row?.time ||
+        '',
+      firstAppearanceTime: row.__time,
+      firstAppearanceOrder: row.__sourceOrder,
+      kills,
+      deaths,
+      kd: ratio(kills, deaths),
+      damage: readStatMetric(
+        row,
+        [
+          'damageDealt',
+          'damage_dealt',
+          'damage dealt',
+          'damageDone',
+          'damage',
+        ],
+        0,
+      ),
+      fortDamage: readStatMetric(
+        row,
+        [
+          'fortDamage',
+          'damageToFort',
+          'damage_to_fort',
+          'damage to fort',
+          'Fort Damage',
+        ],
+        0,
+      ),
+      killFeed: readStatMetric(
+        row,
+        ['killFeed', 'feed'],
+        0,
+      ),
+    };
+  });
+
+  function bestStatRecord(metricKey, isValid) {
+    return (
+      statRecords
+        .filter((record) =>
+          isValid ? isValid(record) : num(record?.[metricKey]) > 0,
+        )
+        .sort(
+          (a, b) =>
+            num(b?.[metricKey]) - num(a?.[metricKey]) ||
+            chronologicalCompare(a, b),
+        )[0] || null
+    );
+  }
+
+  const combatWars = new Map();
+
+  (stats?.ev || []).forEach((event, sourceOrder) => {
+    const warId = String(
+      event?.warId ||
+        event?.war_id ||
+        event?.nodeWarId ||
+        event?.war ||
+        event?.id ||
+        event?.date ||
+        `combat-war-${sourceOrder}`,
+    );
+
+    if (!combatWars.has(warId)) {
+      combatWars.set(warId, {
+        events: [],
+        date:
+          event?.date ||
+          event?.datetime ||
+          event?.dateTime ||
+          event?.timestamp ||
+          event?.time ||
+          '',
+        time: chronologyTimestamp(event),
+        order: sourceOrder,
+      });
+    }
+
+    const war = combatWars.get(warId);
+    war.events.push(event);
+
+    const eventTime = chronologyTimestamp(event);
+
+    if (
+      eventTime < war.time ||
+      (eventTime === war.time && sourceOrder < war.order)
+    ) {
+      war.time = eventTime;
+      war.order = sourceOrder;
+      war.date =
+        event?.date ||
+        event?.datetime ||
+        event?.dateTime ||
+        event?.timestamp ||
+        event?.time ||
+        war.date;
+    }
+  });
+
+  const streakRecords = [];
+
+  combatWars.forEach((war, warId) => {
+    const warStreaks = calculateStreaks(war.events);
+
+    Object.entries(warStreaks || {}).forEach(([name, value]) => {
+      const cleanName = String(name || '').trim();
+      const streak = num(value);
+
+      if (!cleanName || streak <= 0) return;
+
+      streakRecords.push({
+        name: cleanName,
+        warId,
+        date: war.date,
+        value: streak,
+        firstAppearanceTime: war.time,
+        firstAppearanceOrder: war.order,
+      });
+    });
+  });
+
+  const longestStreak =
+    streakRecords.sort(
+      (a, b) =>
+        b.value - a.value ||
+        chronologicalCompare(a, b),
+    )[0] || null;
+
+  const bestFeedRecord = bestStatRecord(
+    'killFeed',
+    (record) => record.killFeed > 0,
+  );
+
+  return {
+    topFragger: bestStatRecord(
+      'kills',
+      (record) => record.kills > 0,
+    ),
+    bestKd: bestStatRecord(
+      'kd',
+      (record) => record.kills > 0,
+    ),
+    damageLeader: bestStatRecord(
+      'damage',
+      (record) => record.damage > 0,
+    ),
+    fortBreaker: bestStatRecord(
+      'fortDamage',
+      (record) => record.fortDamage > 0,
+    ),
+    longestStreak,
+    bestFeed: bestFeedRecord
+      ? {
+          ...bestFeedRecord,
+          value: bestFeedRecord.killFeed,
+        }
+      : null,
+  };
+}
+
 function buildCombatStreakMetrics(stats) {
   const eventsByWar = new Map();
 
@@ -1098,68 +1317,14 @@ function buildReview(logs, selectedMonth) {
     warCounts,
   );
   const players = buildRosterPerformancePlayers(activePlayers);
-  const minWars = Math.min(3, Math.max(1, totals.wars));
-
-  const topFragger = statLogPlayers[0] || null;
-
-  const bestKd =
-    [...statLogPlayers]
-      .filter((player) => player.wars >= minWars && player.kills > 0)
-      .sort(
-        (a, b) =>
-          b.kd - a.kd ||
-          b.kills - a.kills ||
-          a.deaths - b.deaths ||
-          a.name.localeCompare(b.name),
-      )[0] || null;
-
-  const damageLeader =
-    [...statLogPlayers]
-      .filter((player) => player.damage > 0)
-      .sort(
-        (a, b) =>
-          b.damage - a.damage ||
-          b.kills - a.kills ||
-          a.name.localeCompare(b.name),
-      )[0] || null;
-
-  const fortBreaker =
-    [...statLogPlayers]
-      .filter((player) => player.fortDamage > 0)
-      .sort(
-        (a, b) =>
-          b.fortDamage - a.fortDamage ||
-          b.kills - a.kills ||
-          a.name.localeCompare(b.name),
-      )[0] || null;
-
-  // Longest Killstreak is the only Player Highlight sourced from
-  // Combat Logs. All other Player Highlights remain Stats Log only.
-  const longestStreak =
-    Object.entries(calculateStreaks(stats?.ev || []))
-      .map(([name, value]) => ({
-        name,
-        value: num(value),
-      }))
-      .filter((player) => player.value > 0)
-      .sort(
-        (a, b) =>
-          b.value - a.value ||
-          a.name.localeCompare(b.name),
-      )[0] || null;
-
-  const bestFeed =
-    [...statLogPlayers]
-      .filter((player) => player.killFeed > 0)
-      .sort(
-        (a, b) =>
-          b.killFeed - a.killFeed ||
-          a.name.localeCompare(b.name),
-      )
-      .map((player) => ({
-        name: player.name,
-        value: player.killFeed,
-      }))[0] || null;
+  const {
+    topFragger,
+    bestKd,
+    damageLeader,
+    fortBreaker,
+    longestStreak,
+    bestFeed,
+  } = buildSingleGamePlayerHighlights(stats);
 
   const enemies = buildEnemyRows(monthLogs, stats, 30);
 
@@ -2740,7 +2905,11 @@ export default function MonthlyRecap({
             label="Top Fragger"
             name={topFragger?.name}
             value={topFragger ? compact(topFragger.kills) : '-'}
-            unit="Kills"
+            unit={
+              topFragger?.date
+                ? `Kills · ${formatDate(topFragger.date)}`
+                : 'Kills'
+            }
             accent="blue"
           />
           <PlayerHighlight
@@ -2748,7 +2917,11 @@ export default function MonthlyRecap({
             label="Best K/D"
             name={bestKd?.name}
             value={bestKd ? bestKd.kd.toFixed(2) : '-'}
-            unit="K/D Ratio"
+            unit={
+              bestKd?.date
+                ? `K/D · ${formatDate(bestKd.date)}`
+                : 'K/D Ratio'
+            }
             accent="violet"
           />
           <PlayerHighlight
@@ -2756,7 +2929,11 @@ export default function MonthlyRecap({
             label="Damage Leader"
             name={damageLeader?.name}
             value={damageLeader ? compact(damageLeader.damage) : '-'}
-            unit="Damage"
+            unit={
+              damageLeader?.date
+                ? `Damage · ${formatDate(damageLeader.date)}`
+                : 'Damage'
+            }
             accent="cyan"
           />
           <PlayerHighlight
@@ -2764,7 +2941,11 @@ export default function MonthlyRecap({
             label="Fort Breaker"
             name={fortBreaker?.name}
             value={fortBreaker ? compact(fortBreaker.fortDamage) : '-'}
-            unit="Fort Damage"
+            unit={
+              fortBreaker?.date
+                ? `Fort Damage · ${formatDate(fortBreaker.date)}`
+                : 'Fort Damage'
+            }
             accent="green"
           />
           <PlayerHighlight
@@ -2772,7 +2953,11 @@ export default function MonthlyRecap({
             label="Longest Killstreak"
             name={longestStreak?.name}
             value={longestStreak ? compact(longestStreak.value, 0) : '-'}
-            unit="Kills"
+            unit={
+              longestStreak?.date
+                ? `Kills · ${formatDate(longestStreak.date)}`
+                : 'Kills'
+            }
             accent="amber"
           />
           <PlayerHighlight
@@ -2780,7 +2965,11 @@ export default function MonthlyRecap({
             label="Best Kill Feed"
             name={bestFeed?.name}
             value={bestFeed ? compact(bestFeed.value, 0) : '-'}
-            unit="Kills"
+            unit={
+              bestFeed?.date
+                ? `Kills · ${formatDate(bestFeed.date)}`
+                : 'Kills'
+            }
             accent="pink"
           />
         </div>
