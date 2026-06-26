@@ -1554,7 +1554,10 @@ function BestOverall({
         );
 
         const availableColumnRanks = Object.values(ranks).filter(
-          (value) => Number.isFinite(Number(value)),
+          (value) =>
+            value !== null &&
+            value !== undefined &&
+            Number.isFinite(Number(value)),
         );
 
         return [
