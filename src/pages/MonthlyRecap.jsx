@@ -1901,22 +1901,19 @@ function addImpactScores(players) {
       );
 
     // Burst Aggression Overall:
-    // 30% best KillFeed, 20% best Killstreak,
-    // 20% kills/war, 12% damage/war,
-    // 8% CC hits/war, 10% average K/D.
+    // 35% kills/war, 30% damage/war,
+    // 20% CC hits/war, 15% average K/D.
     const rawOverall = weightedImpactPart([
-      { score: percentile('bestKillFeed'), weight: 30 },
-      { score: percentile('bestKillStreak'), weight: 20 },
-      { score: percentile('killsPerWar'), weight: 20 },
+      { score: percentile('killsPerWar'), weight: 35 },
       {
         score: percentile('damageDealtPerWar'),
-        weight: 12,
+        weight: 30,
       },
-      { score: percentile('ccHitsPerWar'), weight: 8 },
-      { score: percentile('averageKd'), weight: 10 },
+      { score: percentile('ccHitsPerWar'), weight: 20 },
+      { score: percentile('averageKd'), weight: 15 },
     ]);
 
-    // Keep one-war burst records from dominating the monthly ranking.
+    // Keep one-war performances from dominating the monthly ranking.
     const confidence =
       num(player.wars) / (num(player.wars) + 3);
 
