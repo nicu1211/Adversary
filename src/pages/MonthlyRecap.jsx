@@ -1855,6 +1855,7 @@ function addImpactScores(players) {
 
   const metricEntries = {};
   [
+    'kd',
     'averageKd',
     'killsPerWar',
     'deathsPerWar',
@@ -1899,57 +1900,38 @@ function addImpactScores(players) {
         lowerIsBetter,
       );
 
-    const quality = weightedImpactPart([
-      { score: percentile('averageKd'), weight: 18 },
-      { score: percentile('killsPerWar'), weight: 14 },
-      {
-        score: percentile('deathsPerWar', true),
-        weight: 8,
-      },
+    // Overall has three categories only:
+    // K/D 30%, Damage Dealt 40%, CC Hits 30%.
+    // Each category balances monthly total and per-war performance.
+    const kdScore = weightedImpactPart([
+      { score: percentile('kd'), weight: 50 },
+      { score: percentile('averageKd'), weight: 50 },
+    ]);
+
+    const damageScore = weightedImpactPart([
+      { score: percentile('damageDealt'), weight: 50 },
       {
         score: percentile('damageDealtPerWar'),
-        weight: 14,
-      },
-      {
-        score: percentile('killFeedPerWar'),
-        weight: 8,
-      },
-      {
-        score: percentile('killStreakPerWar'),
-        weight: 6,
-      },
-      { score: percentile('ccHitsPerWar'), weight: 10 },
-      {
-        score: percentile('fortDamagePerWar'),
-        weight: 12,
-      },
-      {
-        score: percentile('damageTakenPerDeath'),
-        weight: 10,
+        weight: 50,
       },
     ]);
 
+    const ccScore = weightedImpactPart([
+      { score: percentile('ccHits'), weight: 50 },
+      { score: percentile('ccHitsPerWar'), weight: 50 },
+    ]);
+
+    const rawOverall =
+      kdScore * 0.3 +
+      damageScore * 0.4 +
+      ccScore * 0.3;
+
+    // Keep one-war performances from dominating the monthly ranking.
     const confidence =
       num(player.wars) / (num(player.wars) + 3);
-    const adjustedQuality =
-      50 + confidence * (quality - 50);
-
-    const totalContribution = weightedImpactPart([
-      { score: percentile('kills'), weight: 25 },
-      { score: percentile('damageDealt'), weight: 25 },
-      { score: percentile('bestKillFeed'), weight: 10 },
-      { score: percentile('bestKillStreak'), weight: 5 },
-      { score: percentile('ccHits'), weight: 15 },
-      { score: percentile('fortDamage'), weight: 15 },
-      { score: percentile('damageTaken'), weight: 5 },
-    ]);
-
-    const attendance = percentile('wars');
 
     const impact =
-      adjustedQuality * 0.65 +
-      totalContribution * 0.25 +
-      attendance * 0.1;
+      50 + confidence * (rawOverall - 50);
 
     return {
       ...player,
