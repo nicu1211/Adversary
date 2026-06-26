@@ -305,6 +305,8 @@ function buildStatsLogPlayers(stats) {
         wars: new Set(),
         kills: 0,
         deaths: 0,
+        kdSum: 0,
+        kdCount: 0,
         killFeed: 0,
         killFeedTotal: 0,
         killStreak: 0,
@@ -319,8 +321,15 @@ function buildStatsLogPlayers(stats) {
     const player = byPlayer.get(key);
 
     player.wars.add(String(row.__warId));
-    player.kills += num(row?.kills);
-    player.deaths += num(row?.deaths);
+
+    const rowKills = num(row?.kills);
+    const rowDeaths = num(row?.deaths);
+    const rowKd = ratio(rowKills, rowDeaths);
+
+    player.kills += rowKills;
+    player.deaths += rowDeaths;
+    player.kdSum += rowKd;
+    player.kdCount += 1;
     player.damage += readStatMetric(
       row,
       [
@@ -402,6 +411,9 @@ function buildStatsLogPlayers(stats) {
       ...player,
       wars: player.wars.size,
       kd: ratio(player.kills, player.deaths),
+      averageKd: player.kdCount
+        ? player.kdSum / player.kdCount
+        : ratio(player.kills, player.deaths),
     }))
     .sort(
       (a, b) =>
@@ -409,6 +421,51 @@ function buildStatsLogPlayers(stats) {
         b.kd - a.kd ||
         a.name.localeCompare(b.name),
     );
+}
+
+function buildCombatStreakMetrics(stats) {
+  const eventsByWar = new Map();
+
+  (stats?.ev || []).forEach((event, index) => {
+    const warId = String(
+      event?.id ||
+        event?.war ||
+        event?.date ||
+        `combat-war-${index}`,
+    );
+
+    if (!eventsByWar.has(warId)) {
+      eventsByWar.set(warId, []);
+    }
+
+    eventsByWar.get(warId).push(event);
+  });
+
+  const byPlayer = new Map();
+
+  eventsByWar.forEach((events) => {
+    const warStreaks = calculateStreaks(events);
+
+    Object.entries(warStreaks || {}).forEach(([name, value]) => {
+      const key = String(name || '').trim().toLowerCase();
+      const streak = num(value);
+
+      if (!key) return;
+
+      if (!byPlayer.has(key)) {
+        byPlayer.set(key, {
+          total: 0,
+          maximum: 0,
+        });
+      }
+
+      const player = byPlayer.get(key);
+      player.total += streak;
+      player.maximum = Math.max(player.maximum, streak);
+    });
+  });
+
+  return byPlayer;
 }
 
 function buildMonthlyPerformancePlayers(
@@ -437,20 +494,13 @@ function buildMonthlyPerformancePlayers(
     ]),
   );
 
-  const streakByName = new Map(
-    Object.entries(calculateStreaks(stats?.ev || [])).map(
-      ([name, value]) => [
-        String(name || '').trim().toLowerCase(),
-        num(value),
-      ],
-    ),
-  );
+  const streakMetricsByName = buildCombatStreakMetrics(stats);
 
   const playerKeys = new Set([
     ...primaryByName.keys(),
     ...statsLogByName.keys(),
     ...warsByName.keys(),
-    ...streakByName.keys(),
+    ...streakMetricsByName.keys(),
   ]);
 
   return [...playerKeys]
@@ -469,16 +519,23 @@ function buildMonthlyPerformancePlayers(
         ? num(secondary.deaths)
         : num(primary?.deaths);
 
+      const wars = Math.max(
+        num(warsByName.get(key)),
+        num(secondary?.wars),
+      );
+      const streakMetrics = streakMetricsByName.get(key);
+
       return {
         name,
-        wars: Math.max(
-          num(warsByName.get(key)),
-          num(secondary?.wars),
-        ),
+        wars,
         kills,
         deaths,
         kd: ratio(kills, deaths),
-        killStreak: num(streakByName.get(key)),
+        averageKd: secondary
+          ? num(secondary.averageKd)
+          : ratio(kills, deaths),
+        killStreak: num(streakMetrics?.total),
+        longestKillStreak: num(streakMetrics?.maximum),
         killFeed: secondary
           ? num(secondary.killFeedTotal)
           : readStatMetric(
@@ -747,13 +804,12 @@ function buildRosterPerformancePlayers(activePlayers) {
     ]),
   );
 
-  const rosterPlayers = GUILD_ROSTER.map((rosterName) => {
-    const key = rosterName.toLowerCase();
-    const activePlayer = activeByName.get(key);
+  return GUILD_ROSTER.map((rosterName) => {
+    const activePlayer = activeByName.get(
+      rosterName.toLowerCase(),
+    );
 
     if (activePlayer) {
-      activeByName.delete(key);
-
       const wars = num(activePlayer.wars);
 
       return {
@@ -770,7 +826,9 @@ function buildRosterPerformancePlayers(activePlayers) {
       kills: 0,
       deaths: 0,
       kd: 0,
+      averageKd: 0,
       killStreak: 0,
+      longestKillStreak: 0,
       killFeed: 0,
       damageDealt: 0,
       damageTaken: 0,
@@ -778,21 +836,7 @@ function buildRosterPerformancePlayers(activePlayers) {
       fortDamage: 0,
       inactive: true,
     };
-  });
-
-  // Preserve any player found in the month's logs who is not yet in the
-  // supplied roster, so real performance data is never hidden.
-  const extraPlayers = [...activeByName.values()].map((player) => {
-    const wars = num(player?.wars);
-
-    return {
-      ...player,
-      wars,
-      inactive: wars <= 0,
-    };
-  });
-
-  return [...rosterPlayers, ...extraPlayers].sort((a, b) => {
+  }).sort((a, b) => {
     if (a.inactive !== b.inactive) {
       return a.inactive ? 1 : -1;
     }
@@ -1399,19 +1443,20 @@ function SortHeader({
 }
 
 function performanceValue(player, key, viewMode) {
-  const rawValue = num(player?.[key]);
+  if (viewMode !== 'average') {
+    return num(player?.[key]);
+  }
 
-  if (
-    viewMode !== 'average' ||
-    key === 'wars' ||
-    key === 'kd' ||
-    key === 'killStreak'
-  ) {
-    return rawValue;
+  if (key === 'wars') {
+    return num(player?.wars);
+  }
+
+  if (key === 'kd') {
+    return num(player?.averageKd);
   }
 
   const wars = num(player?.wars);
-  return wars > 0 ? rawValue / wars : 0;
+  return wars > 0 ? num(player?.[key]) / wars : 0;
 }
 
 function formatPerformanceValue(key, value, viewMode) {
@@ -1419,10 +1464,7 @@ function formatPerformanceValue(key, value, viewMode) {
     return num(value).toFixed(2);
   }
 
-  if (
-    viewMode === 'average' &&
-    !['wars', 'killStreak'].includes(key)
-  ) {
+  if (viewMode === 'average' && key !== 'wars') {
     if (
       ['damageDealt', 'damageTaken', 'fortDamage'].includes(key)
     ) {
@@ -1435,12 +1477,23 @@ function formatPerformanceValue(key, value, viewMode) {
   return compact(value);
 }
 
+const performanceProgressThemes = {
+  kills: 'from-blue-500 to-cyan-300',
+  deaths: 'from-pink-500 to-rose-300',
+  kd: 'from-emerald-500 to-lime-300',
+  killStreak: 'from-slate-200 to-white',
+  killFeed: 'from-orange-500 to-amber-300',
+  damageDealt: 'from-cyan-500 to-sky-300',
+  damageTaken: 'from-rose-500 to-pink-300',
+  ccHits: 'from-violet-500 to-fuchsia-300',
+  fortDamage: 'from-amber-500 to-yellow-300',
+};
+
 function PerformanceMetricCell({
   player,
   metricKey,
   max,
   viewMode,
-  color,
   textClass,
 }) {
   if (player.inactive) {
@@ -1453,21 +1506,38 @@ function PerformanceMetricCell({
 
   const value = performanceValue(player, metricKey, viewMode);
   const width =
-    value > 0
-      ? Math.max(3, (value / Math.max(1, max)) * 100)
-      : 0;
+    value <= 0
+      ? 0
+      : Math.max(
+          3,
+          Math.min(
+            100,
+            Math.round((value / Math.max(1, max)) * 100),
+          ),
+        );
 
   return (
-    <div className="min-w-0">
-      <div className={`text-center text-[11px] font-black ${textClass}`}>
+    <div className="mx-auto flex w-full min-w-0 flex-col items-center">
+      <span
+        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${textClass}`}
+      >
         {formatPerformanceValue(metricKey, value, viewMode)}
-      </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#0b1728]">
-        <div
-          className={`h-full rounded-full ${color}`}
-          style={{ width: `${width}%` }}
-        />
-      </div>
+      </span>
+
+      <span className="mt-1.5 block h-[2px] w-[58%] overflow-hidden rounded-full bg-slate-800/55">
+        <span
+          className={`relative block h-full rounded-full bg-gradient-to-r ${
+            performanceProgressThemes[metricKey] ||
+            'from-slate-500 to-slate-300'
+          } opacity-90`}
+          style={{
+            width: `${width}%`,
+            boxShadow: '0 0 6px rgba(255,255,255,0.08)',
+          }}
+        >
+          <span className="absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full bg-white/55 blur-[0.5px]" />
+        </span>
+      </span>
     </div>
   );
 }
@@ -1727,7 +1797,6 @@ function PlayersTable({ players }) {
                     metricKey="kills"
                     max={metricMaximums.kills}
                     viewMode={viewMode}
-                    color="bg-[#315dff]"
                     textClass="text-blue-300"
                   />
                   <PerformanceMetricCell
@@ -1735,7 +1804,6 @@ function PlayersTable({ players }) {
                     metricKey="deaths"
                     max={metricMaximums.deaths}
                     viewMode={viewMode}
-                    color="bg-[#d8334f]"
                     textClass="text-rose-300"
                   />
                   <PerformanceMetricCell
@@ -1743,7 +1811,6 @@ function PlayersTable({ players }) {
                     metricKey="kd"
                     max={metricMaximums.kd}
                     viewMode={viewMode}
-                    color="bg-[#75e34f]"
                     textClass={
                       player.kd >= 1
                         ? 'text-[#75e34f]'
@@ -1755,7 +1822,6 @@ function PlayersTable({ players }) {
                     metricKey="killStreak"
                     max={metricMaximums.killStreak}
                     viewMode={viewMode}
-                    color="bg-[#e9a23b]"
                     textClass="text-amber-300"
                   />
                   <PerformanceMetricCell
@@ -1763,7 +1829,6 @@ function PlayersTable({ players }) {
                     metricKey="killFeed"
                     max={metricMaximums.killFeed}
                     viewMode={viewMode}
-                    color="bg-[#d946ef]"
                     textClass="text-fuchsia-300"
                   />
                   <PerformanceMetricCell
@@ -1771,7 +1836,6 @@ function PlayersTable({ players }) {
                     metricKey="damageDealt"
                     max={metricMaximums.damageDealt}
                     viewMode={viewMode}
-                    color="bg-[#42c4c8]"
                     textClass="text-cyan-300"
                   />
                   <PerformanceMetricCell
@@ -1779,7 +1843,6 @@ function PlayersTable({ players }) {
                     metricKey="damageTaken"
                     max={metricMaximums.damageTaken}
                     viewMode={viewMode}
-                    color="bg-[#f28b45]"
                     textClass="text-orange-300"
                   />
                   <PerformanceMetricCell
@@ -1787,7 +1850,6 @@ function PlayersTable({ players }) {
                     metricKey="ccHits"
                     max={metricMaximums.ccHits}
                     viewMode={viewMode}
-                    color="bg-[#9f67ff]"
                     textClass="text-violet-300"
                   />
                   <PerformanceMetricCell
@@ -1795,7 +1857,6 @@ function PlayersTable({ players }) {
                     metricKey="fortDamage"
                     max={metricMaximums.fortDamage}
                     viewMode={viewMode}
-                    color="bg-[#d59a32]"
                     textClass="text-yellow-300"
                   />
                 </div>
