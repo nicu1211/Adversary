@@ -2092,7 +2092,7 @@ export default function OverviewPage({
   members,
   selectedLogs,
 }) {
-  const timelineKillFeeds = calculateKillFeed(stats.ev, 10, true);
+  const timelineKillFeeds = calculateKillFeed(stats.ev, 30, true);
   const panelKillFeeds = useMemo(
     () => buildKillFeedPanelRows(selectedLogs, stats.ev),
     [selectedLogs, stats.ev],
