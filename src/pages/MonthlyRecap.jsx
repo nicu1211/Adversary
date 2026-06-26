@@ -1536,6 +1536,10 @@ function addImpactScores(players) {
         return num(player.killStreak) / wars;
       case 'killFeedPerWar':
         return num(player.killFeed) / wars;
+      case 'bestKillStreak':
+        return num(player.longestKillStreak);
+      case 'bestKillFeed':
+        return num(player.bestKillFeed);
       case 'damageDealtPerWar':
         return num(player.damageDealt) / wars;
       case 'ccHitsPerWar':
@@ -1557,6 +1561,8 @@ function addImpactScores(players) {
     'deathsPerWar',
     'killStreakPerWar',
     'killFeedPerWar',
+    'bestKillStreak',
+    'bestKillFeed',
     'damageDealtPerWar',
     'ccHitsPerWar',
     'fortDamagePerWar',
@@ -1631,8 +1637,8 @@ function addImpactScores(players) {
     const totalContribution = weightedImpactPart([
       { score: percentile('kills'), weight: 25 },
       { score: percentile('damageDealt'), weight: 25 },
-      { score: percentile('killFeed'), weight: 10 },
-      { score: percentile('killStreak'), weight: 5 },
+      { score: percentile('bestKillFeed'), weight: 10 },
+      { score: percentile('bestKillStreak'), weight: 5 },
       { score: percentile('ccHits'), weight: 15 },
       { score: percentile('fortDamage'), weight: 15 },
       { score: percentile('damageTaken'), weight: 5 },
