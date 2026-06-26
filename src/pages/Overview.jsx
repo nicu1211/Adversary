@@ -459,6 +459,34 @@ function BestOverall({
     ]),
   ];
 
+  const overallCombatChronology = {};
+
+  [...(events || [])]
+    .filter(
+      (event) =>
+        event?.hasTimestamp !== false &&
+        event?.source !== 'summary' &&
+        (event?.type === 'kill' || event?.type === 'death'),
+    )
+    .sort(
+      (a, b) =>
+        eventTimeKey(a).localeCompare(eventTimeKey(b)) ||
+        Number(a?.i || 0) - Number(b?.i || 0),
+    )
+    .forEach((event) => {
+      const rawPlayer =
+        event?.guildPlayer ||
+        (event?.type === 'kill' ? event?.killer : event?.victim) ||
+        '';
+
+      const playerName =
+        names.find((name) => samePlayerName(name, rawPlayer)) || rawPlayer;
+
+      if (playerName && !overallCombatChronology[playerName]) {
+        overallCombatChronology[playerName] = eventTimeKey(event);
+      }
+    });
+
   function statsHasTimeline(oneStats) {
     if (oneStats?.hasTimeline) return true;
 
@@ -476,7 +504,7 @@ function BestOverall({
       ? calculateStreaks(oneStats.ev || [])
       : {};
     const timelineFeeds = hasTimeline
-      ? calculateKillFeed(oneStats.ev || [], 10)
+      ? calculateKillFeed(oneStats.ev || [], 30)
       : {};
 
     const oneByName = Object.fromEntries(
@@ -508,8 +536,9 @@ function BestOverall({
         ? getPlayerObjectValue(timelineFeeds, player.name, 0)
         : null;
 
-      const killFeed =
-        savedKillFeed == null ? timelineKillFeed : Number(savedKillFeed) || 0;
+      const killFeed = hasTimeline
+        ? Number(timelineKillFeed) || 0
+        : Number(savedKillFeed) || 0;
 
       return {
         ...fullPlayer,
@@ -520,80 +549,157 @@ function BestOverall({
     });
   }
 
-  function rankRows(rows, key, desc = true) {
-    const sorted = [...rows].sort((a, b) => {
-      const av = Number(a[key]) || 0;
-      const bv = Number(b[key]) || 0;
+  function rankRows(rows, key, desc = true, chronology = {}) {
+    return Object.fromEntries(
+      [...rows]
+        .map((player, originalIndex) => ({
+          ...player,
+          originalIndex,
+        }))
+        .sort((a, b) => {
+          const av = Number(a[key]) || 0;
+          const bv = Number(b[key]) || 0;
 
-      if (av < bv) return desc ? 1 : -1;
-      if (av > bv) return desc ? -1 : 1;
-      return 0;
-    });
+          if (av !== bv) {
+            return desc ? bv - av : av - bv;
+          }
 
-    const output = {};
-    let lastValue;
-    let rankNumber = 0;
+          const aTime =
+            chronology[a.name] ||
+            `9999-99-99 99999999 ${String(a.originalIndex).padStart(8, '0')}`;
+          const bTime =
+            chronology[b.name] ||
+            `9999-99-99 99999999 ${String(b.originalIndex).padStart(8, '0')}`;
 
-    sorted.forEach((player, index) => {
-      const value = Number(player[key]) || 0;
-
-      if (index === 0 || value !== lastValue) {
-        rankNumber = index + 1;
-      }
-
-      output[player.name] = rankNumber;
-      lastValue = value;
-    });
-
-    return output;
+          return (
+            aTime.localeCompare(bTime) ||
+            a.originalIndex - b.originalIndex ||
+            a.name.localeCompare(b.name)
+          );
+        })
+        .map((player, index) => [player.name, index + 1]),
+    );
   }
 
   function hasAnyValue(rows, key) {
     return rows.some((player) => Number(player[key]) || 0);
   }
 
-  function rankKillsForStats(oneStats, rows) {
-    const hasTimeline = statsHasTimeline(oneStats);
+  function buildCombatChronology(oneStats, rows) {
+    const firstAppearance = {};
+    const lastActivity = {};
+    const finalKill = {};
+    const finalDeath = {};
 
-    if (!hasTimeline) {
-      return rankRows(rows, 'kills', true);
-    }
-
-    const reach = {};
-    const run = {};
-
-    [...(oneStats.ev || [])]
+    [...(oneStats?.ev || [])]
+      .filter(
+        (event) =>
+          event?.hasTimestamp !== false &&
+          event?.source !== 'summary' &&
+          (event?.type === 'kill' || event?.type === 'death'),
+      )
       .sort(
         (a, b) =>
-          a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i,
+          eventTimeKey(a).localeCompare(eventTimeKey(b)) ||
+          Number(a?.i || 0) - Number(b?.i || 0),
       )
-      .filter((event) => event.type === 'kill')
       .forEach((event) => {
-        const rowPlayer = rows.find((player) => samePlayerName(player.name, event.killer));
-        const playerName = rowPlayer?.name || event.killer;
+        const rawPlayer =
+          event?.guildPlayer ||
+          (event?.type === 'kill' ? event?.killer : event?.victim) ||
+          '';
 
-        run[playerName] = (run[playerName] || 0) + 1;
+        const rowPlayer = rows.find((player) =>
+          samePlayerName(player.name, rawPlayer),
+        );
+        const playerName = rowPlayer?.name || rawPlayer;
 
-        const finalKills = rowPlayer?.kills || 0;
+        if (!playerName) return;
 
-        if (finalKills && run[playerName] === finalKills) {
-          reach[playerName] =
-            event.date +
-            ' ' +
-            String(event.sec).padStart(5, '0') +
-            ' ' +
-            String(event.i).padStart(5, '0');
+        const key = eventTimeKey(event);
+
+        if (!firstAppearance[playerName]) {
+          firstAppearance[playerName] = key;
+        }
+
+        lastActivity[playerName] = key;
+
+        if (event.type === 'kill') {
+          finalKill[playerName] = key;
+        }
+
+        if (event.type === 'death') {
+          finalDeath[playerName] = key;
         }
       });
 
+    return {
+      firstAppearance,
+      lastActivity,
+      finalKill,
+      finalDeath,
+    };
+  }
+
+  function chronologyWithFallback(rows, primary, fallback) {
     return Object.fromEntries(
-      [...rows]
-        .sort(
-          (a, b) =>
-            b.kills - a.kills ||
-            (reach[a.name] || '9999').localeCompare(reach[b.name] || '9999'),
-        )
-        .map((player, index) => [player.name, index + 1]),
+      rows.map((player, index) => [
+        player.name,
+        primary[player.name] ||
+          fallback[player.name] ||
+          `9999-99-99 99999999 ${String(index).padStart(8, '0')}`,
+      ]),
+    );
+  }
+
+  function rankKillsForStats(oneStats, rows, chronology) {
+    if (!statsHasTimeline(oneStats)) {
+      return rankRows(rows, 'kills', true);
+    }
+
+    return rankRows(
+      rows,
+      'kills',
+      true,
+      chronologyWithFallback(
+        rows,
+        chronology.finalKill,
+        chronology.firstAppearance,
+      ),
+    );
+  }
+
+  function rankDeathsForStats(oneStats, rows, chronology) {
+    if (!statsHasTimeline(oneStats)) {
+      return rankRows(rows, 'deaths', false);
+    }
+
+    return rankRows(
+      rows,
+      'deaths',
+      false,
+      chronologyWithFallback(
+        rows,
+        chronology.finalDeath,
+        chronology.firstAppearance,
+      ),
+    );
+  }
+
+  function rankKdForStats(oneStats, rows, chronology) {
+    if (!statsHasTimeline(oneStats)) {
+      return rankRows(rows, 'kdNumber', true);
+    }
+
+    return rankRows(
+      rows,
+      'kdNumber',
+      true,
+      chronologyWithFallback(
+        rows,
+        chronology.lastActivity,
+        chronology.firstAppearance,
+      ),
     );
   }
 
@@ -679,7 +785,7 @@ function BestOverall({
   function rankFeedForStats(oneStats, rows) {
     const hasTimeline = statsHasTimeline(oneStats);
     const feedDetails = hasTimeline
-      ? calculateKillFeed(oneStats.ev || [], 10, true)
+      ? calculateKillFeed(oneStats.ev || [], 30, true)
       : [];
     const feedMeta = {};
 
@@ -737,6 +843,13 @@ function BestOverall({
 
       if (!rows.length) return;
 
+      const combatChronology = buildCombatChronology(oneStats, rows);
+      const statTieChronology = chronologyWithFallback(
+        rows,
+        combatChronology.firstAppearance,
+        combatChronology.lastActivity,
+      );
+
       const hasStreak = hasTimeline && hasAnyValue(rows, 'streak');
       const hasFeed = hasAnyValue(rows, 'feed');
       const hasDamageDealt = hasAnyValue(rows, 'damageDealt');
@@ -745,15 +858,23 @@ function BestOverall({
       const hasFortDamage = hasAnyValue(rows, 'fortDamage');
 
       const ranks = {
-        kills: rankKillsForStats(oneStats, rows),
-        deaths: rankRows(rows, 'deaths', false),
-        kd: rankRows(rows, 'kdNumber', true),
+        kills: rankKillsForStats(oneStats, rows, combatChronology),
+        deaths: rankDeathsForStats(oneStats, rows, combatChronology),
+        kd: rankKdForStats(oneStats, rows, combatChronology),
         streak: hasStreak ? rankStreakForStats(oneStats, rows) : {},
         feed: hasFeed ? rankFeedForStats(oneStats, rows) : {},
-        damageDealt: hasDamageDealt ? rankRows(rows, 'damageDealt', true) : {},
-        damageTaken: hasDamageTaken ? rankRows(rows, 'damageTaken', false) : {},
-        ccHits: hasCcHits ? rankRows(rows, 'ccHits', true) : {},
-        fortDamage: hasFortDamage ? rankRows(rows, 'fortDamage', true) : {},
+        damageDealt: hasDamageDealt
+          ? rankRows(rows, 'damageDealt', true, statTieChronology)
+          : {},
+        damageTaken: hasDamageTaken
+          ? rankRows(rows, 'damageTaken', false, statTieChronology)
+          : {},
+        ccHits: hasCcHits
+          ? rankRows(rows, 'ccHits', true, statTieChronology)
+          : {},
+        fortDamage: hasFortDamage
+          ? rankRows(rows, 'fortDamage', true, statTieChronology)
+          : {},
       };
 
       rows.forEach((player) => {
@@ -898,12 +1019,21 @@ function BestOverall({
       averageRankDamageTaken: averageRanks[name]?.ranks.damageTaken ?? null,
       averageRankCcHits: averageRanks[name]?.ranks.ccHits ?? null,
       averageRankFortDamage: averageRanks[name]?.ranks.fortDamage ?? null,
+      chronologyKey:
+        overallCombatChronology[name] || '9999-99-99 99999999',
     };
   });
 
   const final = rows
-    .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
-    .sort((a, b) => a.average - b.average);
+    .filter((player) =>
+      normalizePlayerName(player.name).includes(normalizePlayerName(query)),
+    )
+    .sort(
+      (a, b) =>
+        a.average - b.average ||
+        a.chronologyKey.localeCompare(b.chronologyKey) ||
+        a.name.localeCompare(b.name),
+    );
 
   function formatAverageRank(value) {
     return value == null ? '-' : Number(value).toFixed(2);
