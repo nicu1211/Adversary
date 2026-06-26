@@ -431,8 +431,12 @@ function buildStatsLogPlayers(stats) {
         killStreak: 0,
         hasKillStreak: false,
         damage: 0,
+        damageAverageSum: 0,
+        damageAverageCount: 0,
         damageTaken: 0,
         ccHits: 0,
+        ccAverageSum: 0,
+        ccAverageCount: 0,
         fortDamage: 0,
       });
     }
@@ -449,17 +453,32 @@ function buildStatsLogPlayers(stats) {
     player.deaths += rowDeaths;
     player.kdSum += rowKd;
     player.kdCount += 1;
-    player.damage += readStatMetric(
-      row,
-      [
-        'damageDealt',
-        'damage_dealt',
-        'damage dealt',
-        'damageDone',
-        'damage',
-      ],
-      0,
-    );
+    const damageAliases = [
+      'damageDealt',
+      'damage_dealt',
+      'damage dealt',
+      'damageDone',
+      'damage',
+    ];
+    const ccAliases = [
+      'ccHits',
+      'cc_hits',
+      'cc hits',
+      'CC Hits',
+      'cc',
+      'CC',
+    ];
+
+    const rowDamage = readStatMetric(row, damageAliases, 0);
+    const rowCcHits = readStatMetric(row, ccAliases, 0);
+
+    player.damage += rowDamage;
+
+    if (hasOwnStatMetric(row, damageAliases)) {
+      player.damageAverageSum += rowDamage;
+      player.damageAverageCount += 1;
+    }
+
     player.damageTaken += readStatMetric(
       row,
       [
@@ -470,18 +489,13 @@ function buildStatsLogPlayers(stats) {
       ],
       0,
     );
-    player.ccHits += readStatMetric(
-      row,
-      [
-        'ccHits',
-        'cc_hits',
-        'cc hits',
-        'CC Hits',
-        'cc',
-        'CC',
-      ],
-      0,
-    );
+
+    player.ccHits += rowCcHits;
+
+    if (hasOwnStatMetric(row, ccAliases)) {
+      player.ccAverageSum += rowCcHits;
+      player.ccAverageCount += 1;
+    }
     player.fortDamage += readStatMetric(
       row,
       [
@@ -533,6 +547,12 @@ function buildStatsLogPlayers(stats) {
       averageKd: player.kdCount
         ? player.kdSum / player.kdCount
         : ratio(player.kills, player.deaths),
+      averageDamageDealt: player.damageAverageCount
+        ? player.damageAverageSum / player.damageAverageCount
+        : 0,
+      averageCcHits: player.ccAverageCount
+        ? player.ccAverageSum / player.ccAverageCount
+        : 0,
     }))
     .sort(
       (a, b) =>
@@ -878,6 +898,37 @@ function buildMonthlyPerformancePlayers(
         averageKd: secondary
           ? num(secondary.averageKd)
           : ratio(kills, deaths),
+        averageDamageDealt: secondary
+          ? num(secondary.averageDamageDealt)
+          : wars > 0
+            ? readStatMetric(
+                primary,
+                [
+                  'damageDealt',
+                  'damage_dealt',
+                  'damage dealt',
+                  'damageDone',
+                  'damage',
+                ],
+                0,
+              ) / wars
+            : 0,
+        averageCcHits: secondary
+          ? num(secondary.averageCcHits)
+          : wars > 0
+            ? readStatMetric(
+                primary,
+                [
+                  'ccHits',
+                  'cc_hits',
+                  'cc hits',
+                  'CC Hits',
+                  'cc',
+                  'CC',
+                ],
+                0,
+              ) / wars
+            : 0,
         killStreak: num(streakMetrics?.total),
         longestKillStreak: num(streakMetrics?.maximum),
         killFeed: secondary
@@ -1182,6 +1233,8 @@ function buildRosterPerformancePlayers(activePlayers) {
       deaths: 0,
       kd: 0,
       averageKd: 0,
+      averageDamageDealt: 0,
+      averageCcHits: 0,
       killStreak: 0,
       longestKillStreak: 0,
       killFeed: 0,
@@ -1827,6 +1880,10 @@ function addImpactScores(players) {
     switch (key) {
       case 'averageKd':
         return num(player.averageKd);
+      case 'averageDamageDealt':
+        return num(player.averageDamageDealt);
+      case 'averageCcHits':
+        return num(player.averageCcHits);
       case 'killsPerWar':
         return num(player.kills) / wars;
       case 'deathsPerWar':
@@ -1857,6 +1914,8 @@ function addImpactScores(players) {
   [
     'kd',
     'averageKd',
+    'averageDamageDealt',
+    'averageCcHits',
     'killsPerWar',
     'deathsPerWar',
     'killStreakPerWar',
@@ -1901,14 +1960,15 @@ function addImpactScores(players) {
       );
 
     // Overall:
-    // 50% damage/war, 30% CC hits/war,
-    // 20% average K/D.
+    // 50% true average Damage Dealt,
+    // 30% true average CC Hits,
+    // 20% average K/D across individual Node Wars.
     const rawOverall = weightedImpactPart([
       {
-        score: percentile('damageDealtPerWar'),
+        score: percentile('averageDamageDealt'),
         weight: 50,
       },
-      { score: percentile('ccHitsPerWar'), weight: 30 },
+      { score: percentile('averageCcHits'), weight: 30 },
       { score: percentile('averageKd'), weight: 20 },
     ]);
 
