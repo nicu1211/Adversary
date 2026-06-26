@@ -136,9 +136,9 @@ function cleanGuildName(value) {
 
 function getTierByKd(value) {
   const ratio = num(value);
-  if (ratio >= 1.5) return 'S';
-  if (ratio >= 1.3) return 'A';
-  if (ratio >= 1.1) return 'B';
+  if (ratio >= 1.51) return 'S';
+  if (ratio >= 1.31) return 'A';
+  if (ratio >= 1.11) return 'B';
   if (ratio >= 0.9) return 'C';
   if (ratio >= 0.7) return 'D';
   if (ratio >= 0.5) return 'F';
@@ -148,28 +148,28 @@ function getTierByKd(value) {
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: '1.50+ K/D',
+    range: '1.51+ K/D',
     className: 'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
     tone: 'amber',
   },
   A: {
     label: 'A',
-    range: '1.30 - 1.49 K/D',
+    range: '1.31 - 1.50 K/D',
     className: 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
     tone: 'emerald',
   },
   B: {
     label: 'B',
-    range: '1.10 - 1.29 K/D',
+    range: '1.11 - 1.30 K/D',
     className: 'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
     tone: 'blue',
   },
   C: {
     label: 'C',
-    range: '0.90 - 1.09 K/D',
+    range: '0.90 - 1.10 K/D',
     className: 'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
     tone: 'violet',
@@ -190,7 +190,7 @@ const enemyTierMeta = {
   },
   T: {
     label: 'T',
-    range: 'Under 0.50 K/D',
+    range: 'Below 0.50 K/D',
     className: 'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
     tone: 'slate',
@@ -733,6 +733,7 @@ function MetricCard({
   label,
   value,
   sub,
+  centerSub = false,
   tone = 'blue',
   accentBar = false,
   bars = [],
@@ -808,7 +809,11 @@ function MetricCard({
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
           <p className={cls('font-black text-white', compactCard ? 'mt-0.5 text-xl' : 'mt-1 text-2xl')}>{value}</p>
-          {sub && <p className="mt-0.5 text-[11px] font-bold text-slate-400">{sub}</p>}
+          {sub && !centerSub && (
+            <p className="mt-0.5 text-[11px] font-bold text-slate-400">
+              {sub}
+            </p>
+          )}
         </div>
         {!accentBar && showIcon && Icon && (
           <div className="rounded-2xl border border-white/10 bg-white/10 p-2.5">
@@ -816,6 +821,12 @@ function MetricCard({
           </div>
         )}
       </div>
+
+      {sub && centerSub && (
+        <p className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-center text-[15px] font-black uppercase tracking-[0.13em] text-blue-200">
+          {sub}
+        </p>
+      )}
 
       {/* ── Trend sparkline ── */}
       {hasSparkline && (
@@ -861,7 +872,7 @@ function getKdBadgeStyle(value) {
   const ratio = num(value);
   const normalized = Math.max(
     0,
-    Math.min(1, (ratio - 0.5) / 1),
+    Math.min(1, (ratio - 0.49) / 1.02),
   );
   const hue = Math.round(normalized * 120);
   const secondHue = Math.min(120, hue + 18);
@@ -1252,6 +1263,7 @@ function Arsenal({ data, stats, logs }) {
           label="Node Wars"
           value={compact(data.matches)}
           sub="Adversary"
+          centerSub
           tone="blue"
           showIcon={false}
         />
