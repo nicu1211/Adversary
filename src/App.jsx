@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
-import adversaryEmblem from './assets/adversary-emblem.png';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -786,15 +785,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
-        <div className="mb-3 flex items-center gap-2 text-lg font-black text-white">
-          <img
-            src={adversaryEmblem}
-            alt=""
-            aria-hidden="true"
-            className="h-9 w-9 shrink-0 object-contain"
-          />
-          <span>Battle Analytics</span>
-        </div>
+        <div className="mb-3 text-lg font-black text-white">☾ Battle Analytics</div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {menu.map(([id, title]) => (
@@ -808,17 +799,7 @@ export default function App() {
                   : 'border border-slate-700 bg-slate-900 text-slate-300'
               }`}
             >
-              <span className="flex items-center justify-center gap-2">
-                <span>{title}</span>
-                {id === 'guild' && (
-                  <img
-                    src={adversaryEmblem}
-                    alt=""
-                    aria-hidden="true"
-                    className="h-5 w-5 shrink-0 object-contain"
-                  />
-                )}
-              </span>
+              {title}
             </button>
           ))}
         </div>
@@ -854,15 +835,7 @@ export default function App() {
 
       <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="hidden min-h-screen flex-col border-r border-slate-800 bg-slate-950 p-4 lg:flex">
-          <h1 className="mb-6 flex items-center gap-3 text-2xl font-black text-white">
-            <img
-              src={adversaryEmblem}
-              alt=""
-              aria-hidden="true"
-              className="h-12 w-12 shrink-0 object-contain"
-            />
-            <span>Battle Analytics</span>
-          </h1>
+          <h1 className="mb-6 text-2xl font-black text-white">☾ Battle Analytics</h1>
 
           <nav className="flex-1">
             {menu
@@ -881,17 +854,7 @@ export default function App() {
                           : 'hover:bg-slate-900'
                       }`}
                     >
-                      <span className="flex items-center gap-2">
-                        <span>{title}</span>
-                        {id === 'guild' && (
-                          <img
-                            src={adversaryEmblem}
-                            alt=""
-                            aria-hidden="true"
-                            className="h-6 w-6 shrink-0 object-contain"
-                          />
-                        )}
-                      </span>
+                      {title}
                     </button>
 
                     {isNodeWars && (
