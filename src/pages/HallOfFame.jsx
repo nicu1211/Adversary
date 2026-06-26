@@ -122,7 +122,155 @@ const demoStats = {
   ],
 };
 
-function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
+
+const HALL_DATA_CACHE_LIMIT = 4;
+const hallDataObjectCache = new WeakMap();
+const hallDataSignatureCache = new Map();
+
+function hallHashText(hash, value) {
+  const text = String(value ?? '');
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function hallHashArraySample(items, readItem) {
+  const rows = Array.isArray(items) ? items : [];
+
+  if (!rows.length) return '0';
+
+  let hash = 2166136261;
+  const sampleCount = Math.min(32, rows.length);
+  const step = Math.max(1, Math.floor(rows.length / sampleCount));
+
+  for (let index = 0; index < rows.length; index += step) {
+    hash = hallHashText(hash, readItem(rows[index], index));
+  }
+
+  const lastIndex = rows.length - 1;
+  hash = hallHashText(
+    hash,
+    readItem(rows[lastIndex], lastIndex),
+  );
+
+  return `${rows.length}:${hash >>> 0}`;
+}
+
+function hallStatsSignature(stats, minimumWars) {
+  const safe = stats?.players?.length ? stats : demoStats;
+  const players = Array.isArray(safe?.players)
+    ? safe.players
+    : [];
+  const events = Array.isArray(safe?.ev) ? safe.ev : [];
+  const secondaryCandidate =
+    safe?.secondary?.rows ||
+    safe?.secondaryRows ||
+    safe?.manualRows ||
+    safe?.secondary ||
+    [];
+  const secondaryRows = Array.isArray(secondaryCandidate)
+    ? secondaryCandidate
+    : [];
+
+  const playerHash = hallHashArraySample(
+    players,
+    (player) =>
+      [
+        player?.name,
+        player?.kills,
+        player?.deaths,
+        player?.wars,
+        player?.warCount,
+        player?.matches,
+        player?.damageDealt,
+        player?.damageTaken,
+        player?.ccHits,
+        player?.fortDamage,
+      ].join('|'),
+  );
+
+  const eventHash = hallHashArraySample(
+    events,
+    (event) =>
+      [
+        event?.id,
+        event?.war,
+        event?.date,
+        event?.sec,
+        event?.i,
+        event?.type,
+        event?.guildPlayer,
+        event?.killer,
+        event?.victim,
+        event?.source,
+      ].join('|'),
+  );
+
+  const secondaryHash = hallHashArraySample(
+    secondaryRows,
+    (row) =>
+      [
+        row?.id,
+        row?.war,
+        row?.date,
+        row?.player,
+        row?.name,
+        row?.kills,
+        row?.deaths,
+        row?.killFeed,
+        row?.feed,
+        row?.damageDealt,
+        row?.damageTaken,
+        row?.ccHits,
+        row?.fortDamage,
+        row?.damageToFort,
+      ].join('|'),
+  );
+
+  const streakHash = hallHashArraySample(
+    Object.entries(safe?.st || {}),
+    ([name, value]) => `${name}:${value}`,
+  );
+  const feedHash = hallHashArraySample(
+    Object.entries(safe?.fd || {}),
+    ([name, value]) => `${name}:${value}`,
+  );
+
+  return [
+    minimumWars,
+    safe?.version,
+    safe?.updatedAt,
+    safe?.kills,
+    safe?.deaths,
+    safe?.kd,
+    playerHash,
+    eventHash,
+    secondaryHash,
+    streakHash,
+    feedHash,
+  ].join('::');
+}
+
+function rememberHallData(signature, data) {
+  if (hallDataSignatureCache.has(signature)) {
+    hallDataSignatureCache.delete(signature);
+  }
+
+  hallDataSignatureCache.set(signature, data);
+
+  while (hallDataSignatureCache.size > HALL_DATA_CACHE_LIMIT) {
+    const oldestKey =
+      hallDataSignatureCache.keys().next().value;
+
+    hallDataSignatureCache.delete(oldestKey);
+  }
+}
+
+function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
   const secondaryRows =
@@ -1947,6 +2095,53 @@ function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
       damageDealt: rows.reduce((sum, row) => sum + row.damageDealt, 0),
     },
   };
+}
+
+function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
+  const safe = stats?.players?.length ? stats : demoStats;
+  const signature = hallStatsSignature(safe, minimumWars);
+
+  if (safe && typeof safe === 'object') {
+    const objectEntry = hallDataObjectCache.get(safe);
+
+    if (
+      objectEntry?.signature === signature &&
+      objectEntry?.data
+    ) {
+      return objectEntry.data;
+    }
+  }
+
+  const signatureEntry =
+    hallDataSignatureCache.get(signature);
+
+  if (signatureEntry) {
+    // Refresh LRU order.
+    hallDataSignatureCache.delete(signature);
+    hallDataSignatureCache.set(signature, signatureEntry);
+
+    if (safe && typeof safe === 'object') {
+      hallDataObjectCache.set(safe, {
+        signature,
+        data: signatureEntry,
+      });
+    }
+
+    return signatureEntry;
+  }
+
+  const data = computeHallData(safe, minimumWars);
+
+  rememberHallData(signature, data);
+
+  if (safe && typeof safe === 'object') {
+    hallDataObjectCache.set(safe, {
+      signature,
+      data,
+    });
+  }
+
+  return data;
 }
 
 const toneClasses = {
