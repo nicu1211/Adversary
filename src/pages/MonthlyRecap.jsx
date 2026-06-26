@@ -935,7 +935,9 @@ function EnemyGuildReport({ enemies }) {
   }
 
   return (
-    <div className="divide-y divide-[#102038]">
+    <div
+      className={`max-h-[610px] overflow-y-auto divide-y divide-[#102038] ${scrollCls}`}
+    >
       {rows.map((enemy, index) => {
         const positive = enemy.kd >= 1;
 
@@ -1202,9 +1204,10 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <div className="grid gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.85fr)]">
-        <SectionShell icon={Sparkles} title="Monthly Highlights">
-          <div className="grid h-full grid-cols-1 gap-2 p-2">
+      <div className="grid items-stretch gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.85fr)]">
+        <div className="h-full">
+          <SectionShell icon={Sparkles} title="Monthly Highlights">
+          <div className="grid min-h-[610px] grid-cols-1 content-stretch gap-2 p-2">
             <MatchupCard
               icon={Swords}
               label="Most Fought Guild"
@@ -1261,11 +1264,14 @@ export default function MonthlyRecap({
               }
             />
           </div>
-        </SectionShell>
+          </SectionShell>
+        </div>
 
-        <SectionShell icon={Shield} title="Enemy Guild Report">
-          <EnemyGuildReport enemies={enemies} />
-        </SectionShell>
+        <div className="h-full">
+          <SectionShell icon={Shield} title="Enemy Guild Report">
+            <EnemyGuildReport enemies={enemies} />
+          </SectionShell>
+        </div>
       </div>
 
       <SectionShell icon={Users} title="Player Highlights">
