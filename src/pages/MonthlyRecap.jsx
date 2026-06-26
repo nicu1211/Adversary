@@ -960,7 +960,7 @@ function EnemyGuildReport({ enemies }) {
 
   return (
     <div
-      className={`max-h-[610px] overflow-y-auto divide-y divide-[#102038] ${scrollCls}`}
+      className={`max-h-[448px] overflow-y-auto divide-y divide-[#102038] ${scrollCls}`}
     >
       {rows.map((enemy, index) => {
         const positive = enemy.kd >= 1;
@@ -968,10 +968,10 @@ function EnemyGuildReport({ enemies }) {
         return (
           <div
             key={enemy.name}
-            className="group grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 transition hover:bg-white/[.025]"
+            className="group grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3.5 transition hover:bg-white/[.025]"
           >
             <div
-              className={`flex h-7 w-7 items-center justify-center rounded-lg border text-[10px] font-black ${
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border text-[11px] font-black ${
                 index === 0
                   ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
                   : index === 1
@@ -992,15 +992,15 @@ function EnemyGuildReport({ enemies }) {
 
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-[12px] font-black text-white">
+                    <p className="truncate text-[14px] font-black text-white">
                       {enemy.name}
                     </p>
-                    <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.05em] text-slate-400">
+                    <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.05em] text-slate-400">
                       {enemy.wars} war{enemy.wars === 1 ? '' : 's'}
                     </span>
                   </div>
 
-                  <div className="mt-1 flex items-center gap-3 text-[9px] font-black">
+                  <div className="mt-1 flex items-center gap-3 text-[11px] font-black">
                     <span className="text-blue-300">
                       {compact(enemy.kills)} K
                     </span>
@@ -1014,13 +1014,13 @@ function EnemyGuildReport({ enemies }) {
 
             <div className="text-right">
               <p
-                className={`text-[15px] font-black ${
+                className={`text-[17px] font-black ${
                   positive ? 'text-[#75e34f]' : 'text-[#ff6077]'
                 }`}
               >
                 {enemy.kd.toFixed(2)}
               </p>
-              <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-500">
+              <p className="text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
                 K/D
               </p>
             </div>
@@ -1231,7 +1231,7 @@ export default function MonthlyRecap({
       <div className="grid items-stretch gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.85fr)]">
         <div className="h-full">
           <SectionShell icon={Sparkles} title="Monthly Highlights">
-          <div className="grid min-h-[610px] grid-cols-1 content-stretch gap-2 p-2">
+          <div className="grid min-h-[448px] grid-cols-1 content-stretch gap-2 p-2">
             <MatchupCard
               icon={Swords}
               label="Most Fought Guild"
