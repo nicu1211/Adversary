@@ -306,6 +306,7 @@ function buildStatsLogPlayers(stats) {
         kills: 0,
         deaths: 0,
         killFeed: 0,
+        killFeedTotal: 0,
         killStreak: 0,
         hasKillStreak: false,
         damage: 0,
@@ -365,11 +366,17 @@ function buildStatsLogPlayers(stats) {
       0,
     );
 
-    // KillFeed is the best saved Stats Log value during the month.
-    player.killFeed = Math.max(
-      player.killFeed,
-      readStatMetric(row, ['killFeed', 'feed'], 0),
+    const rowKillFeed = readStatMetric(
+      row,
+      ['killFeed', 'feed'],
+      0,
     );
+
+    // Player Highlights uses the best saved Stats Log KillFeed.
+    player.killFeed = Math.max(player.killFeed, rowKillFeed);
+
+    // Players Performance Total/Average uses the monthly sum.
+    player.killFeedTotal += rowKillFeed;
 
     // No Combat Log fallback. A streak is shown only when the Stats Log
     // explicitly contains a streak field.
@@ -473,7 +480,7 @@ function buildMonthlyPerformancePlayers(
         kd: ratio(kills, deaths),
         killStreak: num(streakByName.get(key)),
         killFeed: secondary
-          ? num(secondary.killFeed)
+          ? num(secondary.killFeedTotal)
           : readStatMetric(
               primary,
               ['killFeed', 'feed'],
@@ -1391,7 +1398,82 @@ function SortHeader({
   );
 }
 
+function performanceValue(player, key, viewMode) {
+  const rawValue = num(player?.[key]);
+
+  if (
+    viewMode !== 'average' ||
+    key === 'wars' ||
+    key === 'kd' ||
+    key === 'killStreak'
+  ) {
+    return rawValue;
+  }
+
+  const wars = num(player?.wars);
+  return wars > 0 ? rawValue / wars : 0;
+}
+
+function formatPerformanceValue(key, value, viewMode) {
+  if (key === 'kd') {
+    return num(value).toFixed(2);
+  }
+
+  if (
+    viewMode === 'average' &&
+    !['wars', 'killStreak'].includes(key)
+  ) {
+    if (
+      ['damageDealt', 'damageTaken', 'fortDamage'].includes(key)
+    ) {
+      return compact(value);
+    }
+
+    return num(value).toFixed(1);
+  }
+
+  return compact(value);
+}
+
+function PerformanceMetricCell({
+  player,
+  metricKey,
+  max,
+  viewMode,
+  color,
+  textClass,
+}) {
+  if (player.inactive) {
+    return (
+      <span className="text-center font-black text-slate-700">
+        —
+      </span>
+    );
+  }
+
+  const value = performanceValue(player, metricKey, viewMode);
+  const width =
+    value > 0
+      ? Math.max(3, (value / Math.max(1, max)) * 100)
+      : 0;
+
+  return (
+    <div className="min-w-0">
+      <div className={`text-center text-[11px] font-black ${textClass}`}>
+        {formatPerformanceValue(metricKey, value, viewMode)}
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#0b1728]">
+        <div
+          className={`h-full rounded-full ${color}`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function PlayersTable({ players }) {
+  const [viewMode, setViewMode] = useState('total');
   const [sort, setSort] = useState({
     key: 'kills',
     direction: 'desc',
@@ -1414,8 +1496,8 @@ function PlayersTable({ players }) {
         return sort.direction === 'asc' ? result : -result;
       }
 
-      const aValue = num(a?.[sort.key]);
-      const bValue = num(b?.[sort.key]);
+      const aValue = performanceValue(a, sort.key, viewMode);
+      const bValue = performanceValue(b, sort.key, viewMode);
       const result = aValue - bValue;
 
       if (result !== 0) {
@@ -1430,7 +1512,35 @@ function PlayersTable({ players }) {
     });
 
     return sorted;
-  }, [players, sort]);
+  }, [players, sort, viewMode]);
+
+  const activeRows = rows.filter((player) => !player.inactive);
+
+  const metricMaximums = useMemo(() => {
+    const metricKeys = [
+      'kills',
+      'deaths',
+      'kd',
+      'killStreak',
+      'killFeed',
+      'damageDealt',
+      'damageTaken',
+      'ccHits',
+      'fortDamage',
+    ];
+
+    return Object.fromEntries(
+      metricKeys.map((key) => [
+        key,
+        Math.max(
+          1,
+          ...activeRows.map((player) =>
+            performanceValue(player, key, viewMode),
+          ),
+        ),
+      ]),
+    );
+  }, [activeRows, viewMode]);
 
   function handleSort(key) {
     setSort((current) => {
@@ -1454,223 +1564,247 @@ function PlayersTable({ players }) {
   }
 
   const gridColumns =
-    'grid-cols-[40px_minmax(210px,1.45fr)_72px_96px_96px_86px_108px_102px_126px_126px_96px_126px]';
+    'grid-cols-[40px_minmax(210px,1.35fr)_72px_112px_112px_100px_116px_116px_138px_138px_110px_138px]';
 
   return (
-    <div className={`max-h-[720px] overflow-auto ${scrollCls}`}>
-      <div className="min-w-[1480px]">
-        <div
-          className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-2 border-b border-[#13243a] bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.07em]`}
-        >
-          <span className="text-[#7f8da2]">#</span>
-
-          <SortHeader
-            label="Player"
-            sortKey="name"
-            sort={sort}
-            onSort={handleSort}
-          />
-          <SortHeader
-            label="Wars"
-            sortKey="wars"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="Kills"
-            sortKey="kills"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="Deaths"
-            sortKey="deaths"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="K/D"
-            sortKey="kd"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="Killstreak"
-            sortKey="killStreak"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="KillFeed"
-            sortKey="killFeed"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="DMG Dealt"
-            sortKey="damageDealt"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="DMG Taken"
-            sortKey="damageTaken"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="CC Hits"
-            sortKey="ccHits"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
-          <SortHeader
-            label="DMG to Fort"
-            sortKey="fortDamage"
-            sort={sort}
-            onSort={handleSort}
-            className="justify-center"
-          />
+    <>
+      <div className="flex items-center justify-end border-b border-[#13243a] bg-[#05101d] px-3 py-2">
+        <div className="flex items-center rounded-lg border border-[#263c59] bg-[#071422] p-1">
+          {[
+            ['total', 'Total'],
+            ['average', 'Average'],
+          ].map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.07em] transition ${
+                viewMode === mode
+                  ? 'bg-[#315dff] text-white shadow-[0_4px_14px_rgba(49,93,255,.25)]'
+                  : 'text-[#7f8da2] hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div className="divide-y divide-[#102038]">
-          {rows.map((player, index) => {
-            const inactive = player.inactive;
+      <div className={`max-h-[720px] overflow-auto ${scrollCls}`}>
+        <div className="min-w-[1600px]">
+          <div
+            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-2 border-b border-[#13243a] bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.07em]`}
+          >
+            <span className="text-[#7f8da2]">#</span>
 
-            const valueClass = inactive
-              ? 'text-slate-700'
-              : 'text-[#d8e5f7]';
+            <SortHeader
+              label="Player"
+              sortKey="name"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortHeader
+              label="Wars"
+              sortKey="wars"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="Kills"
+              sortKey="kills"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="Deaths"
+              sortKey="deaths"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="K/D"
+              sortKey="kd"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="Killstreak"
+              sortKey="killStreak"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="KillFeed"
+              sortKey="killFeed"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="DMG Dealt"
+              sortKey="damageDealt"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="DMG Taken"
+              sortKey="damageTaken"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="CC Hits"
+              sortKey="ccHits"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="DMG to Fort"
+              sortKey="fortDamage"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+          </div>
 
-            return (
-              <div
-                key={player.name}
-                className={`grid ${gridColumns} items-center gap-2 px-3 py-2.5 text-[12px] transition hover:bg-white/[.02] ${
-                  inactive ? 'bg-[#030914]/55' : ''
-                }`}
-              >
-                <span
-                  className={`font-black ${
-                    inactive
-                      ? 'text-[#405067]'
-                      : 'text-[#64748b]'
+          <div className="divide-y divide-[#102038]">
+            {rows.map((player, index) => {
+              const inactive = player.inactive;
+
+              return (
+                <div
+                  key={player.name}
+                  className={`grid ${gridColumns} items-center gap-2 px-3 py-2.5 text-[12px] transition hover:bg-white/[.02] ${
+                    inactive ? 'bg-[#030914]/55' : ''
                   }`}
                 >
-                  {index + 1}
-                </span>
-
-                <div className="flex min-w-0 items-center gap-2">
-                  <div
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
+                  <span
+                    className={`font-black ${
                       inactive
-                        ? 'border-slate-700 bg-slate-900/70 text-slate-600'
-                        : 'border-[#31557d] bg-[#0a1830] text-[#8fc4ff]'
+                        ? 'text-[#405067]'
+                        : 'text-[#64748b]'
                     }`}
                   >
-                    {String(player.name || '?')
-                      .slice(0, 1)
-                      .toUpperCase()}
+                    {index + 1}
+                  </span>
+
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={`truncate font-black ${
+                        inactive ? 'text-slate-500' : 'text-white'
+                      }`}
+                    >
+                      {player.name}
+                    </span>
+
+                    {inactive && (
+                      <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-rose-400">
+                        Inactive
+                      </span>
+                    )}
                   </div>
 
                   <span
-                    className={`truncate font-black ${
-                      inactive ? 'text-slate-500' : 'text-white'
+                    className={`text-center font-black ${
+                      inactive
+                        ? 'text-slate-700'
+                        : 'text-[#d8e5f7]'
                     }`}
                   >
-                    {player.name}
+                    {inactive ? '—' : player.wars}
                   </span>
 
-                  {inactive && (
-                    <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-rose-400">
-                      Inactive
-                    </span>
-                  )}
-                </div>
-
-                <span className={`text-center font-black ${valueClass}`}>
-                  {inactive ? '—' : player.wars}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-blue-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.kills)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-rose-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.deaths)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive
-                      ? valueClass
-                      : player.kd >= 1
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="kills"
+                    max={metricMaximums.kills}
+                    viewMode={viewMode}
+                    color="bg-[#315dff]"
+                    textClass="text-blue-300"
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="deaths"
+                    max={metricMaximums.deaths}
+                    viewMode={viewMode}
+                    color="bg-[#d8334f]"
+                    textClass="text-rose-300"
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="kd"
+                    max={metricMaximums.kd}
+                    viewMode={viewMode}
+                    color="bg-[#75e34f]"
+                    textClass={
+                      player.kd >= 1
                         ? 'text-[#75e34f]'
                         : 'text-[#ff6b7e]'
-                  }`}
-                >
-                  {inactive ? '—' : player.kd.toFixed(2)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-amber-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.killStreak)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-fuchsia-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.killFeed)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-cyan-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.damageDealt)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-orange-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.damageTaken)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-violet-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.ccHits)}
-                </span>
-                <span
-                  className={`text-center font-black ${
-                    inactive ? valueClass : 'text-yellow-300'
-                  }`}
-                >
-                  {inactive ? '—' : compact(player.fortDamage)}
-                </span>
-              </div>
-            );
-          })}
+                    }
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="killStreak"
+                    max={metricMaximums.killStreak}
+                    viewMode={viewMode}
+                    color="bg-[#e9a23b]"
+                    textClass="text-amber-300"
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="killFeed"
+                    max={metricMaximums.killFeed}
+                    viewMode={viewMode}
+                    color="bg-[#d946ef]"
+                    textClass="text-fuchsia-300"
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="damageDealt"
+                    max={metricMaximums.damageDealt}
+                    viewMode={viewMode}
+                    color="bg-[#42c4c8]"
+                    textClass="text-cyan-300"
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="damageTaken"
+                    max={metricMaximums.damageTaken}
+                    viewMode={viewMode}
+                    color="bg-[#f28b45]"
+                    textClass="text-orange-300"
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="ccHits"
+                    max={metricMaximums.ccHits}
+                    viewMode={viewMode}
+                    color="bg-[#9f67ff]"
+                    textClass="text-violet-300"
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="fortDamage"
+                    max={metricMaximums.fortDamage}
+                    viewMode={viewMode}
+                    color="bg-[#d59a32]"
+                    textClass="text-yellow-300"
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
