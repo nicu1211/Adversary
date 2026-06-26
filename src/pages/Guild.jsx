@@ -829,9 +829,6 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
         <p className="min-w-0 truncate text-xs font-black text-white" title={guild.name}>
           {guild.name}
         </p>
-        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black text-slate-300">
-          Score {decimal(guild.score, 2)}
-        </span>
       </div>
 
       <div className="group/bar relative h-2.5 rounded-full bg-slate-900/90">
@@ -840,7 +837,7 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
           style={{ width: `${width}%` }}
         />
         <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[380px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
-          <div className="grid grid-cols-5 gap-3 text-center">
+          <div className="grid grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-[9px] uppercase tracking-wider text-blue-300/80">M</p>
               <p>{compact(guild.matches, 0)}</p>
@@ -856,10 +853,6 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
             <div>
               <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">K/D</p>
               <p>{decimal(guild.kdNumber)}</p>
-            </div>
-            <div>
-              <p className="text-[9px] uppercase tracking-wider text-amber-300/80">Score</p>
-              <p>{decimal(guild.score)}</p>
             </div>
           </div>
         </div>
