@@ -15,6 +15,9 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
+import {
+  useBestOverallRanks,
+} from '../lib/bestOverallStore';
 
 const nf = new Intl.NumberFormat('en-US');
 const MIN_HALL_WARS = 50;
@@ -122,7 +125,11 @@ const demoStats = {
   ],
 };
 
-function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
+function buildHallData(
+  stats,
+  minimumWars = MIN_HALL_WARS,
+  bestOverallRanks = {},
+) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
   const secondaryRows =
@@ -969,10 +976,8 @@ function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
     return best;
   }
 
-  // Average Rank mirrors PlayerStats.jsx, but every war is processed once.
-  // The previous version rebuilt and reranked every war separately for every
-  // player, which blocked the browser's main thread on large datasets.
-
+  // Best Average Rank uses the exact result calculated by Overview.
+  // Hall of Fame does not rebuild, approximate, or rerank the logs.
   function normalizeAverageRankPlayerName(value) {
     const key = String(value || '')
       .normalize('NFKC')
@@ -988,319 +993,28 @@ function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
     return key;
   }
 
-  function getAverageRankGuildPlayerFromEvent(event) {
-    return (
-      event?.guildPlayer ||
-      (event?.type === 'kill' ? event?.killer : event?.victim) ||
-      ''
-    );
-  }
-
-  function buildPlayerStatsTieAwareRank(rowsForWar, key, desc = true) {
-    const sortedRows = [...rowsForWar].sort((a, b) => {
-      const av = Number(a[key]) || 0;
-      const bv = Number(b[key]) || 0;
-
-      if (av === bv) {
-        return a.name.localeCompare(b.name);
-      }
-
-      return desc ? bv - av : av - bv;
-    });
-
-    const output = {};
-    let lastValue;
-    let rankNumber = 0;
-
-    sortedRows.forEach((row, index) => {
-      const value = Number(row[key]) || 0;
-
-      if (index === 0 || value !== lastValue) {
-        rankNumber = index + 1;
-      }
-
-      output[normalizeAverageRankPlayerName(row.name)] = rankNumber;
-      lastValue = value;
-    });
-
-    return output;
-  }
-
-  function getPlayerStatsBestKillstreakForWar(
-    sortedWarEvents,
-    playerName,
-  ) {
-    const targetName = normalizeAverageRankPlayerName(playerName);
-    let current = 0;
-    let best = 0;
-
-    sortedWarEvents.forEach((event) => {
-      const guildPlayer = normalizeAverageRankPlayerName(
-        getAverageRankGuildPlayerFromEvent(event),
-      );
-
-      if (event.type === 'kill' && guildPlayer === targetName) {
-        current += 1;
-        best = Math.max(best, current);
-      }
-
-      if (event.type === 'death' && guildPlayer === targetName) {
-        current = 0;
-      }
-    });
-
-    return best;
-  }
-
-  function getPlayerStatsRowsForWar(sortedWarEvents) {
-    const playersByKey = {};
-
-    sortedWarEvents.forEach((event) => {
-      const rawName = getAverageRankGuildPlayerFromEvent(event);
-      const playerKey = normalizeAverageRankPlayerName(rawName);
-
-      if (!playerKey) return;
-
-      playersByKey[playerKey] ||= {
-        name: rawName,
-        kills: 0,
-        deaths: 0,
-      };
-
-      if (event.type === 'kill') {
-        playersByKey[playerKey].kills += 1;
-      }
-
-      if (event.type === 'death') {
-        playersByKey[playerKey].deaths += 1;
-      }
-    });
-
-    return Object.values(playersByKey).map((player) => ({
-      ...player,
-      kdNumber: player.deaths
-        ? Number((player.kills / player.deaths).toFixed(2))
-        : Number(player.kills.toFixed(2)),
-      streak: getPlayerStatsBestKillstreakForWar(
-        sortedWarEvents,
-        player.name,
-      ),
-    }));
-  }
-
-  function buildPlayerStatsKillsRank(rowsForWar, sortedWarEvents) {
-    const finalKillsByPlayer = Object.fromEntries(
-      rowsForWar.map((row) => [
-        normalizeAverageRankPlayerName(row.name),
-        row.kills,
-      ]),
-    );
-    const runningKills = {};
-    const reached = {};
-
-    sortedWarEvents
-      .filter((event) => event.type === 'kill')
-      .forEach((event) => {
-        const playerKey = normalizeAverageRankPlayerName(
-          getAverageRankGuildPlayerFromEvent(event),
-        );
-
-        if (!playerKey) return;
-
-        runningKills[playerKey] = (runningKills[playerKey] || 0) + 1;
-
-        if (
-          finalKillsByPlayer[playerKey] &&
-          runningKills[playerKey] === finalKillsByPlayer[playerKey]
-        ) {
-          reached[playerKey] = `${String(event.sec).padStart(
-            5,
-            '0',
-          )} ${String(event.i || 0).padStart(5, '0')}`;
-        }
-      });
-
-    return Object.fromEntries(
-      [...rowsForWar]
-        .sort((a, b) => {
-          const aKey = normalizeAverageRankPlayerName(a.name);
-          const bKey = normalizeAverageRankPlayerName(b.name);
-
-          return (
-            b.kills - a.kills ||
-            (reached[aKey] || '999999').localeCompare(
-              reached[bKey] || '999999',
-            ) ||
-            a.name.localeCompare(b.name)
-          );
-        })
-        .map((row, index) => [
-          normalizeAverageRankPlayerName(row.name),
-          index + 1,
-        ]),
-    );
-  }
-
-  const averageRankValuesByPlayer = {};
-  const combatWarIdsByPlayer = {};
-
-  function addAverageRankValue(playerName, value) {
-    const playerKey = normalizeAverageRankPlayerName(playerName);
-
-    if (!playerKey || !Number.isFinite(Number(value))) return;
-
-    averageRankValuesByPlayer[playerKey] ||= [];
-    averageRankValuesByPlayer[playerKey].push(Number(value));
-  }
-
-  // Group Combat Log events once.
-  const averageRankCombatWarMap = {};
-
-  events.forEach((event) => {
-    const warId = String(event.id);
-    const playerKey = normalizeAverageRankPlayerName(
-      getAverageRankGuildPlayerFromEvent(event),
-    );
-
-    averageRankCombatWarMap[warId] ||= [];
-    averageRankCombatWarMap[warId].push(event);
-
-    if (playerKey) {
-      combatWarIdsByPlayer[playerKey] ||= new Set();
-      combatWarIdsByPlayer[playerKey].add(warId);
-    }
-  });
-
-  // Calculate all Combat Log player ranks once per war.
-  Object.values(averageRankCombatWarMap).forEach((warEvents) => {
-    const sortedWarEvents = getWarEventsSorted(warEvents);
-    const rowsForWar = getPlayerStatsRowsForWar(sortedWarEvents);
-
-    if (!rowsForWar.length) return;
-
-    const ranks = {
-      kills: buildPlayerStatsKillsRank(rowsForWar, sortedWarEvents),
-      deaths: buildPlayerStatsTieAwareRank(
-        rowsForWar,
-        'deaths',
-        false,
-      ),
-      kd: buildPlayerStatsTieAwareRank(rowsForWar, 'kdNumber', true),
-      streak: buildPlayerStatsTieAwareRank(rowsForWar, 'streak', true),
-    };
-
-    rowsForWar.forEach((row) => {
-      const playerKey = normalizeAverageRankPlayerName(row.name);
-      const rankParts = [
-        ranks.kills[playerKey],
-        ranks.deaths[playerKey],
-        ranks.kd[playerKey],
-        ranks.streak[playerKey],
-      ].filter((value) => Number.isFinite(Number(value)));
-
-      if (rankParts.length !== 4) return;
-
-      addAverageRankValue(
-        row.name,
-        rankParts.reduce((sum, value) => sum + Number(value), 0) / 4,
-      );
-    });
-  });
-
-  // Group all Stats Log rows once.
-  const averageRankSecondaryWarMap = {};
-
-  (Array.isArray(secondaryRows) ? secondaryRows : [])
-    .filter((row) => row?.player)
-    .forEach((row, index) => {
-      const warId = secondaryWarId(row, index);
-
-      averageRankSecondaryWarMap[warId] ||= [];
-      averageRankSecondaryWarMap[warId].push({
-        ...row,
-        id: warId,
-        name: row.player,
-        kills: Number(row.kills) || 0,
-        deaths: Number(row.deaths) || 0,
-        kdNumber: Number(row.deaths)
-          ? Number(
-              (
-                (Number(row.kills) || 0) /
-                Number(row.deaths)
-              ).toFixed(2),
-            )
-          : Number((Number(row.kills) || 0).toFixed(2)),
-      });
-    });
-
-  // Calculate all Stats Log-only ranks once per war.
-  Object.entries(averageRankSecondaryWarMap).forEach(
-    ([warId, rowsForWar]) => {
-      if (!rowsForWar.length) return;
-
-      const ranks = {
-        kills: buildPlayerStatsTieAwareRank(
-          rowsForWar,
-          'kills',
-          true,
-        ),
-        deaths: buildPlayerStatsTieAwareRank(
-          rowsForWar,
-          'deaths',
-          false,
-        ),
-        kd: buildPlayerStatsTieAwareRank(
-          rowsForWar,
-          'kdNumber',
-          true,
-        ),
-      };
-
-      const addedPlayers = new Set();
-
-      rowsForWar.forEach((row) => {
-        const playerKey = normalizeAverageRankPlayerName(row.name);
-
-        if (!playerKey || addedPlayers.has(playerKey)) return;
-
-        addedPlayers.add(playerKey);
-
-        // Match Player Stats: do not count the Stats Log version of a game
-        // when that same player already has Combat Log events for the war.
-        if (combatWarIdsByPlayer[playerKey]?.has(warId)) return;
-
-        const rankParts = [
-          ranks.kills[playerKey],
-          ranks.deaths[playerKey],
-          ranks.kd[playerKey],
-        ].filter((value) => Number.isFinite(Number(value)));
-
-        if (rankParts.length !== 3) return;
-
-        addAverageRankValue(
-          row.name,
-          rankParts.reduce((sum, value) => sum + Number(value), 0) / 3,
-        );
-      });
-    },
-  );
-
-  function getPlayerAverageRankValues(name) {
+  function getOverviewBestOverallRank(name) {
     const playerKey = normalizeAverageRankPlayerName(name);
+    const result = bestOverallRanks?.[playerKey];
+    const average = Number(result?.average);
+    const matches = Number(result?.matches) || 0;
 
-    return averageRankValuesByPlayer[playerKey] || [];
-  }
+    if (
+      !result ||
+      !Number.isFinite(average) ||
+      average === 9999 ||
+      matches <= 0
+    ) {
+      return {
+        average: null,
+        matches: 0,
+      };
+    }
 
-  function getPlayerAverageRank(name) {
-    const values = getPlayerAverageRankValues(name);
-
-    if (!values.length) return null;
-
-    const average =
-      values.reduce((sum, value) => sum + Number(value), 0) /
-      values.length;
-
-    return Number(average.toFixed(2));
+    return {
+      average: Number(average.toFixed(2)),
+      matches,
+    };
   }
 
   const rows = (safe.players || [])
@@ -1378,9 +1092,11 @@ function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
       const avgCcHitsMatchCount = ccHitsMatchValues.length;
       const joinParticipation = getJoinParticipation(player.name);
       const consecutiveWars = getLongestConsecutiveWarStreak(player.name);
-      const averageRankValues = getPlayerAverageRankValues(player.name);
-      const averageRank = getPlayerAverageRank(player.name);
-      const averageRankMatchCount = averageRankValues.length;
+      const overviewBestOverallRank =
+        getOverviewBestOverallRank(player.name);
+      const averageRank = overviewBestOverallRank.average;
+      const averageRankMatchCount =
+        overviewBestOverallRank.matches;
       const chronologyKey = getPlayerChronologyKey(player.name);
       const score = Math.max(
         0,
@@ -2811,16 +2527,25 @@ function PreviewAll({ data }) {
 
 export default function HallOfFame({ stats, allTimeStats } = {}) {
   const previewMode = !stats && !allTimeStats;
+  const bestOverallRanks = useBestOverallRanks();
+
   const data = useMemo(
     () =>
       buildHallData(
         allTimeStats?.players?.length ? allTimeStats : stats,
         MIN_HALL_WARS,
+        bestOverallRanks,
       ),
-    [stats, allTimeStats],
+    [stats, allTimeStats, bestOverallRanks],
   );
 
-  if (previewMode) return <PreviewAll data={buildHallData(demoStats, 0)} />;
+  if (previewMode) {
+    return (
+      <PreviewAll
+        data={buildHallData(demoStats, 0, bestOverallRanks)}
+      />
+    );
+  }
   if (!data.rows.length) return <EmptyState />;
 
   return (
