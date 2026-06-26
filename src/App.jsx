@@ -791,18 +791,30 @@ export default function App() {
     setPage('overview');
   }
 
-  function openMatchOverviewFromMonthlyRecap(match) {
-    const warId = String(match?.id || match?.warId || '').trim();
+  function openMatchOverviewFromMonthlyRecap(matchOrMatches) {
+    const matches = Array.isArray(matchOrMatches)
+      ? matchOrMatches
+      : [matchOrMatches];
 
-    if (!warId) {
-      setMessage('This match has no valid war ID.');
+    const warIds = [
+      ...new Set(
+        matches
+          .map((match) =>
+            String(match?.id || match?.warId || '').trim(),
+          )
+          .filter(Boolean),
+      ),
+    ];
+
+    if (!warIds.length) {
+      setMessage('These matches have no valid war IDs.');
       return;
     }
 
     setNodeWarsWarning('');
     setMatchHistoryDateFilter('');
     setSelectedDays(['all']);
-    setSelectedWars([warId]);
+    setSelectedWars(warIds);
     setPage('overview');
   }
 
