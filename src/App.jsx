@@ -765,17 +765,19 @@ export default function App() {
     setPage(nextPage);
   }
 
-  function openMatchHistoryFromPlayerStats(match) {
-    const matchDate = String(match?.date || '');
-    const warId = String(match?.warId || '');
+  function openMatchOverviewFromPlayerStats(match) {
+    const warId = String(match?.warId || '').trim();
+
+    if (!warId) {
+      setMessage('This match has no valid war ID.');
+      return;
+    }
 
     setNodeWarsWarning('');
-    setMatchHistoryDateFilter(matchDate);
-    setSelectedDays(matchDate ? [matchDate] : ['all']);
-    setSelectedWars(warId ? [warId] : ['all']);
-    setPeriodDays('all');
-    loadNodeLogs('all');
-    setPage('nodewars');
+    setMatchHistoryDateFilter('');
+    setSelectedDays(['all']);
+    setSelectedWars([warId]);
+    setPage('overview');
   }
 
   const rawHistoryLogs = allLogs || nodeLogs;
@@ -951,7 +953,7 @@ export default function App() {
               ) : (
                 <PlayerStats
                   stats={allTimeStats}
-                  onOpenMatchHistory={openMatchHistoryFromPlayerStats}
+                  onOpenMatchOverview={openMatchOverviewFromPlayerStats}
                 />
               )}
             </Suspense>
