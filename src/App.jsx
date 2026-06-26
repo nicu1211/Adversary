@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
+import adversaryEmblem from './assets/adversary-emblem.png';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -27,6 +28,7 @@ const Overview = lazy(() => import('./pages/Overview'));
 const PlayerStats = lazy(() => import('./pages/PlayerStats'));
 const HallOfFame = lazy(() => import('./pages/HallOfFame'));
 const Guild = lazy(() => import('./pages/Guild'));
+const MonthlyReview = lazy(() => import('./pages/MonthlyReview'));
 
 const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
@@ -497,7 +499,13 @@ export default function App() {
   }, [loadNodeLogs]);
 
   useEffect(() => {
-    if (page === 'players' || page === 'hall' || page === 'raw' || page === 'guild') {
+    if (
+      page === 'players' ||
+      page === 'hall' ||
+      page === 'raw' ||
+      page === 'guild' ||
+      page === 'monthly'
+    ) {
       loadAllLogs();
     }
   }, [page, loadAllLogs]);
@@ -591,6 +599,9 @@ export default function App() {
     (Array.isArray(allLogs) &&
       allLogs.length > 0 &&
       allLogs.some((log) => Boolean(log.raw)));
+
+  const monthlyReviewReady =
+    page !== 'monthly' || Array.isArray(allLogs);
 
   const label = current ? 'Current log' : all ? 'All saved days' : selectedDays[0] || 'No day';
 
@@ -739,7 +750,9 @@ export default function App() {
   ];
 
   function isMenuActive(id) {
-    return id === 'nodewars' ? page === 'nodewars' || page === 'overview' : page === id;
+    return id === 'nodewars'
+      ? page === 'nodewars' || page === 'overview' || page === 'monthly'
+      : page === id;
   }
 
   function openOverviewFromMenu() {
@@ -780,12 +793,35 @@ export default function App() {
     setPage('overview');
   }
 
+  function openMatchOverviewFromMonthlyReview(match) {
+    const warId = String(match?.id || match?.warId || '').trim();
+
+    if (!warId) {
+      setMessage('This match has no valid war ID.');
+      return;
+    }
+
+    setNodeWarsWarning('');
+    setMatchHistoryDateFilter('');
+    setSelectedDays(['all']);
+    setSelectedWars([warId]);
+    setPage('overview');
+  }
+
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
-        <div className="mb-3 text-lg font-black text-white">☾ Battle Analytics</div>
+        <div className="mb-3 flex items-center gap-2 text-lg font-black text-white">
+          <img
+            src={adversaryEmblem}
+            alt=""
+            aria-hidden="true"
+            className="h-9 w-9 shrink-0 object-contain"
+          />
+          <span>Battle Analytics</span>
+        </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {menu.map(([id, title]) => (
@@ -799,13 +835,25 @@ export default function App() {
                   : 'border border-slate-700 bg-slate-900 text-slate-300'
               }`}
             >
-              {title}
+              <span className="flex items-center justify-center gap-2">
+                <span>{title}</span>
+                {id === 'guild' && (
+                  <img
+                    src={adversaryEmblem}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 shrink-0 object-contain"
+                  />
+                )}
+              </span>
             </button>
           ))}
         </div>
 
-        {(page === 'nodewars' || page === 'overview') && (
-          <div className="mt-2 grid grid-cols-2 gap-2">
+        {(page === 'nodewars' ||
+          page === 'overview' ||
+          page === 'monthly') && (
+          <div className="mt-2 grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => openPage('nodewars')}
@@ -829,13 +877,33 @@ export default function App() {
             >
               Overview
             </button>
+
+            <button
+              type="button"
+              onClick={() => openPage('monthly')}
+              className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
+                page === 'monthly'
+                  ? 'border border-blue-400 bg-blue-500/20 text-white'
+                  : 'border border-slate-700 bg-slate-900 text-slate-300'
+              }`}
+            >
+              Monthly Review
+            </button>
           </div>
         )}
       </div>
 
       <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="hidden min-h-screen flex-col border-r border-slate-800 bg-slate-950 p-4 lg:flex">
-          <h1 className="mb-6 text-2xl font-black text-white">☾ Battle Analytics</h1>
+          <h1 className="mb-6 flex items-center gap-3 text-2xl font-black text-white">
+            <img
+              src={adversaryEmblem}
+              alt=""
+              aria-hidden="true"
+              className="h-12 w-12 shrink-0 object-contain"
+            />
+            <span>Battle Analytics</span>
+          </h1>
 
           <nav className="flex-1">
             {menu
@@ -854,7 +922,17 @@ export default function App() {
                           : 'hover:bg-slate-900'
                       }`}
                     >
-                      {title}
+                      <span className="flex items-center gap-2">
+                        <span>{title}</span>
+                        {id === 'guild' && (
+                          <img
+                            src={adversaryEmblem}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-6 w-6 shrink-0 object-contain"
+                          />
+                        )}
+                      </span>
                     </button>
 
                     {isNodeWars && (
@@ -881,6 +959,18 @@ export default function App() {
                           }`}
                         >
                           Overview
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openPage('monthly')}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
+                            page === 'monthly'
+                              ? 'bg-blue-500/20 text-white'
+                              : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                          }`}
+                        >
+                          Monthly Review
                         </button>
                       </div>
                     )}
@@ -941,6 +1031,21 @@ export default function App() {
                   label={label}
                   members={members}
                   selectedLogs={activeLogs}
+                />
+              )}
+            </Suspense>
+          )}
+
+          {page === 'monthly' && (
+            <Suspense
+              fallback={<PageLoader text="Loading monthly review..." />}
+            >
+              {!monthlyReviewReady || loadingAllLogs ? (
+                <PageLoader text="Loading all logs for Monthly Review..." />
+              ) : (
+                <MonthlyReview
+                  logs={Array.isArray(allLogs) ? allLogs : []}
+                  onOpenMatchOverview={openMatchOverviewFromMonthlyReview}
                 />
               )}
             </Suspense>
