@@ -28,7 +28,6 @@ const Overview = lazy(() => import('./pages/Overview'));
 const PlayerStats = lazy(() => import('./pages/PlayerStats'));
 const HallOfFame = lazy(() => import('./pages/HallOfFame'));
 const Guild = lazy(() => import('./pages/Guild'));
-const MonthlyReview = lazy(() => import('./pages/MonthlyReview'));
 
 const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
@@ -499,13 +498,7 @@ export default function App() {
   }, [loadNodeLogs]);
 
   useEffect(() => {
-    if (
-      page === 'players' ||
-      page === 'hall' ||
-      page === 'raw' ||
-      page === 'guild' ||
-      page === 'monthly'
-    ) {
+    if (page === 'players' || page === 'hall' || page === 'raw' || page === 'guild') {
       loadAllLogs();
     }
   }, [page, loadAllLogs]);
@@ -599,9 +592,6 @@ export default function App() {
     (Array.isArray(allLogs) &&
       allLogs.length > 0 &&
       allLogs.some((log) => Boolean(log.raw)));
-
-  const monthlyReviewReady =
-    page !== 'monthly' || Array.isArray(allLogs);
 
   const label = current ? 'Current log' : all ? 'All saved days' : selectedDays[0] || 'No day';
 
@@ -750,9 +740,7 @@ export default function App() {
   ];
 
   function isMenuActive(id) {
-    return id === 'nodewars'
-      ? page === 'nodewars' || page === 'overview' || page === 'monthly'
-      : page === id;
+    return id === 'nodewars' ? page === 'nodewars' || page === 'overview' : page === id;
   }
 
   function openOverviewFromMenu() {
@@ -780,21 +768,6 @@ export default function App() {
 
   function openMatchOverviewFromPlayerStats(match) {
     const warId = String(match?.warId || '').trim();
-
-    if (!warId) {
-      setMessage('This match has no valid war ID.');
-      return;
-    }
-
-    setNodeWarsWarning('');
-    setMatchHistoryDateFilter('');
-    setSelectedDays(['all']);
-    setSelectedWars([warId]);
-    setPage('overview');
-  }
-
-  function openMatchOverviewFromMonthlyReview(match) {
-    const warId = String(match?.id || match?.warId || '').trim();
 
     if (!warId) {
       setMessage('This match has no valid war ID.');
@@ -850,10 +823,8 @@ export default function App() {
           ))}
         </div>
 
-        {(page === 'nodewars' ||
-          page === 'overview' ||
-          page === 'monthly') && (
-          <div className="mt-2 grid grid-cols-3 gap-2">
+        {(page === 'nodewars' || page === 'overview') && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => openPage('nodewars')}
@@ -876,18 +847,6 @@ export default function App() {
               }`}
             >
               Overview
-            </button>
-
-            <button
-              type="button"
-              onClick={() => openPage('monthly')}
-              className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
-                page === 'monthly'
-                  ? 'border border-blue-400 bg-blue-500/20 text-white'
-                  : 'border border-slate-700 bg-slate-900 text-slate-300'
-              }`}
-            >
-              Monthly Review
             </button>
           </div>
         )}
@@ -960,18 +919,6 @@ export default function App() {
                         >
                           Overview
                         </button>
-
-                        <button
-                          type="button"
-                          onClick={() => openPage('monthly')}
-                          className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
-                            page === 'monthly'
-                              ? 'bg-blue-500/20 text-white'
-                              : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-                          }`}
-                        >
-                          Monthly Review
-                        </button>
                       </div>
                     )}
                   </div>
@@ -1031,21 +978,6 @@ export default function App() {
                   label={label}
                   members={members}
                   selectedLogs={activeLogs}
-                />
-              )}
-            </Suspense>
-          )}
-
-          {page === 'monthly' && (
-            <Suspense
-              fallback={<PageLoader text="Loading monthly review..." />}
-            >
-              {!monthlyReviewReady || loadingAllLogs ? (
-                <PageLoader text="Loading all logs for Monthly Review..." />
-              ) : (
-                <MonthlyReview
-                  logs={Array.isArray(allLogs) ? allLogs : []}
-                  onOpenMatchOverview={openMatchOverviewFromMonthlyReview}
                 />
               )}
             </Suspense>
