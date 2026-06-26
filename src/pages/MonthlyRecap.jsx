@@ -19,7 +19,6 @@ import {
   Zap,
 } from 'lucide-react';
 
-import { Panel } from '../components/UI';
 import {
   buildNodeWarRow,
   calculateKillFeed,
@@ -69,8 +68,7 @@ function compact(value, digits = 1) {
 }
 
 function ratio(kills, deaths) {
-  const deathCount = num(deaths);
-  return deathCount ? num(kills) / deathCount : num(kills);
+  return num(deaths) ? num(kills) / num(deaths) : num(kills);
 }
 
 function monthFromDate(value) {
@@ -79,25 +77,12 @@ function monthFromDate(value) {
 }
 
 function monthLabel(monthId) {
-  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) {
-    return 'Unknown month';
-  }
+  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return 'Unknown month';
 
   const [year, month] = monthId.split('-').map(Number);
 
   return new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
     month: 'long',
-    year: 'numeric',
-  });
-}
-
-function shortMonthLabel(monthId) {
-  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return 'previous month';
-
-  const [year, month] = monthId.split('-').map(Number);
-
-  return new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
-    month: 'short',
     year: 'numeric',
   });
 }
@@ -114,6 +99,17 @@ function previousMonthId(monthId) {
   )}`;
 }
 
+function shortMonthLabel(monthId) {
+  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return 'previous month';
+
+  const [year, month] = monthId.split('-').map(Number);
+
+  return new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function formatDate(value) {
   const parsed = new Date(value);
 
@@ -126,18 +122,6 @@ function formatDate(value) {
   });
 }
 
-function cleanGuild(value) {
-  const text = String(value || '').trim();
-
-  if (!text || /^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
-
-  return text;
-}
-
-function getSummary(log) {
-  return log?.summary || log?.stats || log?.analytics || {};
-}
-
 function getGuildPlayer(event) {
   return (
     event?.guildPlayer ||
@@ -146,30 +130,12 @@ function getGuildPlayer(event) {
   );
 }
 
-function percentChange(current, previous) {
-  const currentNumber = num(current);
-  const previousNumber = num(previous);
+function cleanGuild(value) {
+  const text = String(value || '').trim();
 
-  if (!previousNumber) {
-    return currentNumber ? null : 0;
-  }
+  if (!text || /^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
 
-  return ((currentNumber - previousNumber) / Math.abs(previousNumber)) * 100;
-}
-
-function comparisonText(current, previous, previousMonth, lowerIsBetter = false) {
-  const change = percentChange(current, previous);
-
-  if (change == null) {
-    return `No ${shortMonthLabel(previousMonth)} baseline`;
-  }
-
-  const positive = lowerIsBetter ? change < 0 : change > 0;
-  const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '•';
-
-  return `${arrow} ${Math.abs(change).toFixed(0)}% vs ${shortMonthLabel(
-    previousMonth,
-  )}${change === 0 ? '' : positive ? ' · improved' : ''}`;
+  return text;
 }
 
 function topObjectEntry(object = {}) {
@@ -189,44 +155,44 @@ function topObjectEntry(object = {}) {
 }
 
 function buildPlayerWarCounts(stats) {
-  const warsByPlayer = new Map();
+  const map = new Map();
 
-  function addWar(name, warId) {
+  function add(name, warId) {
     const cleanName = String(name || '').trim();
-    const cleanWarId = String(warId || '').trim();
+    const cleanWar = String(warId || '').trim();
 
-    if (!cleanName || !cleanWarId) return;
+    if (!cleanName || !cleanWar) return;
 
-    if (!warsByPlayer.has(cleanName)) {
-      warsByPlayer.set(cleanName, new Set());
+    if (!map.has(cleanName)) {
+      map.set(cleanName, new Set());
     }
 
-    warsByPlayer.get(cleanName).add(cleanWarId);
+    map.get(cleanName).add(cleanWar);
   }
 
   (stats?.ev || []).forEach((event, index) => {
-    addWar(
+    add(
       getGuildPlayer(event),
       event?.id || event?.war || event?.date || `event-${index}`,
     );
   });
 
   (stats?.secondary?.rows || []).forEach((row, index) => {
-    addWar(
+    add(
       row?.player || row?.name,
       row?.id || row?.war || row?.date || `secondary-${index}`,
     );
   });
 
   return Object.fromEntries(
-    [...warsByPlayer.entries()].map(([name, wars]) => [name, wars.size]),
+    [...map.entries()].map(([name, wars]) => [name, wars.size]),
   );
 }
 
-function buildEnemyRows(logs, monthlyStats) {
+function buildEnemyRows(logs, stats) {
   const byGuild = {};
 
-  function add(name, ourKills, ourDeaths, warId) {
+  function add(name, kills, deaths, warId) {
     const guildName = cleanGuild(name);
 
     if (!guildName) return;
@@ -238,18 +204,18 @@ function buildEnemyRows(logs, monthlyStats) {
       wars: new Set(),
     };
 
-    byGuild[guildName].kills += num(ourKills);
-    byGuild[guildName].deaths += num(ourDeaths);
+    byGuild[guildName].kills += num(kills);
+    byGuild[guildName].deaths += num(deaths);
 
     if (warId) {
       byGuild[guildName].wars.add(String(warId));
     }
   }
 
-  (logs || []).forEach((log, logIndex) => {
-    const summary = getSummary(log);
+  (logs || []).forEach((log, index) => {
+    const summary = log?.summary || {};
     const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
-    const warId = String(log?.id || dateOf(log) || `log-${logIndex}`);
+    const warId = log?.id || dateOf(log) || `log-${index}`;
 
     guilds.forEach((guild) => {
       add(guild?.name, guild?.kills, guild?.deaths, warId);
@@ -257,10 +223,9 @@ function buildEnemyRows(logs, monthlyStats) {
   });
 
   if (!Object.keys(byGuild).length) {
-    (monthlyStats?.ev || []).forEach((event, index) => {
+    (stats?.ev || []).forEach((event, index) => {
       const guild = cleanGuild(event?.guild);
-      const warId =
-        event?.id || event?.war || event?.date || `event-${index}`;
+      const warId = event?.id || event?.war || event?.date || `event-${index}`;
 
       if (event?.type === 'kill') add(guild, 1, 0, warId);
       if (event?.type === 'death') add(guild, 0, 1, warId);
@@ -270,9 +235,9 @@ function buildEnemyRows(logs, monthlyStats) {
   return Object.values(byGuild)
     .map((guild) => ({
       name: guild.name,
+      wars: guild.wars.size,
       kills: guild.kills,
       deaths: guild.deaths,
-      wars: guild.wars.size,
       kd: ratio(guild.kills, guild.deaths),
     }))
     .filter((guild) => guild.wars > 0)
@@ -284,7 +249,30 @@ function buildEnemyRows(logs, monthlyStats) {
     );
 }
 
-function buildMonthlyReview(logs, selectedMonth) {
+function percentageChange(current, previous) {
+  if (!num(previous)) {
+    return num(current) ? null : 0;
+  }
+
+  return ((num(current) - num(previous)) / Math.abs(num(previous))) * 100;
+}
+
+function changeLabel(current, previous, previousMonth, lowerIsBetter = false) {
+  const change = percentageChange(current, previous);
+
+  if (change == null) {
+    return `No ${shortMonthLabel(previousMonth)} baseline`;
+  }
+
+  const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '•';
+  const improved = lowerIsBetter ? change < 0 : change > 0;
+
+  return `${arrow} ${Math.abs(change).toFixed(0)}% vs ${shortMonthLabel(
+    previousMonth,
+  )}${change === 0 ? '' : improved ? ' · improved' : ''}`;
+}
+
+function buildReview(logs, selectedMonth) {
   const monthLogs = (logs || [])
     .filter((log) => monthFromDate(dateOf(log)) === selectedMonth)
     .map((log) => ({
@@ -301,15 +289,11 @@ function buildMonthlyReview(logs, selectedMonth) {
       date: dateOf(log),
     }));
 
-  const rows = monthLogs
-    .map(buildNodeWarRow)
-    .sort(
-      (a, b) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
-
+  const rows = monthLogs.map(buildNodeWarRow);
   const previousRows = previousLogs.map(buildNodeWarRow);
+
   const stats = calculateStats(monthLogs);
+  const warCounts = buildPlayerWarCounts(stats);
 
   const totals = {
     wars: rows.length,
@@ -324,14 +308,8 @@ function buildMonthlyReview(logs, selectedMonth) {
   const previousTotals = {
     wars: previousRows.length,
     kills: previousRows.reduce((sum, row) => sum + num(row.kills), 0),
-    deaths: previousRows.reduce(
-      (sum, row) => sum + num(row.deaths),
-      0,
-    ),
-    damage: previousRows.reduce(
-      (sum, row) => sum + num(row.damageDealt),
-      0,
-    ),
+    deaths: previousRows.reduce((sum, row) => sum + num(row.deaths), 0),
+    damage: previousRows.reduce((sum, row) => sum + num(row.damageDealt), 0),
     fortDamage: previousRows.reduce(
       (sum, row) => sum + num(row.fortDamage),
       0,
@@ -342,8 +320,6 @@ function buildMonthlyReview(logs, selectedMonth) {
     previousTotals.kills,
     previousTotals.deaths,
   );
-
-  const warCounts = buildPlayerWarCounts(stats);
 
   const players = (stats?.players || [])
     .map((player) => ({
@@ -362,9 +338,9 @@ function buildMonthlyReview(logs, selectedMonth) {
         a.name.localeCompare(b.name),
     );
 
-  const topFragger = players[0] || null;
-
   const minWars = Math.min(3, Math.max(1, totals.wars));
+
+  const topFragger = players[0] || null;
 
   const bestKd =
     [...players]
@@ -373,31 +349,20 @@ function buildMonthlyReview(logs, selectedMonth) {
         (a, b) =>
           b.kd - a.kd ||
           b.kills - a.kills ||
-          a.deaths - b.deaths ||
-          a.name.localeCompare(b.name),
+          a.deaths - b.deaths,
       )[0] || null;
 
   const damageLeader =
     [...players]
       .filter((player) => player.damage > 0)
-      .sort(
-        (a, b) =>
-          b.damage - a.damage ||
-          a.name.localeCompare(b.name),
-      )[0] || null;
+      .sort((a, b) => b.damage - a.damage)[0] || null;
 
   const fortBreaker =
     [...players]
       .filter((player) => player.fortDamage > 0)
-      .sort(
-        (a, b) =>
-          b.fortDamage - a.fortDamage ||
-          a.name.localeCompare(b.name),
-      )[0] || null;
+      .sort((a, b) => b.fortDamage - a.fortDamage)[0] || null;
 
-  const longestStreak = topObjectEntry(
-    calculateStreaks(stats?.ev || []),
-  );
+  const longestStreak = topObjectEntry(calculateStreaks(stats?.ev || []));
 
   const bestFeed = topObjectEntry(
     calculateKillFeed(
@@ -417,8 +382,7 @@ function buildMonthlyReview(logs, selectedMonth) {
         (a, b) =>
           b.kd - a.kd ||
           b.wars - a.wars ||
-          b.kills - a.kills ||
-          a.name.localeCompare(b.name),
+          b.kills - a.kills,
       )[0] || null;
 
   const toughestMatchup =
@@ -428,8 +392,7 @@ function buildMonthlyReview(logs, selectedMonth) {
         (a, b) =>
           a.kd - b.kd ||
           b.wars - a.wars ||
-          b.deaths - a.deaths ||
-          a.name.localeCompare(b.name),
+          b.deaths - a.deaths,
       )[0] || null;
 
   const highestKillsWar =
@@ -443,8 +406,7 @@ function buildMonthlyReview(logs, selectedMonth) {
     [...rows].sort(
       (a, b) =>
         num(b.kdNumber ?? b.kd) - num(a.kdNumber ?? a.kd) ||
-        num(b.kills) - num(a.kills) ||
-        String(b.date).localeCompare(String(a.date)),
+        num(b.kills) - num(a.kills),
     )[0] || null;
 
   const highestDamageWar =
@@ -452,8 +414,7 @@ function buildMonthlyReview(logs, selectedMonth) {
       .filter((row) => num(row.damageDealt) > 0)
       .sort(
         (a, b) =>
-          num(b.damageDealt) - num(a.damageDealt) ||
-          String(b.date).localeCompare(String(a.date)),
+          num(b.damageDealt) - num(a.damageDealt),
       )[0] || null;
 
   return {
@@ -474,111 +435,98 @@ function buildMonthlyReview(logs, selectedMonth) {
     featuredWars: [
       highestKillsWar && {
         id: 'kills',
-        title: 'Highest Kill Total',
+        label: 'Highest Kill Total',
         value: `${compact(highestKillsWar.kills)} Kills`,
-        subtitle: `${compact(highestKillsWar.deaths)} deaths · ${num(
-          highestKillsWar.kdNumber ?? highestKillsWar.kd,
-        ).toFixed(2)} K/D`,
+        opponent: mostFought?.name || 'Enemy Guild',
+        date: highestKillsWar.date,
         row: highestKillsWar,
-        tone: 'blue',
+        accent: 'blue',
       },
       bestKdWar && {
         id: 'kd',
-        title: 'Best K/D War',
+        label: 'Best K/D War',
         value: `${num(bestKdWar.kdNumber ?? bestKdWar.kd).toFixed(
           2,
         )} K/D`,
-        subtitle: `${compact(bestKdWar.kills)} kills · ${compact(
-          bestKdWar.deaths,
-        )} deaths`,
+        opponent: bestMatchup?.name || 'Enemy Guild',
+        date: bestKdWar.date,
         row: bestKdWar,
-        tone: 'violet',
+        accent: 'violet',
       },
       highestDamageWar && {
         id: 'damage',
-        title: 'Highest Damage War',
+        label: 'Highest Damage War',
         value: compact(highestDamageWar.damageDealt),
-        subtitle: `${compact(highestDamageWar.kills)} kills · ${num(
-          highestDamageWar.kdNumber ?? highestDamageWar.kd,
-        ).toFixed(2)} K/D`,
+        opponent: toughestMatchup?.name || 'Enemy Guild',
+        date: highestDamageWar.date,
         row: highestDamageWar,
-        tone: 'cyan',
+        accent: 'cyan',
       },
     ].filter(Boolean),
   };
 }
 
-
-function NeonPanel({ children, className = '' }) {
+function SectionShell({ icon: Icon, title, children }) {
   return (
-    <section
-      className={`overflow-hidden rounded-xl border border-slate-800/90 bg-[#030b17]/95 shadow-[0_18px_50px_rgba(0,0,0,.28)] ${className}`}
-    >
+    <section className="overflow-hidden rounded-[10px] border border-[#13243a] bg-[#020813] shadow-[0_14px_40px_rgba(0,0,0,.32)]">
+      <div className="flex h-8 items-center gap-2 border-b border-[#13243a] bg-[#06111f] px-3">
+        <Icon size={14} className="text-[#5fa8ff]" />
+        <h2 className="text-[12px] font-black uppercase tracking-[0.08em] text-[#d8e5f7]">
+          {title}
+        </h2>
+      </div>
       {children}
     </section>
   );
 }
 
-function SectionHeader({ icon: Icon, title }) {
-  return (
-    <div className="flex h-8 items-center gap-2 border-b border-slate-800 bg-[#071221] px-3">
-      <Icon size={14} className="text-blue-400" />
-      <h2 className="text-[12px] font-black uppercase tracking-[0.08em] text-slate-200">
-        {title}
-      </h2>
-    </div>
-  );
-}
-
-function KpiCard({ icon: Icon, label, value, sub, tone }) {
-  const themes = {
+function KpiCard({ icon: Icon, label, value, sub, accent }) {
+  const theme = {
     blue: {
-      icon: 'text-blue-400',
-      glow: 'shadow-[inset_0_0_35px_rgba(59,130,246,.08)]',
+      icon: 'text-[#4ea1ff]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(59,130,246,.08)]',
     },
     violet: {
-      icon: 'text-violet-400',
-      glow: 'shadow-[inset_0_0_35px_rgba(139,92,246,.08)]',
+      icon: 'text-[#a66cff]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(139,92,246,.08)]',
     },
     rose: {
-      icon: 'text-rose-400',
-      glow: 'shadow-[inset_0_0_35px_rgba(244,63,94,.08)]',
+      icon: 'text-[#ff657a]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(244,63,94,.08)]',
     },
     cyan: {
-      icon: 'text-cyan-400',
-      glow: 'shadow-[inset_0_0_35px_rgba(34,211,238,.08)]',
+      icon: 'text-[#37d9ff]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(34,211,238,.08)]',
     },
-    emerald: {
-      icon: 'text-lime-400',
-      glow: 'shadow-[inset_0_0_35px_rgba(132,204,22,.08)]',
+    green: {
+      icon: 'text-[#74ff37]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(132,204,22,.08)]',
     },
     amber: {
-      icon: 'text-amber-400',
-      glow: 'shadow-[inset_0_0_35px_rgba(245,158,11,.08)]',
+      icon: 'text-[#ffc54d]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(245,158,11,.08)]',
     },
-  };
-
-  const theme = themes[tone] || themes.blue;
+  }[accent];
 
   return (
     <div
-      className={`relative min-h-[86px] overflow-hidden rounded-xl border border-slate-800 bg-gradient-to-br from-[#071321] to-[#020812] px-3 py-3 ${theme.glow}`}
+      className={`min-h-[86px] rounded-[10px] border border-[#13243a] bg-gradient-to-br from-[#071322] to-[#020813] p-3 ${theme.shadow}`}
     >
       <div className="flex items-center gap-3">
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/5 bg-black/20 ${theme.icon}`}
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-white/[.04] bg-black/20 ${theme.icon}`}
         >
-          <Icon size={26} strokeWidth={2.1} />
+          <Icon size={28} strokeWidth={2.1} />
         </div>
 
         <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.10em] text-slate-400">
+          <p className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8090a8]">
             {label}
           </p>
-          <p className="mt-0.5 text-[25px] font-black leading-none text-white">
+          <p className="mt-1 text-[26px] font-black leading-none text-white">
             {value}
           </p>
-          <p className="mt-2 truncate text-[10px] font-black text-lime-400">
+          <p className="mt-2 truncate text-[10px] font-black text-[#80ff3f]">
             {sub}
           </p>
         </div>
@@ -587,34 +535,29 @@ function KpiCard({ icon: Icon, label, value, sub, tone }) {
   );
 }
 
-function HighlightTile({ icon: Icon, label, name, value, tone }) {
-  const themes = {
+function MatchupCard({ icon: Icon, label, name, value, accent }) {
+  const classes = {
     violet:
-      'border-violet-500/35 bg-gradient-to-r from-violet-950/45 to-[#040a15] text-violet-300',
-    emerald:
-      'border-cyan-500/35 bg-gradient-to-r from-cyan-950/35 to-[#040a15] text-cyan-300',
+      'border-violet-500/40 bg-gradient-to-r from-violet-950/55 to-[#020813] text-violet-300',
+    cyan:
+      'border-cyan-500/40 bg-gradient-to-r from-cyan-950/45 to-[#020813] text-cyan-300',
     rose:
-      'border-rose-500/35 bg-gradient-to-r from-rose-950/35 to-[#040a15] text-rose-300',
-  };
+      'border-rose-500/40 bg-gradient-to-r from-rose-950/45 to-[#020813] text-rose-300',
+  }[accent];
 
   return (
-    <div
-      className={`flex min-h-[78px] items-center gap-3 rounded-xl border px-4 py-3 ${
-        themes[tone] || themes.violet
-      }`}
-    >
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-current/25 bg-black/20">
-        <Icon size={27} />
+    <div className={`flex min-h-[86px] items-center gap-3 rounded-[10px] border p-3 ${classes}`}>
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-current/30 bg-black/25">
+        <Icon size={30} />
       </div>
-
       <div className="min-w-0">
-        <p className="text-[9px] font-black uppercase tracking-[0.10em]">
+        <p className="text-[9px] font-black uppercase tracking-[0.1em]">
           {label}
         </p>
         <p className="mt-1 truncate text-[14px] font-black text-white">
           {name || '-'}
         </p>
-        <p className="mt-0.5 text-[10px] font-black text-slate-400">
+        <p className="mt-1 text-[10px] font-black text-slate-400">
           {value || 'No data'}
         </p>
       </div>
@@ -622,34 +565,22 @@ function HighlightTile({ icon: Icon, label, name, value, tone }) {
   );
 }
 
-function PlayerHighlightCard({
-  icon: Icon,
-  label,
-  name,
-  value,
-  detail,
-  tone,
-}) {
-  const themes = {
-    blue: 'border-blue-500/25 text-blue-300',
-    violet: 'border-violet-500/25 text-violet-300',
-    cyan: 'border-cyan-500/25 text-cyan-300',
-    emerald: 'border-emerald-500/25 text-emerald-300',
-    amber: 'border-amber-500/25 text-amber-300',
-    rose: 'border-fuchsia-500/25 text-fuchsia-300',
-  };
+function PlayerHighlight({ icon: Icon, label, name, value, unit, accent }) {
+  const classes = {
+    blue: 'border-blue-500/30 text-blue-300',
+    violet: 'border-violet-500/30 text-violet-300',
+    cyan: 'border-cyan-500/30 text-cyan-300',
+    green: 'border-emerald-500/30 text-emerald-300',
+    amber: 'border-amber-500/30 text-amber-300',
+    pink: 'border-fuchsia-500/30 text-fuchsia-300',
+  }[accent];
 
   return (
-    <div
-      className={`relative min-h-[88px] overflow-hidden rounded-xl border bg-gradient-to-br from-[#081322] to-[#020711] p-3 ${
-        themes[tone] || themes.blue
-      }`}
-    >
+    <div className={`min-h-[96px] rounded-[10px] border bg-gradient-to-br from-[#071322] to-[#020813] p-3 ${classes}`}>
       <div className="flex h-full items-center gap-3">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-current/20 bg-black/25">
-          <Icon size={29} />
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[12px] border border-current/25 bg-black/25">
+          <Icon size={34} />
         </div>
-
         <div className="min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.08em]">
             {label}
@@ -657,56 +588,53 @@ function PlayerHighlightCard({
           <p className="mt-1 truncate text-[13px] font-black text-white">
             {name || '-'}
           </p>
-          <p className="mt-0.5 text-[20px] font-black leading-none text-white">
+          <p className="mt-1 text-[21px] font-black leading-none text-white">
             {value || '-'}
           </p>
-          <p className="mt-1 text-[9px] font-bold text-slate-500">{detail}</p>
+          <p className="mt-1 text-[10px] font-medium text-[#8c9bb0]">
+            {unit}
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-function FeaturedWarCard({ item, onOpen }) {
-  const themes = {
-    blue:
-      'border-blue-500/45 from-blue-950/85 via-[#061426] to-[#030812] text-blue-300',
-    violet:
-      'border-violet-500/45 from-violet-950/85 via-[#140c29] to-[#030812] text-violet-300',
-    cyan:
-      'border-cyan-500/45 from-cyan-950/75 via-[#062028] to-[#030812] text-cyan-300',
-  };
+function FeaturedWar({ item, onOpen }) {
+  const accent = {
+    blue: 'border-blue-500/55 from-blue-950/90 via-[#07162b]',
+    violet: 'border-violet-500/55 from-violet-950/90 via-[#1a0d31]',
+    cyan: 'border-cyan-500/55 from-cyan-950/85 via-[#06242c]',
+  }[item.accent];
 
   return (
     <button
       type="button"
       onClick={() => onOpen(item.row)}
-      className={`group relative min-h-[104px] overflow-hidden rounded-xl border bg-gradient-to-r p-4 text-left transition hover:-translate-y-0.5 hover:brightness-110 ${
-        themes[item.tone] || themes.blue
-      }`}
+      className={`group relative min-h-[108px] overflow-hidden rounded-[10px] border bg-gradient-to-r ${accent} to-[#020813] p-4 text-left transition hover:-translate-y-0.5 hover:brightness-110`}
     >
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-2/3 opacity-55">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_45%,rgba(255,255,255,.16),transparent_35%)]" />
-        <div className="absolute bottom-0 right-0 h-16 w-full bg-[linear-gradient(135deg,transparent_25%,rgba(255,255,255,.06)_25%,rgba(255,255,255,.06)_28%,transparent_28%,transparent_45%,rgba(255,255,255,.05)_45%,rgba(255,255,255,.05)_48%,transparent_48%)]" />
+      <div className="absolute inset-y-0 right-0 w-[58%] opacity-75">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_65%_45%,rgba(255,255,255,.14),transparent_30%)]" />
+        <div className="absolute bottom-0 right-0 h-20 w-full bg-[linear-gradient(150deg,transparent_0%,transparent_32%,rgba(255,255,255,.06)_32%,rgba(255,255,255,.06)_36%,transparent_36%,transparent_48%,rgba(255,255,255,.05)_48%,rgba(255,255,255,.05)_52%,transparent_52%)]" />
       </div>
 
       <div className="relative z-10 flex h-full items-center gap-4">
-        <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-lg border border-current/35 bg-black/30">
-          <Swords size={27} />
+        <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-[8px] border border-current/40 bg-black/30 text-current">
+          <Shield size={30} />
         </div>
 
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.09em]">
-            {item.title}
+          <p className="text-[10px] font-black uppercase tracking-[0.08em] text-current">
+            {item.label}
           </p>
-          <p className="mt-2 text-[24px] font-black leading-none text-white">
+          <p className="mt-2 text-[25px] font-black leading-none text-white">
             {item.value}
           </p>
-          <p className="mt-2 text-[11px] font-bold text-slate-300">
-            {item.subtitle}
+          <p className="mt-2 text-[11px] font-bold text-[#c7d2e1]">
+            vs {item.opponent}
           </p>
-          <p className="mt-1 text-[9px] font-black text-slate-500">
-            {formatDate(item.row.date)}
+          <p className="mt-1 text-[9px] font-black text-[#6f7d90]">
+            {formatDate(item.date)}
           </p>
         </div>
       </div>
@@ -714,23 +642,17 @@ function FeaturedWarCard({ item, onOpen }) {
   );
 }
 
-function MiniBar({ value, max, tone }) {
+function BarCell({ value, max, color }) {
   const width = value > 0 ? Math.max(3, (value / Math.max(1, max)) * 100) : 0;
-  const colors = {
-    blue: 'bg-blue-500',
-    rose: 'bg-rose-500',
-    cyan: 'bg-cyan-400',
-    amber: 'bg-amber-400',
-  };
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[52px] text-right text-[11px] font-black text-slate-200">
+      <span className="w-[48px] text-right text-[11px] font-black text-[#d8e5f7]">
         {compact(value)}
       </span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-900">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#0b1728]">
         <div
-          className={`h-full rounded-full ${colors[tone] || colors.blue}`}
+          className={`h-full rounded-full ${color}`}
           style={{ width: `${width}%` }}
         />
       </div>
@@ -738,7 +660,7 @@ function MiniBar({ value, max, tone }) {
   );
 }
 
-function PlayerPerformanceTable({ players }) {
+function PlayersTable({ players }) {
   const rows = players.slice(0, 8);
   const maxKills = Math.max(1, ...rows.map((row) => row.kills));
   const maxDeaths = Math.max(1, ...rows.map((row) => row.deaths));
@@ -746,17 +668,13 @@ function PlayerPerformanceTable({ players }) {
   const maxFort = Math.max(1, ...rows.map((row) => row.fortDamage));
 
   if (!rows.length) {
-    return (
-      <p className="p-5 text-sm font-bold text-slate-500">
-        No player performance data for this month.
-      </p>
-    );
+    return <p className="p-5 text-sm text-slate-500">No player data.</p>;
   }
 
   return (
     <div className={`overflow-x-auto ${scrollCls}`}>
-      <div className="min-w-[980px]">
-        <div className="grid grid-cols-[42px_minmax(165px,1.4fr)_70px_180px_180px_85px_180px_180px] items-center gap-2 bg-[#081525] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-slate-400">
+      <div className="min-w-[1050px]">
+        <div className="grid grid-cols-[40px_minmax(180px,1.4fr)_70px_180px_180px_90px_180px_180px] gap-2 bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-[#7f8da2]">
           <span>#</span>
           <span>Player</span>
           <span className="text-center">Wars</span>
@@ -767,40 +685,40 @@ function PlayerPerformanceTable({ players }) {
           <span>Fort Dmg</span>
         </div>
 
-        <div className="divide-y divide-slate-800/60">
+        <div className="divide-y divide-[#102038]">
           {rows.map((player, index) => (
             <div
               key={player.name}
-              className="grid grid-cols-[42px_minmax(165px,1.4fr)_70px_180px_180px_85px_180px_180px] items-center gap-2 px-3 py-2 text-[12px] transition hover:bg-white/[.025]"
+              className="grid grid-cols-[40px_minmax(180px,1.4fr)_70px_180px_180px_90px_180px_180px] items-center gap-2 px-3 py-2 text-[12px] hover:bg-white/[.02]"
             >
-              <span className="font-black text-slate-500">{index + 1}</span>
+              <span className="font-black text-[#64748b]">{index + 1}</span>
 
               <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-500/20 bg-blue-950/40 text-[9px] font-black text-blue-300">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#31557d] bg-[#0a1830] text-[10px] font-black text-[#8fc4ff]">
                   {String(player.name || '?').slice(0, 1).toUpperCase()}
                 </div>
-                <span className="truncate font-black text-slate-100">
+                <span className="truncate font-black text-white">
                   {player.name}
                 </span>
               </div>
 
-              <span className="text-center font-black text-slate-300">
+              <span className="text-center font-black text-[#cbd5e1]">
                 {player.wars}
               </span>
 
-              <MiniBar value={player.kills} max={maxKills} tone="blue" />
-              <MiniBar value={player.deaths} max={maxDeaths} tone="rose" />
+              <BarCell value={player.kills} max={maxKills} color="bg-[#315dff]" />
+              <BarCell value={player.deaths} max={maxDeaths} color="bg-[#d8334f]" />
 
               <span
                 className={`text-center font-black ${
-                  player.kd >= 1 ? 'text-lime-400' : 'text-rose-400'
+                  player.kd >= 1 ? 'text-[#75e34f]' : 'text-[#ff6b7e]'
                 }`}
               >
                 {player.kd.toFixed(2)}
               </span>
 
-              <MiniBar value={player.damage} max={maxDamage} tone="cyan" />
-              <MiniBar value={player.fortDamage} max={maxFort} tone="amber" />
+              <BarCell value={player.damage} max={maxDamage} color="bg-[#42c4c8]" />
+              <BarCell value={player.fortDamage} max={maxFort} color="bg-[#d59a32]" />
             </div>
           ))}
         </div>
@@ -809,21 +727,17 @@ function PlayerPerformanceTable({ players }) {
   );
 }
 
-function EnemyGuildTable({ enemies }) {
+function EnemyTable({ enemies }) {
   const rows = enemies.slice(0, 10);
 
   if (!rows.length) {
-    return (
-      <p className="p-5 text-sm font-bold text-slate-500">
-        No enemy guild data for this month.
-      </p>
-    );
+    return <p className="p-5 text-sm text-slate-500">No enemy guild data.</p>;
   }
 
   return (
     <div className={`overflow-x-auto ${scrollCls}`}>
-      <div className="min-w-[760px]">
-        <div className="grid grid-cols-[42px_minmax(200px,1.5fr)_80px_110px_110px_100px] gap-2 bg-[#081525] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-slate-400">
+      <div className="min-w-[860px]">
+        <div className="grid grid-cols-[40px_minmax(220px,1.5fr)_80px_110px_110px_100px] gap-2 bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-[#7f8da2]">
           <span>#</span>
           <span>Guild</span>
           <span className="text-center">Wars</span>
@@ -832,33 +746,33 @@ function EnemyGuildTable({ enemies }) {
           <span className="text-center">K/D</span>
         </div>
 
-        <div className="divide-y divide-slate-800/60">
+        <div className="divide-y divide-[#102038]">
           {rows.map((enemy, index) => (
             <div
               key={enemy.name}
-              className="grid grid-cols-[42px_minmax(200px,1.5fr)_80px_110px_110px_100px] items-center gap-2 px-3 py-2 text-[12px] transition hover:bg-white/[.025]"
+              className="grid grid-cols-[40px_minmax(220px,1.5fr)_80px_110px_110px_100px] items-center gap-2 px-3 py-2 text-[12px] hover:bg-white/[.02]"
             >
-              <span className="font-black text-slate-500">{index + 1}</span>
+              <span className="font-black text-[#64748b]">{index + 1}</span>
 
               <div className="flex min-w-0 items-center gap-2">
                 <Shield size={14} className="shrink-0 text-violet-400" />
-                <span className="truncate font-black text-slate-100">
+                <span className="truncate font-black text-white">
                   {enemy.name}
                 </span>
               </div>
 
-              <span className="text-center font-black text-slate-300">
+              <span className="text-center font-black text-[#cbd5e1]">
                 {enemy.wars}
               </span>
-              <span className="text-center font-black text-blue-300">
+              <span className="text-center font-black text-[#8fc4ff]">
                 {compact(enemy.kills)}
               </span>
-              <span className="text-center font-black text-rose-300">
+              <span className="text-center font-black text-[#ff8fa0]">
                 {compact(enemy.deaths)}
               </span>
               <span
                 className={`text-center font-black ${
-                  enemy.kd >= 1 ? 'text-lime-400' : 'text-rose-400'
+                  enemy.kd >= 1 ? 'text-[#75e34f]' : 'text-[#ff6b7e]'
                 }`}
               >
                 {enemy.kd.toFixed(2)}
@@ -903,7 +817,7 @@ export default function MonthlyRecap({
   }, [months, selectedMonth]);
 
   const review = useMemo(
-    () => buildMonthlyReview(logs, selectedMonth),
+    () => buildReview(logs, selectedMonth),
     [logs, selectedMonth],
   );
 
@@ -925,7 +839,7 @@ export default function MonthlyRecap({
     featuredWars,
   } = review;
 
-  const recapText = totals.wars
+  const summaryText = totals.wars
     ? `Another strong month for Adversary. Our coordination and pressure produced ${compact(
         totals.kills,
       )} kills across ${totals.wars} node wars, with a ${totals.kd.toFixed(
@@ -934,15 +848,15 @@ export default function MonthlyRecap({
     : `No saved node wars were found for ${monthLabel(selectedMonth)}.`;
 
   return (
-    <div className="space-y-2.5 text-slate-100">
+    <div className="space-y-2.5 bg-[#020611] text-white">
       <div className="flex flex-col gap-3 pb-1 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-[31px] font-black leading-none text-white">
+          <h1 className="text-[32px] font-black leading-none tracking-[-0.02em] text-white">
             Monthly Recap
           </h1>
-          <p className="mt-1 text-[13px] font-medium text-slate-400">
+          <p className="mt-1 text-[13px] font-medium text-[#8d9bb0]">
             Node Wars Performance Overview —{' '}
-            <span className="font-bold text-blue-400">
+            <span className="font-bold text-[#4ea1ff]">
               {monthLabel(selectedMonth)}
             </span>
           </p>
@@ -952,12 +866,12 @@ export default function MonthlyRecap({
           <label className="relative">
             <CalendarDays
               size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7f8da2]"
             />
             <select
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
-              className="h-10 rounded-lg border border-slate-700 bg-[#030914] py-2 pl-9 pr-9 text-[12px] font-bold text-slate-200 outline-none focus:border-blue-500"
+              className="h-10 rounded-[8px] border border-[#23364f] bg-[#020813] py-2 pl-9 pr-9 text-[12px] font-bold text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
             >
               {months.map((month) => (
                 <option key={month} value={month}>
@@ -970,7 +884,7 @@ export default function MonthlyRecap({
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex h-10 items-center gap-2 rounded-lg border border-slate-700 bg-[#030914] px-4 text-[12px] font-bold text-slate-300 transition hover:border-blue-500 hover:text-white"
+            className="flex h-10 items-center gap-2 rounded-[8px] border border-[#23364f] bg-[#020813] px-4 text-[12px] font-bold text-[#d8e5f7] transition hover:border-[#4ea1ff]"
           >
             <Download size={14} />
             Export Report
@@ -983,85 +897,83 @@ export default function MonthlyRecap({
           icon={Swords}
           label="Total Wars"
           value={compact(totals.wars, 0)}
-          sub={comparisonText(
+          sub={changeLabel(
             totals.wars,
             previousTotals.wars,
             previousMonth,
           )}
-          tone="blue"
+          accent="blue"
         />
         <KpiCard
           icon={Skull}
           label="Total Kills"
           value={compact(totals.kills)}
-          sub={comparisonText(
+          sub={changeLabel(
             totals.kills,
             previousTotals.kills,
             previousMonth,
           )}
-          tone="violet"
+          accent="violet"
         />
         <KpiCard
           icon={Skull}
           label="Total Deaths"
           value={compact(totals.deaths)}
-          sub={comparisonText(
+          sub={changeLabel(
             totals.deaths,
             previousTotals.deaths,
             previousMonth,
             true,
           )}
-          tone="rose"
+          accent="rose"
         />
         <KpiCard
           icon={Crosshair}
           label="Overall K/D"
           value={totals.kd.toFixed(2)}
-          sub={comparisonText(
+          sub={changeLabel(
             totals.kd,
             previousTotals.kd,
             previousMonth,
           )}
-          tone="cyan"
+          accent="cyan"
         />
         <KpiCard
           icon={Zap}
           label="Damage"
           value={compact(totals.damage)}
-          sub={comparisonText(
+          sub={changeLabel(
             totals.damage,
             previousTotals.damage,
             previousMonth,
           )}
-          tone="emerald"
+          accent="green"
         />
         <KpiCard
           icon={Castle}
           label="Fort Damage"
           value={compact(totals.fortDamage)}
-          sub={comparisonText(
+          sub={changeLabel(
             totals.fortDamage,
             previousTotals.fortDamage,
             previousMonth,
           )}
-          tone="amber"
+          accent="amber"
         />
       </div>
 
-      <NeonPanel>
-        <SectionHeader icon={Sparkles} title="Monthly Highlights" />
-
-        <div className="grid gap-2 p-2 xl:grid-cols-[1.25fr_repeat(3,minmax(0,.72fr))]">
-          <div className="flex min-h-[78px] items-center gap-4 rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-950/45 to-[#040a15] px-4 py-3">
-            <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-950/20 text-amber-300">
-              <Shield size={30} />
+      <SectionShell icon={Sparkles} title="Monthly Highlights">
+        <div className="grid gap-2 p-2 xl:grid-cols-[1.2fr_repeat(3,minmax(0,.72fr))]">
+          <div className="flex min-h-[86px] items-center gap-4 rounded-[10px] border border-[#1b3554] bg-gradient-to-r from-[#07162a] to-[#020813] p-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-[#b68d35]/40 bg-[#2a1c06]/30 text-[#f6c453]">
+              <Shield size={31} />
             </div>
-            <p className="text-[12px] font-medium leading-5 text-slate-300">
-              {recapText}
+            <p className="text-[12px] font-medium leading-5 text-[#c8d3e2]">
+              {summaryText}
             </p>
           </div>
 
-          <HighlightTile
+          <MatchupCard
             icon={Swords}
             label="Most Fought Guild"
             name={mostFought?.name}
@@ -1072,18 +984,18 @@ export default function MonthlyRecap({
                   }`
                 : null
             }
-            tone="violet"
+            accent="violet"
           />
 
-          <HighlightTile
+          <MatchupCard
             icon={Trophy}
             label="Best Matchup"
             name={bestMatchup?.name}
             value={bestMatchup ? `${bestMatchup.kd.toFixed(2)} K/D` : null}
-            tone="emerald"
+            accent="cyan"
           />
 
-          <HighlightTile
+          <MatchupCard
             icon={Target}
             label="Toughest Matchup"
             name={toughestMatchup?.name}
@@ -1092,95 +1004,89 @@ export default function MonthlyRecap({
                 ? `${toughestMatchup.kd.toFixed(2)} K/D`
                 : null
             }
-            tone="rose"
+            accent="rose"
           />
         </div>
-      </NeonPanel>
+      </SectionShell>
 
-      <NeonPanel>
-        <SectionHeader icon={Users} title="Player Highlights" />
-
+      <SectionShell icon={Users} title="Player Highlights">
         <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <PlayerHighlightCard
+          <PlayerHighlight
             icon={Crosshair}
             label="Top Fragger"
             name={topFragger?.name}
             value={topFragger ? compact(topFragger.kills) : '-'}
-            detail="Kills"
-            tone="blue"
+            unit="Kills"
+            accent="blue"
           />
-          <PlayerHighlightCard
+          <PlayerHighlight
             icon={Gauge}
             label="Best K/D"
             name={bestKd?.name}
             value={bestKd ? bestKd.kd.toFixed(2) : '-'}
-            detail="K/D Ratio"
-            tone="violet"
+            unit="K/D Ratio"
+            accent="violet"
           />
-          <PlayerHighlightCard
+          <PlayerHighlight
             icon={Zap}
             label="Damage Leader"
             name={damageLeader?.name}
             value={damageLeader ? compact(damageLeader.damage) : '-'}
-            detail="Damage"
-            tone="cyan"
+            unit="Damage"
+            accent="cyan"
           />
-          <PlayerHighlightCard
+          <PlayerHighlight
             icon={Castle}
             label="Fort Breaker"
             name={fortBreaker?.name}
             value={fortBreaker ? compact(fortBreaker.fortDamage) : '-'}
-            detail="Fort Damage"
-            tone="emerald"
+            unit="Fort Damage"
+            accent="green"
           />
-          <PlayerHighlightCard
+          <PlayerHighlight
             icon={Medal}
             label="Longest Killstreak"
             name={longestStreak?.name}
             value={longestStreak ? compact(longestStreak.value, 0) : '-'}
-            detail="Kills"
-            tone="amber"
+            unit="Kills"
+            accent="amber"
           />
-          <PlayerHighlightCard
+          <PlayerHighlight
             icon={Flame}
             label="Best Kill Feed"
             name={bestFeed?.name}
             value={bestFeed ? compact(bestFeed.value, 0) : '-'}
-            detail="10-second window"
-            tone="rose"
+            unit="10-second window"
+            accent="pink"
           />
         </div>
-      </NeonPanel>
+      </SectionShell>
 
-      <NeonPanel>
-        <SectionHeader icon={Swords} title="Featured Wars" />
-
+      <SectionShell icon={Swords} title="Featured Wars">
         <div className="grid gap-2 p-2 xl:grid-cols-3">
           {featuredWars.length ? (
             featuredWars.map((item) => (
-              <FeaturedWarCard
+              <FeaturedWar
                 key={item.id}
                 item={item}
                 onOpen={onOpenMatchOverview}
               />
             ))
           ) : (
-            <p className="col-span-full p-5 text-sm font-bold text-slate-500">
+            <p className="col-span-full p-5 text-sm text-slate-500">
               No featured wars for this month.
             </p>
           )}
         </div>
-      </NeonPanel>
+      </SectionShell>
 
-      <NeonPanel>
-        <SectionHeader icon={Activity} title="Players Performance" />
-        <PlayerPerformanceTable players={players} />
-      </NeonPanel>
+      <SectionShell icon={Activity} title="Players Performance">
+        <PlayersTable players={players} />
+      </SectionShell>
 
-      <NeonPanel>
-        <SectionHeader icon={Shield} title="Enemy Guild Report" />
-        <EnemyGuildTable enemies={enemies} />
-      </NeonPanel>
+      <SectionShell icon={Shield} title="Enemy Guild Report">
+        <EnemyTable enemies={enemies} />
+      </SectionShell>
     </div>
   );
 }
