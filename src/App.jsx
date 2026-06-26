@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
+import adversaryEmblem from './assets/adversary-emblem.png';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -27,6 +28,7 @@ const Overview = lazy(() => import('./pages/Overview'));
 const PlayerStats = lazy(() => import('./pages/PlayerStats'));
 const HallOfFame = lazy(() => import('./pages/HallOfFame'));
 const Guild = lazy(() => import('./pages/Guild'));
+const MonthlyRecap = lazy(() => import('./pages/MonthlyRecap'));
 
 const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
@@ -497,7 +499,13 @@ export default function App() {
   }, [loadNodeLogs]);
 
   useEffect(() => {
-    if (page === 'players' || page === 'hall' || page === 'raw' || page === 'guild') {
+    if (
+      page === 'players' ||
+      page === 'hall' ||
+      page === 'raw' ||
+      page === 'guild' ||
+      page === 'monthly'
+    ) {
       loadAllLogs();
     }
   }, [page, loadAllLogs]);
@@ -591,6 +599,9 @@ export default function App() {
     (Array.isArray(allLogs) &&
       allLogs.length > 0 &&
       allLogs.some((log) => Boolean(log.raw)));
+
+  const monthlyRecapReady =
+    page !== 'monthly' || Array.isArray(allLogs);
 
   const label = current ? 'Current log' : all ? 'All saved days' : selectedDays[0] || 'No day';
 
@@ -732,6 +743,7 @@ export default function App() {
 
   const menu = [
     ['guild', 'Guild'],
+    ['monthly', 'Monthly Recap'],
     ['nodewars', 'Node Wars'],
     ['players', 'Player Stats'],
     ['hall', 'Hall of Fame'],
@@ -780,12 +792,35 @@ export default function App() {
     setPage('overview');
   }
 
+  function openMatchOverviewFromMonthlyRecap(match) {
+    const warId = String(match?.id || match?.warId || '').trim();
+
+    if (!warId) {
+      setMessage('This match has no valid war ID.');
+      return;
+    }
+
+    setNodeWarsWarning('');
+    setMatchHistoryDateFilter('');
+    setSelectedDays(['all']);
+    setSelectedWars([warId]);
+    setPage('overview');
+  }
+
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
-        <div className="mb-3 text-lg font-black text-white">☾ Battle Analytics</div>
+        <div className="mb-3 flex items-center gap-2 text-lg font-black text-white">
+          <img
+            src={adversaryEmblem}
+            alt=""
+            aria-hidden="true"
+            className="h-9 w-9 shrink-0 object-contain"
+          />
+          <span>Battle Analytics</span>
+        </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {menu.map(([id, title]) => (
@@ -799,7 +834,17 @@ export default function App() {
                   : 'border border-slate-700 bg-slate-900 text-slate-300'
               }`}
             >
-              {title}
+              <span className="flex items-center justify-center gap-2">
+                <span>{title}</span>
+                {id === 'guild' && (
+                  <img
+                    src={adversaryEmblem}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 shrink-0 object-contain"
+                  />
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -835,7 +880,15 @@ export default function App() {
 
       <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="hidden min-h-screen flex-col border-r border-slate-800 bg-slate-950 p-4 lg:flex">
-          <h1 className="mb-6 text-2xl font-black text-white">☾ Battle Analytics</h1>
+          <h1 className="mb-6 flex items-center gap-3 text-2xl font-black text-white">
+            <img
+              src={adversaryEmblem}
+              alt=""
+              aria-hidden="true"
+              className="h-12 w-12 shrink-0 object-contain"
+            />
+            <span>Battle Analytics</span>
+          </h1>
 
           <nav className="flex-1">
             {menu
@@ -854,7 +907,17 @@ export default function App() {
                           : 'hover:bg-slate-900'
                       }`}
                     >
-                      {title}
+                      <span className="flex items-center gap-2">
+                        <span>{title}</span>
+                        {id === 'guild' && (
+                          <img
+                            src={adversaryEmblem}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-6 w-6 shrink-0 object-contain"
+                          />
+                        )}
+                      </span>
                     </button>
 
                     {isNodeWars && (
@@ -941,6 +1004,21 @@ export default function App() {
                   label={label}
                   members={members}
                   selectedLogs={activeLogs}
+                />
+              )}
+            </Suspense>
+          )}
+
+          {page === 'monthly' && (
+            <Suspense
+              fallback={<PageLoader text="Loading Monthly Recap..." />}
+            >
+              {!monthlyRecapReady || loadingAllLogs ? (
+                <PageLoader text="Loading all logs for Monthly Recap..." />
+              ) : (
+                <MonthlyRecap
+                  logs={Array.isArray(allLogs) ? allLogs : []}
+                  onOpenMatchOverview={openMatchOverviewFromMonthlyRecap}
                 />
               )}
             </Suspense>
