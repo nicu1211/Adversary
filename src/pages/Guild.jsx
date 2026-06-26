@@ -857,6 +857,23 @@ function SectionTitle({ icon: Icon, title, sub }) {
 
 // ─── GuildTierProgressRow ──────────────────────────────────────────────────────
 
+function getKdBadgeStyle(value) {
+  const ratio = num(value);
+  const normalized = Math.max(
+    0,
+    Math.min(1, (ratio - 0.5) / 1),
+  );
+  const hue = Math.round(normalized * 120);
+  const secondHue = Math.min(120, hue + 18);
+
+  return {
+    background: `linear-gradient(90deg, hsla(${hue}, 88%, 45%, .28), hsla(${secondHue}, 88%, 48%, .48))`,
+    borderColor: `hsla(${hue}, 88%, 62%, .62)`,
+    color: `hsl(${hue}, 92%, 82%)`,
+    boxShadow: `0 0 14px hsla(${hue}, 88%, 50%, .14)`,
+  };
+}
+
 function GuildTierProgressRow({
   guild,
   maxScore,
@@ -891,7 +908,10 @@ function GuildTierProgressRow({
           {guild.name}
         </p>
 
-        <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-black text-cyan-200">
+        <span
+          className="rounded-full border px-2 py-0.5 text-[9px] font-black"
+          style={getKdBadgeStyle(guild.kdNumber)}
+        >
           K/D {decimal(guild.kdNumber, 2)}
         </span>
       </div>
@@ -906,7 +926,7 @@ function GuildTierProgressRow({
         />
 
         <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[360px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
-          <div className="grid grid-cols-5 gap-4 text-center">
+          <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <p className="text-[9px] uppercase tracking-wider text-blue-300/80">
                 Wars
@@ -924,12 +944,6 @@ function GuildTierProgressRow({
                 D
               </p>
               <p>{compact(guild.deaths)}</p>
-            </div>
-            <div>
-              <p className="text-[9px] uppercase tracking-wider text-violet-300/80">
-                K+D
-              </p>
-              <p>{compact(guild.totalInteractions)}</p>
             </div>
             <div>
               <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">
@@ -1078,13 +1092,8 @@ function EnemyGuildTierList({ stats, logs }) {
               <span className="text-[9px] font-black uppercase tracking-[0.07em] text-blue-300">
                 Minimum Node Wars
               </span>
-              <span className="flex flex-col items-end leading-none">
-                <span className="text-sm font-black tabular-nums text-white">
-                  {minWars}
-                </span>
-                <span className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-blue-300">
-                  Adversary
-                </span>
+              <span className="text-sm font-black tabular-nums text-white">
+                {minWars}
               </span>
             </div>
 
@@ -1242,6 +1251,7 @@ function Arsenal({ data, stats, logs }) {
         <MetricCard
           label="Node Wars"
           value={compact(data.matches)}
+          sub="Adversary"
           tone="blue"
           showIcon={false}
         />
