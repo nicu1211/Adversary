@@ -20,6 +20,94 @@ export const achievements = [
 export const scrollCls =
   '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80 [&::-webkit-scrollbar-thumb:hover]:bg-slate-600';
 
+
+const RAW_PARSE_CACHE_LIMIT = 320;
+const STATS_CACHE_LIMIT = 12;
+
+const rawParseCache = new Map();
+const rawIdentityCache = new Map();
+const calculatedStatsCache = new Map();
+
+function rememberLru(map, key, value, limit) {
+  if (map.has(key)) {
+    map.delete(key);
+  }
+
+  map.set(key, value);
+
+  while (map.size > limit) {
+    const oldestKey = map.keys().next().value;
+    map.delete(oldestKey);
+  }
+
+  return value;
+}
+
+function rawIdentity(rawValue) {
+  const raw = String(rawValue || '');
+
+  if (rawIdentityCache.has(raw)) {
+    const cached = rawIdentityCache.get(raw);
+    rawIdentityCache.delete(raw);
+    rawIdentityCache.set(raw, cached);
+    return cached;
+  }
+
+  const identity = `${raw.length}:${hashLog(raw)}`;
+
+  return rememberLru(
+    rawIdentityCache,
+    raw,
+    identity,
+    RAW_PARSE_CACHE_LIMIT,
+  );
+}
+
+function summaryIdentity(log) {
+  const summary =
+    log?.summary ||
+    log?.stats ||
+    log?.analytics ||
+    null;
+
+  if (!summary) return 'no-summary';
+
+  const players = Array.isArray(summary.players)
+    ? summary.players
+    : [];
+  const guilds = Array.isArray(summary.guilds)
+    ? summary.guilds
+    : [];
+
+  return [
+    summary.version || 1,
+    summary.calculatedAt || summary.calculated_at || '',
+    summary.kills || 0,
+    summary.deaths || 0,
+    players.length,
+    guilds.length,
+    summary.secondary?.rows?.length ||
+      summary.secondaryStats?.rows?.length ||
+      0,
+  ].join(':');
+}
+
+function calculateStatsSignature(logs) {
+  return logs
+    .map((log, index) => {
+      const raw = String(log?.raw || '');
+
+      return [
+        index,
+        log?.id || '',
+        log?.date || '',
+        log?.name || '',
+        raw ? rawIdentity(raw) : summaryIdentity(log),
+      ].join('|');
+    })
+    .join('||');
+}
+
 export function iso(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
     2,
@@ -767,38 +855,86 @@ export function calculateKillFeed(events, windowSeconds = 10, details = false) {
     : output;
 }
 
-function calculateStatsFromRaw(items) {
-  const normalizedItems = items.map((log) => {
-    const sections = splitRawLogSections(log.raw);
+function getCachedRawLogParts(log) {
+  const raw = String(log?.raw || '');
+  const metadataKey = [
+    String(log?.id || ''),
+    String(log?.date || ''),
+    String(log?.name || ''),
+  ].join('|');
 
-    return {
-      ...log,
-      raw: String(log.raw || ''),
-      mainRaw: sections.mainRaw,
-      secondaryRaw: sections.secondaryRaw,
-    };
-  });
+  let metadataMap = rawParseCache.get(raw);
 
-  const classicEvents = normalizedItems
-    .flatMap((log) => parseClassicEvents(log.mainRaw, log.name, log.date, log.id))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec || a.i - b.i);
+  if (!metadataMap) {
+    metadataMap = new Map();
+    rememberLru(
+      rawParseCache,
+      raw,
+      metadataMap,
+      RAW_PARSE_CACHE_LIMIT,
+    );
+  } else {
+    rawParseCache.delete(raw);
+    rawParseCache.set(raw, metadataMap);
+  }
 
-  const summaryRows = normalizedItems.flatMap((log) =>
-    parseSummaryRows(log.mainRaw).map((row) => ({
+  if (metadataMap.has(metadataKey)) {
+    return metadataMap.get(metadataKey);
+  }
+
+  const sections = splitRawLogSections(raw);
+  const classicEvents = parseClassicEvents(
+    sections.mainRaw,
+    log?.name,
+    log?.date,
+    log?.id,
+  );
+  const summaryRows = parseSummaryRows(sections.mainRaw).map(
+    (row) => ({
       ...row,
-      date: log.date,
-      id: log.id,
-      war: log.name,
-    })),
+      date: log?.date,
+      id: log?.id,
+      war: log?.name,
+    }),
+  );
+  const secondaryRows = parseSecondaryRows(
+    sections.secondaryRaw,
+  ).map((row) => ({
+    ...row,
+    date: log?.date,
+    id: log?.id,
+    war: log?.name,
+  }));
+
+  const parsed = {
+    classicEvents,
+    summaryRows,
+    secondaryRows,
+  };
+
+  metadataMap.set(metadataKey, parsed);
+
+  return parsed;
+}
+
+function calculateStatsFromRaw(items) {
+  const parsedItems = items.map(getCachedRawLogParts);
+
+  const classicEvents = parsedItems
+    .flatMap((item) => item.classicEvents)
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        a.sec - b.sec ||
+        a.i - b.i,
+    );
+
+  const summaryRows = parsedItems.flatMap(
+    (item) => item.summaryRows,
   );
 
-  const secondaryRows = normalizedItems.flatMap((log) =>
-    parseSecondaryRows(log.secondaryRaw).map((row) => ({
-      ...row,
-      date: log.date,
-      id: log.id,
-      war: log.name,
-    })),
+  const secondaryRows = parsedItems.flatMap(
+    (item) => item.secondaryRows,
   );
 
   if (!classicEvents.length && !summaryRows.length && !secondaryRows.length) {
@@ -832,17 +968,58 @@ function calculateStatsFromRaw(items) {
   const secondaryByPlayer = {};
   const secondaryByPlayerLog = {};
 
+  // Shared indexes remove repeated full-array scans for every secondary row.
+  const basePlayersByWar = {};
+  const classicCountsByWarPlayer = {};
+  const summaryCountsByWarPlayer = {};
+
+  function normalizedWarId(value) {
+    return String(value || 'secondary');
+  }
+
+  function warPlayerKey(warId, playerName) {
+    return `${normalizedWarId(warId)}::${playerName}`;
+  }
+
+  function ensureBaseWarPlayer(warId, playerName) {
+    const id = normalizedWarId(warId);
+
+    basePlayersByWar[id] ||= {};
+    basePlayersByWar[id][playerName] ||= {
+      name: playerName,
+      kills: 0,
+      deaths: 0,
+    };
+
+    return basePlayersByWar[id][playerName];
+  }
+
   classicEvents.forEach((event) => {
     const playerName = getGuildPlayerFromEvent(event);
 
     if (!playerName) return;
 
+    const basePlayer = ensureBaseWarPlayer(
+      event.id,
+      playerName,
+    );
+    const indexedKey = warPlayerKey(event.id, playerName);
+
+    classicCountsByWarPlayer[indexedKey] ||= {
+      kills: 0,
+      deaths: 0,
+    };
+
     if (event.type === 'kill') {
+      basePlayer.kills += 1;
+      classicCountsByWarPlayer[indexedKey].kills += 1;
       add(playerKills, playerName);
       add(classicPlayerKills, playerName);
       add(guildKills, event.guild);
       families[playerName] = event.kf || families[playerName] || '-';
     } else {
+      basePlayer.deaths += 1;
+      classicCountsByWarPlayer[indexedKey].deaths += 1;
       add(playerDeaths, playerName);
       add(classicPlayerDeaths, playerName);
       add(guildDeaths, event.guild);
@@ -864,6 +1041,24 @@ function calculateStatsFromRaw(items) {
     add(playerKills, row.player, row.kills);
     add(playerDeaths, row.player, row.deaths);
     families[row.player] = families[row.player] || '-';
+
+    const basePlayer = ensureBaseWarPlayer(
+      row.id,
+      row.player,
+    );
+    const indexedKey = warPlayerKey(row.id, row.player);
+
+    basePlayer.kills += Number(row.kills) || 0;
+    basePlayer.deaths += Number(row.deaths) || 0;
+
+    summaryCountsByWarPlayer[indexedKey] ||= {
+      kills: 0,
+      deaths: 0,
+    };
+    summaryCountsByWarPlayer[indexedKey].kills +=
+      Number(row.kills) || 0;
+    summaryCountsByWarPlayer[indexedKey].deaths +=
+      Number(row.deaths) || 0;
   });
 
   function mergeSecondaryValues(current, playerName, row) {
@@ -920,55 +1115,51 @@ function calculateStatsFromRaw(items) {
     secondaryByPlayerLog[logKey] = mergeSecondaryValues(currentLog, playerName, row);
   }
 
+  const scopedBasePlayersCache = {};
+  let fallbackBasePlayers = null;
+
+  function sortBasePlayers(rows) {
+    return rows.sort(
+      (a, b) =>
+        b.kills - a.kills ||
+        a.deaths - b.deaths ||
+        a.name.localeCompare(b.name),
+    );
+  }
+
   function buildBasePlayersForSecondary(row) {
-    const byPlayer = {};
+    const warId = normalizedWarId(row.id);
 
-    classicEvents
-      .filter((event) => event.id === row.id)
-      .forEach((event) => {
-        const name = getGuildPlayerFromEvent(event);
-
-        if (!name) return;
-
-        byPlayer[name] ||= {
-          name,
-          kills: 0,
-          deaths: 0,
-        };
-
-        byPlayer[name][event.type === 'kill' ? 'kills' : 'deaths'] += 1;
-      });
-
-    summaryRows
-      .filter((summaryRow) => summaryRow.id === row.id)
-      .forEach((summaryRow) => {
-        byPlayer[summaryRow.player] ||= {
-          name: summaryRow.player,
-          kills: 0,
-          deaths: 0,
-        };
-
-        byPlayer[summaryRow.player].kills += Number(summaryRow.kills) || 0;
-        byPlayer[summaryRow.player].deaths += Number(summaryRow.deaths) || 0;
-      });
-
-    const scopedPlayers = Object.values(byPlayer);
-
-    if (scopedPlayers.length) {
-      return scopedPlayers.sort(
-        (a, b) => b.kills - a.kills || a.deaths - b.deaths || a.name.localeCompare(b.name),
+    if (!scopedBasePlayersCache[warId]) {
+      scopedBasePlayersCache[warId] = sortBasePlayers(
+        Object.values(basePlayersByWar[warId] || {}).map(
+          (player) => ({ ...player }),
+        ),
       );
     }
 
-    return [
-      ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
-    ]
-      .map((name) => ({
-        name,
-        kills: playerKills[name] || 0,
-        deaths: playerDeaths[name] || 0,
-      }))
-      .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths || a.name.localeCompare(b.name));
+    const scopedPlayers = scopedBasePlayersCache[warId];
+
+    if (scopedPlayers.length) {
+      return scopedPlayers;
+    }
+
+    if (!fallbackBasePlayers) {
+      fallbackBasePlayers = sortBasePlayers(
+        [
+          ...new Set([
+            ...Object.keys(playerKills),
+            ...Object.keys(playerDeaths),
+          ]),
+        ].map((name) => ({
+          name,
+          kills: playerKills[name] || 0,
+          deaths: playerDeaths[name] || 0,
+        })),
+      );
+    }
+
+    return fallbackBasePlayers;
   }
 
   const assignedSecondaryPlayers = new Set();
@@ -1016,27 +1207,20 @@ function calculateStatsFromRaw(items) {
 
     if (!playerName) return;
 
-    const classicKillsForSameLog = classicEvents.filter(
-      (event) =>
-        event.id === row.id &&
-        event.type === 'kill' &&
-        getGuildPlayerFromEvent(event) === playerName,
-    ).length;
+    const indexedKey = warPlayerKey(row.id, playerName);
+    const classicCounts =
+      classicCountsByWarPlayer[indexedKey] || {};
+    const summaryCounts =
+      summaryCountsByWarPlayer[indexedKey] || {};
 
-    const classicDeathsForSameLog = classicEvents.filter(
-      (event) =>
-        event.id === row.id &&
-        event.type === 'death' &&
-        getGuildPlayerFromEvent(event) === playerName,
-    ).length;
-
-    const summaryKillsForSameLog = summaryRows
-      .filter((summaryRow) => summaryRow.id === row.id && summaryRow.player === playerName)
-      .reduce((sum, summaryRow) => sum + (Number(summaryRow.kills) || 0), 0);
-
-    const summaryDeathsForSameLog = summaryRows
-      .filter((summaryRow) => summaryRow.id === row.id && summaryRow.player === playerName)
-      .reduce((sum, summaryRow) => sum + (Number(summaryRow.deaths) || 0), 0);
+    const classicKillsForSameLog =
+      Number(classicCounts.kills) || 0;
+    const classicDeathsForSameLog =
+      Number(classicCounts.deaths) || 0;
+    const summaryKillsForSameLog =
+      Number(summaryCounts.kills) || 0;
+    const summaryDeathsForSameLog =
+      Number(summaryCounts.deaths) || 0;
 
     playerKills[playerName] = Math.max(
       0,
@@ -1358,26 +1542,7 @@ function mergeStatsFromSummaries(items) {
   };
 }
 
-export function calculateStats(items) {
-  const logs = Array.isArray(items) ? items : [];
-
-  if (!logs.length) {
-    return {
-      ev: [],
-      players: [],
-      guilds: [],
-      line: [],
-      kills: 0,
-      deaths: 0,
-      kd: '0.00',
-      st: {},
-      fd: {},
-      secondary: { rows: [], totals: secondaryRowsTotals([]) },
-      hasTimeline: false,
-      summaryOnly: false,
-    };
-  }
-
+function calculateStatsUncached(logs) {
   const logsWithRaw = logs.filter((log) => Boolean(log.raw));
   const logsWithoutRaw = logs.filter((log) => !log.raw);
 
@@ -1405,12 +1570,60 @@ export function calculateStats(items) {
     return {
       ...merged,
       ev: rawStats.ev || [],
-      hasTimeline: Boolean(rawStats.hasTimeline || summaryStats.hasTimeline),
-      summaryOnly: Boolean(summaryStats.summaryOnly && !rawStats.hasTimeline),
+      hasTimeline: Boolean(
+        rawStats.hasTimeline || summaryStats.hasTimeline,
+      ),
+      summaryOnly: Boolean(
+        summaryStats.summaryOnly && !rawStats.hasTimeline,
+      ),
     };
   }
 
   return mergeStatsFromSummaries(logs);
+}
+
+export function calculateStats(items) {
+  const logs = Array.isArray(items) ? items : [];
+
+  if (!logs.length) {
+    return {
+      ev: [],
+      players: [],
+      guilds: [],
+      line: [],
+      kills: 0,
+      deaths: 0,
+      kd: '0.00',
+      st: {},
+      fd: {},
+      secondary: {
+        rows: [],
+        totals: secondaryRowsTotals([]),
+      },
+      hasTimeline: false,
+      summaryOnly: false,
+    };
+  }
+
+  const signature = calculateStatsSignature(logs);
+
+  if (calculatedStatsCache.has(signature)) {
+    const cached = calculatedStatsCache.get(signature);
+
+    calculatedStatsCache.delete(signature);
+    calculatedStatsCache.set(signature, cached);
+
+    return cached;
+  }
+
+  const result = calculateStatsUncached(logs);
+
+  return rememberLru(
+    calculatedStatsCache,
+    signature,
+    result,
+    STATS_CACHE_LIMIT,
+  );
 }
 
 export function buildLogSummary(log) {
