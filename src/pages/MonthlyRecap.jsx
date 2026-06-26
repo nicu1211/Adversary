@@ -543,6 +543,13 @@ function buildMonthlyPerformancePlayers(
               ['killFeed', 'feed'],
               0,
             ),
+        bestKillFeed: secondary
+          ? num(secondary.killFeed)
+          : readStatMetric(
+              primary,
+              ['killFeed', 'feed'],
+              0,
+            ),
         damageDealt: secondary
           ? num(secondary.damage)
           : readStatMetric(
@@ -830,6 +837,7 @@ function buildRosterPerformancePlayers(activePlayers) {
       killStreak: 0,
       longestKillStreak: 0,
       killFeed: 0,
+      bestKillFeed: 0,
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
@@ -1421,6 +1429,7 @@ function SortHeader({
   onSort,
   className = '',
   toneClass = 'text-[#7f8da2]',
+  rainbow = false,
 }) {
   const active = sort.key === sortKey;
   const arrow = active
@@ -1435,7 +1444,19 @@ function SortHeader({
       onClick={() => onSort(sortKey)}
       className={`flex items-center gap-1 text-left transition hover:brightness-125 ${
         active ? 'brightness-125' : ''
-      } ${toneClass} ${className}`}
+      } ${
+        rainbow
+          ? 'bg-clip-text text-transparent'
+          : toneClass
+      } ${className}`}
+      style={
+        rainbow
+          ? {
+              backgroundImage:
+                'linear-gradient(90deg, #fb7185, #facc15, #4ade80, #38bdf8, #a78bfa)',
+            }
+          : undefined
+      }
     >
       <span>{label}</span>
       <span className="text-[10px]">{arrow}</span>
@@ -1635,6 +1656,14 @@ function addImpactScores(players) {
 
 function performanceValue(player, key, viewMode) {
   if (viewMode !== 'average') {
+    if (key === 'killStreak') {
+      return num(player?.longestKillStreak);
+    }
+
+    if (key === 'killFeed') {
+      return num(player?.bestKillFeed);
+    }
+
     return num(player?.[key]);
   }
 
@@ -1690,8 +1719,8 @@ const performanceColumnThemes = {
     bar: 'bg-red-400',
   },
   impact: {
-    text: 'text-yellow-300',
-    bar: 'bg-yellow-300',
+    text: '',
+    bar: '',
   },
   killStreak: {
     text: 'text-slate-200',
@@ -1745,6 +1774,7 @@ function PerformanceMetricCell({
           ),
         );
 
+  const isImpact = metricKey === 'impact';
   const theme =
     metricKey === 'kd'
       ? value >= 1
@@ -1755,25 +1785,46 @@ function PerformanceMetricCell({
           bar: 'bg-slate-300',
         };
 
+  const rainbowGradient =
+    'linear-gradient(90deg, #fb7185, #facc15, #4ade80, #38bdf8, #a78bfa)';
+
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col items-center">
       <span
-        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${theme.text}`}
+        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${
+          isImpact
+            ? 'bg-clip-text text-transparent'
+            : theme.text
+        }`}
+        style={
+          isImpact
+            ? { backgroundImage: rainbowGradient }
+            : undefined
+        }
       >
         {formatPerformanceValue(metricKey, value, viewMode)}
       </span>
 
       <span className="mt-1.5 block h-[2px] w-[58%] overflow-visible rounded-full bg-slate-800/55">
         <span
-          className={`relative block h-full rounded-full ${theme.bar}`}
+          className={`relative block h-full rounded-full ${
+            isImpact ? '' : theme.bar
+          }`}
           style={{
             width: `${width}%`,
-            boxShadow: '0 0 7px currentColor',
+            backgroundImage: isImpact
+              ? rainbowGradient
+              : undefined,
+            boxShadow: isImpact
+              ? '0 0 8px rgba(56,189,248,0.4)'
+              : '0 0 7px currentColor',
           }}
         >
           {width > 0 && (
             <span
-              className={`absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full ${theme.bar} shadow-[0_0_6px_currentColor]`}
+              className={`absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full ${
+                isImpact ? 'bg-violet-300' : theme.bar
+              } shadow-[0_0_6px_currentColor]`}
             />
           )}
         </span>
@@ -1785,7 +1836,7 @@ function PerformanceMetricCell({
 function PlayersTable({ players }) {
   const [viewMode, setViewMode] = useState('total');
   const [sort, setSort] = useState({
-    key: 'kills',
+    key: 'impact',
     direction: 'desc',
   });
 
@@ -1882,7 +1933,7 @@ function PlayersTable({ players }) {
   }
 
   const gridColumns =
-    'grid-cols-[40px_minmax(210px,1.35fr)_72px_112px_112px_100px_112px_116px_116px_138px_138px_110px_138px]';
+    'grid-cols-[40px_minmax(210px,1.35fr)_112px_72px_112px_112px_100px_116px_116px_138px_138px_110px_138px]';
 
   return (
     <>
@@ -1922,6 +1973,14 @@ function PlayersTable({ players }) {
               onSort={handleSort}
             />
             <SortHeader
+              label="Impact"
+              sortKey="impact"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              rainbow
+            />
+            <SortHeader
               label="Wars"
               sortKey="wars"
               sort={sort}
@@ -1951,14 +2010,6 @@ function PlayersTable({ players }) {
               onSort={handleSort}
               className="justify-center"
               toneClass="text-emerald-400"
-            />
-            <SortHeader
-              label="Impact"
-              sortKey="impact"
-              sort={sort}
-              onSort={handleSort}
-              className="justify-center"
-              toneClass="text-yellow-300"
             />
             <SortHeader
               label="Killstreak"
@@ -2047,6 +2098,13 @@ function PlayersTable({ players }) {
                     )}
                   </div>
 
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="impact"
+                    max={100}
+                    viewMode={viewMode}
+                  />
+
                   <span
                     className={`text-center font-black ${
                       inactive
@@ -2073,12 +2131,6 @@ function PlayersTable({ players }) {
                     player={player}
                     metricKey="kd"
                     max={metricMaximums.kd}
-                    viewMode={viewMode}
-                  />
-                  <PerformanceMetricCell
-                    player={player}
-                    metricKey="impact"
-                    max={100}
                     viewMode={viewMode}
                   />
                   <PerformanceMetricCell
