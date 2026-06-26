@@ -921,60 +921,84 @@ function PlayersTable({ players }) {
   );
 }
 
-function EnemyTable({ enemies }) {
-  const rows = enemies.slice(0, 10);
+function EnemyGuildReport({ enemies }) {
+  const rows = enemies.slice(0, 6);
 
   if (!rows.length) {
-    return <p className="p-5 text-sm text-slate-500">No enemy guild data.</p>;
+    return (
+      <div className="flex min-h-[280px] items-center justify-center p-5 text-sm font-bold text-slate-500">
+        No enemy guild data.
+      </div>
+    );
   }
 
   return (
-    <div className={`overflow-x-auto ${scrollCls}`}>
-      <div className="min-w-[860px]">
-        <div className="grid grid-cols-[40px_minmax(220px,1.5fr)_80px_110px_110px_100px] gap-2 bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-[#7f8da2]">
-          <span>#</span>
-          <span>Guild</span>
-          <span className="text-center">Wars</span>
-          <span className="text-center">Kills</span>
-          <span className="text-center">Deaths</span>
-          <span className="text-center">K/D</span>
-        </div>
+    <div className="divide-y divide-[#102038]">
+      {rows.map((enemy, index) => {
+        const positive = enemy.kd >= 1;
 
-        <div className="divide-y divide-[#102038]">
-          {rows.map((enemy, index) => (
+        return (
+          <div
+            key={enemy.name}
+            className="group grid grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 transition hover:bg-white/[.025]"
+          >
             <div
-              key={enemy.name}
-              className="grid grid-cols-[40px_minmax(220px,1.5fr)_80px_110px_110px_100px] items-center gap-2 px-3 py-2 text-[12px] hover:bg-white/[.02]"
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border text-[10px] font-black ${
+                index === 0
+                  ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                  : index === 1
+                    ? 'border-slate-300/20 bg-slate-300/5 text-slate-300'
+                    : index === 2
+                      ? 'border-orange-400/25 bg-orange-400/10 text-orange-300'
+                      : 'border-[#263c59] bg-[#081626] text-[#7589a3]'
+              }`}
             >
-              <span className="font-black text-[#64748b]">{index + 1}</span>
+              {index + 1}
+            </div>
 
+            <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <Shield size={14} className="shrink-0 text-violet-400" />
-                <span className="truncate font-black text-white">
-                  {enemy.name}
-                </span>
-              </div>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-950/30 text-violet-300">
+                  <Shield size={15} />
+                </div>
 
-              <span className="text-center font-black text-[#cbd5e1]">
-                {enemy.wars}
-              </span>
-              <span className="text-center font-black text-[#8fc4ff]">
-                {compact(enemy.kills)}
-              </span>
-              <span className="text-center font-black text-[#ff8fa0]">
-                {compact(enemy.deaths)}
-              </span>
-              <span
-                className={`text-center font-black ${
-                  enemy.kd >= 1 ? 'text-[#75e34f]' : 'text-[#ff6b7e]'
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-[12px] font-black text-white">
+                      {enemy.name}
+                    </p>
+                    <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.05em] text-slate-400">
+                      {enemy.wars} war{enemy.wars === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-3 text-[9px] font-black">
+                    <span className="text-blue-300">
+                      {compact(enemy.kills)} K
+                    </span>
+                    <span className="text-rose-300">
+                      {compact(enemy.deaths)} D
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <p
+                className={`text-[15px] font-black ${
+                  positive ? 'text-[#75e34f]' : 'text-[#ff6077]'
                 }`}
               >
                 {enemy.kd.toFixed(2)}
-              </span>
+              </p>
+              <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-500">
+                K/D
+              </p>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1176,61 +1200,71 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <SectionShell icon={Sparkles} title="Monthly Highlights">
-        <div className="grid gap-2 p-2 md:grid-cols-3">
-          <MatchupCard
-            icon={Swords}
-            label="Most Fought Guild"
-            name={mostFought?.name}
-            wars={mostFought?.wars}
-            value={
-              mostFought
-                ? `${compact(mostFought.kills)} K · ${compact(
-                    mostFought.deaths,
-                  )} D`
-                : null
-            }
-            accent="violet"
-            onClick={
-              mostFought?.latestWar
-                ? () => onOpenMatchOverview(mostFought.latestWar)
-                : undefined
-            }
-          />
+      <div className="grid gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.85fr)]">
+        <SectionShell icon={Sparkles} title="Monthly Highlights">
+          <div className="grid h-full gap-2 p-2 lg:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+            <MatchupCard
+              icon={Swords}
+              label="Most Fought Guild"
+              name={mostFought?.name}
+              wars={mostFought?.wars}
+              value={
+                mostFought
+                  ? `${compact(mostFought.kills)} K · ${compact(
+                      mostFought.deaths,
+                    )} D`
+                  : null
+              }
+              accent="violet"
+              onClick={
+                mostFought?.latestWar
+                  ? () => onOpenMatchOverview(mostFought.latestWar)
+                  : undefined
+              }
+            />
 
-          <MatchupCard
-            icon={Trophy}
-            label="Best Matchup"
-            name={bestMatchup?.name}
-            wars={bestMatchup?.wars}
-            value={bestMatchup ? `${bestMatchup.kd.toFixed(2)} K/D` : null}
-            accent="cyan"
-            onClick={
-              bestMatchup?.latestWar
-                ? () => onOpenMatchOverview(bestMatchup.latestWar)
-                : undefined
-            }
-          />
+            <MatchupCard
+              icon={Trophy}
+              label="Best Matchup"
+              name={bestMatchup?.name}
+              wars={bestMatchup?.wars}
+              value={
+                bestMatchup
+                  ? `${bestMatchup.kd.toFixed(2)} K/D`
+                  : null
+              }
+              accent="cyan"
+              onClick={
+                bestMatchup?.latestWar
+                  ? () => onOpenMatchOverview(bestMatchup.latestWar)
+                  : undefined
+              }
+            />
 
-          <MatchupCard
-            icon={Target}
-            label="Toughest Opponent"
-            name={toughestMatchup?.name}
-            wars={toughestMatchup?.wars}
-            value={
-              toughestMatchup
-                ? `${toughestMatchup.kd.toFixed(2)} K/D`
-                : null
-            }
-            accent="rose"
-            onClick={
-              toughestMatchup?.latestWar
-                ? () => onOpenMatchOverview(toughestMatchup.latestWar)
-                : undefined
-            }
-          />
-        </div>
-      </SectionShell>
+            <MatchupCard
+              icon={Target}
+              label="Toughest Opponent"
+              name={toughestMatchup?.name}
+              wars={toughestMatchup?.wars}
+              value={
+                toughestMatchup
+                  ? `${toughestMatchup.kd.toFixed(2)} K/D`
+                  : null
+              }
+              accent="rose"
+              onClick={
+                toughestMatchup?.latestWar
+                  ? () => onOpenMatchOverview(toughestMatchup.latestWar)
+                  : undefined
+              }
+            />
+          </div>
+        </SectionShell>
+
+        <SectionShell icon={Shield} title="Enemy Guild Report">
+          <EnemyGuildReport enemies={enemies} />
+        </SectionShell>
+      </div>
 
       <SectionShell icon={Users} title="Player Highlights">
         <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -1289,9 +1323,6 @@ export default function MonthlyRecap({
         <PlayersTable players={players} />
       </SectionShell>
 
-      <SectionShell icon={Shield} title="Enemy Guild Report">
-        <EnemyTable enemies={enemies} />
-      </SectionShell>
     </div>
   );
 }
