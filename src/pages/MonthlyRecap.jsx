@@ -2097,7 +2097,7 @@ function PerformanceMetricCell({
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col items-center">
       <span
-        className={`whitespace-nowrap text-center text-[10px] font-black leading-none ${
+        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${
           isImpact
             ? 'bg-clip-text text-transparent'
             : theme.text
@@ -2235,7 +2235,7 @@ function PlayersTable({ players }) {
   }
 
   const gridColumns =
-    'grid-cols-[28px_minmax(140px,1.25fr)_84px_48px_72px_72px_62px_82px_80px_98px_98px_74px_100px]';
+    'grid-cols-[28px_minmax(130px,160px)_84px_48px_72px_72px_62px_82px_80px_98px_98px_74px_100px]';
 
   return (
     <>
@@ -2249,7 +2249,7 @@ function PlayersTable({ players }) {
               key={mode}
               type="button"
               onClick={() => setViewMode(mode)}
-              className={`rounded-md px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.06em] transition ${
+              className={`rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] transition ${
                 viewMode === mode
                   ? 'bg-[#315dff] text-white shadow-[0_4px_14px_rgba(49,93,255,.25)]'
                   : 'text-[#7f8da2] hover:text-white'
@@ -2264,7 +2264,7 @@ function PlayersTable({ players }) {
       <div className={`max-h-[720px] overflow-y-auto overflow-x-hidden ${scrollCls}`}>
         <div className="w-full min-w-0">
           <div
-            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-1 border-b border-[#13243a] bg-[#071422] px-2 py-2 text-[8px] font-black uppercase tracking-[0.045em]`}
+            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-1 border-b border-[#13243a] bg-[#071422] px-2 py-2 text-[9px] font-black uppercase tracking-[0.045em]`}
           >
             <span className="text-[#7f8da2]">#</span>
 
@@ -2370,7 +2370,7 @@ function PlayersTable({ players }) {
               return (
                 <div
                   key={player.name}
-                  className={`grid ${gridColumns} items-center gap-1 px-2 py-2 text-[11px] transition hover:bg-white/[.02] ${
+                  className={`grid ${gridColumns} items-center gap-1 px-2 py-2 text-[12px] transition hover:bg-white/[.02] ${
                     inactive ? 'bg-[#030914]/55' : ''
                   }`}
                 >
@@ -2394,7 +2394,7 @@ function PlayersTable({ players }) {
                     </span>
 
                     {inactive && (
-                      <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.04em] text-rose-400">
+                      <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.04em] text-rose-400">
                         Inactive
                       </span>
                     )}
