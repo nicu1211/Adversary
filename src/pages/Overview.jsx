@@ -1998,7 +1998,7 @@ function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
         'Battle log',
     );
 
-    calculateKillFeed(oneStats?.ev || [], 20, true).forEach(
+    calculateKillFeed(oneStats?.ev || [], 30, true).forEach(
       (feed, feedIndex) => {
         records.push({
           ...feed,
@@ -2014,7 +2014,7 @@ function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
 
   if (records.length) return records;
 
-  return calculateKillFeed(fallbackEvents || [], 20, true).map(
+  return calculateKillFeed(fallbackEvents || [], 30, true).map(
     (feed, index) => ({
       ...feed,
       source: 'combat',
