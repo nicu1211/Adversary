@@ -197,9 +197,9 @@ function buildPlayerWarCounts(stats) {
   );
 }
 
-// A guild encounter qualifies only when that exact Node War contains
-// at least 30 combined kills + deaths against the guild.
-function getWarGuildBreakdown(log) {
+// A guild encounter qualifies only when that exact Node War reaches
+// the requested combined kills + deaths threshold.
+function getWarGuildBreakdown(log, minimumInteractions = 30) {
   const summary = log?.summary || log?.stats || log?.analytics || {};
   const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
 
@@ -215,7 +215,7 @@ function getWarGuildBreakdown(log) {
     .filter(
       (guild) =>
         guild.name &&
-        guild.kills + guild.deaths >= 30,
+        guild.kills + guild.deaths >= minimumInteractions,
     )
     .sort(
       (a, b) =>
@@ -225,11 +225,18 @@ function getWarGuildBreakdown(log) {
     );
 }
 
-function getFeaturedWarGuild(log) {
-  return getWarGuildBreakdown(log)[0] || null;
+function getFeaturedWarGuild(log, minimumInteractions = 30) {
+  return (
+    getWarGuildBreakdown(log, minimumInteractions)[0] ||
+    null
+  );
 }
 
-function buildEnemyRows(logs, stats) {
+function buildEnemyRows(
+  logs,
+  stats,
+  minimumInteractions = 30,
+) {
   const byGuild = {};
 
   function add(name, kills, deaths, warId) {
@@ -264,7 +271,7 @@ function buildEnemyRows(logs, stats) {
       const ourDeaths = num(guild?.kills);
       const totalInteractions = ourKills + ourDeaths;
 
-      if (totalInteractions < 30) return;
+      if (totalInteractions < minimumInteractions) return;
 
       add(guild?.name, ourKills, ourDeaths, warId);
     });
@@ -299,7 +306,7 @@ function buildEnemyRows(logs, stats) {
     .filter(
       (guild) =>
         guild.wars > 0 &&
-        guild.totalInteractions >= 30,
+        guild.totalInteractions >= minimumInteractions,
     )
     .sort(
       (a, b) =>
@@ -498,10 +505,20 @@ function buildReview(logs, selectedMonth) {
     ),
   );
 
-  const enemies = buildEnemyRows(monthLogs, stats).map((enemy) => {
+  const enemies = buildEnemyRows(monthLogs, stats, 30);
+
+  const highlightEnemies = buildEnemyRows(
+    monthLogs,
+    stats,
+    50,
+  ).map((enemy) => {
     const matchingRows = rows
       .filter((row) => {
-        const guild = featuredGuildForRow(row);
+        const guild = getFeaturedWarGuild(
+          sourceLogForRow(row),
+          50,
+        );
+
         return guild?.name === enemy.name;
       })
       .sort(
@@ -515,13 +532,13 @@ function buildReview(logs, selectedMonth) {
     };
   });
 
-  const mostFought = enemies[0] || null;
+  const mostFought = highlightEnemies[0] || null;
 
   // Inverted by request:
   // Best Matchup uses the lowest K/D result.
   // Toughest Opponent uses the highest K/D result.
   const bestMatchup =
-    [...enemies]
+    [...highlightEnemies]
       .filter((enemy) => enemy.kills + enemy.deaths > 0)
       .sort(
         (a, b) =>
@@ -531,7 +548,7 @@ function buildReview(logs, selectedMonth) {
       )[0] || null;
 
   const toughestMatchup =
-    [...enemies]
+    [...highlightEnemies]
       .filter((enemy) => enemy.kills + enemy.deaths > 0)
       .sort(
         (a, b) =>
@@ -986,29 +1003,21 @@ function EnemyGuildReport({ enemies }) {
 
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-950/30 text-violet-300">
-                  <Shield size={15} />
-                </div>
+                <p className="truncate text-[14px] font-black text-white">
+                  {enemy.name}
+                </p>
+                <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.05em] text-slate-400">
+                  {enemy.wars} war{enemy.wars === 1 ? '' : 's'}
+                </span>
+              </div>
 
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-[14px] font-black text-white">
-                      {enemy.name}
-                    </p>
-                    <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.05em] text-slate-400">
-                      {enemy.wars} war{enemy.wars === 1 ? '' : 's'}
-                    </span>
-                  </div>
-
-                  <div className="mt-1 flex items-center gap-3 text-[11px] font-black">
-                    <span className="text-blue-300">
-                      {compact(enemy.kills)} K
-                    </span>
-                    <span className="text-rose-300">
-                      {compact(enemy.deaths)} D
-                    </span>
-                  </div>
-                </div>
+              <div className="mt-1 flex items-center gap-3 text-[11px] font-black">
+                <span className="text-blue-300">
+                  {compact(enemy.kills)} K
+                </span>
+                <span className="text-rose-300">
+                  {compact(enemy.deaths)} D
+                </span>
               </div>
             </div>
 
