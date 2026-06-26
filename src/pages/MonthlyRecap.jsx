@@ -1443,13 +1443,203 @@ function SortHeader({
   );
 }
 
+function percentileScore(
+  value,
+  values,
+  lowerIsBetter = false,
+) {
+  const validValues = (values || [])
+    .map((item) => num(item))
+    .filter((item) => Number.isFinite(item));
+
+  if (!validValues.length) return 50;
+  if (validValues.length === 1) return 100;
+
+  const target = num(value);
+  const lowerCount = validValues.filter(
+    (item) => item < target,
+  ).length;
+  const equalCount = validValues.filter(
+    (item) => item === target,
+  ).length;
+
+  const percentile =
+    ((lowerCount + Math.max(0, equalCount - 1) / 2) /
+      (validValues.length - 1)) *
+    100;
+
+  const bounded = Math.max(0, Math.min(100, percentile));
+  return lowerIsBetter ? 100 - bounded : bounded;
+}
+
+function weightedImpactPart(parts) {
+  const totalWeight = parts.reduce(
+    (sum, part) => sum + num(part.weight),
+    0,
+  );
+
+  if (!totalWeight) return 0;
+
+  return (
+    parts.reduce(
+      (sum, part) =>
+        sum + num(part.score) * num(part.weight),
+      0,
+    ) / totalWeight
+  );
+}
+
+function addImpactScores(players) {
+  const activePlayers = (players || []).filter(
+    (player) => !player.inactive && num(player.wars) > 0,
+  );
+
+  if (!activePlayers.length) {
+    return (players || []).map((player) => ({
+      ...player,
+      impact: 0,
+    }));
+  }
+
+  const metric = (player, key) => {
+    const wars = Math.max(1, num(player.wars));
+
+    switch (key) {
+      case 'averageKd':
+        return num(player.averageKd);
+      case 'killsPerWar':
+        return num(player.kills) / wars;
+      case 'deathsPerWar':
+        return num(player.deaths) / wars;
+      case 'killStreakPerWar':
+        return num(player.killStreak) / wars;
+      case 'killFeedPerWar':
+        return num(player.killFeed) / wars;
+      case 'damageDealtPerWar':
+        return num(player.damageDealt) / wars;
+      case 'ccHitsPerWar':
+        return num(player.ccHits) / wars;
+      case 'fortDamagePerWar':
+        return num(player.fortDamage) / wars;
+      case 'damageTakenPerDeath':
+        return num(player.damageTaken) /
+          Math.max(1, num(player.deaths));
+      default:
+        return num(player?.[key]);
+    }
+  };
+
+  const metricValues = {};
+  [
+    'averageKd',
+    'killsPerWar',
+    'deathsPerWar',
+    'killStreakPerWar',
+    'killFeedPerWar',
+    'damageDealtPerWar',
+    'ccHitsPerWar',
+    'fortDamagePerWar',
+    'damageTakenPerDeath',
+    'kills',
+    'killStreak',
+    'killFeed',
+    'damageDealt',
+    'damageTaken',
+    'ccHits',
+    'fortDamage',
+    'wars',
+  ].forEach((key) => {
+    metricValues[key] = activePlayers.map((player) =>
+      metric(player, key),
+    );
+  });
+
+  return (players || []).map((player) => {
+    if (player.inactive || num(player.wars) <= 0) {
+      return {
+        ...player,
+        impact: 0,
+      };
+    }
+
+    const percentile = (
+      key,
+      lowerIsBetter = false,
+    ) =>
+      percentileScore(
+        metric(player, key),
+        metricValues[key],
+        lowerIsBetter,
+      );
+
+    const quality = weightedImpactPart([
+      { score: percentile('averageKd'), weight: 18 },
+      { score: percentile('killsPerWar'), weight: 14 },
+      {
+        score: percentile('deathsPerWar', true),
+        weight: 8,
+      },
+      {
+        score: percentile('damageDealtPerWar'),
+        weight: 14,
+      },
+      {
+        score: percentile('killFeedPerWar'),
+        weight: 8,
+      },
+      {
+        score: percentile('killStreakPerWar'),
+        weight: 6,
+      },
+      { score: percentile('ccHitsPerWar'), weight: 10 },
+      {
+        score: percentile('fortDamagePerWar'),
+        weight: 12,
+      },
+      {
+        score: percentile('damageTakenPerDeath'),
+        weight: 10,
+      },
+    ]);
+
+    const confidence =
+      num(player.wars) / (num(player.wars) + 3);
+    const adjustedQuality =
+      50 + confidence * (quality - 50);
+
+    const totalContribution = weightedImpactPart([
+      { score: percentile('kills'), weight: 25 },
+      { score: percentile('damageDealt'), weight: 25 },
+      { score: percentile('killFeed'), weight: 10 },
+      { score: percentile('killStreak'), weight: 5 },
+      { score: percentile('ccHits'), weight: 15 },
+      { score: percentile('fortDamage'), weight: 15 },
+      { score: percentile('damageTaken'), weight: 5 },
+    ]);
+
+    const attendance = percentile('wars');
+
+    const impact =
+      adjustedQuality * 0.65 +
+      totalContribution * 0.25 +
+      attendance * 0.1;
+
+    return {
+      ...player,
+      impact: Math.round(
+        Math.max(0, Math.min(100, impact)) * 10,
+      ) / 10,
+    };
+  });
+}
+
 function performanceValue(player, key, viewMode) {
   if (viewMode !== 'average') {
     return num(player?.[key]);
   }
 
-  if (key === 'wars') {
-    return num(player?.wars);
+  if (key === 'wars' || key === 'impact') {
+    return num(player?.[key]);
   }
 
   if (key === 'kd') {
@@ -1463,6 +1653,10 @@ function performanceValue(player, key, viewMode) {
 function formatPerformanceValue(key, value, viewMode) {
   if (key === 'kd') {
     return num(value).toFixed(2);
+  }
+
+  if (key === 'impact') {
+    return num(value).toFixed(1);
   }
 
   if (viewMode === 'average' && key !== 'wars') {
@@ -1494,6 +1688,10 @@ const performanceColumnThemes = {
   kdNegative: {
     text: 'text-red-400',
     bar: 'bg-red-400',
+  },
+  impact: {
+    text: 'text-yellow-300',
+    bar: 'bg-yellow-300',
   },
   killStreak: {
     text: 'text-slate-200',
@@ -1591,8 +1789,13 @@ function PlayersTable({ players }) {
     direction: 'desc',
   });
 
+  const playersWithImpact = useMemo(
+    () => addImpactScores(players || []),
+    [players],
+  );
+
   const rows = useMemo(() => {
-    const sorted = [...(players || [])];
+    const sorted = [...playersWithImpact];
 
     sorted.sort((a, b) => {
       if (a.inactive !== b.inactive) {
@@ -1624,7 +1827,7 @@ function PlayersTable({ players }) {
     });
 
     return sorted;
-  }, [players, sort, viewMode]);
+  }, [playersWithImpact, sort, viewMode]);
 
   const activeRows = rows.filter((player) => !player.inactive);
 
@@ -1633,6 +1836,7 @@ function PlayersTable({ players }) {
       'kills',
       'deaths',
       'kd',
+      'impact',
       'killStreak',
       'killFeed',
       'damageDealt',
@@ -1644,12 +1848,14 @@ function PlayersTable({ players }) {
     return Object.fromEntries(
       metricKeys.map((key) => [
         key,
-        Math.max(
-          1,
-          ...activeRows.map((player) =>
-            performanceValue(player, key, viewMode),
-          ),
-        ),
+        key === 'impact'
+          ? 100
+          : Math.max(
+              1,
+              ...activeRows.map((player) =>
+                performanceValue(player, key, viewMode),
+              ),
+            ),
       ]),
     );
   }, [activeRows, viewMode]);
@@ -1676,7 +1882,7 @@ function PlayersTable({ players }) {
   }
 
   const gridColumns =
-    'grid-cols-[40px_minmax(210px,1.35fr)_72px_112px_112px_100px_116px_116px_138px_138px_110px_138px]';
+    'grid-cols-[40px_minmax(210px,1.35fr)_72px_112px_112px_100px_112px_116px_116px_138px_138px_110px_138px]';
 
   return (
     <>
@@ -1703,7 +1909,7 @@ function PlayersTable({ players }) {
       </div>
 
       <div className={`max-h-[720px] overflow-auto ${scrollCls}`}>
-        <div className="min-w-[1600px]">
+        <div className="min-w-[1720px]">
           <div
             className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-2 border-b border-[#13243a] bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.07em]`}
           >
@@ -1745,6 +1951,14 @@ function PlayersTable({ players }) {
               onSort={handleSort}
               className="justify-center"
               toneClass="text-emerald-400"
+            />
+            <SortHeader
+              label="Impact"
+              sortKey="impact"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-yellow-300"
             />
             <SortHeader
               label="Killstreak"
@@ -1859,6 +2073,12 @@ function PlayersTable({ players }) {
                     player={player}
                     metricKey="kd"
                     max={metricMaximums.kd}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="impact"
+                    max={100}
                     viewMode={viewMode}
                   />
                   <PerformanceMetricCell
