@@ -1998,7 +1998,7 @@ function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
         'Battle log',
     );
 
-    calculateKillFeed(oneStats?.ev || [], 45, true).forEach(
+    calculateKillFeed(oneStats?.ev || [], 40, true).forEach(
       (feed, feedIndex) => {
         records.push({
           ...feed,
@@ -2014,7 +2014,7 @@ function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
 
   if (records.length) return records;
 
-  return calculateKillFeed(fallbackEvents || [], 45, true).map(
+  return calculateKillFeed(fallbackEvents || [], 40, true).map(
     (feed, index) => ({
       ...feed,
       source: 'combat',
@@ -2092,7 +2092,7 @@ export default function OverviewPage({
   members,
   selectedLogs,
 }) {
-  const timelineKillFeeds = calculateKillFeed(stats.ev, 45, true);
+  const timelineKillFeeds = calculateKillFeed(stats.ev, 40, true);
   const panelKillFeeds = useMemo(
     () => buildKillFeedPanelRows(selectedLogs, stats.ev),
     [selectedLogs, stats.ev],
