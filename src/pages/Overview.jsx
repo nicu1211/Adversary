@@ -545,7 +545,405 @@ function BestOverall({
     ],
   };
 
-  function buildRowsFromStats(oneStats) {
+  function getOriginalLogRaw(log) {
+    return String(
+      log?.raw ??
+        log?.rawLog ??
+        log?.raw_log ??
+        log?.log ??
+        log?.content ??
+        log?._src?.raw ??
+        log?._src?.rawLog ??
+        log?._src?.raw_log ??
+        log?._src?.log ??
+        log?._src?.content ??
+        '',
+    );
+  }
+
+  function splitPresenceColumns(line) {
+    const value = String(line || '').trim();
+
+    if (!value) return [];
+
+    const separated = [
+      value.split(/\t+/),
+      value.split(/\s*\|\s*/),
+      value.split(/\s*;\s*/),
+    ]
+      .filter((parts) => parts.length > 1)
+      .map((parts) =>
+        parts.map((part) => part.trim()).filter(Boolean),
+      )
+      .sort((a, b) => b.length - a.length)[0];
+
+    if (separated?.length > 1) return separated;
+
+    const multiSpace = value
+      .split(/\s{2,}/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (multiSpace.length > 1) return multiSpace;
+
+    return value
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  function isPresenceNumber(value) {
+    const raw = String(value || '').trim();
+
+    if (!raw || !/\d/.test(raw)) return false;
+
+    const withoutSuffix = raw
+      .replace(/[kKmMbBtT]\s*$/g, '')
+      .trim();
+
+    if (/[A-Za-z]/.test(withoutSuffix)) return false;
+
+    const cleaned = raw
+      .replace(/[^\d\s.,+\-kKmMbBtT]/g, '')
+      .trim();
+
+    return /^[-+]?\d[\d\s.,]*(?:[kKmMbBtT])?$/.test(cleaned);
+  }
+
+  function expandPresenceNumberColumns(columns) {
+    return columns.flatMap((column) => {
+      const raw = String(column || '').trim();
+      const parts = raw.split(/\s+/).filter(Boolean);
+
+      if (parts.length > 1 && parts.every(isPresenceNumber)) {
+        return parts;
+      }
+
+      return [column];
+    });
+  }
+
+  function parsePresenceNumber(value) {
+    const raw = String(value || '')
+      .trim()
+      .replace(/[kKmMbBtT]\s*$/g, '')
+      .replace(/\s+/g, '');
+
+    if (!raw) return NaN;
+
+    const lastComma = raw.lastIndexOf(',');
+    const lastDot = raw.lastIndexOf('.');
+    let normalized = raw;
+
+    if (lastComma >= 0 && lastDot >= 0) {
+      normalized =
+        lastComma > lastDot
+          ? raw.replace(/\./g, '').replace(',', '.')
+          : raw.replace(/,/g, '');
+    } else if (lastComma >= 0) {
+      normalized = raw.replace(',', '.');
+    }
+
+    const number = Number(
+      normalized.replace(/[^\d.+-]/g, ''),
+    );
+
+    return Number.isFinite(number) ? number : NaN;
+  }
+
+  function structuredMetricText(value, depth = 0) {
+    if (value == null || depth > 3) return '';
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => structuredMetricText(item, depth + 1))
+        .join(' ');
+    }
+
+    if (typeof value === 'object') {
+      return Object.entries(value)
+        .map(
+          ([key, item]) =>
+            `${key} ${structuredMetricText(item, depth + 1)}`,
+        )
+        .join(' ');
+    }
+
+    return String(value);
+  }
+
+  function detectBestOverallColumns(log, oneStats) {
+    const presence = {
+      kills: false,
+      deaths: false,
+      kd: false,
+      feed: false,
+      damageDealt: false,
+      damageTaken: false,
+      ccHits: false,
+      fortDamage: false,
+    };
+
+    const raw = getOriginalLogRaw(log);
+    const startMarker =
+      '===== ADVERSARY_SECONDARY_LOG_START =====';
+    const endMarker =
+      '===== ADVERSARY_SECONDARY_LOG_END =====';
+
+    let secondaryRaw = '';
+
+    if (raw.includes(startMarker) && raw.includes(endMarker)) {
+      secondaryRaw =
+        raw.split(startMarker)[1]?.split(endMarker)[0] || '';
+    }
+
+    const normalizedSecondary = String(secondaryRaw || '')
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ');
+
+    const explicitHeader = {
+      feed: /\bkill\s*feed\b|\bkillfeed\b/.test(
+        normalizedSecondary,
+      ),
+      damageDealt:
+        /\bdamage\s*dealt\b|\bdmg\s*dealt\b/.test(
+          normalizedSecondary,
+        ),
+      damageTaken:
+        /\bdamage\s*taken\b|\bdmg\s*taken\b/.test(
+          normalizedSecondary,
+        ),
+      ccHits:
+        /\bcc\s*hits?\b|\bcrowd\s*control\b/.test(
+          normalizedSecondary,
+        ),
+      fortDamage:
+        /\bdamage\s*(?:to|on)\s*fort\b|\bfort\s*damage\b|\bdmg\s*to\s*fort\b/.test(
+          normalizedSecondary,
+        ),
+    };
+
+    const hasRecognizedDetailHeader = Object.values(
+      explicitHeader,
+    ).some(Boolean);
+
+    let foundRawStatsRow = false;
+
+    String(secondaryRaw || '')
+      .split(/\r?\n/)
+      .forEach((line) => {
+        let columns = splitPresenceColumns(line);
+        columns = expandPresenceNumberColumns(columns);
+
+        const firstNumberIndex = columns.findIndex(
+          isPresenceNumber,
+        );
+
+        if (firstNumberIndex < 0) return;
+
+        const numericColumns = columns
+          .slice(firstNumberIndex)
+          .filter(isPresenceNumber);
+
+        if (numericColumns.length < 2) return;
+
+        foundRawStatsRow = true;
+        presence.kills = true;
+        presence.deaths = true;
+        presence.kd = true;
+
+        // When the table has named headers, those headers are authoritative.
+        // This prevents old two-column or three-column tables from inheriting
+        // auto-generated zeroes for columns that were never present.
+        if (hasRecognizedDetailHeader) {
+          Object.entries(explicitHeader).forEach(
+            ([metric, exists]) => {
+              if (exists) presence[metric] = true;
+            },
+          );
+          return;
+        }
+
+        const thirdRaw = String(numericColumns[2] || '');
+        const thirdNumber = parsePresenceNumber(thirdRaw);
+        const looksLikeFullTableWithKd =
+          numericColumns.length >= 9 &&
+          /[.,]/.test(thirdRaw) &&
+          Number.isFinite(thirdNumber) &&
+          thirdNumber >= 0 &&
+          thirdNumber <= 50;
+
+        if (looksLikeFullTableWithKd) {
+          if (numericColumns.length >= 5) presence.feed = true;
+          if (numericColumns.length >= 6) {
+            presence.damageDealt = true;
+          }
+          if (numericColumns.length >= 7) {
+            presence.damageTaken = true;
+          }
+          if (numericColumns.length >= 8) presence.ccHits = true;
+          if (numericColumns.length >= 9) {
+            presence.fortDamage = true;
+          }
+        } else {
+          if (numericColumns.length >= 3) presence.feed = true;
+          if (numericColumns.length >= 4) {
+            presence.damageDealt = true;
+          }
+          if (numericColumns.length >= 5) {
+            presence.damageTaken = true;
+          }
+          if (numericColumns.length >= 6) presence.ccHits = true;
+          if (numericColumns.length >= 9) {
+            presence.fortDamage = true;
+          }
+        }
+      });
+
+    if (foundRawStatsRow) {
+      return presence;
+    }
+
+    // Summary-only logs do not retain the original table layout. In that
+    // case, count a detail column only when there is positive evidence:
+    // a non-zero value, an explicit presence flag, or structured column
+    // metadata. Merely owning an auto-filled property with value 0 is not
+    // considered evidence that the old column existed.
+    const sourceSummary =
+      log?.summary ||
+      log?.stats ||
+      log?.analytics ||
+      log?._src?.summary ||
+      log?._src?.stats ||
+      log?._src?.analytics ||
+      {};
+    const summarySecondary =
+      sourceSummary?.secondary ||
+      sourceSummary?.secondaryStats ||
+      {};
+    const summaryPlayers = Array.isArray(sourceSummary?.players)
+      ? sourceSummary.players
+      : [];
+    const summaryRows = Array.isArray(summarySecondary?.rows)
+      ? summarySecondary.rows
+      : [];
+    const evidenceRows = [...summaryRows, ...summaryPlayers];
+    const structuredText = structuredMetricText([
+      summarySecondary?.headers,
+      summarySecondary?.header,
+      summarySecondary?.columns,
+      summarySecondary?.columnNames,
+      summarySecondary?.fields,
+      summarySecondary?.availableFields,
+      summarySecondary?.schema,
+      summarySecondary?.metrics,
+    ])
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ');
+
+    function hasExplicitPresenceFlag(row, aliases) {
+      return aliases.some((alias) => {
+        const compact = String(alias).replace(
+          /[^a-zA-Z0-9]/g,
+          '',
+        );
+        const camel =
+          compact.charAt(0).toLowerCase() + compact.slice(1);
+        const snake = String(alias)
+          .replace(/([a-z])([A-Z])/g, '$1_$2')
+          .replace(/[^a-zA-Z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .toLowerCase();
+        const candidates = [
+          `has_${snake}`,
+          `${snake}_exists`,
+          `${snake}_present`,
+          `${snake}_provided`,
+          `${camel}HasValue`,
+          `${camel}Exists`,
+          `${camel}Present`,
+          `${camel}Provided`,
+        ];
+
+        return candidates.some(
+          (key) =>
+            Object.prototype.hasOwnProperty.call(row || {}, key) &&
+            Boolean(row[key]),
+        );
+      });
+    }
+
+    function hasSummaryMetric(metric, headerPatterns) {
+      const aliases = metricAliases[metric];
+
+      if (headerPatterns.some((pattern) => pattern.test(structuredText))) {
+        return true;
+      }
+
+      if (
+        evidenceRows.some(
+          (row) =>
+            hasExplicitPresenceFlag(row, aliases) ||
+            aliases.some(
+              (alias) =>
+                Object.prototype.hasOwnProperty.call(
+                  row || {},
+                  alias,
+                ) &&
+                Number(row[alias]) !== 0,
+            ),
+        )
+      ) {
+        return true;
+      }
+
+      const totals = summarySecondary?.totals || {};
+
+      return aliases.some(
+        (alias) =>
+          Object.prototype.hasOwnProperty.call(totals, alias) &&
+          Number(totals[alias]) !== 0,
+      );
+    }
+
+    const hasCoreSummary =
+      summaryPlayers.length > 0 ||
+      summaryRows.length > 0 ||
+      (oneStats?.players || []).length > 0 ||
+      (oneStats?.ev || []).length > 0;
+
+    presence.kills = hasCoreSummary;
+    presence.deaths = hasCoreSummary;
+    presence.kd = hasCoreSummary;
+    presence.feed = hasSummaryMetric('feed', [
+      /\bkill\s*feed\b/,
+      /\bkillfeed\b/,
+    ]);
+    presence.damageDealt = hasSummaryMetric(
+      'damageDealt',
+      [/\bdamage\s*dealt\b/, /\bdmg\s*dealt\b/],
+    );
+    presence.damageTaken = hasSummaryMetric(
+      'damageTaken',
+      [/\bdamage\s*taken\b/, /\bdmg\s*taken\b/],
+    );
+    presence.ccHits = hasSummaryMetric('ccHits', [
+      /\bcc\s*hits?\b/,
+      /\bcrowd\s*control\b/,
+    ]);
+    presence.fortDamage = hasSummaryMetric(
+      'fortDamage',
+      [
+        /\bdamage\s*(?:to|on)\s*fort\b/,
+        /\bfort\s*damage\b/,
+        /\bdmg\s*to\s*fort\b/,
+      ],
+    );
+
+    return presence;
+  }
+
+  function buildRowsFromStats(oneStats, logColumns) {
     const hasTimeline = statsHasTimeline(oneStats);
     const timelineStreaks = hasTimeline
       ? calculateStreaks(oneStats?.ev || [])
@@ -641,7 +1039,7 @@ function BestOverall({
         : Number(kills.toFixed(2));
 
       const savedFeedSource =
-        secondaryRow && hasOwnMetric(secondaryRow, metricAliases.feed)
+        logColumns?.feed && secondaryRow
           ? secondaryRow
           : combatPlayer;
 
@@ -657,23 +1055,19 @@ function BestOverall({
           : savedFeed;
 
       const readOptionalMetric = (metric) => {
+        if (!logColumns?.[metric]) return 0;
+
         const aliases = metricAliases[metric];
 
-        if (hasOwnMetric(secondaryRow, aliases)) {
+        if (secondaryRow) {
           return readMetric(secondaryRow, aliases, 0);
         }
 
         return readMetric(combatPlayer, aliases, 0);
       };
 
-      const optionalMetricExists = (metric) => {
-        const aliases = metricAliases[metric];
-
-        return (
-          hasOwnMetric(secondaryRow, aliases) ||
-          hasOwnMetric(combatPlayer, aliases)
-        );
-      };
+      const optionalMetricExists = (metric) =>
+        Boolean(logColumns?.[metric]);
 
       return {
         ...combatPlayer,
@@ -692,13 +1086,19 @@ function BestOverall({
         ccHits: readOptionalMetric('ccHits'),
         fortDamage: readOptionalMetric('fortDamage'),
         available: {
-          kills: true,
-          deaths: true,
-          kd: true,
+          kills:
+            Boolean(logColumns?.kills) ||
+            (hasTimeline && hasCombatEvents),
+          deaths:
+            Boolean(logColumns?.deaths) ||
+            (hasTimeline && hasCombatEvents),
+          kd:
+            Boolean(logColumns?.kd) ||
+            (hasTimeline && hasCombatEvents),
           streak: hasTimeline && hasCombatEvents,
           feed:
             (hasTimeline && hasCombatEvents) ||
-            hasOwnMetric(savedFeedSource, metricAliases.feed),
+            Boolean(logColumns?.feed),
           damageDealt: optionalMetricExists('damageDealt'),
           damageTaken: optionalMetricExists('damageTaken'),
           ccHits: optionalMetricExists('ccHits'),
@@ -1064,7 +1464,8 @@ function BestOverall({
 
     (selectedLogs || []).forEach((log) => {
       const oneStats = calculateStats([log]);
-      const rows = buildRowsFromStats(oneStats);
+      const logColumns = detectBestOverallColumns(log, oneStats);
+      const rows = buildRowsFromStats(oneStats, logColumns);
 
       if (!rows.length) return;
 
@@ -1268,7 +1669,7 @@ function BestOverall({
         <h3 className="text-xl font-black">♛ Best Overall</h3>
 
         <p className="mb-3 text-xs text-slate-400">
-          Average of only the ranked columns that contain data
+          Average of only columns physically present in each log
         </p>
 
         <input
