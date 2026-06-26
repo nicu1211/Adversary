@@ -200,7 +200,11 @@ function getWarGuildBreakdown(log) {
       kills: num(guild?.kills),
       deaths: num(guild?.deaths),
     }))
-    .filter((guild) => guild.name)
+    .filter(
+      (guild) =>
+        guild.name &&
+        guild.kills + guild.deaths >= 30,
+    )
     .sort(
       (a, b) =>
         b.kills + b.deaths - (a.kills + a.deaths) ||
@@ -242,7 +246,12 @@ function buildEnemyRows(logs, stats) {
     const warId = log?.id || dateOf(log) || `log-${index}`;
 
     guilds.forEach((guild) => {
-      add(guild?.name, guild?.kills, guild?.deaths, warId);
+      const guildKills = num(guild?.kills);
+      const guildDeaths = num(guild?.deaths);
+
+      if (guildKills + guildDeaths < 30) return;
+
+      add(guild?.name, guildKills, guildDeaths, warId);
     });
   });
 
@@ -970,14 +979,6 @@ export default function MonthlyRecap({
     featuredWars,
   } = review;
 
-  const summaryText = totals.wars
-    ? `Another strong month for Adversary. Our coordination and pressure produced ${compact(
-        totals.kills,
-      )} kills across ${totals.wars} node wars, with a ${totals.kd.toFixed(
-        2,
-      )} overall K/D.`
-    : `No saved node wars were found for ${monthLabel(selectedMonth)}.`;
-
   return (
     <div className="space-y-2.5 bg-[#020611] text-white">
       <div className="flex flex-col gap-3 pb-1 lg:flex-row lg:items-start lg:justify-between">
@@ -1122,16 +1123,7 @@ export default function MonthlyRecap({
       </SectionShell>
 
       <SectionShell icon={Sparkles} title="Monthly Highlights">
-        <div className="grid gap-2 p-2 xl:grid-cols-[1.2fr_repeat(3,minmax(0,.72fr))]">
-          <div className="flex min-h-[86px] items-center gap-4 rounded-[10px] border border-[#1b3554] bg-gradient-to-r from-[#07162a] to-[#020813] p-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-[#b68d35]/40 bg-[#2a1c06]/30 text-[#f6c453]">
-              <Shield size={31} />
-            </div>
-            <p className="text-[12px] font-medium leading-5 text-[#c8d3e2]">
-              {summaryText}
-            </p>
-          </div>
-
+        <div className="grid gap-2 p-2 md:grid-cols-3">
           <MatchupCard
             icon={Swords}
             label="Most Fought Guild"
