@@ -309,6 +309,8 @@ function buildStatsLogPlayers(stats) {
         killStreak: 0,
         hasKillStreak: false,
         damage: 0,
+        damageTaken: 0,
+        ccHits: 0,
         fortDamage: 0,
       });
     }
@@ -329,6 +331,28 @@ function buildStatsLogPlayers(stats) {
       ],
       0,
     );
+    player.damageTaken += readStatMetric(
+      row,
+      [
+        'damageTaken',
+        'damage_taken',
+        'damage taken',
+        'Damage Taken',
+      ],
+      0,
+    );
+    player.ccHits += readStatMetric(
+      row,
+      [
+        'ccHits',
+        'cc_hits',
+        'cc hits',
+        'CC Hits',
+        'cc',
+        'CC',
+      ],
+      0,
+    );
     player.fortDamage += readStatMetric(
       row,
       [
@@ -341,7 +365,7 @@ function buildStatsLogPlayers(stats) {
       0,
     );
 
-    // Best Kill Feed comes only from the saved Stats Log field.
+    // KillFeed is the best saved Stats Log value during the month.
     player.killFeed = Math.max(
       player.killFeed,
       readStatMetric(row, ['killFeed', 'feed'], 0),
@@ -378,6 +402,138 @@ function buildStatsLogPlayers(stats) {
         b.kd - a.kd ||
         a.name.localeCompare(b.name),
     );
+}
+
+function buildMonthlyPerformancePlayers(
+  stats,
+  statLogPlayers,
+  warCounts,
+) {
+  const primaryByName = new Map(
+    (stats?.players || []).map((player) => [
+      String(player?.name || '').trim().toLowerCase(),
+      player,
+    ]),
+  );
+
+  const statsLogByName = new Map(
+    (statLogPlayers || []).map((player) => [
+      String(player?.name || '').trim().toLowerCase(),
+      player,
+    ]),
+  );
+
+  const warsByName = new Map(
+    Object.entries(warCounts || {}).map(([name, wars]) => [
+      String(name || '').trim().toLowerCase(),
+      num(wars),
+    ]),
+  );
+
+  const streakByName = new Map(
+    Object.entries(calculateStreaks(stats?.ev || [])).map(
+      ([name, value]) => [
+        String(name || '').trim().toLowerCase(),
+        num(value),
+      ],
+    ),
+  );
+
+  const playerKeys = new Set([
+    ...primaryByName.keys(),
+    ...statsLogByName.keys(),
+    ...warsByName.keys(),
+    ...streakByName.keys(),
+  ]);
+
+  return [...playerKeys]
+    .map((key) => {
+      const primary = primaryByName.get(key);
+      const secondary = statsLogByName.get(key);
+      const name =
+        secondary?.name ||
+        primary?.name ||
+        key;
+
+      const kills = secondary
+        ? num(secondary.kills)
+        : num(primary?.kills);
+      const deaths = secondary
+        ? num(secondary.deaths)
+        : num(primary?.deaths);
+
+      return {
+        name,
+        wars: Math.max(
+          num(warsByName.get(key)),
+          num(secondary?.wars),
+        ),
+        kills,
+        deaths,
+        kd: ratio(kills, deaths),
+        killStreak: num(streakByName.get(key)),
+        killFeed: secondary
+          ? num(secondary.killFeed)
+          : readStatMetric(
+              primary,
+              ['killFeed', 'feed'],
+              0,
+            ),
+        damageDealt: secondary
+          ? num(secondary.damage)
+          : readStatMetric(
+              primary,
+              [
+                'damageDealt',
+                'damage_dealt',
+                'damage dealt',
+                'damageDone',
+                'damage',
+              ],
+              0,
+            ),
+        damageTaken: secondary
+          ? num(secondary.damageTaken)
+          : readStatMetric(
+              primary,
+              [
+                'damageTaken',
+                'damage_taken',
+                'damage taken',
+                'Damage Taken',
+              ],
+              0,
+            ),
+        ccHits: secondary
+          ? num(secondary.ccHits)
+          : readStatMetric(
+              primary,
+              [
+                'ccHits',
+                'cc_hits',
+                'cc hits',
+                'CC Hits',
+                'cc',
+                'CC',
+              ],
+              0,
+            ),
+        fortDamage: secondary
+          ? num(secondary.fortDamage)
+          : readStatMetric(
+              primary,
+              [
+                'fortDamage',
+                'damageToFort',
+                'damage_to_fort',
+                'damage to fort',
+                'Fort Damage',
+              ],
+              0,
+            ),
+      };
+    })
+    .filter((player) => String(player.name || '').trim());
 }
 
 function buildPlayerWarCounts(stats) {
@@ -607,7 +763,11 @@ function buildRosterPerformancePlayers(activePlayers) {
       kills: 0,
       deaths: 0,
       kd: 0,
-      damage: 0,
+      killStreak: 0,
+      killFeed: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
       fortDamage: 0,
       inactive: true,
     };
@@ -634,7 +794,7 @@ function buildRosterPerformancePlayers(activePlayers) {
       return (
         b.kills - a.kills ||
         b.kd - a.kd ||
-        b.damage - a.damage ||
+        b.damageDealt - a.damageDealt ||
         a.name.localeCompare(b.name)
       );
     }
@@ -742,25 +902,13 @@ function buildReview(logs, selectedMonth) {
     previousTotals.deaths,
   );
 
-  const activePlayers = (stats?.players || [])
-    .map((player) => ({
-      name: player?.name || '-',
-      wars: num(warCounts[player?.name]),
-      kills: num(player?.kills),
-      deaths: num(player?.deaths),
-      kd: ratio(player?.kills, player?.deaths),
-      damage: num(player?.damageDealt),
-      fortDamage: num(player?.fortDamage),
-    }))
-    .sort(
-      (a, b) =>
-        b.kills - a.kills ||
-        b.kd - a.kd ||
-        a.name.localeCompare(b.name),
-    );
-
-  const players = buildRosterPerformancePlayers(activePlayers);
   const statLogPlayers = buildStatsLogPlayers(stats);
+  const activePlayers = buildMonthlyPerformancePlayers(
+    stats,
+    statLogPlayers,
+    warCounts,
+  );
+  const players = buildRosterPerformancePlayers(activePlayers);
   const minWars = Math.min(3, Math.max(1, totals.wars));
 
   const topFragger = statLogPlayers[0] || null;
@@ -1215,135 +1363,311 @@ function BarCell({ value, max, color }) {
   );
 }
 
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className = '',
+}) {
+  const active = sort.key === sortKey;
+  const arrow = active
+    ? sort.direction === 'asc'
+      ? '↑'
+      : '↓'
+    : '↕';
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={`flex items-center gap-1 text-left transition hover:text-white ${
+        active ? 'text-[#8fc4ff]' : 'text-[#7f8da2]'
+      } ${className}`}
+    >
+      <span>{label}</span>
+      <span className="text-[10px]">{arrow}</span>
+    </button>
+  );
+}
+
 function PlayersTable({ players }) {
-  const rows = players || [];
-  const activeRows = rows.filter((row) => !row.inactive);
-  const maxKills = Math.max(1, ...activeRows.map((row) => row.kills));
-  const maxDeaths = Math.max(1, ...activeRows.map((row) => row.deaths));
-  const maxDamage = Math.max(1, ...activeRows.map((row) => row.damage));
-  const maxFort = Math.max(1, ...activeRows.map((row) => row.fortDamage));
+  const [sort, setSort] = useState({
+    key: 'kills',
+    direction: 'desc',
+  });
+
+  const rows = useMemo(() => {
+    const sorted = [...(players || [])];
+
+    sorted.sort((a, b) => {
+      if (a.inactive !== b.inactive) {
+        return a.inactive ? 1 : -1;
+      }
+
+      if (a.inactive && b.inactive) {
+        return a.name.localeCompare(b.name);
+      }
+
+      if (sort.key === 'name') {
+        const result = a.name.localeCompare(b.name);
+        return sort.direction === 'asc' ? result : -result;
+      }
+
+      const aValue = num(a?.[sort.key]);
+      const bValue = num(b?.[sort.key]);
+      const result = aValue - bValue;
+
+      if (result !== 0) {
+        return sort.direction === 'asc' ? result : -result;
+      }
+
+      return (
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name)
+      );
+    });
+
+    return sorted;
+  }, [players, sort]);
+
+  function handleSort(key) {
+    setSort((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction:
+            current.direction === 'desc' ? 'asc' : 'desc',
+        };
+      }
+
+      return {
+        key,
+        direction: key === 'name' ? 'asc' : 'desc',
+      };
+    });
+  }
 
   if (!rows.length) {
     return <p className="p-5 text-sm text-slate-500">No player data.</p>;
   }
 
+  const gridColumns =
+    'grid-cols-[40px_minmax(210px,1.45fr)_72px_96px_96px_86px_108px_102px_126px_126px_96px_126px]';
+
   return (
     <div className={`max-h-[720px] overflow-auto ${scrollCls}`}>
-      <div className="min-w-[1050px]">
-        <div className="sticky top-0 z-10 grid grid-cols-[40px_minmax(220px,1.5fr)_70px_180px_180px_90px_180px_180px] gap-2 border-b border-[#13243a] bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-[#7f8da2]">
-          <span>#</span>
-          <span>Player</span>
-          <span className="text-center">Wars</span>
-          <span>Kills</span>
-          <span>Deaths</span>
-          <span className="text-center">K/D</span>
-          <span>Damage</span>
-          <span>Fort Dmg</span>
+      <div className="min-w-[1480px]">
+        <div
+          className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-2 border-b border-[#13243a] bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.07em]`}
+        >
+          <span className="text-[#7f8da2]">#</span>
+
+          <SortHeader
+            label="Player"
+            sortKey="name"
+            sort={sort}
+            onSort={handleSort}
+          />
+          <SortHeader
+            label="Wars"
+            sortKey="wars"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="Kills"
+            sortKey="kills"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="Deaths"
+            sortKey="deaths"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="K/D"
+            sortKey="kd"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="Killstreak"
+            sortKey="killStreak"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="KillFeed"
+            sortKey="killFeed"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="DMG Dealt"
+            sortKey="damageDealt"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="DMG Taken"
+            sortKey="damageTaken"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="CC Hits"
+            sortKey="ccHits"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
+          <SortHeader
+            label="DMG to Fort"
+            sortKey="fortDamage"
+            sort={sort}
+            onSort={handleSort}
+            className="justify-center"
+          />
         </div>
 
         <div className="divide-y divide-[#102038]">
-          {rows.map((player, index) => (
-            <div
-              key={player.name}
-              className={`grid grid-cols-[40px_minmax(220px,1.5fr)_70px_180px_180px_90px_180px_180px] items-center gap-2 px-3 py-2 text-[12px] transition hover:bg-white/[.02] ${
-                player.inactive ? 'bg-[#030914]/55 text-slate-600' : ''
-              }`}
-            >
-              <span
-                className={`font-black ${
-                  player.inactive ? 'text-[#405067]' : 'text-[#64748b]'
+          {rows.map((player, index) => {
+            const inactive = player.inactive;
+
+            const valueClass = inactive
+              ? 'text-slate-700'
+              : 'text-[#d8e5f7]';
+
+            return (
+              <div
+                key={player.name}
+                className={`grid ${gridColumns} items-center gap-2 px-3 py-2.5 text-[12px] transition hover:bg-white/[.02] ${
+                  inactive ? 'bg-[#030914]/55' : ''
                 }`}
               >
-                {index + 1}
-              </span>
-
-              <div className="flex min-w-0 items-center gap-2">
-                <div
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
-                    player.inactive
-                      ? 'border-slate-700 bg-slate-900/70 text-slate-600'
-                      : 'border-[#31557d] bg-[#0a1830] text-[#8fc4ff]'
-                  }`}
-                >
-                  {String(player.name || '?').slice(0, 1).toUpperCase()}
-                </div>
-
                 <span
-                  className={`truncate font-black ${
-                    player.inactive ? 'text-slate-500' : 'text-white'
+                  className={`font-black ${
+                    inactive
+                      ? 'text-[#405067]'
+                      : 'text-[#64748b]'
                   }`}
                 >
-                  {player.name}
+                  {index + 1}
                 </span>
 
-                {player.inactive && (
-                  <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-rose-400">
-                    Inactive
+                <div className="flex min-w-0 items-center gap-2">
+                  <div
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
+                      inactive
+                        ? 'border-slate-700 bg-slate-900/70 text-slate-600'
+                        : 'border-[#31557d] bg-[#0a1830] text-[#8fc4ff]'
+                    }`}
+                  >
+                    {String(player.name || '?')
+                      .slice(0, 1)
+                      .toUpperCase()}
+                  </div>
+
+                  <span
+                    className={`truncate font-black ${
+                      inactive ? 'text-slate-500' : 'text-white'
+                    }`}
+                  >
+                    {player.name}
                   </span>
-                )}
+
+                  {inactive && (
+                    <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-rose-400">
+                      Inactive
+                    </span>
+                  )}
+                </div>
+
+                <span className={`text-center font-black ${valueClass}`}>
+                  {inactive ? '—' : player.wars}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-blue-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.kills)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-rose-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.deaths)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive
+                      ? valueClass
+                      : player.kd >= 1
+                        ? 'text-[#75e34f]'
+                        : 'text-[#ff6b7e]'
+                  }`}
+                >
+                  {inactive ? '—' : player.kd.toFixed(2)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-amber-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.killStreak)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-fuchsia-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.killFeed)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-cyan-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.damageDealt)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-orange-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.damageTaken)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-violet-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.ccHits)}
+                </span>
+                <span
+                  className={`text-center font-black ${
+                    inactive ? valueClass : 'text-yellow-300'
+                  }`}
+                >
+                  {inactive ? '—' : compact(player.fortDamage)}
+                </span>
               </div>
-
-              <span
-                className={`text-center font-black ${
-                  player.inactive ? 'text-slate-600' : 'text-[#cbd5e1]'
-                }`}
-              >
-                {player.inactive ? '—' : player.wars}
-              </span>
-
-              {player.inactive ? (
-                <span className="text-center font-black text-slate-700">—</span>
-              ) : (
-                <BarCell
-                  value={player.kills}
-                  max={maxKills}
-                  color="bg-[#315dff]"
-                />
-              )}
-
-              {player.inactive ? (
-                <span className="text-center font-black text-slate-700">—</span>
-              ) : (
-                <BarCell
-                  value={player.deaths}
-                  max={maxDeaths}
-                  color="bg-[#d8334f]"
-                />
-              )}
-
-              <span
-                className={`text-center font-black ${
-                  player.inactive
-                    ? 'text-slate-700'
-                    : player.kd >= 1
-                      ? 'text-[#75e34f]'
-                      : 'text-[#ff6b7e]'
-                }`}
-              >
-                {player.inactive ? '—' : player.kd.toFixed(2)}
-              </span>
-
-              {player.inactive ? (
-                <span className="text-center font-black text-slate-700">—</span>
-              ) : (
-                <BarCell
-                  value={player.damage}
-                  max={maxDamage}
-                  color="bg-[#42c4c8]"
-                />
-              )}
-
-              {player.inactive ? (
-                <span className="text-center font-black text-slate-700">—</span>
-              ) : (
-                <BarCell
-                  value={player.fortDamage}
-                  max={maxFort}
-                  color="bg-[#d59a32]"
-                />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
