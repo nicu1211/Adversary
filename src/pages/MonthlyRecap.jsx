@@ -257,19 +257,36 @@ function percentageChange(current, previous) {
   return ((num(current) - num(previous)) / Math.abs(num(previous))) * 100;
 }
 
-function changeLabel(current, previous, previousMonth, lowerIsBetter = false) {
+function comparisonInfo(
+  current,
+  previous,
+  previousMonth,
+  lowerIsBetter = false,
+) {
   const change = percentageChange(current, previous);
 
   if (change == null) {
-    return `No ${shortMonthLabel(previousMonth)} baseline`;
+    return {
+      text: `No ${shortMonthLabel(previousMonth)} baseline`,
+      tone: 'neutral',
+    };
   }
 
-  const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '•';
+  if (change === 0) {
+    return {
+      text: `• 0% vs ${shortMonthLabel(previousMonth)}`,
+      tone: 'neutral',
+    };
+  }
+
   const improved = lowerIsBetter ? change < 0 : change > 0;
 
-  return `${arrow} ${Math.abs(change).toFixed(0)}% vs ${shortMonthLabel(
-    previousMonth,
-  )}${change === 0 ? '' : improved ? ' · improved' : ''}`;
+  return {
+    text: `${change > 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(
+      0,
+    )}% vs ${shortMonthLabel(previousMonth)}`,
+    tone: improved ? 'positive' : 'negative',
+  };
 }
 
 function buildReview(logs, selectedMonth) {
@@ -304,6 +321,30 @@ function buildReview(logs, selectedMonth) {
   };
 
   totals.kd = ratio(totals.kills, totals.deaths);
+  totals.avgKills = totals.wars ? totals.kills / totals.wars : 0;
+  totals.avgDeaths = totals.wars ? totals.deaths / totals.wars : 0;
+  totals.avgDamage = totals.wars ? totals.damage / totals.wars : 0;
+  totals.avgFortDamage = totals.wars
+    ? totals.fortDamage / totals.wars
+    : 0;
+  totals.avgWarKd = rows.length
+    ? rows.reduce(
+        (sum, row) =>
+          sum + num(row.kdNumber ?? row.kd),
+        0,
+      ) / rows.length
+    : 0;
+
+  const monthParts = String(selectedMonth || '')
+    .split('-')
+    .map(Number);
+  const daysInMonth =
+    monthParts.length === 2
+      ? new Date(monthParts[0], monthParts[1], 0).getDate()
+      : 30;
+  totals.avgWarsPerWeek = daysInMonth
+    ? totals.wars / (daysInMonth / 7)
+    : 0;
 
   const previousTotals = {
     wars: previousRows.length,
@@ -480,7 +521,15 @@ function SectionShell({ icon: Icon, title, children }) {
   );
 }
 
-function KpiCard({ icon: Icon, label, value, sub, accent }) {
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  averageLabel,
+  averageValue,
+  comparison,
+  accent,
+}) {
   const theme = {
     blue: {
       icon: 'text-[#4ea1ff]',
@@ -523,11 +572,30 @@ function KpiCard({ icon: Icon, label, value, sub, accent }) {
           <p className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8090a8]">
             {label}
           </p>
-          <p className="mt-1 text-[26px] font-black leading-none text-white">
-            {value}
-          </p>
-          <p className="mt-2 truncate text-[10px] font-black text-[#80ff3f]">
-            {sub}
+          <div className="mt-1 flex items-end gap-2">
+            <p className="text-[26px] font-black leading-none text-white">
+              {value}
+            </p>
+            <div className="mb-0.5 border-l border-white/10 pl-2">
+              <p className="text-[8px] font-black uppercase tracking-[0.08em] text-[#6f7d90]">
+                {averageLabel}
+              </p>
+              <p className="text-[12px] font-black leading-none text-[#c8d6e8]">
+                {averageValue}
+              </p>
+            </div>
+          </div>
+
+          <p
+            className={`mt-2 truncate text-[10px] font-black ${
+              comparison?.tone === 'positive'
+                ? 'text-[#75e34f]'
+                : comparison?.tone === 'negative'
+                  ? 'text-[#ff6077]'
+                  : 'text-[#7f8da2]'
+            }`}
+          >
+            {comparison?.text}
           </p>
         </div>
       </div>
@@ -897,7 +965,9 @@ export default function MonthlyRecap({
           icon={Swords}
           label="Total Wars"
           value={compact(totals.wars, 0)}
-          sub={changeLabel(
+          averageLabel="Avg / Week"
+          averageValue={totals.avgWarsPerWeek.toFixed(1)}
+          comparison={comparisonInfo(
             totals.wars,
             previousTotals.wars,
             previousMonth,
@@ -908,7 +978,9 @@ export default function MonthlyRecap({
           icon={Skull}
           label="Total Kills"
           value={compact(totals.kills)}
-          sub={changeLabel(
+          averageLabel="Avg / War"
+          averageValue={totals.avgKills.toFixed(1)}
+          comparison={comparisonInfo(
             totals.kills,
             previousTotals.kills,
             previousMonth,
@@ -919,7 +991,9 @@ export default function MonthlyRecap({
           icon={Skull}
           label="Total Deaths"
           value={compact(totals.deaths)}
-          sub={changeLabel(
+          averageLabel="Avg / War"
+          averageValue={totals.avgDeaths.toFixed(1)}
+          comparison={comparisonInfo(
             totals.deaths,
             previousTotals.deaths,
             previousMonth,
@@ -931,7 +1005,9 @@ export default function MonthlyRecap({
           icon={Crosshair}
           label="Overall K/D"
           value={totals.kd.toFixed(2)}
-          sub={changeLabel(
+          averageLabel="Avg War K/D"
+          averageValue={totals.avgWarKd.toFixed(2)}
+          comparison={comparisonInfo(
             totals.kd,
             previousTotals.kd,
             previousMonth,
@@ -942,7 +1018,9 @@ export default function MonthlyRecap({
           icon={Zap}
           label="Damage"
           value={compact(totals.damage)}
-          sub={changeLabel(
+          averageLabel="Avg / War"
+          averageValue={compact(totals.avgDamage)}
+          comparison={comparisonInfo(
             totals.damage,
             previousTotals.damage,
             previousMonth,
@@ -953,7 +1031,9 @@ export default function MonthlyRecap({
           icon={Castle}
           label="Fort Damage"
           value={compact(totals.fortDamage)}
-          sub={changeLabel(
+          averageLabel="Avg / War"
+          averageValue={compact(totals.avgFortDamage)}
+          comparison={comparisonInfo(
             totals.fortDamage,
             previousTotals.fortDamage,
             previousMonth,
@@ -961,6 +1041,24 @@ export default function MonthlyRecap({
           accent="amber"
         />
       </div>
+
+      <SectionShell icon={Swords} title="Featured Wars">
+        <div className="grid gap-2 p-2 xl:grid-cols-3">
+          {featuredWars.length ? (
+            featuredWars.map((item) => (
+              <FeaturedWar
+                key={item.id}
+                item={item}
+                onOpen={onOpenMatchOverview}
+              />
+            ))
+          ) : (
+            <p className="col-span-full p-5 text-sm text-slate-500">
+              No featured wars for this month.
+            </p>
+          )}
+        </div>
+      </SectionShell>
 
       <SectionShell icon={Sparkles} title="Monthly Highlights">
         <div className="grid gap-2 p-2 xl:grid-cols-[1.2fr_repeat(3,minmax(0,.72fr))]">
@@ -1059,24 +1157,6 @@ export default function MonthlyRecap({
             unit="10-second window"
             accent="pink"
           />
-        </div>
-      </SectionShell>
-
-      <SectionShell icon={Swords} title="Featured Wars">
-        <div className="grid gap-2 p-2 xl:grid-cols-3">
-          {featuredWars.length ? (
-            featuredWars.map((item) => (
-              <FeaturedWar
-                key={item.id}
-                item={item}
-                onOpen={onOpenMatchOverview}
-              />
-            ))
-          ) : (
-            <p className="col-span-full p-5 text-sm text-slate-500">
-              No featured wars for this month.
-            </p>
-          )}
         </div>
       </SectionShell>
 
