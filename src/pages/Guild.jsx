@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Activity,
   Castle,
@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 
 const nf = new Intl.NumberFormat('en-US');
-const MIN_ENEMY_INTERACTIONS_PER_WAR = 50;
-const ENEMY_SCORE_PRIOR_WEIGHT = 50;
+const DEFAULT_ENEMY_DAYS_AGO = 45;
+const DEFAULT_MIN_ENEMY_WARS = 1;
+const DEFAULT_MIN_ENEMY_INTERACTIONS = 50;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function num(value) {
   const parsed = Number(value);
@@ -132,63 +134,55 @@ function cleanGuildName(value) {
   return text;
 }
 
-function getTierByScore(value) {
-  const score = num(value);
-  if (score >= 1.5) return 'S';
-  if (score >= 1.35) return 'A';
-  if (score >= 1.15) return 'B';
-  if (score >= 1) return 'C';
-  if (score >= 0.75) return 'D';
+function getTierByKd(value) {
+  const ratio = num(value);
+  if (ratio >= 1.7) return 'S';
+  if (ratio >= 1.4) return 'A';
+  if (ratio >= 1.15) return 'B';
+  if (ratio >= 0.95) return 'C';
+  if (ratio >= 0.75) return 'D';
   return 'Trash';
-}
-
-function enemyGuildScore({ kills, deaths }) {
-  const adjustedKills = Math.max(0, num(kills)) + ENEMY_SCORE_PRIOR_WEIGHT;
-  const adjustedDeaths = Math.max(0, num(deaths)) + ENEMY_SCORE_PRIOR_WEIGHT;
-  const score = adjustedKills / adjustedDeaths;
-
-  return Math.round(score * 100) / 100;
 }
 
 const enemyTierMeta = {
   S: {
     label: 'S',
-    range: '1.50+ adjusted K/D',
+    range: '1.70+ K/D',
     className: 'border-amber-300/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10',
     badge: 'border-amber-300/40 bg-amber-400/20 text-amber-100',
     tone: 'amber',
   },
   A: {
     label: 'A',
-    range: '1.35 - 1.49 adjusted K/D',
+    range: '1.40 - 1.69 K/D',
     className: 'border-emerald-300/30 bg-emerald-500/12 text-emerald-100 shadow-emerald-500/10',
     badge: 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100',
     tone: 'emerald',
   },
   B: {
     label: 'B',
-    range: '1.15 - 1.34 adjusted K/D',
+    range: '1.15 - 1.39 K/D',
     className: 'border-blue-300/25 bg-blue-500/10 text-blue-100 shadow-blue-500/10',
     badge: 'border-blue-300/35 bg-blue-400/15 text-blue-100',
     tone: 'blue',
   },
   C: {
     label: 'C',
-    range: '1.00 - 1.14 adjusted K/D',
+    range: '0.95 - 1.14 K/D',
     className: 'border-violet-300/25 bg-violet-500/10 text-violet-100 shadow-violet-500/10',
     badge: 'border-violet-300/35 bg-violet-400/15 text-violet-100',
     tone: 'violet',
   },
   D: {
     label: 'D',
-    range: '0.75 - 0.99 adjusted K/D',
+    range: '0.75 - 0.94 K/D',
     className: 'border-rose-300/25 bg-rose-500/10 text-rose-100 shadow-rose-500/10',
     badge: 'border-rose-300/35 bg-rose-400/15 text-rose-100',
     tone: 'rose',
   },
   Trash: {
     label: 'T',
-    range: 'Below 0.75 adjusted K/D',
+    range: 'Under 0.75 K/D',
     className: 'border-slate-600/40 bg-slate-800/35 text-slate-200 shadow-slate-950/20',
     badge: 'border-slate-500/40 bg-slate-700/60 text-slate-200',
     tone: 'slate',
@@ -318,26 +312,23 @@ function buildRawTrendRows(logs = []) {
     });
 }
 
-function buildEnemyGuildTiers(stats = {}, logs = []) {
-  const latestTime = getLatestLogTime(logs);
-  const cutoffTime = latestTime - 45 * 24 * 60 * 60 * 1000;
+function buildEnemyGuildRows(
+  stats = {},
+  logs = [],
+  daysAgo = DEFAULT_ENEMY_DAYS_AGO,
+) {
+  const safeDaysAgo = Math.max(0, num(daysAgo));
+  const cutoffTime = safeDaysAgo
+    ? Date.now() - safeDaysAgo * DAY_MS
+    : 0;
   const byGuild = {};
 
-  // A war is included only when that enemy guild recorded at least
-  // 50 combined kills + deaths in that individual war.
-  function addQualifiedWar(name, kills, deaths, matchId) {
+  function addWar(name, kills, deaths, matchId) {
     const cleanName = cleanGuildName(name);
-    const enemyKills = num(kills);
-    const enemyDeaths = num(deaths);
-    const totalInteractions = enemyKills + enemyDeaths;
+    if (!cleanName || !matchId) return;
 
-    if (
-      !cleanName ||
-      !matchId ||
-      totalInteractions < MIN_ENEMY_INTERACTIONS_PER_WAR
-    ) {
-      return;
-    }
+    const enemyKills = Math.max(0, num(kills));
+    const enemyDeaths = Math.max(0, num(deaths));
 
     byGuild[cleanName] ||= {
       name: cleanName,
@@ -353,48 +344,50 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
 
   (logs || []).forEach((log) => {
     const logTime = getLogTime(log);
-    if (!logTime || logTime < cutoffTime) return;
+    if (!logTime || (cutoffTime && logTime < cutoffTime)) return;
 
     const summary = getSimpleSummary(log);
-    const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
-    const matchId = String(log?.id || log?.date || log?.name || logTime);
+    const guilds = Array.isArray(summary?.guilds)
+      ? summary.guilds
+      : [];
+    const matchId = String(
+      log?.id || log?.date || log?.name || logTime,
+    );
 
     guilds.forEach((guild) => {
       const name = cleanGuildName(guild?.name);
       if (!name) return;
 
       /*
-       * In the stored guild summary:
-       * - guild.deaths = kills made by the enemy guild
-       * - guild.kills  = deaths suffered by the enemy guild
-       *
-       * Convert them here so every row below uses normal enemy K/D semantics.
+       * Stored guild summaries use the opposite perspective:
+       * guild.deaths = kills made by that enemy guild
+       * guild.kills  = deaths suffered by that enemy guild
        */
-      const enemyKills = num(guild?.deaths);
-      const enemyDeaths = num(guild?.kills);
-
-      addQualifiedWar(name, enemyKills, enemyDeaths, matchId);
+      addWar(
+        name,
+        num(guild?.deaths),
+        num(guild?.kills),
+        matchId,
+      );
     });
   });
 
-  // Fallback for older data that only has raw kill/death events.
+  // Fallback for older data containing raw kill/death events only.
   if (!Object.keys(byGuild).length) {
     const events = Array.isArray(stats?.ev) ? stats.ev : [];
-    const eventTimes = events
-      .map((event) => new Date(event?.date || '').getTime())
-      .filter((time) => time > 0);
-    const eventLatestTime = eventTimes.length
-      ? Math.max(...eventTimes)
-      : Date.now();
-    const eventCutoffTime =
-      eventLatestTime - 45 * 24 * 60 * 60 * 1000;
     const warsByGuild = {};
 
     events.forEach((event) => {
       const guildName = cleanGuildName(event?.guild);
       const eventTime = new Date(event?.date || '').getTime();
 
-      if (!guildName || !eventTime || eventTime < eventCutoffTime) return;
+      if (
+        !guildName ||
+        !eventTime ||
+        (cutoffTime && eventTime < cutoffTime)
+      ) {
+        return;
+      }
 
       const matchId = String(
         event?.logId ||
@@ -415,26 +408,34 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
         deaths: 0,
       };
 
-      // Killing an enemy adds one death to that enemy guild.
-      if (event.type === 'kill') warsByGuild[key].deaths += 1;
+      // One of our deaths is one kill for the enemy guild.
+      if (event.type === 'death') {
+        warsByGuild[key].kills += 1;
+      }
 
-      // One of our deaths adds one kill to the enemy guild.
-      if (event.type === 'death') warsByGuild[key].kills += 1;
+      // One of our kills is one death for the enemy guild.
+      if (event.type === 'kill') {
+        warsByGuild[key].deaths += 1;
+      }
     });
 
     Object.values(warsByGuild).forEach((war) => {
-      addQualifiedWar(war.name, war.kills, war.deaths, war.matchId);
+      addWar(
+        war.name,
+        war.kills,
+        war.deaths,
+        war.matchId,
+      );
     });
   }
 
-  const rows = Object.values(byGuild)
+  return Object.values(byGuild)
     .map((guild) => {
       const kills = num(guild.kills);
       const deaths = num(guild.deaths);
       const matches = guild.matchIds?.size || 0;
       const totalInteractions = kills + deaths;
       const kdNumber = kd(kills, deaths);
-      const score = enemyGuildScore({ kills, deaths });
 
       return {
         name: guild.name,
@@ -443,25 +444,39 @@ function buildEnemyGuildTiers(stats = {}, logs = []) {
         totalInteractions,
         kdNumber,
         matches,
-        score,
-        tier: getTierByScore(score),
+        score: kdNumber,
+        tier: getTierByKd(kdNumber),
       };
     })
     .filter((guild) => guild.name && guild.matches > 0)
     .sort(
       (a, b) =>
-        b.score - a.score ||
         b.kdNumber - a.kdNumber ||
+        b.totalInteractions - a.totalInteractions ||
         b.matches - a.matches ||
-        b.kills - a.kills ||
         a.name.localeCompare(b.name),
     );
+}
+
+function groupEnemyGuildRows(
+  rows = [],
+  minWars = DEFAULT_MIN_ENEMY_WARS,
+  minInteractions = DEFAULT_MIN_ENEMY_INTERACTIONS,
+) {
+  const qualifiedRows = (rows || []).filter(
+    (guild) =>
+      num(guild.matches) >= Math.max(0, num(minWars)) &&
+      num(guild.totalInteractions) >=
+        Math.max(0, num(minInteractions)),
+  );
 
   return ['S', 'A', 'B', 'C', 'D', 'Trash']
     .map((tier) => ({
       tier,
       meta: enemyTierMeta[tier],
-      guilds: rows.filter((guild) => guild.tier === tier),
+      guilds: qualifiedRows.filter(
+        (guild) => guild.tier === tier,
+      ),
     }))
     .filter((group) => group.guilds.length > 0);
 }
@@ -539,7 +554,6 @@ function buildGuildData(stats, logs) {
     avgFortDamage: matches ? fortDamage / matches : 0,
     topKillers: topBy(enrichedPlayers, 'kills', 6),
     topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
-    enemyTierGroups: buildEnemyGuildTiers(stats, logs),
     metricBars: {
       matches: buildMetricBars(logs, 'matches'),
       kills: buildMetricBars(logs, 'kills'),
@@ -809,49 +823,84 @@ function SectionTitle({ icon: Icon, title, sub }) {
 
 // ─── GuildTierProgressRow ──────────────────────────────────────────────────────
 
-function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
+function GuildTierProgressRow({
+  guild,
+  maxScore,
+  tone = 'blue',
+}) {
   const width = maxScore
-    ? Math.max(5, Math.min(100, (num(guild.score) / maxScore) * 100))
+    ? Math.max(
+        5,
+        Math.min(
+          100,
+          (num(guild.kdNumber) / maxScore) * 100,
+        ),
+      )
     : 0;
 
   const colors = {
-    blue:    'from-blue-500 to-sky-300',
+    blue: 'from-blue-500 to-sky-300',
     emerald: 'from-emerald-500 to-lime-300',
-    amber:   'from-amber-500 to-yellow-300',
-    rose:    'from-rose-500 to-red-300',
-    violet:  'from-violet-500 to-fuchsia-300',
-    slate:   'from-slate-500 to-slate-300',
+    amber: 'from-amber-500 to-yellow-300',
+    rose: 'from-rose-500 to-red-300',
+    violet: 'from-violet-500 to-fuchsia-300',
+    slate: 'from-slate-500 to-slate-300',
   };
 
   return (
     <div className="relative z-0 rounded-xl border border-slate-800 bg-slate-950/70 p-2 shadow-lg hover:z-[999]">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-xs font-black text-white" title={guild.name}>
+        <p
+          className="min-w-0 truncate text-xs font-black text-white"
+          title={guild.name}
+        >
           {guild.name}
         </p>
+
+        <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-black text-cyan-200">
+          K/D {decimal(guild.kdNumber, 2)}
+        </span>
       </div>
 
       <div className="group/bar relative h-2.5 rounded-full bg-slate-900/90">
         <div
-          className={cls('h-2.5 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)}
+          className={cls(
+            'h-2.5 rounded-full bg-gradient-to-r',
+            colors[tone] || colors.blue,
+          )}
           style={{ width: `${width}%` }}
         />
-        <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[380px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
-          <div className="grid grid-cols-4 gap-3 text-center">
+
+        <div className="pointer-events-none absolute left-1/2 top-full z-[9999] mt-3 w-max max-w-[360px] -translate-x-1/2 rounded-2xl border border-slate-700 bg-slate-950/95 px-4 py-3 text-xs font-black text-slate-200 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover/bar:opacity-100">
+          <div className="grid grid-cols-5 gap-4 text-center">
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-blue-300/80">M</p>
+              <p className="text-[9px] uppercase tracking-wider text-blue-300/80">
+                Wars
+              </p>
               <p>{compact(guild.matches, 0)}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-emerald-300/80">K</p>
+              <p className="text-[9px] uppercase tracking-wider text-emerald-300/80">
+                K
+              </p>
               <p>{compact(guild.kills)}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-rose-300/80">D</p>
+              <p className="text-[9px] uppercase tracking-wider text-rose-300/80">
+                D
+              </p>
               <p>{compact(guild.deaths)}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">K/D</p>
+              <p className="text-[9px] uppercase tracking-wider text-violet-300/80">
+                K+D
+              </p>
+              <p>{compact(guild.totalInteractions)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] uppercase tracking-wider text-cyan-300/80">
+                K/D
+              </p>
               <p>{decimal(guild.kdNumber)}</p>
             </div>
           </div>
@@ -863,24 +912,200 @@ function GuildTierProgressRow({ guild, maxScore, tone = 'blue' }) {
 
 // ─── EnemyGuildTierList ───────────────────────────────────────────────────────
 
-function EnemyGuildTierList({ groups }) {
-  const scrollClass = '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80';
-  const hasGuilds = groups.some((group) => group.guilds.length > 0);
+function EnemyGuildTierList({ stats, logs }) {
+  const [minWars, setMinWars] = useState(
+    DEFAULT_MIN_ENEMY_WARS,
+  );
+  const [minInteractions, setMinInteractions] = useState(
+    DEFAULT_MIN_ENEMY_INTERACTIONS,
+  );
+  const [daysAgo, setDaysAgo] = useState(
+    DEFAULT_ENEMY_DAYS_AGO,
+  );
+
+  const rows = useMemo(
+    () =>
+      buildEnemyGuildRows(
+        stats || {},
+        logs || [],
+        daysAgo,
+      ),
+    [stats, logs, daysAgo],
+  );
+
+  const groups = useMemo(
+    () =>
+      groupEnemyGuildRows(
+        rows,
+        minWars,
+        minInteractions,
+      ),
+    [rows, minWars, minInteractions],
+  );
+
+  const qualifiedGuilds = groups.flatMap(
+    (group) => group.guilds,
+  );
+  const hasGuilds = qualifiedGuilds.length > 0;
   const maxScore = Math.max(
     1,
-    ...groups.flatMap((group) => group.guilds.map((guild) => num(guild.score))),
+    ...qualifiedGuilds.map((guild) =>
+      num(guild.kdNumber),
+    ),
   );
+  const maxWars = Math.max(
+    1,
+    ...rows.map((guild) => num(guild.matches)),
+  );
+  const largestInteractionTotal = Math.max(
+    DEFAULT_MIN_ENEMY_INTERACTIONS,
+    ...rows.map((guild) =>
+      num(guild.totalInteractions),
+    ),
+  );
+  const maxInteractions = Math.max(
+    100,
+    Math.ceil(largestInteractionTotal / 50) * 50,
+  );
+
+  const scrollClass =
+    '[scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80';
+
+  function resetFilters() {
+    setMinWars(DEFAULT_MIN_ENEMY_WARS);
+    setMinInteractions(
+      DEFAULT_MIN_ENEMY_INTERACTIONS,
+    );
+    setDaysAgo(DEFAULT_ENEMY_DAYS_AGO);
+  }
 
   return (
     <Panel className="p-3">
       <SectionTitle
         icon={Trophy}
         title="Enemy Guild Tier List"
+        sub="Live qualification filters • Ranked strictly by aggregate enemy K/D, highest to lowest"
       />
+
+      <div className="mb-3 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white">
+              Tier List Filters
+            </p>
+            <p className="mt-1 text-[9px] font-bold text-slate-500">
+              Sliders set minimum requirements and never alter the K/D formula.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-black text-slate-300">
+              {qualifiedGuilds.length} guilds
+            </span>
+
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-slate-300 transition hover:border-blue-400/50 hover:text-white"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_1.35fr_190px]">
+          <label className="rounded-xl border border-slate-800 bg-slate-950/65 p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[9px] font-black uppercase tracking-[0.07em] text-blue-300">
+                Minimum Node Wars
+              </span>
+              <span className="text-sm font-black tabular-nums text-white">
+                {minWars}
+              </span>
+            </div>
+
+            <input
+              type="range"
+              min="1"
+              max={maxWars}
+              step="1"
+              value={Math.min(minWars, maxWars)}
+              onChange={(event) =>
+                setMinWars(
+                  Math.max(1, num(event.target.value)),
+                )
+              }
+              className="h-1.5 w-full cursor-pointer"
+              style={{ accentColor: '#60a5fa' }}
+            />
+          </label>
+
+          <label className="rounded-xl border border-slate-800 bg-slate-950/65 p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[9px] font-black uppercase tracking-[0.07em] text-violet-300">
+                Minimum Kills + Deaths
+              </span>
+              <span className="text-sm font-black tabular-nums text-white">
+                {compact(minInteractions, 0)}
+              </span>
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max={maxInteractions}
+              step="10"
+              value={Math.min(
+                minInteractions,
+                maxInteractions,
+              )}
+              onChange={(event) =>
+                setMinInteractions(
+                  Math.max(0, num(event.target.value)),
+                )
+              }
+              className="h-1.5 w-full cursor-pointer"
+              style={{ accentColor: '#a78bfa' }}
+            />
+          </label>
+
+          <label className="rounded-xl border border-slate-800 bg-slate-950/65 p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[9px] font-black uppercase tracking-[0.07em] text-cyan-300">
+                Days Ago
+              </span>
+              <span className="text-[9px] font-bold text-slate-500">
+                0 = all time
+              </span>
+            </div>
+
+            <input
+              type="number"
+              min="0"
+              max="3650"
+              step="1"
+              value={daysAgo}
+              onChange={(event) =>
+                setDaysAgo(
+                  Math.max(
+                    0,
+                    Math.min(
+                      3650,
+                      num(event.target.value),
+                    ),
+                  ),
+                )
+              }
+              className="h-8 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-black tabular-nums text-white outline-none transition focus:border-cyan-400"
+            />
+          </label>
+        </div>
+      </div>
 
       {!hasGuilds ? (
         <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-4 text-sm font-bold text-slate-500">
-          No enemy guild has a qualifying war with 50+ combined K+D in the last 45 days.
+          No enemy guild meets the selected Node Wars,
+          Kills + Deaths, and date requirements.
         </p>
       ) : (
         <div className="space-y-2">
@@ -893,39 +1118,43 @@ function EnemyGuildTierList({ groups }) {
               )}
             >
               <div className="flex items-center gap-2 lg:flex-col lg:items-center lg:justify-center">
-                <div className={cls('flex h-11 w-11 items-center justify-center rounded-xl border text-2xl font-black', group.meta.badge)}>
+                <div
+                  className={cls(
+                    'flex h-11 w-11 items-center justify-center rounded-xl border text-2xl font-black',
+                    group.meta.badge,
+                  )}
+                >
                   {group.meta.label}
                 </div>
+
                 <div className="min-w-0 lg:text-center">
-                  {group.tier === 'Trash' ? (
-                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Trash</p>
-                  ) : (
-                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Tier</p>
-                  )}
+                  <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    {group.tier === 'Trash'
+                      ? 'Trash'
+                      : 'Tier'}
+                  </p>
+                  <p className="mt-0.5 text-[8px] font-bold text-slate-500">
+                    {group.meta.range}
+                  </p>
                 </div>
               </div>
 
-              {group.guilds.length ? (
-                <div
-                  className={cls(
-                    'grid gap-2 sm:grid-cols-2 xl:grid-cols-4',
-                    group.guilds.length > 16 && `max-h-[330px] overflow-y-auto pr-1 ${scrollClass}`,
-                  )}
-                >
-                  {group.guilds.map((guild) => (
-                    <GuildTierProgressRow
-                      key={guild.name}
-                      guild={guild}
-                      maxScore={maxScore}
-                      tone={group.meta.tone}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex min-h-[48px] items-center rounded-xl border border-slate-800 bg-slate-950/45 px-3 text-xs font-bold text-slate-500">
-                  No guilds in this tier.
-                </div>
-              )}
+              <div
+                className={cls(
+                  'grid gap-2 sm:grid-cols-2 xl:grid-cols-4',
+                  group.guilds.length > 16 &&
+                    `max-h-[330px] overflow-y-auto pr-1 ${scrollClass}`,
+                )}
+              >
+                {group.guilds.map((guild) => (
+                  <GuildTierProgressRow
+                    key={guild.name}
+                    guild={guild}
+                    maxScore={maxScore}
+                    tone={group.meta.tone}
+                  />
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -936,7 +1165,7 @@ function EnemyGuildTierList({ groups }) {
 
 // ─── Arsenal ──────────────────────────────────────────────────────────────────
 
-function Arsenal({ data }) {
+function Arsenal({ data, stats, logs }) {
   const rawRows = data.rawTrendRows || [];
 
   // Raw per-match values for each sparkline
@@ -1063,7 +1292,7 @@ function Arsenal({ data }) {
         </div>
       </Panel>
 
-      <EnemyGuildTierList groups={data.enemyTierGroups} />
+      <EnemyGuildTierList stats={stats} logs={logs} />
     </div>
   );
 }
@@ -1073,5 +1302,17 @@ function Arsenal({ data }) {
 export default function Guild({ stats, logs }) {
   const data = useMemo(() => buildGuildData(stats || {}, logs || []), [stats, logs]);
   const hasData = data.kills > 0 || data.deaths > 0 || data.matches > 0;
-  return <div>{hasData ? <Arsenal data={data} /> : <EmptyState />}</div>;
+  return (
+    <div>
+      {hasData ? (
+        <Arsenal
+          data={data}
+          stats={stats || {}}
+          logs={logs || []}
+        />
+      ) : (
+        <EmptyState />
+      )}
+    </div>
+  );
 }
