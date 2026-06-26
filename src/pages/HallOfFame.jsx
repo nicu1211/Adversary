@@ -50,22 +50,11 @@ function cls(...items) {
   return items.filter(Boolean).join(' ');
 }
 
-function comparePlayerChronology(a, b) {
-  const aKey = String(
-    a?.chronologyKey ||
-      a?.reachedKey ||
-      a?.date ||
-      '9999-99-99 99999999 99999999',
-  );
-  const bKey = String(
-    b?.chronologyKey ||
-      b?.reachedKey ||
-      b?.date ||
-      '9999-99-99 99999999 99999999',
-  );
-
+function compareChronology(a, b) {
   return (
-    aKey.localeCompare(bKey) ||
+    String(a?.chronologyKey || '9999-99-99 99999999 99999999').localeCompare(
+      String(b?.chronologyKey || '9999-99-99 99999999 99999999'),
+    ) ||
     String(a?.name || '').localeCompare(String(b?.name || ''))
   );
 }
@@ -133,7 +122,7 @@ const demoStats = {
   ],
 };
 
-function buildHallData(stats) {
+function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
   const secondaryRows =
@@ -620,37 +609,6 @@ function buildHallData(stats) {
     return '';
   }
 
-  function getPlayerChronologyKey(name) {
-    const firstCombatEvent = [...events]
-      .filter((event) => getGuildInvolvedPlayer(event) === name)
-      .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))[0];
-
-    if (firstCombatEvent) {
-      return eventSortKey(firstCombatEvent);
-    }
-
-    const firstTrackedMatch = Object.values(playerMatchMap[name] || {})
-      .sort((a, b) =>
-        warSortKey(a.warId, a.date).localeCompare(
-          warSortKey(b.warId, b.date),
-        ),
-      )[0];
-
-    return firstTrackedMatch
-      ? warSortKey(firstTrackedMatch.warId, firstTrackedMatch.date)
-      : '9999-99-99 99999999 99999999';
-  }
-
-  function getPlayerWarChronologyKey(warEvents, playerName) {
-    const firstCombatEvent = getWarEventsSorted(warEvents).find(
-      (event) => getGuildInvolvedPlayer(event) === playerName,
-    );
-
-    return firstCombatEvent
-      ? eventSortKey(firstCombatEvent)
-      : getPlayerChronologyKey(playerName);
-  }
-
   function ensureWar(id, date = '') {
     warMap[id] ||= {
       id,
@@ -768,6 +726,25 @@ function buildHallData(stats) {
     warList.map((war, index) => [war.id, index]),
   );
 
+  // Build chronology once. This avoids repeatedly scanning and sorting the
+  // complete Combat Log inside every player and leaderboard calculation.
+  const firstCombatKeyByPlayer = {};
+  const firstCombatKeyByWarPlayer = {};
+
+  [...events]
+    .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))
+    .forEach((event) => {
+      const playerName = getGuildInvolvedPlayer(event);
+
+      if (!playerName) return;
+
+      const eventKey = eventSortKey(event);
+      const warPlayerKey = `${eventWarId(event)}::${playerName}`;
+
+      firstCombatKeyByPlayer[playerName] ||= eventKey;
+      firstCombatKeyByWarPlayer[warPlayerKey] ||= eventKey;
+    });
+
   const totalWars = warList.length || new Set(events.map((event) => String(event.id || event.date))).size;
 
   const firstSeenWarIndex = {};
@@ -817,12 +794,30 @@ function buildHallData(stats) {
             fromFirstLogWars: globalWarIndex + 1,
             fromPlayerFirstLogWars: participatedWarCount,
             totalKillsAtReach: after,
-            reachedKey: warSortKey(match.warId, match.date),
+            chronologyKey: warSortKey(match.warId, match.date),
           });
         }
       });
     });
   });
+
+  function getPlayerChronologyKey(name) {
+    const firstTrackedWarIndex = firstSeenWarIndex[name];
+
+    return (
+      firstCombatKeyByPlayer[name] ||
+      (Number.isFinite(Number(firstTrackedWarIndex))
+        ? `${String(firstTrackedWarIndex).padStart(8, '0')} 00000000 00000000`
+        : '9999-99-99 99999999 99999999')
+    );
+  }
+
+  function getPlayerWarChronologyKey(warId, name) {
+    return (
+      firstCombatKeyByWarPlayer[`${warId}::${name}`] ||
+      getPlayerChronologyKey(name)
+    );
+  }
 
   function getPlayerMatchValues(name) {
     return Object.values(playerMatchMap[name] || {}).filter((match) => match.hasKills);
@@ -985,7 +980,7 @@ function buildHallData(stats) {
             return desc ? bv - av : av - bv;
           }
 
-          return comparePlayerChronology(a, b);
+          return compareChronology(a, b);
         })
         .map((row, index) => [row.name, index + 1]),
     );
@@ -1021,7 +1016,7 @@ function buildHallData(stats) {
           (a, b) =>
             b.kills - a.kills ||
             (reached[a.name] || '99999999').localeCompare(reached[b.name] || '99999999') ||
-            comparePlayerChronology(a, b),
+            compareChronology(a, b),
         )
         .map((row, index) => [row.name, index + 1]),
     );
@@ -1048,7 +1043,7 @@ function buildHallData(stats) {
           kdNumber: kd(kills, deaths),
           streak: eventStreak,
           feed: eventFeed,
-          chronologyKey: getPlayerWarChronologyKey(warEvents, name),
+          chronologyKey: getPlayerWarChronologyKey(warId, name),
         };
       })
       .filter(Boolean);
@@ -1108,7 +1103,13 @@ function buildHallData(stats) {
       const fortDamage = num(player.fortDamage);
       const matchValues = getPlayerMatchValues(player.name);
       const avgKillsMatchCount = matchValues.length;
-      const wars = Object.keys(playerMatchMap[player.name] || {}).length;
+      const trackedWars = Object.keys(playerMatchMap[player.name] || {}).length;
+      const wars = Math.max(
+        trackedWars,
+        num(player.wars),
+        num(player.warCount),
+        num(player.matches),
+      );
       const maxMatchKills = Math.max(
         0,
         ...matchValues.map((match) => Number(match.kills) || 0),
@@ -1229,47 +1230,36 @@ function buildHallData(stats) {
     .sort(
       (a, b) =>
         b.score - a.score ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     );
 
-  const leaderboardRows = rows.filter((row) => row.wars >= MIN_HALL_WARS);
+  const leaderboardRows = rows.filter((row) => row.wars >= minimumWars);
   const eligiblePlayerNames = new Set(leaderboardRows.map((row) => row.name));
 
   const bestKd =
     [...leaderboardRows]
       .filter((row) => row.kills >= 5)
-      .sort(
-        (a, b) =>
-          b.kd - a.kd ||
-          comparePlayerChronology(a, b),
-      )[0] || leaderboardRows[0];
+      .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0] ||
+    leaderboardRows[0];
 
   const topKills =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.kills - a.kills ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.kills - a.kills || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const topStreak =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.streak - a.streak ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.streak - a.streak || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const topFeed =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.feed - a.feed ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.feed - a.feed || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const topWars =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.wars - a.wars ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.wars - a.wars || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const achievements = [
@@ -1306,10 +1296,7 @@ function buildHallData(stats) {
           .sort(
             (a, b) =>
               a.globalWarIndex - b.globalWarIndex ||
-              String(a.reachedKey || '').localeCompare(
-                String(b.reachedKey || ''),
-              ) ||
-              comparePlayerChronology(a, b),
+              compareChronology(a, b),
           )
           .slice(0, 10),
         fastest: [...thresholdReached[threshold]]
@@ -1318,10 +1305,7 @@ function buildHallData(stats) {
             (a, b) =>
               a.fromPlayerFirstLogWars - b.fromPlayerFirstLogWars ||
               a.globalWarIndex - b.globalWarIndex ||
-              String(a.reachedKey || '').localeCompare(
-                String(b.reachedKey || ''),
-              ) ||
-              comparePlayerChronology(a, b),
+              compareChronology(a, b),
           )
           .slice(0, 10),
       },
@@ -1335,19 +1319,11 @@ function buildHallData(stats) {
     thresholdLeaderboards,
     topKillers: [...leaderboardRows]
       .filter((row) => row.kills > 0)
-      .sort(
-      (a, b) =>
-        b.kills - a.kills ||
-        comparePlayerChronology(a, b),
-    )
+      .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
       .slice(0, 10),
     topDamagePlayers: [...leaderboardRows]
       .filter((row) => row.damageDealt > 0)
-      .sort(
-      (a, b) =>
-        b.damageDealt - a.damageDealt ||
-        comparePlayerChronology(a, b),
-    )
+      .sort((a, b) => b.damageDealt - a.damageDealt || compareChronology(a, b))
       .slice(0, 10),
     totals: {
       kills: num(safe.kills) || rows.reduce((sum, row) => sum + row.kills, 0),
@@ -1853,18 +1829,10 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
   const bestKd = [...leaderboardRows]
     .filter((player) => player.kills >= 5)
-    .sort(
-      (a, b) =>
-        b.kd - a.kd ||
-        comparePlayerChronology(a, b),
-    )[0];
+    .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0];
 
   const topStreak = [...leaderboardRows]
-    .sort(
-      (a, b) =>
-        b.streak - a.streak ||
-        comparePlayerChronology(a, b),
-    )[0];
+    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))[0];
 
   const totalEligibleKills = leaderboardRows.reduce((sum, player) => sum + player.kills, 0);
   const totalEligibleDamage = leaderboardRows.reduce((sum, player) => sum + player.damageDealt, 0);
@@ -1918,40 +1886,30 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
 function CombatOutputPanel({ data }) {
   const topTotalKills = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.kills > 0)
-    .sort(
-      (a, b) =>
-        b.kills - a.kills ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.kills > 0)
+    .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgKillsMatchCount) > 0 &&
         Number.isFinite(Number(player.avgKillsPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgKillsPerMatch - a.avgKillsPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topFraggers = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgKillsMatchCount) > 0 &&
         player.maxMatchKills > 0,
     )
-    .sort(
-      (a, b) =>
-        b.maxMatchKills - a.maxMatchKills ||
-        comparePlayerChronology(a, b),
-    )
+    .sort((a, b) => b.maxMatchKills - a.maxMatchKills || compareChronology(a, b))
     .slice(0, 10);
 
   const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
@@ -1976,7 +1934,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
           )}
         </div>
 
@@ -1994,7 +1952,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
           )}
         </div>
 
@@ -2012,7 +1970,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
           )}
         </div>
       </div>
@@ -2024,73 +1982,61 @@ function CombatRecordsPanel({ data }) {
   const topAverageKd = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgKdMatchCount) > 0 &&
         Number.isFinite(Number(player.avgKdPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgKdPerMatch - a.avgKdPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topHighestMatchKd = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.maxMatchKd) > 0 &&
         Number.isFinite(Number(player.maxMatchKd)),
     )
     .sort(
       (a, b) =>
         b.maxMatchKd - a.maxMatchKd ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topAverageRank = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.averageRankMatchCount) > 0 &&
         Number.isFinite(Number(player.averageRank)),
     )
     .sort(
       (a, b) =>
         a.averageRank - b.averageRank ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topStreaks = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.streak > 0)
-    .sort(
-      (a, b) =>
-        b.streak - a.streak ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.streak > 0)
+    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))
     .slice(0, 10);
 
   const topFeeds = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.feed > 0)
-    .sort(
-      (a, b) =>
-        b.feed - a.feed ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.feed > 0)
+    .sort((a, b) => b.feed - a.feed || compareChronology(a, b))
     .slice(0, 10);
 
   const topFiftyPlusKillWars = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.fiftyPlusKillWars) > 0,
     )
     .sort(
       (a, b) =>
         b.fiftyPlusKillWars - a.fiftyPlusKillWars ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
@@ -2362,57 +2308,55 @@ function ArsenalOutputPanel({ data }) {
 
 function DamageRecordsPanel({ data }) {
   const topSingleGameDamageDealt = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.maxMatchDamageDealt > 0)
+    .filter((player) => player.maxMatchDamageDealt > 0)
     .sort(
       (a, b) =>
         b.maxMatchDamageDealt - a.maxMatchDamageDealt ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topAverageDamageDealt = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgDamageDealtMatchCount) > 0 &&
         Number.isFinite(Number(player.avgDamageDealtPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgDamageDealtPerMatch - a.avgDamageDealtPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topSingleGameFortDamage = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.maxMatchFortDamage > 0)
+    .filter((player) => player.maxMatchFortDamage > 0)
     .sort(
       (a, b) =>
         b.maxMatchFortDamage - a.maxMatchFortDamage ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topSingleGameCcHits = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.maxMatchCcHits > 0)
+    .filter((player) => player.maxMatchCcHits > 0)
     .sort(
       (a, b) =>
         b.maxMatchCcHits - a.maxMatchCcHits ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topAverageCcHits = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgCcHitsMatchCount) > 0 &&
         Number.isFinite(Number(player.avgCcHitsPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgCcHitsPerMatch - a.avgCcHitsPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
@@ -2522,29 +2466,25 @@ function DamageRecordsPanel({ data }) {
 
 function NodeWarsRecordsPanel({ data }) {
   const topMostNodeWars = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.wars > 0)
-    .sort(
-      (a, b) =>
-        b.wars - a.wars ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.wars > 0)
+    .sort((a, b) => b.wars - a.wars || compareChronology(a, b))
     .slice(0, 10);
 
   const topJoinParticipation = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.wars > 0)
+    .filter((player) => player.wars > 0)
     .sort(
       (a, b) =>
         b.joinParticipation - a.joinParticipation ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topConsecutiveWars = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.consecutiveWars > 0)
+    .filter((player) => player.consecutiveWars > 0)
     .sort(
       (a, b) =>
         b.consecutiveWars - a.consecutiveWars ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
@@ -2658,10 +2598,17 @@ function PreviewAll({ data }) {
 
 export default function HallOfFame({ stats, allTimeStats } = {}) {
   const previewMode = !stats && !allTimeStats;
-  const data = useMemo(() => buildHallData(allTimeStats?.players?.length ? allTimeStats : stats), [stats, allTimeStats]);
+  const data = useMemo(
+    () =>
+      buildHallData(
+        allTimeStats?.players?.length ? allTimeStats : stats,
+        MIN_HALL_WARS,
+      ),
+    [stats, allTimeStats],
+  );
 
+  if (previewMode) return <PreviewAll data={buildHallData(demoStats, 0)} />;
   if (!data.rows.length) return <EmptyState />;
-  if (previewMode) return <PreviewAll data={buildHallData(demoStats)} />;
 
   return (
     <PageFrame>
