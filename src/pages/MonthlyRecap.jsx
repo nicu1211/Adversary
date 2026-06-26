@@ -230,6 +230,7 @@ function buildEnemyRows(logs, stats) {
       kills: 0,
       deaths: 0,
       wars: new Set(),
+      warRows: [],
     };
 
     byGuild[guildName].kills += num(kills);
@@ -471,21 +472,29 @@ function buildReview(logs, selectedMonth) {
     ),
   );
 
-  const enemies = buildEnemyRows(monthLogs, stats);
+  const enemies = buildEnemyRows(monthLogs, stats).map((enemy) => {
+    const matchingRows = rows
+      .filter((row) => {
+        const guild = featuredGuildForRow(row);
+        return guild?.name === enemy.name;
+      })
+      .sort(
+        (a, b) =>
+          String(b.date || '').localeCompare(String(a.date || '')),
+      );
+
+    return {
+      ...enemy,
+      latestWar: matchingRows[0] || null,
+    };
+  });
 
   const mostFought = enemies[0] || null;
 
+  // Inverted by request:
+  // Best Matchup uses the lowest K/D result.
+  // Toughest Opponent uses the highest K/D result.
   const bestMatchup =
-    [...enemies]
-      .filter((enemy) => enemy.kills + enemy.deaths > 0)
-      .sort(
-        (a, b) =>
-          b.kd - a.kd ||
-          b.wars - a.wars ||
-          b.kills - a.kills,
-      )[0] || null;
-
-  const toughestMatchup =
     [...enemies]
       .filter((enemy) => enemy.kills + enemy.deaths > 0)
       .sort(
@@ -493,6 +502,16 @@ function buildReview(logs, selectedMonth) {
           a.kd - b.kd ||
           b.wars - a.wars ||
           b.deaths - a.deaths,
+      )[0] || null;
+
+  const toughestMatchup =
+    [...enemies]
+      .filter((enemy) => enemy.kills + enemy.deaths > 0)
+      .sort(
+        (a, b) =>
+          b.kd - a.kd ||
+          b.wars - a.wars ||
+          b.kills - a.kills,
       )[0] || null;
 
   const highestKillsWar =
@@ -664,7 +683,15 @@ function KpiCard({
   );
 }
 
-function MatchupCard({ icon: Icon, label, name, value, accent }) {
+function MatchupCard({
+  icon: Icon,
+  label,
+  name,
+  wars,
+  value,
+  accent,
+  onClick,
+}) {
   const classes = {
     violet:
       'border-violet-500/40 bg-gradient-to-r from-violet-950/55 to-[#020813] text-violet-300',
@@ -675,22 +702,49 @@ function MatchupCard({ icon: Icon, label, name, value, accent }) {
   }[accent];
 
   return (
-    <div className={`flex min-h-[86px] items-center gap-3 rounded-[10px] border p-3 ${classes}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={`group flex min-h-[86px] w-full items-center gap-3 rounded-[10px] border p-3 text-left transition ${
+        onClick
+          ? 'cursor-pointer hover:-translate-y-0.5 hover:brightness-110'
+          : 'cursor-default'
+      } ${classes}`}
+    >
       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-current/30 bg-black/25">
         <Icon size={30} />
       </div>
-      <div className="min-w-0">
+
+      <div className="min-w-0 flex-1">
         <p className="text-[9px] font-black uppercase tracking-[0.1em]">
           {label}
         </p>
-        <p className="mt-1 truncate text-[14px] font-black text-white">
-          {name || '-'}
-        </p>
+
+        <div className="mt-1 flex min-w-0 items-center gap-2">
+          <p className="truncate text-[14px] font-black text-white">
+            {name || '-'}
+          </p>
+
+          {wars > 0 && (
+            <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black text-slate-300">
+              {wars} war{wars === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+
         <p className="mt-1 text-[10px] font-black text-slate-400">
           {value || 'No data'}
         </p>
+
+        {onClick && (
+          <p className="mt-1 flex items-center gap-1 text-[9px] font-black text-slate-500 group-hover:text-white">
+            Open latest node war
+            <ChevronRight size={11} />
+          </p>
+        )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -1128,34 +1182,52 @@ export default function MonthlyRecap({
             icon={Swords}
             label="Most Fought Guild"
             name={mostFought?.name}
+            wars={mostFought?.wars}
             value={
               mostFought
-                ? `${mostFought.wars} war${
-                    mostFought.wars === 1 ? '' : 's'
-                  }`
+                ? `${compact(mostFought.kills)} K · ${compact(
+                    mostFought.deaths,
+                  )} D`
                 : null
             }
             accent="violet"
+            onClick={
+              mostFought?.latestWar
+                ? () => onOpenMatchOverview(mostFought.latestWar)
+                : undefined
+            }
           />
 
           <MatchupCard
             icon={Trophy}
             label="Best Matchup"
             name={bestMatchup?.name}
+            wars={bestMatchup?.wars}
             value={bestMatchup ? `${bestMatchup.kd.toFixed(2)} K/D` : null}
             accent="cyan"
+            onClick={
+              bestMatchup?.latestWar
+                ? () => onOpenMatchOverview(bestMatchup.latestWar)
+                : undefined
+            }
           />
 
           <MatchupCard
             icon={Target}
-            label="Toughest Matchup"
+            label="Toughest Opponent"
             name={toughestMatchup?.name}
+            wars={toughestMatchup?.wars}
             value={
               toughestMatchup
                 ? `${toughestMatchup.kd.toFixed(2)} K/D`
                 : null
             }
             accent="rose"
+            onClick={
+              toughestMatchup?.latestWar
+                ? () => onOpenMatchOverview(toughestMatchup.latestWar)
+                : undefined
+            }
           />
         </div>
       </SectionShell>
