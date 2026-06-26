@@ -1420,6 +1420,7 @@ function SortHeader({
   sort,
   onSort,
   className = '',
+  toneClass = 'text-[#7f8da2]',
 }) {
   const active = sort.key === sortKey;
   const arrow = active
@@ -1432,9 +1433,9 @@ function SortHeader({
     <button
       type="button"
       onClick={() => onSort(sortKey)}
-      className={`flex items-center gap-1 text-left transition hover:text-white ${
-        active ? 'text-[#8fc4ff]' : 'text-[#7f8da2]'
-      } ${className}`}
+      className={`flex items-center gap-1 text-left transition hover:brightness-125 ${
+        active ? 'brightness-125' : ''
+      } ${toneClass} ${className}`}
     >
       <span>{label}</span>
       <span className="text-[10px]">{arrow}</span>
@@ -1477,16 +1478,47 @@ function formatPerformanceValue(key, value, viewMode) {
   return compact(value);
 }
 
-const performanceProgressThemes = {
-  kills: 'from-blue-500 to-cyan-300',
-  deaths: 'from-pink-500 to-rose-300',
-  kd: 'from-emerald-500 to-lime-300',
-  killStreak: 'from-slate-200 to-white',
-  killFeed: 'from-orange-500 to-amber-300',
-  damageDealt: 'from-cyan-500 to-sky-300',
-  damageTaken: 'from-rose-500 to-pink-300',
-  ccHits: 'from-violet-500 to-fuchsia-300',
-  fortDamage: 'from-amber-500 to-yellow-300',
+const performanceColumnThemes = {
+  kills: {
+    text: 'text-blue-400',
+    bar: 'bg-blue-400',
+  },
+  deaths: {
+    text: 'text-rose-400',
+    bar: 'bg-rose-400',
+  },
+  kdPositive: {
+    text: 'text-emerald-400',
+    bar: 'bg-emerald-400',
+  },
+  kdNegative: {
+    text: 'text-red-400',
+    bar: 'bg-red-400',
+  },
+  killStreak: {
+    text: 'text-slate-200',
+    bar: 'bg-slate-200',
+  },
+  killFeed: {
+    text: 'text-orange-400',
+    bar: 'bg-orange-400',
+  },
+  damageDealt: {
+    text: 'text-cyan-400',
+    bar: 'bg-cyan-400',
+  },
+  damageTaken: {
+    text: 'text-pink-400',
+    bar: 'bg-pink-400',
+  },
+  ccHits: {
+    text: 'text-violet-400',
+    bar: 'bg-violet-400',
+  },
+  fortDamage: {
+    text: 'text-amber-400',
+    bar: 'bg-amber-400',
+  },
 };
 
 function PerformanceMetricCell({
@@ -1494,7 +1526,6 @@ function PerformanceMetricCell({
   metricKey,
   max,
   viewMode,
-  textClass,
 }) {
   if (player.inactive) {
     return (
@@ -1516,26 +1547,37 @@ function PerformanceMetricCell({
           ),
         );
 
+  const theme =
+    metricKey === 'kd'
+      ? value >= 1
+        ? performanceColumnThemes.kdPositive
+        : performanceColumnThemes.kdNegative
+      : performanceColumnThemes[metricKey] || {
+          text: 'text-slate-300',
+          bar: 'bg-slate-300',
+        };
+
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col items-center">
       <span
-        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${textClass}`}
+        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${theme.text}`}
       >
         {formatPerformanceValue(metricKey, value, viewMode)}
       </span>
 
-      <span className="mt-1.5 block h-[2px] w-[58%] overflow-hidden rounded-full bg-slate-800/55">
+      <span className="mt-1.5 block h-[2px] w-[58%] overflow-visible rounded-full bg-slate-800/55">
         <span
-          className={`relative block h-full rounded-full bg-gradient-to-r ${
-            performanceProgressThemes[metricKey] ||
-            'from-slate-500 to-slate-300'
-          } opacity-90`}
+          className={`relative block h-full rounded-full ${theme.bar}`}
           style={{
             width: `${width}%`,
-            boxShadow: '0 0 6px rgba(255,255,255,0.08)',
+            boxShadow: '0 0 7px currentColor',
           }}
         >
-          <span className="absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full bg-white/55 blur-[0.5px]" />
+          {width > 0 && (
+            <span
+              className={`absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full ${theme.bar} shadow-[0_0_6px_currentColor]`}
+            />
+          )}
         </span>
       </span>
     </div>
@@ -1686,6 +1728,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-blue-400"
             />
             <SortHeader
               label="Deaths"
@@ -1693,6 +1736,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-rose-400"
             />
             <SortHeader
               label="K/D"
@@ -1700,6 +1744,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-emerald-400"
             />
             <SortHeader
               label="Killstreak"
@@ -1707,6 +1752,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-slate-200"
             />
             <SortHeader
               label="KillFeed"
@@ -1714,6 +1760,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-orange-400"
             />
             <SortHeader
               label="DMG Dealt"
@@ -1721,6 +1768,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-cyan-400"
             />
             <SortHeader
               label="DMG Taken"
@@ -1728,6 +1776,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-pink-400"
             />
             <SortHeader
               label="CC Hits"
@@ -1735,6 +1784,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-violet-400"
             />
             <SortHeader
               label="DMG to Fort"
@@ -1742,6 +1792,7 @@ function PlayersTable({ players }) {
               sort={sort}
               onSort={handleSort}
               className="justify-center"
+              toneClass="text-amber-400"
             />
           </div>
 
@@ -1797,67 +1848,54 @@ function PlayersTable({ players }) {
                     metricKey="kills"
                     max={metricMaximums.kills}
                     viewMode={viewMode}
-                    textClass="text-blue-300"
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="deaths"
                     max={metricMaximums.deaths}
                     viewMode={viewMode}
-                    textClass="text-rose-300"
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="kd"
                     max={metricMaximums.kd}
                     viewMode={viewMode}
-                    textClass={
-                      player.kd >= 1
-                        ? 'text-[#75e34f]'
-                        : 'text-[#ff6b7e]'
-                    }
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="killStreak"
                     max={metricMaximums.killStreak}
                     viewMode={viewMode}
-                    textClass="text-amber-300"
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="killFeed"
                     max={metricMaximums.killFeed}
                     viewMode={viewMode}
-                    textClass="text-fuchsia-300"
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="damageDealt"
                     max={metricMaximums.damageDealt}
                     viewMode={viewMode}
-                    textClass="text-cyan-300"
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="damageTaken"
                     max={metricMaximums.damageTaken}
                     viewMode={viewMode}
-                    textClass="text-orange-300"
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="ccHits"
                     max={metricMaximums.ccHits}
                     viewMode={viewMode}
-                    textClass="text-violet-300"
                   />
                   <PerformanceMetricCell
                     player={player}
                     metricKey="fortDamage"
                     max={metricMaximums.fortDamage}
                     viewMode={viewMode}
-                    textClass="text-yellow-300"
                   />
                 </div>
               );
