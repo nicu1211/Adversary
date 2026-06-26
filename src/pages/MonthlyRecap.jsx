@@ -2235,7 +2235,7 @@ function PlayersTable({ players }) {
   }
 
   const gridColumns =
-    'grid-cols-[28px_minmax(130px,160px)_84px_48px_72px_72px_62px_82px_80px_98px_98px_74px_100px]';
+    'grid-cols-[28px_minmax(170px,1.45fr)_minmax(92px,.72fr)_minmax(48px,.42fr)_minmax(72px,.58fr)_minmax(72px,.58fr)_minmax(62px,.5fr)_minmax(82px,.66fr)_minmax(80px,.64fr)_minmax(98px,.82fr)_minmax(98px,.82fr)_minmax(74px,.6fr)_minmax(100px,.84fr)]';
 
   return (
     <>
@@ -2273,9 +2273,10 @@ function PlayersTable({ players }) {
               sortKey="name"
               sort={sort}
               onSort={handleSort}
+              className="pr-3"
             />
             <SortHeader
-              label="Impact"
+              label="Overall"
               sortKey="impact"
               sort={sort}
               onSort={handleSort}
@@ -2384,7 +2385,7 @@ function PlayersTable({ players }) {
                     {index + 1}
                   </span>
 
-                  <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="flex min-w-0 items-center gap-1.5 pr-3">
                     <span
                       className={`truncate font-black ${
                         inactive ? 'text-slate-500' : 'text-white'
