@@ -22,6 +22,7 @@ import {
 import {
   buildNodeWarRow,
   calculateStats,
+  calculateStreaks,
   dateOf,
   scrollCls,
 } from '../lib/logUtils';
@@ -486,7 +487,9 @@ function comparisonInfo(
   return {
     text: `${change > 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(
       0,
-    )}% vs ${shortMonthLabel(previousMonth)}`,
+    )}% vs ${shortMonthLabel(previousMonth)} · ${
+      improved ? 'better' : 'worse'
+    }`,
     tone: improved ? 'positive' : 'negative',
   };
 }
@@ -643,22 +646,20 @@ function buildReview(logs, selectedMonth) {
           a.name.localeCompare(b.name),
       )[0] || null;
 
+  // Longest Killstreak is the only Player Highlight sourced from
+  // Combat Logs. All other Player Highlights remain Stats Log only.
   const longestStreak =
-    [...statLogPlayers]
-      .filter(
-        (player) =>
-          player.hasKillStreak &&
-          player.killStreak > 0,
-      )
+    Object.entries(calculateStreaks(stats?.ev || []))
+      .map(([name, value]) => ({
+        name,
+        value: num(value),
+      }))
+      .filter((player) => player.value > 0)
       .sort(
         (a, b) =>
-          b.killStreak - a.killStreak ||
+          b.value - a.value ||
           a.name.localeCompare(b.name),
-      )
-      .map((player) => ({
-        name: player.name,
-        value: player.killStreak,
-      }))[0] || null;
+      )[0] || null;
 
   const bestFeed =
     [...statLogPlayers]
@@ -1566,7 +1567,7 @@ export default function MonthlyRecap({
             label="Longest Killstreak"
             name={longestStreak?.name}
             value={longestStreak ? compact(longestStreak.value, 0) : '-'}
-            unit="Stats Log"
+            unit="Combat Log"
             accent="amber"
           />
           <PlayerHighlight
