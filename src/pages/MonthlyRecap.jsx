@@ -252,6 +252,126 @@ function readStatMetric(row, aliases, fallback = 0) {
   return alias == null ? fallback : num(row[alias]);
 }
 
+function chronologyTimestamp(item) {
+  const candidates = [
+    item?.timestamp,
+    item?.time,
+    item?.datetime,
+    item?.dateTime,
+    item?.date,
+    item?.createdAt,
+    item?.startTime,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null || candidate === '') {
+      continue;
+    }
+
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      return candidate < 100000000000
+        ? candidate * 1000
+        : candidate;
+    }
+
+    const numeric = Number(candidate);
+
+    if (
+      String(candidate).trim() !== '' &&
+      Number.isFinite(numeric) &&
+      numeric > 0
+    ) {
+      return numeric < 100000000000
+        ? numeric * 1000
+        : numeric;
+    }
+
+    const parsed = Date.parse(String(candidate));
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return Number.POSITIVE_INFINITY;
+}
+
+function chronologicalCompare(a, b) {
+  const aTime = Number.isFinite(a?.firstAppearanceTime)
+    ? a.firstAppearanceTime
+    : Number.POSITIVE_INFINITY;
+  const bTime = Number.isFinite(b?.firstAppearanceTime)
+    ? b.firstAppearanceTime
+    : Number.POSITIVE_INFINITY;
+
+  if (aTime !== bTime) {
+    return aTime < bTime ? -1 : 1;
+  }
+
+  const aOrder = Number.isFinite(a?.firstAppearanceOrder)
+    ? a.firstAppearanceOrder
+    : Number.POSITIVE_INFINITY;
+  const bOrder = Number.isFinite(b?.firstAppearanceOrder)
+    ? b.firstAppearanceOrder
+    : Number.POSITIVE_INFINITY;
+
+  if (aOrder !== bOrder) {
+    return aOrder < bOrder ? -1 : 1;
+  }
+
+  const aRosterOrder = Number.isFinite(a?.rosterOrder)
+    ? a.rosterOrder
+    : Number.POSITIVE_INFINITY;
+  const bRosterOrder = Number.isFinite(b?.rosterOrder)
+    ? b.rosterOrder
+    : Number.POSITIVE_INFINITY;
+
+  if (aRosterOrder !== bRosterOrder) {
+    return aRosterOrder < bRosterOrder ? -1 : 1;
+  }
+
+  return String(a?.name || '').localeCompare(
+    String(b?.name || ''),
+  );
+}
+
+function buildPlayerChronology(stats) {
+  const byPlayer = new Map();
+  let sourceOrder = 0;
+
+  function consider(name, item) {
+    const cleanName = String(name || '').trim();
+    const order = sourceOrder++;
+
+    if (!cleanName) return;
+
+    const key = cleanName.toLowerCase();
+    const time = chronologyTimestamp(item);
+    const current = byPlayer.get(key);
+
+    if (
+      !current ||
+      time < current.time ||
+      (time === current.time && order < current.order)
+    ) {
+      byPlayer.set(key, {
+        time,
+        order,
+      });
+    }
+  }
+
+  (stats?.secondary?.rows || []).forEach((row) => {
+    consider(row?.player || row?.name, row);
+  });
+
+  (stats?.ev || []).forEach((event) => {
+    consider(getGuildPlayer(event), event);
+  });
+
+  return byPlayer;
+}
+
 function buildStatsLogPlayers(stats) {
   const sourceRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
@@ -495,6 +615,7 @@ function buildMonthlyPerformancePlayers(
   );
 
   const streakMetricsByName = buildCombatStreakMetrics(stats);
+  const chronologyByName = buildPlayerChronology(stats);
 
   const playerKeys = new Set([
     ...primaryByName.keys(),
@@ -524,10 +645,15 @@ function buildMonthlyPerformancePlayers(
         num(secondary?.wars),
       );
       const streakMetrics = streakMetricsByName.get(key);
+      const chronology = chronologyByName.get(key);
 
       return {
         name,
         wars,
+        firstAppearanceTime:
+          chronology?.time ?? Number.POSITIVE_INFINITY,
+        firstAppearanceOrder:
+          chronology?.order ?? Number.POSITIVE_INFINITY,
         kills,
         deaths,
         kd: ratio(kills, deaths),
@@ -811,7 +937,7 @@ function buildRosterPerformancePlayers(activePlayers) {
     ]),
   );
 
-  return GUILD_ROSTER.map((rosterName) => {
+  return GUILD_ROSTER.map((rosterName, rosterOrder) => {
     const activePlayer = activeByName.get(
       rosterName.toLowerCase(),
     );
@@ -823,6 +949,7 @@ function buildRosterPerformancePlayers(activePlayers) {
         ...activePlayer,
         name: rosterName,
         wars,
+        rosterOrder,
         inactive: wars <= 0,
       };
     }
@@ -830,6 +957,9 @@ function buildRosterPerformancePlayers(activePlayers) {
     return {
       name: rosterName,
       wars: 0,
+      rosterOrder,
+      firstAppearanceTime: Number.POSITIVE_INFINITY,
+      firstAppearanceOrder: Number.POSITIVE_INFINITY,
       kills: 0,
       deaths: 0,
       kd: 0,
@@ -854,11 +984,11 @@ function buildRosterPerformancePlayers(activePlayers) {
         b.kills - a.kills ||
         b.kd - a.kd ||
         b.damageDealt - a.damageDealt ||
-        a.name.localeCompare(b.name)
+        chronologicalCompare(a, b)
       );
     }
 
-    return a.name.localeCompare(b.name);
+    return chronologicalCompare(a, b);
   });
 }
 
@@ -1465,32 +1595,37 @@ function SortHeader({
 }
 
 function percentileScore(
-  value,
-  values,
+  player,
+  entries,
   lowerIsBetter = false,
 ) {
-  const validValues = (values || [])
-    .map((item) => num(item))
-    .filter((item) => Number.isFinite(item));
+  const ranked = [...(entries || [])].sort((a, b) => {
+    const aValue = num(a?.value);
+    const bValue = num(b?.value);
+    const valueDifference = lowerIsBetter
+      ? aValue - bValue
+      : bValue - aValue;
 
-  if (!validValues.length) return 50;
-  if (validValues.length === 1) return 100;
+    return (
+      valueDifference ||
+      chronologicalCompare(a?.player, b?.player)
+    );
+  });
 
-  const target = num(value);
-  const lowerCount = validValues.filter(
-    (item) => item < target,
-  ).length;
-  const equalCount = validValues.filter(
-    (item) => item === target,
-  ).length;
+  if (!ranked.length) return 50;
+  if (ranked.length === 1) return 100;
 
-  const percentile =
-    ((lowerCount + Math.max(0, equalCount - 1) / 2) /
-      (validValues.length - 1)) *
-    100;
+  const index = ranked.findIndex(
+    (entry) => entry?.player === player,
+  );
 
-  const bounded = Math.max(0, Math.min(100, percentile));
-  return lowerIsBetter ? 100 - bounded : bounded;
+  if (index < 0) return 50;
+
+  return (
+    ((ranked.length - 1 - index) /
+      (ranked.length - 1)) *
+    100
+  );
 }
 
 function weightedImpactPart(parts) {
@@ -1554,7 +1689,7 @@ function addImpactScores(players) {
     }
   };
 
-  const metricValues = {};
+  const metricEntries = {};
   [
     'averageKd',
     'killsPerWar',
@@ -1576,9 +1711,10 @@ function addImpactScores(players) {
     'fortDamage',
     'wars',
   ].forEach((key) => {
-    metricValues[key] = activePlayers.map((player) =>
-      metric(player, key),
-    );
+    metricEntries[key] = activePlayers.map((player) => ({
+      player,
+      value: metric(player, key),
+    }));
   });
 
   return (players || []).map((player) => {
@@ -1594,8 +1730,8 @@ function addImpactScores(players) {
       lowerIsBetter = false,
     ) =>
       percentileScore(
-        metric(player, key),
-        metricValues[key],
+        player,
+        metricEntries[key],
         lowerIsBetter,
       );
 
@@ -1876,11 +2012,7 @@ function PlayersTable({ players }) {
         return sort.direction === 'asc' ? result : -result;
       }
 
-      return (
-        b.kills - a.kills ||
-        b.kd - a.kd ||
-        a.name.localeCompare(b.name)
-      );
+      return chronologicalCompare(a, b);
     });
 
     return sorted;
