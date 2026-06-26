@@ -1152,14 +1152,21 @@ function BestOverall({
           ]),
         );
 
+        const availableColumnRanks = Object.values(ranks).filter(
+          (value) => Number.isFinite(Number(value)),
+        );
+
         return [
           playerKey,
           {
             displayName: data.displayName,
             matches: data.matches,
             ranks,
-            average: data.matches
-              ? data.warAverageTotal / data.matches
+            average: availableColumnRanks.length
+              ? availableColumnRanks.reduce(
+                  (sum, value) => sum + Number(value),
+                  0,
+                ) / availableColumnRanks.length
               : 9999,
           },
         ];
@@ -1261,8 +1268,7 @@ function BestOverall({
         <h3 className="text-xl font-black">♛ Best Overall</h3>
 
         <p className="mb-3 text-xs text-slate-400">
-          Equal-weight average of each selected war&apos;s available
-          metric ranks
+          Average of only the ranked columns that contain data
         </p>
 
         <input
