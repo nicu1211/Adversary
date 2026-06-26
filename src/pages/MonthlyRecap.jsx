@@ -1900,33 +1900,23 @@ function addImpactScores(players) {
         lowerIsBetter,
       );
 
-    // Overall has three categories only:
-    // K/D 30%, Damage Dealt 40%, CC Hits 30%.
-    // Each category balances monthly total and per-war performance.
-    const kdScore = weightedImpactPart([
-      { score: percentile('kd'), weight: 50 },
-      { score: percentile('averageKd'), weight: 50 },
-    ]);
-
-    const damageScore = weightedImpactPart([
-      { score: percentile('damageDealt'), weight: 50 },
+    // Burst Aggression Overall:
+    // 30% best KillFeed, 20% best Killstreak,
+    // 20% kills/war, 12% damage/war,
+    // 8% CC hits/war, 10% average K/D.
+    const rawOverall = weightedImpactPart([
+      { score: percentile('bestKillFeed'), weight: 30 },
+      { score: percentile('bestKillStreak'), weight: 20 },
+      { score: percentile('killsPerWar'), weight: 20 },
       {
         score: percentile('damageDealtPerWar'),
-        weight: 50,
+        weight: 12,
       },
+      { score: percentile('ccHitsPerWar'), weight: 8 },
+      { score: percentile('averageKd'), weight: 10 },
     ]);
 
-    const ccScore = weightedImpactPart([
-      { score: percentile('ccHits'), weight: 50 },
-      { score: percentile('ccHitsPerWar'), weight: 50 },
-    ]);
-
-    const rawOverall =
-      kdScore * 0.3 +
-      damageScore * 0.4 +
-      ccScore * 0.3;
-
-    // Keep one-war performances from dominating the monthly ranking.
+    // Keep one-war burst records from dominating the monthly ranking.
     const confidence =
       num(player.wars) / (num(player.wars) + 3);
 
