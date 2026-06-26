@@ -2046,14 +2046,7 @@ function addImpactScores(
       weight: num(weights?.[key]),
     }));
 
-    const rawOverall = weightedImpactPart(parts);
-
-    // Keep very small monthly samples from dominating the ranking.
-    const confidence =
-      num(player.wars) / (num(player.wars) + 3);
-
-    const impact =
-      50 + confidence * (rawOverall - 50);
+    const impact = weightedImpactPart(parts);
 
     return {
       ...player,
@@ -2335,10 +2328,26 @@ function PlayersTable({ players }) {
       ...current,
       [key]: Math.max(0, Math.min(100, num(value))),
     }));
+    setSort({
+      key: 'impact',
+      direction: 'desc',
+    });
   }
 
   function resetOverallWeights() {
     setOverallWeights({ ...DEFAULT_OVERALL_WEIGHTS });
+    setSort({
+      key: 'impact',
+      direction: 'desc',
+    });
+  }
+
+  function handleViewMode(mode) {
+    setViewMode(mode);
+    setSort({
+      key: 'impact',
+      direction: 'desc',
+    });
   }
 
   function handleSort(key) {
@@ -2379,7 +2388,7 @@ function PlayersTable({ players }) {
               </span>
             </div>
             <p className="mt-1 text-[9px] font-bold text-slate-500">
-              Sliders are normalized automatically · Deaths and DMG Taken reward lower values
+              Only slider weights affect Overall · Total and Average rank independently · Deaths and DMG Taken reward lower values
             </p>
           </div>
 
@@ -2407,7 +2416,7 @@ function PlayersTable({ players }) {
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setViewMode(mode)}
+                  onClick={() => handleViewMode(mode)}
                   className={`rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] transition ${
                     viewMode === mode
                       ? 'bg-[#315dff] text-white shadow-[0_4px_14px_rgba(49,93,255,.25)]'
