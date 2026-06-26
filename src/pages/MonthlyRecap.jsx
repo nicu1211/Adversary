@@ -1811,6 +1811,75 @@ function SortHeader({
   );
 }
 
+const DEFAULT_OVERALL_WEIGHTS = Object.freeze({
+  kills: 0,
+  deaths: 0,
+  kd: 20,
+  killStreak: 0,
+  killFeed: 0,
+  damageDealt: 50,
+  damageTaken: 0,
+  ccHits: 30,
+  fortDamage: 0,
+});
+
+const OVERALL_WEIGHT_CONTROLS = Object.freeze([
+  {
+    key: 'kills',
+    label: 'Kills',
+    tone: 'text-blue-400',
+    accent: '#60a5fa',
+  },
+  {
+    key: 'deaths',
+    label: 'Deaths ↓',
+    tone: 'text-rose-400',
+    accent: '#fb7185',
+  },
+  {
+    key: 'kd',
+    label: 'K/D',
+    tone: 'text-emerald-400',
+    accent: '#34d399',
+  },
+  {
+    key: 'killStreak',
+    label: 'Killstreak',
+    tone: 'text-slate-200',
+    accent: '#e2e8f0',
+  },
+  {
+    key: 'killFeed',
+    label: 'KillFeed',
+    tone: 'text-orange-400',
+    accent: '#fb923c',
+  },
+  {
+    key: 'damageDealt',
+    label: 'DMG Dealt',
+    tone: 'text-cyan-400',
+    accent: '#22d3ee',
+  },
+  {
+    key: 'damageTaken',
+    label: 'DMG Taken ↓',
+    tone: 'text-pink-400',
+    accent: '#f472b6',
+  },
+  {
+    key: 'ccHits',
+    label: 'CC Hits',
+    tone: 'text-violet-400',
+    accent: '#a78bfa',
+  },
+  {
+    key: 'fortDamage',
+    label: 'DMG to Fort',
+    tone: 'text-amber-400',
+    accent: '#fbbf24',
+  },
+]);
+
 function percentileScore(
   player,
   entries,
@@ -1862,7 +1931,63 @@ function weightedImpactPart(parts) {
   );
 }
 
-function addImpactScores(players) {
+function overallMetricValue(player, key, viewMode) {
+  const wars = Math.max(1, num(player?.wars));
+
+  if (viewMode === 'average') {
+    switch (key) {
+      case 'kills':
+        return num(player?.kills) / wars;
+      case 'deaths':
+        return num(player?.deaths) / wars;
+      case 'kd':
+        return num(player?.averageKd);
+      case 'killStreak':
+        return num(player?.killStreak) / wars;
+      case 'killFeed':
+        return num(player?.killFeed) / wars;
+      case 'damageDealt':
+        return num(player?.averageDamageDealt);
+      case 'damageTaken':
+        return num(player?.damageTaken) / wars;
+      case 'ccHits':
+        return num(player?.averageCcHits);
+      case 'fortDamage':
+        return num(player?.fortDamage) / wars;
+      default:
+        return 0;
+    }
+  }
+
+  switch (key) {
+    case 'kills':
+      return num(player?.kills);
+    case 'deaths':
+      return num(player?.deaths);
+    case 'kd':
+      return num(player?.kd);
+    case 'killStreak':
+      return num(player?.longestKillStreak);
+    case 'killFeed':
+      return num(player?.bestKillFeed);
+    case 'damageDealt':
+      return num(player?.damageDealt);
+    case 'damageTaken':
+      return num(player?.damageTaken);
+    case 'ccHits':
+      return num(player?.ccHits);
+    case 'fortDamage':
+      return num(player?.fortDamage);
+    default:
+      return 0;
+  }
+}
+
+function addImpactScores(
+  players,
+  weights,
+  viewMode,
+) {
   const activePlayers = (players || []).filter(
     (player) => !player.inactive && num(player.wars) > 0,
   );
@@ -1874,72 +1999,35 @@ function addImpactScores(players) {
     }));
   }
 
-  const metric = (player, key) => {
-    const wars = Math.max(1, num(player.wars));
+  const activeControls = OVERALL_WEIGHT_CONTROLS.filter(
+    ({ key }) => num(weights?.[key]) > 0,
+  );
 
-    switch (key) {
-      case 'averageKd':
-        return num(player.averageKd);
-      case 'averageDamageDealt':
-        return num(player.averageDamageDealt);
-      case 'averageCcHits':
-        return num(player.averageCcHits);
-      case 'killsPerWar':
-        return num(player.kills) / wars;
-      case 'deathsPerWar':
-        return num(player.deaths) / wars;
-      case 'killStreakPerWar':
-        return num(player.killStreak) / wars;
-      case 'killFeedPerWar':
-        return num(player.killFeed) / wars;
-      case 'bestKillStreak':
-        return num(player.longestKillStreak);
-      case 'bestKillFeed':
-        return num(player.bestKillFeed);
-      case 'damageDealtPerWar':
-        return num(player.damageDealt) / wars;
-      case 'ccHitsPerWar':
-        return num(player.ccHits) / wars;
-      case 'fortDamagePerWar':
-        return num(player.fortDamage) / wars;
-      case 'damageTakenPerDeath':
-        return num(player.damageTaken) /
-          Math.max(1, num(player.deaths));
-      default:
-        return num(player?.[key]);
-    }
-  };
+  const totalWeight = activeControls.reduce(
+    (sum, { key }) => sum + num(weights?.[key]),
+    0,
+  );
 
-  const metricEntries = {};
-  [
-    'kd',
-    'averageKd',
-    'averageDamageDealt',
-    'averageCcHits',
-    'killsPerWar',
-    'deathsPerWar',
-    'killStreakPerWar',
-    'killFeedPerWar',
-    'bestKillStreak',
-    'bestKillFeed',
-    'damageDealtPerWar',
-    'ccHitsPerWar',
-    'fortDamagePerWar',
-    'damageTakenPerDeath',
-    'kills',
-    'killStreak',
-    'killFeed',
-    'damageDealt',
-    'damageTaken',
-    'ccHits',
-    'fortDamage',
-    'wars',
-  ].forEach((key) => {
-    metricEntries[key] = activePlayers.map((player) => ({
-      player,
-      value: metric(player, key),
+  if (!totalWeight) {
+    return (players || []).map((player) => ({
+      ...player,
+      impact: 0,
     }));
-  });
+  }
+
+  const metricEntries = Object.fromEntries(
+    activeControls.map(({ key }) => [
+      key,
+      activePlayers.map((player) => ({
+        player,
+        value: overallMetricValue(
+          player,
+          key,
+          viewMode,
+        ),
+      })),
+    ]),
+  );
 
   return (players || []).map((player) => {
     if (player.inactive || num(player.wars) <= 0) {
@@ -1949,30 +2037,18 @@ function addImpactScores(players) {
       };
     }
 
-    const percentile = (
-      key,
-      lowerIsBetter = false,
-    ) =>
-      percentileScore(
+    const parts = activeControls.map(({ key }) => ({
+      score: percentileScore(
         player,
         metricEntries[key],
-        lowerIsBetter,
-      );
+        key === 'deaths' || key === 'damageTaken',
+      ),
+      weight: num(weights?.[key]),
+    }));
 
-    // Overall:
-    // 50% true average Damage Dealt,
-    // 30% true average CC Hits,
-    // 20% average K/D across individual Node Wars.
-    const rawOverall = weightedImpactPart([
-      {
-        score: percentile('averageDamageDealt'),
-        weight: 50,
-      },
-      { score: percentile('averageCcHits'), weight: 30 },
-      { score: percentile('averageKd'), weight: 20 },
-    ]);
+    const rawOverall = weightedImpactPart(parts);
 
-    // Keep one-war performances from dominating the monthly ranking.
+    // Keep very small monthly samples from dominating the ranking.
     const confidence =
       num(player.wars) / (num(player.wars) + 3);
 
@@ -2169,14 +2245,22 @@ function PerformanceMetricCell({
 
 function PlayersTable({ players }) {
   const [viewMode, setViewMode] = useState('total');
+  const [overallWeights, setOverallWeights] = useState(
+    () => ({ ...DEFAULT_OVERALL_WEIGHTS }),
+  );
   const [sort, setSort] = useState({
     key: 'impact',
     direction: 'desc',
   });
 
   const playersWithImpact = useMemo(
-    () => addImpactScores(players || []),
-    [players],
+    () =>
+      addImpactScores(
+        players || [],
+        overallWeights,
+        viewMode,
+      ),
+    [players, overallWeights, viewMode],
   );
 
   const rows = useMemo(() => {
@@ -2241,6 +2325,22 @@ function PlayersTable({ players }) {
     );
   }, [activeRows, viewMode]);
 
+  const overallWeightTotal = OVERALL_WEIGHT_CONTROLS.reduce(
+    (sum, { key }) => sum + num(overallWeights[key]),
+    0,
+  );
+
+  function handleOverallWeight(key, value) {
+    setOverallWeights((current) => ({
+      ...current,
+      [key]: Math.max(0, Math.min(100, num(value))),
+    }));
+  }
+
+  function resetOverallWeights() {
+    setOverallWeights({ ...DEFAULT_OVERALL_WEIGHTS });
+  }
+
   function handleSort(key) {
     setSort((current) => {
       if (current.key === key) {
@@ -2267,25 +2367,103 @@ function PlayersTable({ players }) {
 
   return (
     <>
-      <div className="flex items-center justify-end border-b border-[#13243a] bg-[#05101d] px-2 py-1.5">
-        <div className="flex items-center rounded-lg border border-[#263c59] bg-[#071422] p-1">
-          {[
-            ['total', 'Total'],
-            ['average', 'Average'],
-          ].map(([mode, label]) => (
+      <div className="border-b border-[#13243a] bg-[#05101d] px-3 py-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] font-black uppercase tracking-[0.09em] text-white">
+                Overall Formula
+              </p>
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black text-slate-400">
+                Live
+              </span>
+            </div>
+            <p className="mt-1 text-[9px] font-bold text-slate-500">
+              Sliders are normalized automatically · Deaths and DMG Taken reward lower values
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="rounded-md border border-[#263c59] bg-[#071422] px-2.5 py-1.5 text-[9px] font-black text-slate-400">
+              Weight pool:{' '}
+              <span className="text-white">
+                {overallWeightTotal}
+              </span>
+            </div>
+
             <button
-              key={mode}
               type="button"
-              onClick={() => setViewMode(mode)}
-              className={`rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] transition ${
-                viewMode === mode
-                  ? 'bg-[#315dff] text-white shadow-[0_4px_14px_rgba(49,93,255,.25)]'
-                  : 'text-[#7f8da2] hover:text-white'
-              }`}
+              onClick={resetOverallWeights}
+              className="rounded-md border border-[#263c59] bg-[#071422] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-slate-400 transition hover:border-[#4ea1ff] hover:text-white"
             >
-              {label}
+              Reset
             </button>
-          ))}
+
+            <div className="flex items-center rounded-lg border border-[#263c59] bg-[#071422] p-1">
+              {[
+                ['total', 'Total'],
+                ['average', 'Average'],
+              ].map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  className={`rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] transition ${
+                    viewMode === mode
+                      ? 'bg-[#315dff] text-white shadow-[0_4px_14px_rgba(49,93,255,.25)]'
+                      : 'text-[#7f8da2] hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+          {OVERALL_WEIGHT_CONTROLS.map(
+            ({ key, label, tone, accent }) => {
+              const rawWeight = num(overallWeights[key]);
+              const effectiveWeight =
+                overallWeightTotal > 0
+                  ? (rawWeight / overallWeightTotal) * 100
+                  : 0;
+
+              return (
+                <label
+                  key={key}
+                  className="grid grid-cols-[96px_minmax(0,1fr)_58px] items-center gap-2"
+                >
+                  <span
+                    className={`truncate text-[9px] font-black uppercase tracking-[0.045em] ${tone}`}
+                  >
+                    {label}
+                  </span>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={rawWeight}
+                    onChange={(event) =>
+                      handleOverallWeight(
+                        key,
+                        event.target.value,
+                      )
+                    }
+                    className="h-1.5 w-full cursor-pointer"
+                    style={{ accentColor: accent }}
+                  />
+
+                  <span className="text-right text-[9px] font-black tabular-nums text-slate-300">
+                    {effectiveWeight.toFixed(1)}%
+                  </span>
+                </label>
+              );
+            },
+          )}
         </div>
       </div>
 
