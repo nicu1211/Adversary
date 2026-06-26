@@ -2097,7 +2097,7 @@ function PerformanceMetricCell({
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col items-center">
       <span
-        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${
+        className={`whitespace-nowrap text-center text-[10px] font-black leading-none ${
           isImpact
             ? 'bg-clip-text text-transparent'
             : theme.text
@@ -2111,7 +2111,7 @@ function PerformanceMetricCell({
         {formatPerformanceValue(metricKey, value, viewMode)}
       </span>
 
-      <span className="mt-1.5 block h-[2px] w-[58%] overflow-visible rounded-full bg-slate-800/55">
+      <span className="mt-1 block h-[2px] w-[64%] overflow-visible rounded-full bg-slate-800/55">
         <span
           className={`relative block h-full rounded-full ${
             isImpact ? '' : theme.bar
@@ -2235,11 +2235,11 @@ function PlayersTable({ players }) {
   }
 
   const gridColumns =
-    'grid-cols-[40px_minmax(210px,1.35fr)_112px_72px_112px_112px_100px_116px_116px_138px_138px_110px_138px]';
+    'grid-cols-[28px_minmax(140px,1.25fr)_84px_48px_72px_72px_62px_82px_80px_98px_98px_74px_100px]';
 
   return (
     <>
-      <div className="flex items-center justify-end border-b border-[#13243a] bg-[#05101d] px-3 py-2">
+      <div className="flex items-center justify-end border-b border-[#13243a] bg-[#05101d] px-2 py-1.5">
         <div className="flex items-center rounded-lg border border-[#263c59] bg-[#071422] p-1">
           {[
             ['total', 'Total'],
@@ -2249,7 +2249,7 @@ function PlayersTable({ players }) {
               key={mode}
               type="button"
               onClick={() => setViewMode(mode)}
-              className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.07em] transition ${
+              className={`rounded-md px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.06em] transition ${
                 viewMode === mode
                   ? 'bg-[#315dff] text-white shadow-[0_4px_14px_rgba(49,93,255,.25)]'
                   : 'text-[#7f8da2] hover:text-white'
@@ -2261,10 +2261,10 @@ function PlayersTable({ players }) {
         </div>
       </div>
 
-      <div className={`max-h-[720px] overflow-auto ${scrollCls}`}>
-        <div className="min-w-[1720px]">
+      <div className={`max-h-[720px] overflow-y-auto overflow-x-hidden ${scrollCls}`}>
+        <div className="w-full min-w-0">
           <div
-            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-2 border-b border-[#13243a] bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.07em]`}
+            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-1 border-b border-[#13243a] bg-[#071422] px-2 py-2 text-[8px] font-black uppercase tracking-[0.045em]`}
           >
             <span className="text-[#7f8da2]">#</span>
 
@@ -2370,7 +2370,7 @@ function PlayersTable({ players }) {
               return (
                 <div
                   key={player.name}
-                  className={`grid ${gridColumns} items-center gap-2 px-3 py-2.5 text-[12px] transition hover:bg-white/[.02] ${
+                  className={`grid ${gridColumns} items-center gap-1 px-2 py-2 text-[11px] transition hover:bg-white/[.02] ${
                     inactive ? 'bg-[#030914]/55' : ''
                   }`}
                 >
@@ -2384,7 +2384,7 @@ function PlayersTable({ players }) {
                     {index + 1}
                   </span>
 
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <span
                       className={`truncate font-black ${
                         inactive ? 'text-slate-500' : 'text-white'
@@ -2394,7 +2394,7 @@ function PlayersTable({ players }) {
                     </span>
 
                     {inactive && (
-                      <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-rose-400">
+                      <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.04em] text-rose-400">
                         Inactive
                       </span>
                     )}
