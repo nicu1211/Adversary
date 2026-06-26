@@ -312,7 +312,7 @@ function buildRawTrendRows(logs = []) {
     });
 }
 
-function buildEnemyGuildRows(
+function buildEnemyGuildWarRows(
   stats = {},
   logs = [],
   daysAgo = DEFAULT_ENEMY_DAYS_AGO,
@@ -321,30 +321,30 @@ function buildEnemyGuildRows(
   const cutoffTime = safeDaysAgo
     ? Date.now() - safeDaysAgo * DAY_MS
     : 0;
-  const byGuild = {};
+  const warsByGuild = {};
 
   function addWar(name, kills, deaths, matchId) {
     const cleanName = cleanGuildName(name);
     if (!cleanName || !matchId) return;
 
-    const enemyKills = Math.max(0, num(kills));
-    const enemyDeaths = Math.max(0, num(deaths));
+    const key = `${cleanName}::${String(matchId)}`;
 
-    byGuild[cleanName] ||= {
+    warsByGuild[key] ||= {
       name: cleanName,
+      matchId: String(matchId),
       kills: 0,
       deaths: 0,
-      matchIds: new Set(),
     };
 
-    byGuild[cleanName].kills += enemyKills;
-    byGuild[cleanName].deaths += enemyDeaths;
-    byGuild[cleanName].matchIds.add(String(matchId));
+    warsByGuild[key].kills += Math.max(0, num(kills));
+    warsByGuild[key].deaths += Math.max(0, num(deaths));
   }
 
   (logs || []).forEach((log) => {
     const logTime = getLogTime(log);
-    if (!logTime || (cutoffTime && logTime < cutoffTime)) return;
+    if (!logTime || (cutoffTime && logTime < cutoffTime)) {
+      return;
+    }
 
     const summary = getSimpleSummary(log);
     const guilds = Array.isArray(summary?.guilds)
@@ -373,9 +373,8 @@ function buildEnemyGuildRows(
   });
 
   // Fallback for older data containing raw kill/death events only.
-  if (!Object.keys(byGuild).length) {
+  if (!Object.keys(warsByGuild).length) {
     const events = Array.isArray(stats?.ev) ? stats.ev : [];
-    const warsByGuild = {};
 
     events.forEach((event) => {
       const guildName = cleanGuildName(event?.guild);
@@ -400,34 +399,63 @@ function buildEnemyGuildRows(
 
       if (!matchId) return;
 
-      const key = `${guildName}::${matchId}`;
-      warsByGuild[key] ||= {
-        name: guildName,
-        matchId,
-        kills: 0,
-        deaths: 0,
-      };
-
-      // One of our deaths is one kill for the enemy guild.
       if (event.type === 'death') {
-        warsByGuild[key].kills += 1;
+        addWar(guildName, 1, 0, matchId);
       }
 
-      // One of our kills is one death for the enemy guild.
       if (event.type === 'kill') {
-        warsByGuild[key].deaths += 1;
+        addWar(guildName, 0, 1, matchId);
       }
-    });
-
-    Object.values(warsByGuild).forEach((war) => {
-      addWar(
-        war.name,
-        war.kills,
-        war.deaths,
-        war.matchId,
-      );
     });
   }
+
+  return Object.values(warsByGuild)
+    .map((war) => ({
+      ...war,
+      totalInteractions:
+        num(war.kills) + num(war.deaths),
+    }))
+    .filter(
+      (war) =>
+        war.name &&
+        war.matchId &&
+        num(war.totalInteractions) >= 0,
+    );
+}
+
+function buildEnemyGuildRows(
+  warRows = [],
+  minInteractionsPerWar =
+    DEFAULT_MIN_ENEMY_INTERACTIONS,
+) {
+  const threshold = Math.max(
+    0,
+    num(minInteractionsPerWar),
+  );
+  const byGuild = {};
+
+  (warRows || [])
+    .filter(
+      (war) =>
+        num(war.totalInteractions) >= threshold,
+    )
+    .forEach((war) => {
+      const name = cleanGuildName(war.name);
+      if (!name) return;
+
+      byGuild[name] ||= {
+        name,
+        kills: 0,
+        deaths: 0,
+        matchIds: new Set(),
+      };
+
+      byGuild[name].kills += num(war.kills);
+      byGuild[name].deaths += num(war.deaths);
+      byGuild[name].matchIds.add(
+        String(war.matchId),
+      );
+    });
 
   return Object.values(byGuild)
     .map((guild) => {
@@ -461,13 +489,11 @@ function buildEnemyGuildRows(
 function groupEnemyGuildRows(
   rows = [],
   minWars = DEFAULT_MIN_ENEMY_WARS,
-  minInteractions = DEFAULT_MIN_ENEMY_INTERACTIONS,
 ) {
   const qualifiedRows = (rows || []).filter(
     (guild) =>
-      num(guild.matches) >= Math.max(0, num(minWars)) &&
-      num(guild.totalInteractions) >=
-        Math.max(0, num(minInteractions)),
+      num(guild.matches) >=
+        Math.max(0, num(minWars)),
   );
 
   return ['S', 'A', 'B', 'C', 'D', 'Trash']
@@ -923,9 +949,9 @@ function EnemyGuildTierList({ stats, logs }) {
     DEFAULT_ENEMY_DAYS_AGO,
   );
 
-  const rows = useMemo(
+  const warRows = useMemo(
     () =>
-      buildEnemyGuildRows(
+      buildEnemyGuildWarRows(
         stats || {},
         logs || [],
         daysAgo,
@@ -933,14 +959,22 @@ function EnemyGuildTierList({ stats, logs }) {
     [stats, logs, daysAgo],
   );
 
+  const rows = useMemo(
+    () =>
+      buildEnemyGuildRows(
+        warRows,
+        minInteractions,
+      ),
+    [warRows, minInteractions],
+  );
+
   const groups = useMemo(
     () =>
       groupEnemyGuildRows(
         rows,
         minWars,
-        minInteractions,
       ),
-    [rows, minWars, minInteractions],
+    [rows, minWars],
   );
 
   const qualifiedGuilds = groups.flatMap(
@@ -953,19 +987,36 @@ function EnemyGuildTierList({ stats, logs }) {
       num(guild.kdNumber),
     ),
   );
+  const rawWarCounts = warRows.reduce(
+    (counts, war) => {
+      const name = cleanGuildName(war.name);
+      if (name) {
+        counts[name] = (counts[name] || 0) + 1;
+      }
+      return counts;
+    },
+    {},
+  );
+
   const maxWars = Math.max(
     1,
-    ...rows.map((guild) => num(guild.matches)),
-  );
-  const largestInteractionTotal = Math.max(
-    DEFAULT_MIN_ENEMY_INTERACTIONS,
-    ...rows.map((guild) =>
-      num(guild.totalInteractions),
+    ...Object.values(rawWarCounts).map((value) =>
+      num(value),
     ),
   );
+
+  const largestSingleWarInteractions = Math.max(
+    DEFAULT_MIN_ENEMY_INTERACTIONS,
+    ...warRows.map((war) =>
+      num(war.totalInteractions),
+    ),
+  );
+
   const maxInteractions = Math.max(
     100,
-    Math.ceil(largestInteractionTotal / 50) * 50,
+    Math.ceil(
+      largestSingleWarInteractions / 50,
+    ) * 50,
   );
 
   const scrollClass =
@@ -984,7 +1035,7 @@ function EnemyGuildTierList({ stats, logs }) {
       <SectionTitle
         icon={Trophy}
         title="Enemy Guild Tier List"
-        sub="Live qualification filters • Ranked strictly by aggregate enemy K/D, highest to lowest"
+        sub="Per-war activity filter • Guild totals use qualifying wars only • Ranked by aggregate enemy K/D"
       />
 
       <div className="mb-3 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
@@ -994,7 +1045,7 @@ function EnemyGuildTierList({ stats, logs }) {
               Tier List Filters
             </p>
             <p className="mt-1 text-[9px] font-bold text-slate-500">
-              Sliders set minimum requirements and never alter the K/D formula.
+              Kills + Deaths is checked on every Node War before guild totals and K/D are calculated.
             </p>
           </div>
 
@@ -1043,7 +1094,7 @@ function EnemyGuildTierList({ stats, logs }) {
           <label className="rounded-xl border border-slate-800 bg-slate-950/65 p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <span className="text-[9px] font-black uppercase tracking-[0.07em] text-violet-300">
-                Minimum Kills + Deaths
+                Minimum Kills + Deaths / Node War
               </span>
               <span className="text-sm font-black tabular-nums text-white">
                 {compact(minInteractions, 0)}
@@ -1104,8 +1155,8 @@ function EnemyGuildTierList({ stats, logs }) {
 
       {!hasGuilds ? (
         <p className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-4 text-sm font-bold text-slate-500">
-          No enemy guild meets the selected Node Wars,
-          Kills + Deaths, and date requirements.
+          No enemy guild has enough qualifying Node Wars
+          after applying the per-war Kills + Deaths and date requirements.
         </p>
       ) : (
         <div className="space-y-2">
