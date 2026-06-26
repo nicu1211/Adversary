@@ -190,6 +190,8 @@ function buildPlayerWarCounts(stats) {
   );
 }
 
+// A guild encounter qualifies only when that exact Node War contains
+// at least 30 combined kills + deaths against the guild.
 function getWarGuildBreakdown(log) {
   const summary = log?.summary || log?.stats || log?.analytics || {};
   const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
@@ -922,12 +924,12 @@ function PlayersTable({ players }) {
 }
 
 function EnemyGuildReport({ enemies }) {
-  const rows = enemies.slice(0, 6);
+  const rows = enemies;
 
   if (!rows.length) {
     return (
       <div className="flex min-h-[280px] items-center justify-center p-5 text-sm font-bold text-slate-500">
-        No enemy guild data.
+        No guild reached 30 combined kills + deaths in a Node War.
       </div>
     );
   }
@@ -1202,7 +1204,7 @@ export default function MonthlyRecap({
 
       <div className="grid gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.85fr)]">
         <SectionShell icon={Sparkles} title="Monthly Highlights">
-          <div className="grid h-full gap-2 p-2 lg:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+          <div className="grid h-full grid-cols-1 gap-2 p-2">
             <MatchupCard
               icon={Swords}
               label="Most Fought Guild"
