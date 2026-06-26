@@ -29,6 +29,88 @@ import {
 
 const MIN_MONTH = '2026-05';
 
+const GUILD_ROSTER = Object.freeze([
+  'GojuSaki',
+  'Aspeen',
+  'MrOutlAw',
+  'SpeedDrawFenix',
+  'Dante_Senpai',
+  'Jaxce',
+  'Spilborghs',
+  'Raizel',
+  'AesirKing',
+  'GMW',
+  'ARC',
+  'URIZEN',
+  'Animal_Dylan',
+  'MokrySpren',
+  'Emotionz',
+  'Emphonia',
+  'EHASZz',
+  'MrDethsTV',
+  'MrsRaccoon',
+  'Joeshot',
+  'SexyCupquake',
+  'DGN',
+  'FarewelI',
+  'MadOzan',
+  'CelestialElixir',
+  'TaeHeeBaek',
+  'Kiriva',
+  'Baskona',
+  'Sarres',
+  'Gorz',
+  'Working',
+  'Bertoweed',
+  'Mahikkii',
+  'Facetasm',
+  'Wallmann',
+  'Askild',
+  'Bazu19',
+  'Reader',
+  'TEKSONXV',
+  'Honors',
+  'JustSkel',
+  'Staier',
+  'Eviria',
+  'Craifall',
+  'Fweeky',
+  'OAP',
+  'Pandanotfound',
+  'Flamingfred',
+  'Ya_Ya',
+  'Ellevest',
+  'Vollkornbeet',
+  'Wolfscream',
+  'PmP',
+  'Kawoy',
+  'Hexanity',
+  'TheWuffs',
+  'TheFluffs',
+  'Astin',
+  'Eriofrien',
+  'Rinslet',
+  'Passler',
+  'UberAlles',
+  'Wirouz',
+  'Effulgence',
+  'OQuimBarreiros',
+  'DeadToNeafink',
+  'GoldFireNOR',
+  'Jonah',
+  'BogSmrti',
+  'Hamsti',
+  'Kaede_Lucifer',
+  'Jostrel',
+  'DevilKittenSins',
+  'Dojopet',
+  'OG_Hege',
+  'Asrothx',
+  'Dovah',
+  'Potetmos',
+  'Jeung',
+]);
+
 function num(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -494,6 +576,73 @@ function comparisonInfo(
   };
 }
 
+function buildRosterPerformancePlayers(activePlayers) {
+  const activeByName = new Map(
+    (activePlayers || []).map((player) => [
+      String(player?.name || '').trim().toLowerCase(),
+      player,
+    ]),
+  );
+
+  const rosterPlayers = GUILD_ROSTER.map((rosterName) => {
+    const key = rosterName.toLowerCase();
+    const activePlayer = activeByName.get(key);
+
+    if (activePlayer) {
+      activeByName.delete(key);
+
+      const wars = num(activePlayer.wars);
+
+      return {
+        ...activePlayer,
+        name: rosterName,
+        wars,
+        inactive: wars <= 0,
+      };
+    }
+
+    return {
+      name: rosterName,
+      wars: 0,
+      kills: 0,
+      deaths: 0,
+      kd: 0,
+      damage: 0,
+      fortDamage: 0,
+      inactive: true,
+    };
+  });
+
+  // Preserve any player found in the month's logs who is not yet in the
+  // supplied roster, so real performance data is never hidden.
+  const extraPlayers = [...activeByName.values()].map((player) => {
+    const wars = num(player?.wars);
+
+    return {
+      ...player,
+      wars,
+      inactive: wars <= 0,
+    };
+  });
+
+  return [...rosterPlayers, ...extraPlayers].sort((a, b) => {
+    if (a.inactive !== b.inactive) {
+      return a.inactive ? 1 : -1;
+    }
+
+    if (!a.inactive) {
+      return (
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        b.damage - a.damage ||
+        a.name.localeCompare(b.name)
+      );
+    }
+
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function buildReview(logs, selectedMonth) {
   const monthLogs = (logs || [])
     .filter((log) => monthFromDate(dateOf(log)) === selectedMonth)
@@ -593,7 +742,7 @@ function buildReview(logs, selectedMonth) {
     previousTotals.deaths,
   );
 
-  const players = (stats?.players || [])
+  const activePlayers = (stats?.players || [])
     .map((player) => ({
       name: player?.name || '-',
       wars: num(warCounts[player?.name]),
@@ -610,6 +759,7 @@ function buildReview(logs, selectedMonth) {
         a.name.localeCompare(b.name),
     );
 
+  const players = buildRosterPerformancePlayers(activePlayers);
   const statLogPlayers = buildStatsLogPlayers(stats);
   const minWars = Math.min(3, Math.max(1, totals.wars));
 
@@ -1066,20 +1216,21 @@ function BarCell({ value, max, color }) {
 }
 
 function PlayersTable({ players }) {
-  const rows = players.slice(0, 8);
-  const maxKills = Math.max(1, ...rows.map((row) => row.kills));
-  const maxDeaths = Math.max(1, ...rows.map((row) => row.deaths));
-  const maxDamage = Math.max(1, ...rows.map((row) => row.damage));
-  const maxFort = Math.max(1, ...rows.map((row) => row.fortDamage));
+  const rows = players || [];
+  const activeRows = rows.filter((row) => !row.inactive);
+  const maxKills = Math.max(1, ...activeRows.map((row) => row.kills));
+  const maxDeaths = Math.max(1, ...activeRows.map((row) => row.deaths));
+  const maxDamage = Math.max(1, ...activeRows.map((row) => row.damage));
+  const maxFort = Math.max(1, ...activeRows.map((row) => row.fortDamage));
 
   if (!rows.length) {
     return <p className="p-5 text-sm text-slate-500">No player data.</p>;
   }
 
   return (
-    <div className={`overflow-x-auto ${scrollCls}`}>
+    <div className={`max-h-[720px] overflow-auto ${scrollCls}`}>
       <div className="min-w-[1050px]">
-        <div className="grid grid-cols-[40px_minmax(180px,1.4fr)_70px_180px_180px_90px_180px_180px] gap-2 bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-[#7f8da2]">
+        <div className="sticky top-0 z-10 grid grid-cols-[40px_minmax(220px,1.5fr)_70px_180px_180px_90px_180px_180px] gap-2 border-b border-[#13243a] bg-[#071422] px-3 py-2 text-[9px] font-black uppercase tracking-[0.08em] text-[#7f8da2]">
           <span>#</span>
           <span>Player</span>
           <span className="text-center">Wars</span>
@@ -1094,36 +1245,103 @@ function PlayersTable({ players }) {
           {rows.map((player, index) => (
             <div
               key={player.name}
-              className="grid grid-cols-[40px_minmax(180px,1.4fr)_70px_180px_180px_90px_180px_180px] items-center gap-2 px-3 py-2 text-[12px] hover:bg-white/[.02]"
+              className={`grid grid-cols-[40px_minmax(220px,1.5fr)_70px_180px_180px_90px_180px_180px] items-center gap-2 px-3 py-2 text-[12px] transition hover:bg-white/[.02] ${
+                player.inactive ? 'bg-[#030914]/55 text-slate-600' : ''
+              }`}
             >
-              <span className="font-black text-[#64748b]">{index + 1}</span>
-
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#31557d] bg-[#0a1830] text-[10px] font-black text-[#8fc4ff]">
-                  {String(player.name || '?').slice(0, 1).toUpperCase()}
-                </div>
-                <span className="truncate font-black text-white">
-                  {player.name}
-                </span>
-              </div>
-
-              <span className="text-center font-black text-[#cbd5e1]">
-                {player.wars}
+              <span
+                className={`font-black ${
+                  player.inactive ? 'text-[#405067]' : 'text-[#64748b]'
+                }`}
+              >
+                {index + 1}
               </span>
 
-              <BarCell value={player.kills} max={maxKills} color="bg-[#315dff]" />
-              <BarCell value={player.deaths} max={maxDeaths} color="bg-[#d8334f]" />
+              <div className="flex min-w-0 items-center gap-2">
+                <div
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-black ${
+                    player.inactive
+                      ? 'border-slate-700 bg-slate-900/70 text-slate-600'
+                      : 'border-[#31557d] bg-[#0a1830] text-[#8fc4ff]'
+                  }`}
+                >
+                  {String(player.name || '?').slice(0, 1).toUpperCase()}
+                </div>
+
+                <span
+                  className={`truncate font-black ${
+                    player.inactive ? 'text-slate-500' : 'text-white'
+                  }`}
+                >
+                  {player.name}
+                </span>
+
+                {player.inactive && (
+                  <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-rose-400">
+                    Inactive
+                  </span>
+                )}
+              </div>
 
               <span
                 className={`text-center font-black ${
-                  player.kd >= 1 ? 'text-[#75e34f]' : 'text-[#ff6b7e]'
+                  player.inactive ? 'text-slate-600' : 'text-[#cbd5e1]'
                 }`}
               >
-                {player.kd.toFixed(2)}
+                {player.inactive ? '—' : player.wars}
               </span>
 
-              <BarCell value={player.damage} max={maxDamage} color="bg-[#42c4c8]" />
-              <BarCell value={player.fortDamage} max={maxFort} color="bg-[#d59a32]" />
+              {player.inactive ? (
+                <span className="text-center font-black text-slate-700">—</span>
+              ) : (
+                <BarCell
+                  value={player.kills}
+                  max={maxKills}
+                  color="bg-[#315dff]"
+                />
+              )}
+
+              {player.inactive ? (
+                <span className="text-center font-black text-slate-700">—</span>
+              ) : (
+                <BarCell
+                  value={player.deaths}
+                  max={maxDeaths}
+                  color="bg-[#d8334f]"
+                />
+              )}
+
+              <span
+                className={`text-center font-black ${
+                  player.inactive
+                    ? 'text-slate-700'
+                    : player.kd >= 1
+                      ? 'text-[#75e34f]'
+                      : 'text-[#ff6b7e]'
+                }`}
+              >
+                {player.inactive ? '—' : player.kd.toFixed(2)}
+              </span>
+
+              {player.inactive ? (
+                <span className="text-center font-black text-slate-700">—</span>
+              ) : (
+                <BarCell
+                  value={player.damage}
+                  max={maxDamage}
+                  color="bg-[#42c4c8]"
+                />
+              )}
+
+              {player.inactive ? (
+                <span className="text-center font-black text-slate-700">—</span>
+              ) : (
+                <BarCell
+                  value={player.fortDamage}
+                  max={maxFort}
+                  color="bg-[#d59a32]"
+                />
+              )}
             </div>
           ))}
         </div>
@@ -1587,7 +1805,7 @@ export default function MonthlyRecap({
             label="Longest Killstreak"
             name={longestStreak?.name}
             value={longestStreak ? compact(longestStreak.value, 0) : '-'}
-            unit="Combat Log"
+            unit="Kills"
             accent="amber"
           />
           <PlayerHighlight
@@ -1595,7 +1813,7 @@ export default function MonthlyRecap({
             label="Best Kill Feed"
             name={bestFeed?.name}
             value={bestFeed ? compact(bestFeed.value, 0) : '-'}
-            unit="Stats Log"
+            unit="Kills"
             accent="pink"
           />
         </div>
