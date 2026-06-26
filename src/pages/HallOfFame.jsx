@@ -1233,7 +1233,74 @@ function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
         compareChronology(a, b),
     );
 
-  const leaderboardRows = rows.filter((row) => row.wars >= minimumWars);
+  const eligibleRows = rows.filter((row) => row.wars >= minimumWars);
+
+  function buildCareerRankMap(rowsToRank, valueGetter, desc = true) {
+    return Object.fromEntries(
+      [...rowsToRank]
+        .sort((a, b) => {
+          const av = Number(valueGetter(a)) || 0;
+          const bv = Number(valueGetter(b)) || 0;
+
+          if (av !== bv) {
+            return desc ? bv - av : av - bv;
+          }
+
+          return compareChronology(a, b);
+        })
+        .map((player, index) => [player.name, index + 1]),
+    );
+  }
+
+  // Career Average Rank uses the player's complete recorded war count.
+  // This avoids limiting the result to only wars that have detailed
+  // per-match rows. Lower Average Rank is better.
+  const careerRanks = {
+    killsPerWar: buildCareerRankMap(
+      eligibleRows,
+      (player) => player.wars ? player.kills / player.wars : 0,
+      true,
+    ),
+    deathsPerWar: buildCareerRankMap(
+      eligibleRows,
+      (player) => player.wars ? player.deaths / player.wars : 0,
+      false,
+    ),
+    kd: buildCareerRankMap(
+      eligibleRows,
+      (player) => player.kd,
+      true,
+    ),
+  };
+
+  const leaderboardRows = eligibleRows
+    .map((player) => {
+      const rankParts = [
+        careerRanks.killsPerWar[player.name],
+        careerRanks.deathsPerWar[player.name],
+        careerRanks.kd[player.name],
+      ].filter((value) => Number.isFinite(Number(value)));
+
+      const careerAverageRank = rankParts.length
+        ? rankParts.reduce((sum, value) => sum + Number(value), 0) /
+          rankParts.length
+        : null;
+
+      return {
+        ...player,
+        averageRank: careerAverageRank,
+        averageRankMatchCount: player.wars,
+        averageRankDetailedMatchCount: player.averageRankMatchCount,
+        averageKillsAllWars: player.wars ? player.kills / player.wars : 0,
+        averageDeathsAllWars: player.wars ? player.deaths / player.wars : 0,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        compareChronology(a, b),
+    );
+
   const eligiblePlayerNames = new Set(leaderboardRows.map((row) => row.name));
 
   const bestKd =
@@ -2091,7 +2158,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average Rank</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Best Average Rank · All Wars</p>
           {topAverageRank.length ? (
             topAverageRank.map((player, index) => (
               <HallProgressRow
