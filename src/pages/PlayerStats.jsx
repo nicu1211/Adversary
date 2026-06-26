@@ -2285,7 +2285,7 @@ function MatchHistoryValue({ children, color, prefix = null, icon = null }) {
   );
 }
 
-function MatchHistoryList({ matches, onOpenMatchHistory }) {
+function MatchHistoryList({ matches, onOpenMatchOverview }) {
   const [sort, setSort] = useState({
     key: 'date',
     dir: 'desc',
@@ -2456,7 +2456,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
               <button
                 type="button"
                 key={`${match.warId}-${match.date}-${index}`}
-                onClick={() => onOpenMatchHistory?.(match)}
+                onClick={() => onOpenMatchOverview?.(match)}
                 className={`grid ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
                 title="Open this match in Overview"
               >
@@ -2532,7 +2532,7 @@ function MatchHistoryList({ matches, onOpenMatchHistory }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function PlayerStats({ stats, onOpenMatchHistory }) {
+export default function PlayerStats({ stats, onOpenMatchOverview }) {
   const [player, setPlayer] = useState('');
 
   const averageRankTable = useMemo(
@@ -2896,7 +2896,7 @@ export default function PlayerStats({ stats, onOpenMatchHistory }) {
           <div className="mt-4">
             <MatchHistoryList
               matches={selectedStats.matchList}
-              onOpenMatchHistory={onOpenMatchHistory}
+              onOpenMatchOverview={onOpenMatchOverview}
             />
           </div>
 
