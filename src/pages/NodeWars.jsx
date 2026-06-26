@@ -785,6 +785,12 @@ export default function NodeWars({
     ? visibleIds.length
     : visibleIds.filter((id) => selectedRealWars.includes(id)).length;
 
+  const exactDisplayedSelection =
+    !allSavedLogsSelected &&
+    visibleIds.length > 0 &&
+    selectedRealWars.length === visibleIds.length &&
+    visibleIds.every((id) => selectedRealWars.includes(id));
+
   const totals = useMemo(() => {
     const kills = rows.reduce((sum, row) => sum + row.kills, 0);
     const deaths = rows.reduce((sum, row) => sum + row.deaths, 0);
@@ -841,12 +847,6 @@ export default function NodeWars({
   function selectDisplayedLogs() {
     clearWarnings();
 
-    if (hasAnySelection) {
-      setSelectedDays(['all']);
-      setSelectedWars([]);
-      return;
-    }
-
     if (!visibleIds.length) {
       setSelectedDays(['all']);
       setSelectedWars([]);
@@ -855,7 +855,15 @@ export default function NodeWars({
     }
 
     setSelectedDays(['all']);
-    setSelectedWars(['all']);
+
+    if (exactDisplayedSelection) {
+      setSelectedWars([]);
+      return;
+    }
+
+    // Select only the wars currently visible after applying the
+    // period filter, enemy search, and any other active filters.
+    setSelectedWars([...new Set(visibleIds)]);
   }
 
   function openSelectedOverview() {
@@ -961,12 +969,12 @@ export default function NodeWars({
                 type="button"
                 onClick={selectDisplayedLogs}
                 className={`rounded-xl border px-4 py-2 text-xs font-black transition ${
-                  hasAnySelection
+                  exactDisplayedSelection
                     ? 'border-white/40 bg-white/10 text-white hover:border-white/70 hover:bg-white/15'
                     : 'border-violet-400/30 bg-violet-500/10 text-violet-200 hover:border-violet-300/60 hover:bg-violet-500/20'
                 }`}
               >
-                {hasAnySelection ? 'Clear selection' : 'Select displayed'}
+                {exactDisplayedSelection ? 'Clear selection' : 'Select displayed'}
               </button>
 
               <button
