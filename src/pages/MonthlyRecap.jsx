@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Crosshair,
   Download,
+  Flag,
   Flame,
   Gauge,
   Medal,
@@ -189,6 +190,29 @@ function buildPlayerWarCounts(stats) {
   );
 }
 
+function getWarGuildBreakdown(log) {
+  const summary = log?.summary || log?.stats || log?.analytics || {};
+  const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
+
+  return guilds
+    .map((guild) => ({
+      name: cleanGuild(guild?.name),
+      kills: num(guild?.kills),
+      deaths: num(guild?.deaths),
+    }))
+    .filter((guild) => guild.name)
+    .sort(
+      (a, b) =>
+        b.kills + b.deaths - (a.kills + a.deaths) ||
+        b.kills - a.kills ||
+        a.name.localeCompare(b.name),
+    );
+}
+
+function getFeaturedWarGuild(log) {
+  return getWarGuildBreakdown(log)[0] || null;
+}
+
 function buildEnemyRows(logs, stats) {
   const byGuild = {};
 
@@ -308,6 +332,32 @@ function buildReview(logs, selectedMonth) {
 
   const rows = monthLogs.map(buildNodeWarRow);
   const previousRows = previousLogs.map(buildNodeWarRow);
+
+  const sourceLogById = new Map(
+    monthLogs.map((log) => [String(log?.id || ''), log]),
+  );
+
+  const sourceLogByDate = new Map();
+
+  monthLogs.forEach((log) => {
+    const date = String(dateOf(log) || '');
+
+    if (date && !sourceLogByDate.has(date)) {
+      sourceLogByDate.set(date, log);
+    }
+  });
+
+  function sourceLogForRow(row) {
+    return (
+      sourceLogById.get(String(row?.id || '')) ||
+      sourceLogByDate.get(String(row?.date || '')) ||
+      null
+    );
+  }
+
+  function featuredGuildForRow(row) {
+    return getFeaturedWarGuild(sourceLogForRow(row));
+  }
 
   const stats = calculateStats(monthLogs);
   const warCounts = buildPlayerWarCounts(stats);
@@ -478,8 +528,8 @@ function buildReview(logs, selectedMonth) {
         id: 'kills',
         label: 'Highest Kill Total',
         value: `${compact(highestKillsWar.kills)} Kills`,
-        opponent: mostFought?.name || 'Enemy Guild',
         date: highestKillsWar.date,
+        guild: featuredGuildForRow(highestKillsWar),
         row: highestKillsWar,
         accent: 'blue',
       },
@@ -489,8 +539,8 @@ function buildReview(logs, selectedMonth) {
         value: `${num(bestKdWar.kdNumber ?? bestKdWar.kd).toFixed(
           2,
         )} K/D`,
-        opponent: bestMatchup?.name || 'Enemy Guild',
         date: bestKdWar.date,
+        guild: featuredGuildForRow(bestKdWar),
         row: bestKdWar,
         accent: 'violet',
       },
@@ -498,8 +548,8 @@ function buildReview(logs, selectedMonth) {
         id: 'damage',
         label: 'Highest Damage War',
         value: compact(highestDamageWar.damageDealt),
-        opponent: toughestMatchup?.name || 'Enemy Guild',
         date: highestDamageWar.date,
+        guild: featuredGuildForRow(highestDamageWar),
         row: highestDamageWar,
         accent: 'cyan',
       },
@@ -576,14 +626,16 @@ function KpiCard({
             <p className="text-[26px] font-black leading-none text-white">
               {value}
             </p>
-            <div className="mb-0.5 border-l border-white/10 pl-2">
-              <p className="text-[8px] font-black uppercase tracking-[0.08em] text-[#6f7d90]">
-                {averageLabel}
-              </p>
-              <p className="text-[12px] font-black leading-none text-[#c8d6e8]">
-                {averageValue}
-              </p>
-            </div>
+            {averageLabel && (
+              <div className="mb-0.5 border-l border-white/10 pl-2">
+                <p className="text-[8px] font-black uppercase tracking-[0.08em] text-[#6f7d90]">
+                  {averageLabel}
+                </p>
+                <p className="text-[12px] font-black leading-none text-[#c8d6e8]">
+                  {averageValue}
+                </p>
+              </div>
+            )}
           </div>
 
           <p
@@ -698,11 +750,22 @@ function FeaturedWar({ item, onOpen }) {
           <p className="mt-2 text-[25px] font-black leading-none text-white">
             {item.value}
           </p>
-          <p className="mt-2 text-[11px] font-bold text-[#c7d2e1]">
-            vs {item.opponent}
-          </p>
-          <p className="mt-1 text-[9px] font-black text-[#6f7d90]">
+          <p className="mt-2 text-[11px] font-black text-[#dbe8f8]">
             {formatDate(item.date)}
+          </p>
+
+          <p className="mt-1 truncate text-[11px] font-bold text-[#9fb0c6]">
+            vs {item.guild?.name || 'Enemy guild unavailable'}
+          </p>
+
+          <p className="mt-1 text-[10px] font-black text-[#6f7d90]">
+            {item.guild
+              ? `${compact(item.guild.kills)} kills · ${compact(
+                  item.guild.deaths,
+                )} deaths against this guild`
+              : `${compact(item.row?.kills)} total kills · ${compact(
+                  item.row?.deaths,
+                )} total deaths`}
           </p>
         </div>
       </div>
@@ -962,11 +1025,9 @@ export default function MonthlyRecap({
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         <KpiCard
-          icon={Swords}
+          icon={Flag}
           label="Total Wars"
           value={compact(totals.wars, 0)}
-          averageLabel="Avg / Week"
-          averageValue={totals.avgWarsPerWeek.toFixed(1)}
           comparison={comparisonInfo(
             totals.wars,
             previousTotals.wars,
@@ -975,7 +1036,7 @@ export default function MonthlyRecap({
           accent="blue"
         />
         <KpiCard
-          icon={Skull}
+          icon={Swords}
           label="Total Kills"
           value={compact(totals.kills)}
           averageLabel="Avg / War"
