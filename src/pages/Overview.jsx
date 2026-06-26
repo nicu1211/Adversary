@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Chart as ChartJS,
   LinearScale,
@@ -16,9 +16,6 @@ import {
   calculateStreaks,
   calculateStats,
 } from '../lib/logUtils';
-import {
-  publishBestOverallRanks,
-} from '../lib/bestOverallStore';
 
 ChartJS.register(LinearScale, PointElement, ChartTooltip, Legend);
 
@@ -1585,12 +1582,6 @@ function BestOverall({
       overallCombatChronology: chronology,
     };
   }, [events, selectedLogs]);
-
-  // Player Stats consumes this exact object. It does not rebuild or
-  // approximate the Best Overall calculation.
-  useEffect(() => {
-    publishBestOverallRanks(averageRanks);
-  }, [averageRanks]);
 
   const names = useMemo(() => {
     const namesByKey = new Map();
