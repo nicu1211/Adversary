@@ -21,15 +21,12 @@ import {
 
 import {
   buildNodeWarRow,
-  calculateKillFeed,
   calculateStats,
-  calculateStreaks,
   dateOf,
   scrollCls,
 } from '../lib/logUtils';
 
 const MIN_MONTH = '2026-05';
-const KILL_FEED_WINDOW_SECONDS = 10;
 
 function num(value) {
   const parsed = Number(value);
@@ -145,20 +142,159 @@ function cleanGuild(value) {
   return text;
 }
 
-function topObjectEntry(object = {}) {
-  return (
-    Object.entries(object)
-      .map(([name, value]) => ({
-        name,
-        value: num(value),
-      }))
-      .filter((item) => item.value > 0)
-      .sort(
-        (a, b) =>
-          b.value - a.value ||
-          String(a.name).localeCompare(String(b.name)),
-      )[0] || null
+function hasOwnStatMetric(row, aliases) {
+  return Boolean(
+    row &&
+      aliases.some(
+        (alias) =>
+          Object.prototype.hasOwnProperty.call(row, alias) &&
+          row[alias] !== undefined &&
+          row[alias] !== null &&
+          row[alias] !== '',
+      ),
   );
+}
+
+function readStatMetric(row, aliases, fallback = 0) {
+  if (!row) return fallback;
+
+  const alias = aliases.find(
+    (key) =>
+      Object.prototype.hasOwnProperty.call(row, key) &&
+      row[key] !== undefined &&
+      row[key] !== null &&
+      row[key] !== '',
+  );
+
+  return alias == null ? fallback : num(row[alias]);
+}
+
+function buildStatsLogPlayers(stats) {
+  const sourceRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+
+  // One Stats Log should contain one row per player. When duplicate rows
+  // exist for the same player and war, keep the row with the largest K+D
+  // total rather than double-counting it.
+  const uniqueRows = new Map();
+
+  sourceRows.forEach((row, index) => {
+    const name = String(row?.player || row?.name || '').trim();
+
+    if (!name) return;
+
+    const warId = String(
+      row?.id ||
+        row?.war ||
+        row?.date ||
+        `stats-log-${index}`,
+    );
+
+    const key = `${warId}::${name.toLowerCase()}`;
+    const current = uniqueRows.get(key);
+    const rowInteractions = num(row?.kills) + num(row?.deaths);
+    const currentInteractions = current
+      ? num(current?.kills) + num(current?.deaths)
+      : -1;
+
+    if (!current || rowInteractions > currentInteractions) {
+      uniqueRows.set(key, {
+        ...row,
+        player: name,
+        __warId: warId,
+      });
+    }
+  });
+
+  const byPlayer = new Map();
+
+  uniqueRows.forEach((row) => {
+    const name = String(row?.player || row?.name || '').trim();
+
+    if (!name) return;
+
+    const key = name.toLowerCase();
+
+    if (!byPlayer.has(key)) {
+      byPlayer.set(key, {
+        name,
+        wars: new Set(),
+        kills: 0,
+        deaths: 0,
+        killFeed: 0,
+        killStreak: 0,
+        hasKillStreak: false,
+        damage: 0,
+        fortDamage: 0,
+      });
+    }
+
+    const player = byPlayer.get(key);
+
+    player.wars.add(String(row.__warId));
+    player.kills += num(row?.kills);
+    player.deaths += num(row?.deaths);
+    player.damage += readStatMetric(
+      row,
+      [
+        'damageDealt',
+        'damage_dealt',
+        'damage dealt',
+        'damageDone',
+        'damage',
+      ],
+      0,
+    );
+    player.fortDamage += readStatMetric(
+      row,
+      [
+        'fortDamage',
+        'damageToFort',
+        'damage_to_fort',
+        'damage to fort',
+        'Fort Damage',
+      ],
+      0,
+    );
+
+    // Best Kill Feed comes only from the saved Stats Log field.
+    player.killFeed = Math.max(
+      player.killFeed,
+      readStatMetric(row, ['killFeed', 'feed'], 0),
+    );
+
+    // No Combat Log fallback. A streak is shown only when the Stats Log
+    // explicitly contains a streak field.
+    const streakAliases = [
+      'killStreak',
+      'killstreak',
+      'kill_streak',
+      'kill streak',
+      'streak',
+    ];
+
+    if (hasOwnStatMetric(row, streakAliases)) {
+      player.hasKillStreak = true;
+      player.killStreak = Math.max(
+        player.killStreak,
+        readStatMetric(row, streakAliases, 0),
+      );
+    }
+  });
+
+  return [...byPlayer.values()]
+    .map((player) => ({
+      ...player,
+      wars: player.wars.size,
+      kd: ratio(player.kills, player.deaths),
+    }))
+    .sort(
+      (a, b) =>
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name),
+    );
 }
 
 function buildPlayerWarCounts(stats) {
@@ -471,38 +607,71 @@ function buildReview(logs, selectedMonth) {
         a.name.localeCompare(b.name),
     );
 
+  const statLogPlayers = buildStatsLogPlayers(stats);
   const minWars = Math.min(3, Math.max(1, totals.wars));
 
-  const topFragger = players[0] || null;
+  const topFragger = statLogPlayers[0] || null;
 
   const bestKd =
-    [...players]
+    [...statLogPlayers]
       .filter((player) => player.wars >= minWars && player.kills > 0)
       .sort(
         (a, b) =>
           b.kd - a.kd ||
           b.kills - a.kills ||
-          a.deaths - b.deaths,
+          a.deaths - b.deaths ||
+          a.name.localeCompare(b.name),
       )[0] || null;
 
   const damageLeader =
-    [...players]
+    [...statLogPlayers]
       .filter((player) => player.damage > 0)
-      .sort((a, b) => b.damage - a.damage)[0] || null;
+      .sort(
+        (a, b) =>
+          b.damage - a.damage ||
+          b.kills - a.kills ||
+          a.name.localeCompare(b.name),
+      )[0] || null;
 
   const fortBreaker =
-    [...players]
+    [...statLogPlayers]
       .filter((player) => player.fortDamage > 0)
-      .sort((a, b) => b.fortDamage - a.fortDamage)[0] || null;
+      .sort(
+        (a, b) =>
+          b.fortDamage - a.fortDamage ||
+          b.kills - a.kills ||
+          a.name.localeCompare(b.name),
+      )[0] || null;
 
-  const longestStreak = topObjectEntry(calculateStreaks(stats?.ev || []));
+  const longestStreak =
+    [...statLogPlayers]
+      .filter(
+        (player) =>
+          player.hasKillStreak &&
+          player.killStreak > 0,
+      )
+      .sort(
+        (a, b) =>
+          b.killStreak - a.killStreak ||
+          a.name.localeCompare(b.name),
+      )
+      .map((player) => ({
+        name: player.name,
+        value: player.killStreak,
+      }))[0] || null;
 
-  const bestFeed = topObjectEntry(
-    calculateKillFeed(
-      stats?.ev || [],
-      KILL_FEED_WINDOW_SECONDS,
-    ),
-  );
+  const bestFeed =
+    [...statLogPlayers]
+      .filter((player) => player.killFeed > 0)
+      .sort(
+        (a, b) =>
+          b.killFeed - a.killFeed ||
+          a.name.localeCompare(b.name),
+      )
+      .map((player) => ({
+        name: player.name,
+        value: player.killFeed,
+      }))[0] || null;
 
   const enemies = buildEnemyRows(monthLogs, stats, 30);
 
@@ -1397,7 +1566,7 @@ export default function MonthlyRecap({
             label="Longest Killstreak"
             name={longestStreak?.name}
             value={longestStreak ? compact(longestStreak.value, 0) : '-'}
-            unit="Kills"
+            unit="Stats Log"
             accent="amber"
           />
           <PlayerHighlight
@@ -1405,7 +1574,7 @@ export default function MonthlyRecap({
             label="Best Kill Feed"
             name={bestFeed?.name}
             value={bestFeed ? compact(bestFeed.value, 0) : '-'}
-            unit="10-second window"
+            unit="Stats Log"
             accent="pink"
           />
         </div>
