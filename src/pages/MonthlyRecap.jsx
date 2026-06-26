@@ -12,7 +12,6 @@ import {
   Medal,
   Shield,
   Skull,
-  Sparkles,
   Swords,
   Target,
   Trophy,
@@ -1237,75 +1236,91 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <div className="grid items-stretch gap-2 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,.85fr)]">
-        <div className="h-full">
-          <SectionShell icon={Sparkles} title="Monthly Highlights">
-          <div className="grid min-h-[448px] grid-cols-1 content-stretch gap-2 p-2">
-            <MatchupCard
-              icon={Swords}
-              label="Most Fought Guild"
-              name={mostFought?.name}
-              wars={mostFought?.wars}
-              value={
-                mostFought
-                  ? `${compact(mostFought.kills)} K · ${compact(
-                      mostFought.deaths,
-                    )} D`
-                  : null
-              }
-              accent="violet"
-              onClick={
-                mostFought?.latestWar
-                  ? () => onOpenMatchOverview(mostFought.latestWar)
-                  : undefined
-              }
-            />
+      <SectionShell icon={Shield} title="Enemy Guild Report">
+        <div className="grid items-stretch gap-0 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,.95fr)]">
+          <div className="border-b border-[#13243a] p-2 xl:border-b-0 xl:border-r">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.09em] text-[#8291a7]">
+                Monthly Highlights
+              </p>
+              <p className="text-[9px] font-black text-[#64748b]">
+                50+ combined kills/deaths in one Node War
+              </p>
+            </div>
 
-            <MatchupCard
-              icon={Trophy}
-              label="Best Matchup"
-              name={bestMatchup?.name}
-              wars={bestMatchup?.wars}
-              value={
-                bestMatchup
-                  ? `${bestMatchup.kd.toFixed(2)} K/D`
-                  : null
-              }
-              accent="cyan"
-              onClick={
-                bestMatchup?.latestWar
-                  ? () => onOpenMatchOverview(bestMatchup.latestWar)
-                  : undefined
-              }
-            />
+            <div className="grid min-h-[448px] grid-cols-1 content-stretch gap-2">
+              <MatchupCard
+                icon={Swords}
+                label="Most Fought Guild"
+                name={mostFought?.name}
+                wars={mostFought?.wars}
+                value={
+                  mostFought
+                    ? `${compact(mostFought.kills)} K · ${compact(
+                        mostFought.deaths,
+                      )} D`
+                    : null
+                }
+                accent="violet"
+                onClick={
+                  mostFought?.latestWar
+                    ? () => onOpenMatchOverview(mostFought.latestWar)
+                    : undefined
+                }
+              />
 
-            <MatchupCard
-              icon={Target}
-              label="Toughest Opponent"
-              name={toughestMatchup?.name}
-              wars={toughestMatchup?.wars}
-              value={
-                toughestMatchup
-                  ? `${toughestMatchup.kd.toFixed(2)} K/D`
-                  : null
-              }
-              accent="rose"
-              onClick={
-                toughestMatchup?.latestWar
-                  ? () => onOpenMatchOverview(toughestMatchup.latestWar)
-                  : undefined
-              }
-            />
+              <MatchupCard
+                icon={Trophy}
+                label="Best Matchup"
+                name={bestMatchup?.name}
+                wars={bestMatchup?.wars}
+                value={
+                  bestMatchup
+                    ? `${bestMatchup.kd.toFixed(2)} K/D`
+                    : null
+                }
+                accent="cyan"
+                onClick={
+                  bestMatchup?.latestWar
+                    ? () => onOpenMatchOverview(bestMatchup.latestWar)
+                    : undefined
+                }
+              />
+
+              <MatchupCard
+                icon={Target}
+                label="Toughest Opponent"
+                name={toughestMatchup?.name}
+                wars={toughestMatchup?.wars}
+                value={
+                  toughestMatchup
+                    ? `${toughestMatchup.kd.toFixed(2)} K/D`
+                    : null
+                }
+                accent="rose"
+                onClick={
+                  toughestMatchup?.latestWar
+                    ? () => onOpenMatchOverview(toughestMatchup.latestWar)
+                    : undefined
+                }
+              />
+            </div>
           </div>
-          </SectionShell>
-        </div>
 
-        <div className="h-full">
-          <SectionShell icon={Shield} title="Enemy Guild Report">
+          <div className="min-w-0">
+            <div className="flex items-center justify-between border-b border-[#13243a] bg-[#05101d] px-3 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.09em] text-[#8291a7]">
+                Guild Rankings
+              </p>
+              <p className="text-[9px] font-black text-[#64748b]">
+                30+ combined kills/deaths in one Node War
+              </p>
+            </div>
+
             <EnemyGuildReport enemies={enemies} />
-          </SectionShell>
+          </div>
         </div>
-      </div>
+      </SectionShell>
 
       <SectionShell icon={Users} title="Player Highlights">
         <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
