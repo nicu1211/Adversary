@@ -1900,17 +1900,16 @@ function addImpactScores(players) {
         lowerIsBetter,
       );
 
-    // Burst Aggression Overall:
-    // 35% kills/war, 30% damage/war,
-    // 20% CC hits/war, 15% average K/D.
+    // Overall:
+    // 50% damage/war, 30% CC hits/war,
+    // 20% average K/D.
     const rawOverall = weightedImpactPart([
-      { score: percentile('killsPerWar'), weight: 35 },
       {
         score: percentile('damageDealtPerWar'),
-        weight: 30,
+        weight: 50,
       },
-      { score: percentile('ccHitsPerWar'), weight: 20 },
-      { score: percentile('averageKd'), weight: 15 },
+      { score: percentile('ccHitsPerWar'), weight: 30 },
+      { score: percentile('averageKd'), weight: 20 },
     ]);
 
     // Keep one-war performances from dominating the monthly ranking.
