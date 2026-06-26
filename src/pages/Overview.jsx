@@ -948,9 +948,6 @@ function BestOverall({
     const timelineStreaks = hasTimeline
       ? calculateStreaks(oneStats?.ev || [])
       : {};
-    const timelineFeeds = hasTimeline
-      ? calculateKillFeed(oneStats?.ev || [], 30)
-      : {};
 
     const playerByKey = new Map();
     const secondaryByKey = new Map();
@@ -1038,21 +1035,17 @@ function BestOverall({
         ? Number((kills / deaths).toFixed(2))
         : Number(kills.toFixed(2));
 
-      const savedFeedSource =
-        logColumns?.feed && secondaryRow
-          ? secondaryRow
-          : combatPlayer;
+      // Best Overall Feed is sourced only from a Stats Log column.
+      // Combat Log timestamps never create or replace this value.
+      const savedFeedSource = secondaryRow || combatPlayer;
 
-      const savedFeed = readMetric(
-        savedFeedSource,
-        metricAliases.feed,
-        getPlayerObjectValue(oneStats?.fd, name, 0),
-      );
-
-      const feed =
-        hasTimeline && hasCombatEvents
-          ? Number(getPlayerObjectValue(timelineFeeds, name, 0)) || 0
-          : savedFeed;
+      const feed = logColumns?.feed
+        ? readMetric(
+            savedFeedSource,
+            metricAliases.feed,
+            getPlayerObjectValue(oneStats?.fd, name, 0),
+          )
+        : 0;
 
       const readOptionalMetric = (metric) => {
         if (!logColumns?.[metric]) return 0;
@@ -1096,9 +1089,9 @@ function BestOverall({
             Boolean(logColumns?.kd) ||
             (hasTimeline && hasCombatEvents),
           streak: hasTimeline && hasCombatEvents,
-          feed:
-            (hasTimeline && hasCombatEvents) ||
-            Boolean(logColumns?.feed),
+          // A Feed rank exists only when the Stats Log physically
+          // contains the Kill Feed column.
+          feed: Boolean(logColumns?.feed),
           damageDealt: optionalMetricExists('damageDealt'),
           damageTaken: optionalMetricExists('damageTaken'),
           ccHits: optionalMetricExists('ccHits'),
@@ -1315,51 +1308,16 @@ function BestOverall({
   }
 
   function rankFeedForStats(oneStats, rows) {
-    const feedRows = rows.filter((player) => player.available.feed);
+    const feedRows = rows.filter(
+      (player) => player.available.feed,
+    );
 
     if (!feedRows.length) return {};
 
-    if (!statsHasTimeline(oneStats)) {
-      return rankRows(feedRows, 'feed', true);
-    }
-
-    const feedDetails = calculateKillFeed(
-      oneStats?.ev || [],
-      30,
-      true,
-    );
-    const bestFeedByPlayer = {};
-
-    feedDetails.forEach((feed) => {
-      const playerKey = normalizePlayerName(feed?.name);
-
-      if (!playerKey) return;
-
-      const next = {
-        count: Number(feed?.count) || 0,
-        firstKey: feedTimeKey(feed),
-      };
-      const current = bestFeedByPlayer[playerKey];
-
-      if (
-        !current ||
-        next.count > current.count ||
-        (next.count === current.count &&
-          next.firstKey < current.firstKey)
-      ) {
-        bestFeedByPlayer[playerKey] = next;
-      }
-    });
-
-    const chronology = Object.fromEntries(
-      feedRows.map((player, index) => [
-        player.playerKey,
-        bestFeedByPlayer[player.playerKey]?.firstKey ||
-          `9999-99-99 ${String(index).padStart(8, '0')}`,
-      ]),
-    );
-
-    return rankRows(feedRows, 'feed', true, chronology);
+    // Rank only the Kill Feed numbers saved in the Stats Log.
+    // Combat Log events are intentionally excluded, including
+    // chronological tie-breaking.
+    return rankRows(feedRows, 'feed', true);
   }
 
   function rankOptionalMetric(
@@ -2745,6 +2703,8 @@ function EnemyGuilds({ guilds, events }) {
   );
 }
 
+const DISPLAY_KILL_FEED_WINDOW_SECONDS = 10;
+
 function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
   const records = [];
 
@@ -2767,7 +2727,11 @@ function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
         'Battle log',
     );
 
-    calculateKillFeed(oneStats?.ev || [], 30, true).forEach(
+    calculateKillFeed(
+      oneStats?.ev || [],
+      DISPLAY_KILL_FEED_WINDOW_SECONDS,
+      true,
+    ).forEach(
       (feed, feedIndex) => {
         records.push({
           ...feed,
@@ -2783,7 +2747,11 @@ function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
 
   if (records.length) return records;
 
-  return calculateKillFeed(fallbackEvents || [], 30, true).map(
+  return calculateKillFeed(
+    fallbackEvents || [],
+    DISPLAY_KILL_FEED_WINDOW_SECONDS,
+    true,
+  ).map(
     (feed, index) => ({
       ...feed,
       source: 'combat',
@@ -2861,7 +2829,11 @@ export default function OverviewPage({
   members,
   selectedLogs,
 }) {
-  const timelineKillFeeds = calculateKillFeed(stats.ev, 30, true);
+  const timelineKillFeeds = calculateKillFeed(
+    stats.ev,
+    DISPLAY_KILL_FEED_WINDOW_SECONDS,
+    true,
+  );
   const panelKillFeeds = useMemo(
     () => buildKillFeedPanelRows(selectedLogs, stats.ev),
     [selectedLogs, stats.ev],
@@ -2904,9 +2876,10 @@ export default function OverviewPage({
 
         const startSec = timeToSecondsValue(startEvent.time);
         const endSec = timeToSecondsValue(endEvent.time);
-        const isInsideThirtySeconds = endSec - startSec <= 30;
+        const isInsideKillFeedWindow =
+          endSec - startSec <= DISPLAY_KILL_FEED_WINDOW_SECONDS;
 
-        if (!isInsideThirtySeconds) return;
+        if (!isInsideKillFeedWindow) return;
 
         const markerType = currentType === 'kill' ? 'bluefeed' : 'redfeed';
         const feedLabel = currentType === 'kill' ? 'Bluefeed' : 'Redfeed';
