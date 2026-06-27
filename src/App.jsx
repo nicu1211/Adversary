@@ -297,92 +297,6 @@ function PageLoader({ text = 'Loading...' }) {
   );
 }
 
-const GLOBAL_PANEL_CSS = `
-  .adversary-content {
-    --adversary-panel-bg-top: rgba(15, 23, 42, 0.24);
-    --adversary-panel-bg-bottom: rgba(2, 6, 23, 0.12);
-    --adversary-panel-border: rgba(100, 116, 139, 0.36);
-    --adversary-panel-glow-blue: rgba(59, 130, 246, 0.30);
-    --adversary-panel-glow-violet: rgba(139, 92, 246, 0.16);
-  }
-
-  /* Page components sometimes paint an opaque full-page wrapper. Remove that
-     first so the centered emblem remains visible on every route. */
-  .adversary-content > :is(div, section, article)[class*="bg-"],
-  .adversary-content > :is(div, section, article) > :is(div, section, article)[class*="bg-"]:not([class*="rounded"]) {
-    background-color: transparent !important;
-    background-image: none !important;
-  }
-
-  /* Force every bordered content surface to remain translucent, even when
-     an individual page uses an opaque Tailwind background or gradient. */
-  .adversary-content :is(section, article, div)[class*="border"][class*="bg-"] {
-    background-color: rgba(2, 6, 23, 0.16) !important;
-    background-image: linear-gradient(
-      145deg,
-      var(--adversary-panel-bg-top),
-      var(--adversary-panel-bg-bottom)
-    ) !important;
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
-  }
-
-  /* Major panels get a smooth coloured glow without making every tiny chip
-     or table cell flash at the same time. */
-  .adversary-content :is(section, article, div)[class*="rounded-3xl"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-2xl"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[32px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[30px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[28px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[26px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[24px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[22px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[20px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[16px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[14px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[12px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[10px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-xl"][class*="border"][class*="shadow"] {
-    transition:
-      border-color 180ms ease,
-      box-shadow 180ms ease,
-      background-color 180ms ease,
-      filter 180ms ease;
-  }
-
-  .adversary-content :is(section, article, div)[class*="rounded-3xl"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-2xl"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[32px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[30px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[28px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[26px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[24px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[22px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[20px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[16px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[14px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[12px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[10px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-xl"][class*="border"][class*="shadow"]:hover {
-    border-color: rgba(96, 165, 250, 0.56) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.07),
-      0 0 0 1px rgba(96, 165, 250, 0.14),
-      0 0 28px var(--adversary-panel-glow-blue),
-      0 0 52px var(--adversary-panel-glow-violet),
-      0 20px 56px rgba(0, 0, 0, 0.30) !important;
-  }
-
-  /* The sticky Player Performance heading must stay readable while rows
-     move underneath it. It is intentionally less transparent than panels. */
-  .adversary-content .monthly-player-performance-header {
-    background: rgba(2, 6, 17, 0.94) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42) !important;
-  }
-`;
-
 const PAGE_TITLES = {
   guild: 'Guild',
   monthly: 'Monthly Recap',
@@ -394,7 +308,7 @@ const PAGE_TITLES = {
 };
 
 function ActivePageBrand({ page }) {
-  const title = PAGE_TITLES[page] || 'ADVERSARY';
+  const title = PAGE_TITLES[page] || 'Battle Analytics';
 
   return (
     <section className="relative mb-4 overflow-hidden rounded-[26px] border border-amber-300/15 bg-slate-950/72 px-4 py-3 shadow-[0_24px_75px_rgba(0,0,0,.30)] backdrop-blur-2xl sm:px-5 sm:py-4">
@@ -419,7 +333,10 @@ function ActivePageBrand({ page }) {
         </div>
 
         <div className="min-w-0">
-          <h2 className="truncate text-xl font-black tracking-tight text-white sm:text-2xl">
+          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300/75 sm:text-[10px]">
+            Battle Analytics
+          </p>
+          <h2 className="mt-0.5 truncate text-xl font-black tracking-tight text-white sm:text-2xl">
             {title}
           </h2>
         </div>
@@ -432,8 +349,8 @@ export default function App() {
   const [page, setPage] = useState('nodewars');
 
   useEffect(() => {
-    const title = PAGE_TITLES[page] || 'ADVERSARY';
-    document.title = `${title} · ADVERSARY`;
+    const title = PAGE_TITLES[page] || 'Battle Analytics';
+    document.title = `${title} · Battle Analytics`;
 
     let icon = document.querySelector(
       'link[data-adversary-favicon="true"]',
@@ -961,34 +878,27 @@ export default function App() {
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
-    <div className="adversary-app relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
-      <style>{GLOBAL_PANEL_CSS}</style>
+    <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-y-0 left-0 right-0 z-0 overflow-hidden lg:left-[250px]"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
       >
         <div className="absolute inset-0 bg-slate-950" />
 
-        <div className="absolute inset-0 flex items-center justify-center">
-          <img
-            src={adversaryEmblem}
-            alt=""
-            className="h-[min(90vh,1180px)] w-[min(90%,1180px)] object-contain opacity-[0.24] drop-shadow-[0_0_105px_rgba(250,204,21,.18)]"
-            style={{
-              WebkitMaskImage:
-                'radial-gradient(ellipse at center, #000 0%, #000 55%, rgba(0,0,0,.88) 68%, rgba(0,0,0,.42) 82%, transparent 97%)',
-              maskImage:
-                'radial-gradient(ellipse at center, #000 0%, #000 55%, rgba(0,0,0,.88) 68%, rgba(0,0,0,.42) 82%, transparent 97%)',
-            }}
-          />
-        </div>
+        <div
+          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.18] drop-shadow-[0_0_90px_rgba(250,204,21,.16)]"
+          style={{
+            backgroundImage: `url("${adversaryEmblem}")`,
+            backgroundSize: 'min(92vw, 1050px) min(92vh, 1050px)',
+          }}
+        />
 
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_48%,rgba(2,6,23,.18)_72%,rgba(2,6,23,.66)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.025)_30%,rgba(2,6,23,.10)_72%,rgba(2,6,23,.48))]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,transparent_0%,rgba(2,6,23,.30)_42%,rgba(2,6,23,.92)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.32),rgba(2,6,23,.06)_28%,rgba(2,6,23,.22)_70%,rgba(2,6,23,.72))]" />
       </div>
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
-        <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
-          ADVERSARY
+        <div className="mb-3 text-lg font-black text-white">
+          Battle Analytics
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -1049,8 +959,8 @@ export default function App() {
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/90 p-4 backdrop-blur-2xl lg:flex">
-          <h1 className="mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
-            ADVERSARY
+          <h1 className="mb-6 text-2xl font-black text-white">
+            Battle Analytics
           </h1>
 
           <nav className="flex-1">
@@ -1132,7 +1042,7 @@ export default function App() {
           </div>
         </aside>
 
-        <main className="adversary-content relative min-w-0 p-3 sm:p-5 lg:p-6">
+        <main className="relative min-w-0 p-3 sm:p-5 lg:p-6">
           <ActivePageBrand page={page} />
           {page === 'guild' && (
             <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
