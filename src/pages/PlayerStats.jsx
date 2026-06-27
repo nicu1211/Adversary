@@ -420,65 +420,54 @@ function PlayerComparisonPanel({
     {
       key: 'kills',
       label: 'Kills',
-      lowerBetter: false,
       format: (value) => formatCompactNumber(value),
     },
     {
-      key: 'deaths',
-      label: 'Deaths',
-      lowerBetter: true,
+      key: 'wars',
+      label: 'Wars',
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'kd',
       label: 'K/D',
-      lowerBetter: false,
       format: (value) => Number(value || 0).toFixed(2),
     },
     {
       key: 'killstreak',
       label: 'Killstreak',
-      lowerBetter: false,
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'killfeed',
       label: 'Killfeed',
-      lowerBetter: false,
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'damageDealt',
       label: 'DMG Dealt',
-      lowerBetter: false,
-      format: (value) => formatCompactNumber(value),
-    },
-    {
-      key: 'damageTaken',
-      label: 'DMG Taken',
-      lowerBetter: true,
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'ccHits',
       label: 'CC Hits',
-      lowerBetter: false,
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'damageToFort',
       label: 'Fort DMG',
-      lowerBetter: false,
       format: (value) => formatCompactNumber(value),
     },
   ];
+  const [hoveredMetricKey, setHoveredMetricKey] = useState('');
 
   if (!players.length) return null;
 
   const cx = 380;
-  const cy = 275;
-  const radius = 188;
+  const cy = 278;
+  const radius = 184;
   const metricCount = metrics.length;
+  const activeMetric =
+    metrics.find((metric) => metric.key === hoveredMetricKey) || null;
 
   const metricRanges = Object.fromEntries(
     metrics.map((metric) => {
@@ -504,11 +493,10 @@ function PlayerComparisonPanel({
       return range?.max > 0 ? 100 : 0;
     }
 
-    const progress = metric.lowerBetter
-      ? (range.max - value) / (range.max - range.min)
-      : (value - range.min) / (range.max - range.min);
+    const progress =
+      (value - range.min) / (range.max - range.min);
 
-    return 14 + Math.max(0, Math.min(1, progress)) * 86;
+    return 16 + Math.max(0, Math.min(1, progress)) * 84;
   }
 
   const hasData = metrics.some((metric) =>
@@ -516,27 +504,41 @@ function PlayerComparisonPanel({
   );
 
   return (
-    <div className="relative mb-5 overflow-hidden rounded-[28px] border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-slate-950/90 to-blue-950/30 shadow-[0_24px_70px_rgba(0,0,0,.32)]">
+    <div className="relative mb-5 overflow-hidden rounded-[28px] border border-blue-400/15 bg-slate-950/85 shadow-[0_24px_70px_rgba(0,0,0,.38)]">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/45 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/35 to-transparent" />
         <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
-        <div className="absolute -left-24 bottom-0 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="absolute -left-24 bottom-0 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.025)_1px,transparent_1px)] bg-[size:34px_34px]" />
       </div>
 
-      <div className="relative flex flex-col gap-3 border-b border-white/10 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <h3 className="text-lg font-black text-white">
-            Player Comparison
-          </h3>
-          <p className="text-xs font-bold text-slate-500">
-            {daysAgo === 0
-              ? 'All-time statistics'
-              : `Last ${daysAgo} days`}
-            {' · '}
-            {mode === 'average'
-              ? 'Average per war'
-              : 'Totals and best records'}
-          </p>
+      <div className="relative flex flex-col gap-3 border-b border-white/8 bg-slate-950/45 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10 shadow-[0_0_22px_rgba(59,130,246,.12)]">
+            <div className="h-4 w-4 rotate-45 border-2 border-blue-300/80" />
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-black text-white">
+                Player Comparison
+              </h3>
+
+              <span className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-200">
+                Radar
+              </span>
+            </div>
+
+            <p className="text-xs font-bold text-slate-500">
+              {daysAgo === 0
+                ? 'All-time statistics'
+                : `Last ${daysAgo} days`}
+              {' · '}
+              {mode === 'average'
+                ? 'Average per war'
+                : 'Totals and best records'}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-2">
@@ -558,7 +560,7 @@ function PlayerComparisonPanel({
                   ),
                 )
               }
-              className="h-9 w-[92px] rounded-xl border border-slate-700 bg-slate-950/75 px-3 text-sm font-black text-slate-100 outline-none transition focus:border-violet-400"
+              className="h-9 w-[92px] rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm font-black text-slate-100 outline-none transition focus:border-blue-400 focus:shadow-[0_0_18px_rgba(59,130,246,.12)]"
               title="Use 0 for all time"
             />
           </label>
@@ -568,7 +570,7 @@ function PlayerComparisonPanel({
               View
             </span>
 
-            <div className="flex h-9 rounded-xl border border-slate-700 bg-slate-950/75 p-1">
+            <div className="flex h-9 rounded-xl border border-slate-700 bg-slate-950/80 p-1">
               {[
                 ['total', 'Total'],
                 ['average', 'Average'],
@@ -579,8 +581,8 @@ function PlayerComparisonPanel({
                   onClick={() => onModeChange(id)}
                   className={`rounded-lg px-3 text-[10px] font-black uppercase tracking-[0.12em] transition ${
                     mode === id
-                      ? 'bg-violet-500/25 text-violet-100 shadow-[0_0_16px_rgba(139,92,246,.12)]'
-                      : 'text-slate-500 hover:text-slate-200'
+                      ? 'border border-blue-400/20 bg-blue-500/20 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,.12)]'
+                      : 'border border-transparent text-slate-500 hover:text-slate-200'
                   }`}
                 >
                   {label}
@@ -591,10 +593,93 @@ function PlayerComparisonPanel({
         </div>
       </div>
 
-      <div className="relative grid gap-3 p-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,.65fr)]">
-        <div className="relative min-h-[480px] overflow-hidden rounded-[24px] border border-slate-800 bg-slate-950/62">
+      <div className="relative grid gap-3 p-3 xl:grid-cols-[minmax(0,1.42fr)_minmax(320px,.58fr)]">
+        <div className="relative min-h-[500px] overflow-hidden rounded-[24px] border border-slate-800/90 bg-gradient-to-br from-slate-950/92 via-slate-950/78 to-blue-950/20 shadow-inner">
+          <div className="pointer-events-none absolute inset-x-5 top-4 z-10 flex items-center justify-between">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/75 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500 backdrop-blur">
+              Hover a stat
+            </div>
+
+            <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/75 px-2.5 py-1.5 backdrop-blur">
+              {players.map((player, index) => {
+                const theme =
+                  PLAYER_COMPARE_THEMES[index] ||
+                  PLAYER_COMPARE_THEMES[0];
+
+                return (
+                  <div
+                    key={`${player.name}-legend`}
+                    className="flex min-w-0 items-center gap-1.5"
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.dot}`}
+                      style={{
+                        boxShadow: `0 0 10px ${theme.stroke}`,
+                      }}
+                    />
+                    <span
+                      className={`max-w-[92px] truncate text-[9px] font-black ${theme.text}`}
+                      title={player.name}
+                    >
+                      {player.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {activeMetric && (
+            <div className="pointer-events-none absolute right-4 top-14 z-20 w-[220px] rounded-2xl border border-blue-400/20 bg-slate-950/92 p-3 shadow-[0_18px_50px_rgba(0,0,0,.45)] backdrop-blur-xl">
+              <div className="mb-2 flex items-center justify-between gap-3 border-b border-white/8 pb-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-200">
+                  {activeMetric.label}
+                </p>
+                <span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-600">
+                  Exact values
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {players.map((player, index) => {
+                  const theme =
+                    PLAYER_COMPARE_THEMES[index] ||
+                    PLAYER_COMPARE_THEMES[0];
+
+                  return (
+                    <div
+                      key={`${player.name}-${activeMetric.key}-tooltip`}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${theme.dot}`}
+                          style={{
+                            boxShadow: `0 0 12px ${theme.stroke}`,
+                          }}
+                        />
+                        <span
+                          className="truncate text-[11px] font-black text-slate-300"
+                          title={player.name}
+                        >
+                          {player.name}
+                        </span>
+                      </div>
+
+                      <span className={`shrink-0 text-sm font-black ${theme.text}`}>
+                        {activeMetric.format(
+                          player[activeMetric.key],
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {!hasData ? (
-            <div className="flex min-h-[480px] items-center justify-center px-6 text-center">
+            <div className="flex min-h-[500px] items-center justify-center px-6 text-center">
               <div>
                 <p className="text-sm font-black text-slate-300">
                   No comparison data in this period.
@@ -606,22 +691,32 @@ function PlayerComparisonPanel({
             </div>
           ) : (
             <svg
-              viewBox="0 0 760 550"
-              className="h-full min-h-[480px] w-full"
+              viewBox="0 0 760 560"
+              className="h-full min-h-[500px] w-full"
               role="img"
               aria-label="Radar chart comparing selected players"
+              onMouseLeave={() => setHoveredMetricKey('')}
             >
               <defs>
                 <radialGradient id="compareRadarGlow">
-                  <stop offset="0%" stopColor="rgba(139,92,246,.10)" />
+                  <stop offset="0%" stopColor="rgba(59,130,246,.10)" />
+                  <stop offset="58%" stopColor="rgba(139,92,246,.055)" />
                   <stop offset="100%" stopColor="rgba(2,6,23,0)" />
                 </radialGradient>
+
+                <filter id="compareRadarSoftGlow">
+                  <feGaussianBlur stdDeviation="5" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
               </defs>
 
               <circle
                 cx={cx}
                 cy={cy}
-                r={radius + 70}
+                r={radius + 76}
                 fill="url(#compareRadarGlow)"
               />
 
@@ -635,17 +730,30 @@ function PlayerComparisonPanel({
                     metricCount,
                     scale,
                   )}
-                  fill={scale === 1 ? 'rgba(15,23,42,.34)' : 'none'}
+                  fill={
+                    scale === 1
+                      ? 'rgba(15,23,42,.42)'
+                      : 'rgba(15,23,42,.025)'
+                  }
                   stroke={
                     scale === 1
-                      ? 'rgba(148,163,184,.28)'
+                      ? 'rgba(96,165,250,.24)'
                       : 'rgba(100,116,139,.18)'
                   }
-                  strokeWidth={scale === 1 ? 1.4 : 1}
+                  strokeWidth={scale === 1 ? 1.5 : 1}
                 />
               ))}
 
+              <circle
+                cx={cx}
+                cy={cy}
+                r="4"
+                fill="rgba(147,197,253,.9)"
+                filter="url(#compareRadarSoftGlow)"
+              />
+
               {metrics.map((metric, index) => {
+                const active = hoveredMetricKey === metric.key;
                 const axisEnd = radarPoint(
                   cx,
                   cy,
@@ -656,7 +764,7 @@ function PlayerComparisonPanel({
                 const labelPoint = radarPoint(
                   cx,
                   cy,
-                  radius + 44,
+                  radius + 48,
                   index,
                   metricCount,
                 );
@@ -666,27 +774,92 @@ function PlayerComparisonPanel({
                     : labelPoint.x > cx
                       ? 'start'
                       : 'end';
+                const pillWidth = 104;
+                const pillX =
+                  anchor === 'middle'
+                    ? labelPoint.x - pillWidth / 2
+                    : anchor === 'start'
+                      ? labelPoint.x - 8
+                      : labelPoint.x - pillWidth + 8;
 
                 return (
-                  <g key={metric.key}>
+                  <g
+                    key={metric.key}
+                    onMouseEnter={() =>
+                      setHoveredMetricKey(metric.key)
+                    }
+                    onClick={() =>
+                      setHoveredMetricKey((current) =>
+                        current === metric.key ? '' : metric.key,
+                      )
+                    }
+                    className="cursor-pointer"
+                  >
                     <line
                       x1={cx}
                       y1={cy}
                       x2={axisEnd.x}
                       y2={axisEnd.y}
-                      stroke="rgba(100,116,139,.28)"
+                      stroke={
+                        active
+                          ? 'rgba(147,197,253,.92)'
+                          : 'rgba(100,116,139,.27)'
+                      }
+                      strokeWidth={active ? 2 : 1}
+                      style={{
+                        filter: active
+                          ? 'drop-shadow(0 0 5px rgba(96,165,250,.65))'
+                          : 'none',
+                      }}
+                    />
+
+                    <line
+                      x1={cx}
+                      y1={cy}
+                      x2={labelPoint.x}
+                      y2={labelPoint.y}
+                      stroke="transparent"
+                      strokeWidth="34"
+                    />
+
+                    <rect
+                      x={pillX}
+                      y={labelPoint.y - 15}
+                      width={pillWidth}
+                      height="30"
+                      rx="10"
+                      fill={
+                        active
+                          ? 'rgba(37,99,235,.22)'
+                          : 'rgba(2,6,23,.76)'
+                      }
+                      stroke={
+                        active
+                          ? 'rgba(147,197,253,.55)'
+                          : 'rgba(71,85,105,.55)'
+                      }
                       strokeWidth="1"
                     />
 
                     <text
-                      x={labelPoint.x}
+                      x={
+                        anchor === 'middle'
+                          ? labelPoint.x
+                          : anchor === 'start'
+                            ? labelPoint.x + 2
+                            : labelPoint.x - 2
+                      }
                       y={labelPoint.y}
                       textAnchor={anchor}
                       dominantBaseline="middle"
-                      fill="rgba(203,213,225,.86)"
-                      fontSize="13"
-                      fontWeight="800"
-                      letterSpacing=".7"
+                      fill={
+                        active
+                          ? 'rgba(219,234,254,.98)'
+                          : 'rgba(203,213,225,.82)'
+                      }
+                      fontSize="11.5"
+                      fontWeight="900"
+                      letterSpacing=".65"
                     >
                       {metric.label}
                     </text>
@@ -729,36 +902,57 @@ function PlayerComparisonPanel({
                       strokeWidth="3"
                       strokeLinejoin="round"
                       style={{
-                        filter: `drop-shadow(0 0 8px ${theme.stroke}55)`,
+                        filter: `drop-shadow(0 0 7px ${theme.stroke}55)`,
                       }}
                     >
                       <title>{player.name}</title>
                     </polygon>
 
-                    {points.map((point) => (
-                      <circle
-                        key={`${player.name}-${point.metric.key}`}
-                        cx={point.x}
-                        cy={point.y}
-                        r="4.5"
-                        fill={theme.stroke}
-                        stroke="rgba(2,6,23,.95)"
-                        strokeWidth="2"
-                      >
-                        <title>
-                          {`${player.name} · ${point.metric.label}: ${point.metric.format(point.value)}`}
-                        </title>
-                      </circle>
-                    ))}
+                    {points.map((point) => {
+                      const active =
+                        hoveredMetricKey === point.metric.key;
+
+                      return (
+                        <circle
+                          key={`${player.name}-${point.metric.key}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r={active ? 6 : 4.5}
+                          fill={theme.stroke}
+                          stroke="rgba(2,6,23,.96)"
+                          strokeWidth="2"
+                          onMouseEnter={() =>
+                            setHoveredMetricKey(
+                              point.metric.key,
+                            )
+                          }
+                          onClick={() =>
+                            setHoveredMetricKey(
+                              point.metric.key,
+                            )
+                          }
+                          className="cursor-pointer"
+                          style={{
+                            filter: active
+                              ? `drop-shadow(0 0 8px ${theme.stroke})`
+                              : 'none',
+                          }}
+                        >
+                          <title>
+                            {`${player.name} · ${point.metric.label}: ${point.metric.format(point.value)}`}
+                          </title>
+                        </circle>
+                      );
+                    })}
                   </g>
                 );
               })}
             </svg>
           )}
 
-          <div className="absolute bottom-3 left-3 rounded-xl border border-slate-800 bg-slate-950/80 px-2.5 py-1.5 text-[9px] font-bold text-slate-500 backdrop-blur">
-            Radar is normalized between selected players. Lower is better for
-            Deaths and DMG Taken.
+          <div className="absolute bottom-3 left-3 rounded-xl border border-slate-800 bg-slate-950/82 px-2.5 py-1.5 text-[9px] font-bold text-slate-500 backdrop-blur">
+            Radar values are normalized between the selected players.
+            Hover or click a stat for exact numbers.
           </div>
         </div>
 
@@ -771,8 +965,10 @@ function PlayerComparisonPanel({
             return (
               <div
                 key={player.name}
-                className={`relative overflow-hidden rounded-[22px] border ${theme.border} bg-gradient-to-br ${theme.soft} p-3`}
+                className={`relative overflow-hidden rounded-[22px] border ${theme.border} bg-gradient-to-br ${theme.soft} p-3 shadow-[0_14px_34px_rgba(0,0,0,.18)]`}
               >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
                 <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <span
@@ -790,39 +986,62 @@ function PlayerComparisonPanel({
                     </p>
                   </div>
 
-                  <span className="shrink-0 rounded-lg border border-white/10 bg-slate-950/55 px-2 py-1 text-[10px] font-black text-slate-400">
-                    {player.wars} wars
+                  <span className="shrink-0 rounded-lg border border-white/10 bg-slate-950/55 px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">
+                    Player {index + 1}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-1.5">
-                  {metrics.map((metric) => (
-                    <div
-                      key={`${player.name}-${metric.key}-value`}
-                      className="min-w-0 rounded-xl border border-white/[0.07] bg-slate-950/45 px-2 py-2"
-                    >
-                      <p className="truncate text-[8px] font-black uppercase tracking-[0.08em] text-slate-600">
-                        {metric.label}
-                      </p>
-                      <p
-                        className={`mt-1 truncate text-xs font-black ${theme.text}`}
-                        title={metric.format(player[metric.key])}
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
+                  {metrics.map((metric) => {
+                    const active =
+                      hoveredMetricKey === metric.key;
+
+                    return (
+                      <button
+                        type="button"
+                        key={`${player.name}-${metric.key}-value`}
+                        onMouseEnter={() =>
+                          setHoveredMetricKey(metric.key)
+                        }
+                        onMouseLeave={() =>
+                          setHoveredMetricKey('')
+                        }
+                        onClick={() =>
+                          setHoveredMetricKey((current) =>
+                            current === metric.key
+                              ? ''
+                              : metric.key,
+                          )
+                        }
+                        className={`min-w-0 rounded-xl border px-2 py-2 text-left transition ${
+                          active
+                            ? `${theme.border} bg-white/[0.07] shadow-[0_0_16px_rgba(59,130,246,.08)]`
+                            : 'border-white/[0.07] bg-slate-950/45 hover:border-white/15 hover:bg-white/[0.04]'
+                        }`}
                       >
-                        {metric.format(player[metric.key])}
-                      </p>
-                    </div>
-                  ))}
+                        <p className="truncate text-[8px] font-black uppercase tracking-[0.08em] text-slate-600">
+                          {metric.label}
+                        </p>
+                        <p
+                          className={`mt-1 truncate text-xs font-black ${theme.text}`}
+                          title={metric.format(player[metric.key])}
+                        >
+                          {metric.format(player[metric.key])}
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
 
-          <div className="rounded-[20px] border border-slate-800 bg-slate-950/55 px-3 py-2.5 text-[10px] font-bold leading-relaxed text-slate-500">
+          <div className="rounded-[20px] border border-slate-800 bg-slate-950/58 px-3 py-2.5 text-[10px] font-bold leading-relaxed text-slate-500">
             <span className="font-black text-slate-300">
               {mode === 'average' ? 'Average:' : 'Total:'}
             </span>{' '}
             {mode === 'average'
-              ? 'every metric is calculated per war.'
+              ? 'performance metrics are calculated per war; Wars remains the participation count.'
               : 'counting stats are summed, K/D is overall, and Killstreak/Killfeed use the best match.'}
             {' '}Use 0 Days Ago for all available history.
           </div>
