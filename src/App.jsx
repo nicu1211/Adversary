@@ -385,27 +385,29 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-content .adversary-color-panel {
     --adversary-panel-accent-rgb: 96, 165, 250;
-    background-color: rgba(2, 6, 23, 0.30) !important;
+    background-color: rgba(2, 6, 23, 0.58) !important;
     background-image:
-      linear-gradient(
-        135deg,
-        rgba(var(--adversary-panel-accent-rgb), 0.125) 0%,
-        rgba(var(--adversary-panel-accent-rgb), 0.055) 48%,
-        rgba(2, 6, 23, 0.08) 100%
+      radial-gradient(
+        ellipse at 16% 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.30) 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.18) 38%,
+        rgba(var(--adversary-panel-accent-rgb), 0.09) 68%,
+        rgba(var(--adversary-panel-accent-rgb), 0.045) 100%
       ),
       linear-gradient(
-        180deg,
-        rgba(15, 23, 42, 0.16),
-        rgba(2, 6, 23, 0.10)
+        145deg,
+        rgba(var(--adversary-panel-accent-rgb), 0.16) 0%,
+        rgba(8, 15, 32, 0.44) 52%,
+        rgba(2, 6, 23, 0.56) 100%
       ) !important;
-    border-color: rgba(var(--adversary-panel-accent-rgb), 0.30) !important;
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.42) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.16),
-      inset 0 0 28px rgba(var(--adversary-panel-accent-rgb), 0.025),
-      0 12px 28px rgba(0, 0, 0, 0.18);
-    -webkit-backdrop-filter: blur(7px) saturate(112%);
-    backdrop-filter: blur(7px) saturate(112%);
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.22),
+      inset 0 0 42px rgba(var(--adversary-panel-accent-rgb), 0.075),
+      0 12px 28px rgba(0, 0, 0, 0.22);
+    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: blur(8px) saturate(122%);
     transition:
       border-color 180ms ease,
       box-shadow 180ms ease,
@@ -415,26 +417,28 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-content .adversary-color-panel:hover {
     background-image:
-      linear-gradient(
-        135deg,
-        rgba(var(--adversary-panel-accent-rgb), 0.16) 0%,
-        rgba(var(--adversary-panel-accent-rgb), 0.072) 50%,
-        rgba(2, 6, 23, 0.07) 100%
+      radial-gradient(
+        ellipse at 16% 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.40) 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.25) 40%,
+        rgba(var(--adversary-panel-accent-rgb), 0.12) 72%,
+        rgba(var(--adversary-panel-accent-rgb), 0.06) 100%
       ),
       linear-gradient(
-        180deg,
-        rgba(15, 23, 42, 0.17),
-        rgba(2, 6, 23, 0.10)
+        145deg,
+        rgba(var(--adversary-panel-accent-rgb), 0.21) 0%,
+        rgba(8, 15, 32, 0.42) 52%,
+        rgba(2, 6, 23, 0.54) 100%
       ) !important;
-    border-color: rgba(var(--adversary-panel-accent-rgb), 0.54) !important;
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.68) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.065),
-      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.26),
-      inset 0 0 34px rgba(var(--adversary-panel-accent-rgb), 0.055),
-      0 0 0 1px rgba(var(--adversary-panel-accent-rgb), 0.08),
-      0 0 18px rgba(var(--adversary-panel-accent-rgb), 0.22),
-      0 0 36px rgba(var(--adversary-panel-accent-rgb), 0.10),
-      0 16px 34px rgba(0, 0, 0, 0.24) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.075),
+      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.32),
+      inset 0 0 48px rgba(var(--adversary-panel-accent-rgb), 0.13),
+      0 0 0 1px rgba(var(--adversary-panel-accent-rgb), 0.11),
+      0 0 20px rgba(var(--adversary-panel-accent-rgb), 0.30),
+      0 0 42px rgba(var(--adversary-panel-accent-rgb), 0.15),
+      0 16px 34px rgba(0, 0, 0, 0.26) !important;
   }
 
   /* Keep the Enemy Guild Tier List hover card above nearby rows and prevent
