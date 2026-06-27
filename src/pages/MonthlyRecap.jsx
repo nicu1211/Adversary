@@ -27,6 +27,8 @@ import {
 } from '../lib/logUtils';
 
 const MIN_MONTH = '2026-05';
+const DEFAULT_RECAP_DAYS_AGO = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const GUILD_ROSTER = Object.freeze([
   'GojuSaki',
@@ -160,6 +162,101 @@ function ratio(kills, deaths) {
 function monthFromDate(value) {
   const text = String(value || '');
   return /^\d{4}-\d{2}/.test(text) ? text.slice(0, 7) : '';
+}
+
+function localMonthId(timestamp = Date.now()) {
+  const date = new Date(timestamp);
+
+  return `${date.getFullYear()}-${String(
+    date.getMonth() + 1,
+  ).padStart(2, '0')}`;
+}
+
+function dateTimestamp(value) {
+  const text = String(value || '');
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+
+  if (dateOnly) {
+    return new Date(
+      Number(dateOnly[1]),
+      Number(dateOnly[2]) - 1,
+      Number(dateOnly[3]),
+      12,
+      0,
+      0,
+      0,
+    ).getTime();
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function monthDateWindow(
+  monthId,
+  daysAgo = DEFAULT_RECAP_DAYS_AGO,
+) {
+  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) {
+    return {
+      start: 0,
+      end: 0,
+      days: 0,
+    };
+  }
+
+  const [year, month] = monthId.split('-').map(Number);
+  const monthStart = new Date(
+    year,
+    month - 1,
+    1,
+    0,
+    0,
+    0,
+    0,
+  ).getTime();
+  const monthEnd = new Date(
+    year,
+    month,
+    0,
+    23,
+    59,
+    59,
+    999,
+  ).getTime();
+
+  const end =
+    monthId === localMonthId()
+      ? Math.min(Date.now(), monthEnd)
+      : monthEnd;
+
+  const safeDays = Math.max(0, Math.floor(num(daysAgo)));
+  const start = safeDays
+    ? Math.max(
+        monthStart,
+        end - safeDays * DAY_MS,
+      )
+    : monthStart;
+
+  return {
+    start,
+    end,
+    days: Math.max(
+      1,
+      Math.ceil((end - start) / DAY_MS),
+    ),
+  };
+}
+
+function dateIsInMonthWindow(value, monthId, daysAgo) {
+  const timestamp = dateTimestamp(value);
+  const window = monthDateWindow(monthId, daysAgo);
+
+  return Boolean(
+    timestamp &&
+      window.start &&
+      timestamp >= window.start &&
+      timestamp <= window.end,
+  );
 }
 
 function monthLabel(monthId) {
@@ -1263,9 +1360,19 @@ function buildRosterPerformancePlayers(activePlayers) {
   });
 }
 
-function buildReview(logs, selectedMonth) {
+function buildReview(
+  logs,
+  selectedMonth,
+  daysAgo = DEFAULT_RECAP_DAYS_AGO,
+) {
   const monthLogs = (logs || [])
-    .filter((log) => monthFromDate(dateOf(log)) === selectedMonth)
+    .filter((log) =>
+      dateIsInMonthWindow(
+        dateOf(log),
+        selectedMonth,
+        daysAgo,
+      ),
+    )
     .map((log) => ({
       ...log,
       date: dateOf(log),
@@ -1274,7 +1381,13 @@ function buildReview(logs, selectedMonth) {
   const previousMonth = previousMonthId(selectedMonth);
 
   const previousLogs = (logs || [])
-    .filter((log) => monthFromDate(dateOf(log)) === previousMonth)
+    .filter((log) =>
+      dateIsInMonthWindow(
+        dateOf(log),
+        previousMonth,
+        daysAgo,
+      ),
+    )
     .map((log) => ({
       ...log,
       date: dateOf(log),
@@ -1335,15 +1448,12 @@ function buildReview(logs, selectedMonth) {
       ) / rows.length
     : 0;
 
-  const monthParts = String(selectedMonth || '')
-    .split('-')
-    .map(Number);
-  const daysInMonth =
-    monthParts.length === 2
-      ? new Date(monthParts[0], monthParts[1], 0).getDate()
-      : 30;
-  totals.avgWarsPerWeek = daysInMonth
-    ? totals.wars / (daysInMonth / 7)
+  const selectedWindow = monthDateWindow(
+    selectedMonth,
+    daysAgo,
+  );
+  totals.avgWarsPerWeek = selectedWindow.days
+    ? totals.wars / (selectedWindow.days / 7)
     : 0;
 
   const previousTotals = {
@@ -1814,13 +1924,13 @@ function SortHeader({
 const DEFAULT_OVERALL_WEIGHTS = Object.freeze({
   kills: 0,
   deaths: 0,
-  kd: 20,
+  kd: 10,
   killStreak: 0,
   killFeed: 0,
-  damageDealt: 50,
+  damageDealt: 40,
   damageTaken: 0,
-  ccHits: 30,
-  fortDamage: 0,
+  ccHits: 20,
+  fortDamage: 30,
 });
 
 const OVERALL_WEIGHT_CONTROLS = Object.freeze([
@@ -2454,7 +2564,7 @@ function PlayersTable({ players }) {
                     type="range"
                     min="0"
                     max="100"
-                    step="5"
+                    step="1"
                     value={rawWeight}
                     onChange={(event) =>
                       handleOverallWeight(
@@ -2462,7 +2572,7 @@ function PlayersTable({ players }) {
                         event.target.value,
                       )
                     }
-                    className="h-1.5 w-full cursor-pointer"
+                    className="h-1.5 w-full cursor-pointer transition-all duration-75 ease-linear"
                     style={{ accentColor: accent }}
                   />
 
@@ -2851,6 +2961,9 @@ export default function MonthlyRecap({
   const [selectedMonth, setSelectedMonth] = useState(
     months[0] || MIN_MONTH,
   );
+  const [daysAgo, setDaysAgo] = useState(
+    DEFAULT_RECAP_DAYS_AGO,
+  );
 
   useEffect(() => {
     if (!months.includes(selectedMonth)) {
@@ -2859,8 +2972,13 @@ export default function MonthlyRecap({
   }, [months, selectedMonth]);
 
   const review = useMemo(
-    () => buildReview(logs, selectedMonth),
-    [logs, selectedMonth],
+    () =>
+      buildReview(
+        logs,
+        selectedMonth,
+        daysAgo,
+      ),
+    [logs, selectedMonth, daysAgo],
   );
 
   const {
@@ -2893,6 +3011,10 @@ export default function MonthlyRecap({
             <span className="font-bold text-[#4ea1ff]">
               {monthLabel(selectedMonth)}
             </span>
+            <span className="text-[#52637b]">
+              {' '}
+              · {daysAgo ? `Last ${daysAgo} days` : 'Full month'}
+            </span>
           </p>
         </div>
 
@@ -2913,6 +3035,34 @@ export default function MonthlyRecap({
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#23364f] bg-[#020813] px-3 focus-within:border-[#4ea1ff]">
+            <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.07em] text-[#7f8da2]">
+              Days Ago
+            </span>
+            <input
+              type="number"
+              min="0"
+              max="366"
+              step="1"
+              value={daysAgo}
+              onChange={(event) =>
+                setDaysAgo(
+                  Math.max(
+                    0,
+                    Math.min(
+                      366,
+                      Math.floor(num(event.target.value)),
+                    ),
+                  ),
+                )
+              }
+              className="w-14 bg-transparent text-right text-[12px] font-black tabular-nums text-[#d8e5f7] outline-none"
+            />
+            <span className="whitespace-nowrap text-[9px] font-bold text-[#52637b]">
+              0 = full month
+            </span>
           </label>
         </div>
       </div>
