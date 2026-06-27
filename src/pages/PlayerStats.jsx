@@ -721,7 +721,7 @@ function PlayerComparisonPanel({
               Hover a metric to highlight
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-white/[0.08] bg-slate-950/38 px-3 py-2 shadow-[0_12px_34px_rgba(0,0,0,.22)] backdrop-blur-2xl">
+            <div className="flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-white/[0.08] bg-slate-950/38 px-4 py-2.5 shadow-[0_12px_34px_rgba(0,0,0,.22)] backdrop-blur-2xl">
               {players.map((player, index) => {
                 const theme =
                   PLAYER_COMPARE_THEMES[index] ||
@@ -733,13 +733,13 @@ function PlayerComparisonPanel({
                     className="flex min-w-0 items-center gap-1.5"
                   >
                     <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${theme.dot}`}
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${theme.dot}`}
                       style={{
                         boxShadow: `0 0 13px ${theme.stroke}`,
                       }}
                     />
                     <span
-                      className={`max-w-[100px] truncate text-[9px] font-black ${theme.text}`}
+                      className={`max-w-[150px] truncate text-[13px] font-black ${theme.text}`}
                       title={player.name}
                     >
                       {player.name}
@@ -1153,7 +1153,7 @@ function PlayerComparisonPanel({
             <div className="relative mb-1 block">
               <div className="min-w-0">
                 <p className="text-[12px] font-black uppercase tracking-[0.12em] text-slate-200">
-                  Key Comparison
+                  Comparison
                 </p>
               </div>
 
