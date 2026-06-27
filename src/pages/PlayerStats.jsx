@@ -481,8 +481,8 @@ function PlayerComparisonPanel({
   if (!players.length) return null;
 
   const cx = 390;
-  const cy = 250;
-  const radius = 154;
+  const cy = 330;
+  const radius = 190;
   const metricCount = metrics.length;
   const activeMetric =
     metrics.find((metric) => metric.key === hoveredMetricKey) || null;
@@ -706,8 +706,8 @@ function PlayerComparisonPanel({
         </div>
       </div>
 
-      <div className="relative grid items-stretch gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_520px]">
-        <div className="relative h-[500px] overflow-hidden rounded-[28px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(15,23,42,.62),rgba(2,6,23,.74))] shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_24px_70px_rgba(0,0,0,.28)] backdrop-blur-2xl">
+      <div className="relative grid h-[calc(100dvh-250px)] min-h-[560px] items-stretch gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_520px]">
+        <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(15,23,42,.62),rgba(2,6,23,.74))] shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_24px_70px_rgba(0,0,0,.28)] backdrop-blur-2xl">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute left-[7%] top-[12%] h-52 w-52 rounded-full bg-violet-600/18 blur-[90px]" />
             <div className="absolute right-[8%] top-[20%] h-48 w-48 rounded-full bg-blue-500/14 blur-[90px]" />
@@ -718,7 +718,7 @@ function PlayerComparisonPanel({
 
           <div className="pointer-events-none absolute inset-x-5 top-4 z-10 flex items-center justify-between gap-3">
             <div className="rounded-xl border border-white/[0.08] bg-slate-950/40 px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 shadow-[0_10px_30px_rgba(0,0,0,.2)] backdrop-blur-2xl">
-              Hover or click a metric
+              Hover a metric to highlight
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-white/[0.08] bg-slate-950/38 px-3 py-2 shadow-[0_12px_34px_rgba(0,0,0,.22)] backdrop-blur-2xl">
@@ -747,104 +747,11 @@ function PlayerComparisonPanel({
                   </div>
                 );
               })}
-
-              <span className="mx-0.5 h-4 w-px bg-white/10" />
-
-              <div className="flex items-center gap-1.5">
-                <span className="block h-px w-4 border-t border-dashed border-slate-300/65" />
-                <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-500">
-                  Guild avg
-                </span>
-              </div>
             </div>
           </div>
 
-          {activeMetric && (
-            <div className="pointer-events-none absolute right-5 top-[70px] z-20 w-[238px] overflow-hidden rounded-[20px] border border-white/[0.10] bg-[linear-gradient(145deg,rgba(15,23,42,.82),rgba(2,6,23,.92))] p-3 shadow-[0_24px_70px_rgba(0,0,0,.52)] backdrop-blur-2xl">
-              <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-violet-500/18 blur-3xl" />
-
-              <div className="relative mb-2.5 flex items-center justify-between gap-3 border-b border-white/[0.07] pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-violet-300/20 bg-violet-500/10 text-[12px] text-violet-200">
-                    {activeMetric.icon}
-                  </span>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-100">
-                    {activeMetric.label}
-                  </p>
-                </div>
-
-                <span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-600">
-                  Exact values
-                </span>
-              </div>
-
-              <div className="relative mb-2.5 rounded-xl border border-white/[0.065] bg-white/[0.025] px-2.5 py-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[8px] font-black uppercase tracking-[0.11em] text-slate-600">
-                    Guild average
-                  </p>
-                  <p className="text-xs font-black text-slate-300">
-                    {activeMetric.format(
-                      metricScales[activeMetric.key]?.average,
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <div className="relative space-y-1.5">
-                {players.map((player, index) => {
-                  const theme =
-                    PLAYER_COMPARE_THEMES[index] ||
-                    PLAYER_COMPARE_THEMES[0];
-                  const isLeader =
-                    metricLeaders[activeMetric.key]?.some(
-                      (name) =>
-                        samePlayerName(name, player.name),
-                    );
-
-                  return (
-                    <div
-                      key={`${player.name}-${activeMetric.key}-tooltip`}
-                      className={`flex items-center justify-between gap-3 rounded-xl border px-2.5 py-2 ${
-                        isLeader
-                          ? `${theme.border} bg-white/[0.05]`
-                          : 'border-transparent bg-white/[0.018]'
-                      }`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${theme.dot}`}
-                          style={{
-                            boxShadow: `0 0 12px ${theme.stroke}`,
-                          }}
-                        />
-                        <span
-                          className="truncate text-[11px] font-black text-slate-300"
-                          title={player.name}
-                        >
-                          {player.name}
-                        </span>
-                        {isLeader && (
-                          <span className="text-[10px] text-amber-300">
-                            ♛
-                          </span>
-                        )}
-                      </div>
-
-                      <span className={`shrink-0 text-sm font-black ${theme.text}`}>
-                        {activeMetric.format(
-                          player[activeMetric.key],
-                        )}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {!hasData ? (
-            <div className="relative flex h-[500px] items-center justify-center px-6 text-center">
+            <div className="relative flex h-full min-h-0 items-center justify-center px-6 text-center">
               <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] px-8 py-7 backdrop-blur-xl">
                 <p className="text-sm font-black text-slate-300">
                   No comparison data in this period.
@@ -856,7 +763,7 @@ function PlayerComparisonPanel({
             </div>
           ) : (
             <svg
-              viewBox="0 0 780 520"
+              viewBox="0 0 780 660"
               className="relative h-full w-full"
               role="img"
               aria-label="Glass radar chart comparing selected players"
@@ -949,14 +856,14 @@ function PlayerComparisonPanel({
               <circle
                 cx={cx}
                 cy={cy}
-                r={radius + 92}
+                r={radius + 110}
                 fill="url(#glassRadarBackdrop)"
               />
 
               <circle
                 cx={cx}
                 cy={cy}
-                r={radius + 38}
+                r={radius + 46}
                 fill="none"
                 stroke="rgba(139,92,246,.055)"
                 strokeWidth="34"
@@ -1003,7 +910,7 @@ function PlayerComparisonPanel({
                 const labelPoint = radarPoint(
                   cx,
                   cy,
-                  radius + 48,
+                  radius + 58,
                   index,
                   metricCount,
                 );
@@ -1238,7 +1145,7 @@ function PlayerComparisonPanel({
           </div>
         </div>
 
-        <div className="h-[500px] min-h-0">
+        <div className="h-full min-h-0">
           <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-white/[0.08] bg-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_18px_50px_rgba(0,0,0,.22)] backdrop-blur-2xl">
             <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-500/12 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-blue-500/8 blur-3xl" />
@@ -1280,13 +1187,13 @@ function PlayerComparisonPanel({
                         current === metric.key ? '' : metric.key,
                       )
                     }
-                    className={`min-h-0 rounded-xl border px-2 py-1.5 text-left transition ${
+                    className={`flex min-h-0 flex-col justify-center rounded-xl border px-2.5 py-2 text-left transition ${
                       active
                         ? 'border-violet-300/25 bg-violet-500/[0.075] shadow-[0_0_18px_rgba(139,92,246,.07)]'
                         : 'border-white/[0.045] bg-slate-950/18 hover:border-white/[0.08] hover:bg-white/[0.025]'
                     }`}
                   >
-                    <div className="mb-1 flex items-center justify-between gap-1.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-1.5">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <span
                           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[9px] ${
@@ -1303,15 +1210,17 @@ function PlayerComparisonPanel({
                         </span>
                       </div>
 
-                      <span className="shrink-0 text-[7px] font-black text-slate-700">
-                        AVG{' '}
-                        {metric.format(
-                          metricScales[metric.key]?.average,
-                        )}
+                      <span className="shrink-0 rounded-md border border-white/[0.055] bg-slate-950/42 px-1.5 py-0.5 text-[7px] font-black text-slate-500">
+                        Guild average{' '}
+                        <b className="text-slate-300">
+                          {metric.format(
+                            metricScales[metric.key]?.average,
+                          )}
+                        </b>
                       </span>
                     </div>
 
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       {players.map((player, index) => {
                         const theme =
                           PLAYER_COMPARE_THEMES[index] ||
@@ -1329,13 +1238,13 @@ function PlayerComparisonPanel({
                         return (
                           <div
                             key={`${metric.key}-${player.name}-stacked`}
-                            className="relative h-[14px] overflow-hidden rounded-[5px] border border-white/[0.055] bg-slate-950/72 shadow-inner"
+                            className="relative h-[18px] overflow-hidden rounded-md border border-white/[0.055] bg-slate-950/72 shadow-inner"
                             title={`${player.name}: ${metric.format(
                               player[metric.key],
                             )}`}
                           >
                             <div
-                              className="absolute inset-y-0 left-0 rounded-[5px] transition-all duration-300"
+                              className="absolute inset-y-0 left-0 rounded-md transition-all duration-300"
                               style={{
                                 width: `${width}%`,
                                 minWidth: width > 0 ? '4px' : '0',
@@ -1356,7 +1265,7 @@ function PlayerComparisonPanel({
                                 />
 
                                 <span
-                                  className="truncate text-[7px] font-black text-slate-100 drop-shadow-[0_1px_2px_rgba(0,0,0,.95)]"
+                                  className="truncate text-[8px] font-black text-slate-100 drop-shadow-[0_1px_2px_rgba(0,0,0,.95)]"
                                   title={player.name}
                                 >
                                   {player.name}
@@ -1364,7 +1273,7 @@ function PlayerComparisonPanel({
                               </div>
 
                               <span
-                                className={`shrink-0 text-[8px] font-black ${theme.text} drop-shadow-[0_1px_2px_rgba(0,0,0,.95)]`}
+                                className={`shrink-0 text-[9px] font-black ${theme.text} drop-shadow-[0_1px_2px_rgba(0,0,0,.95)]`}
                               >
                                 {isLeader && (
                                   <span className="mr-0.5 text-amber-300">
