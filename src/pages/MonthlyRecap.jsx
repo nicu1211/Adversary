@@ -224,36 +224,65 @@ function monthDateWindow(
     999,
   ).getTime();
 
+  // The selected month defines where the rolling range ends.
+  // Current month ends at the current moment; historical months
+  // end on their final calendar day.
   const end =
     monthId === localMonthId()
       ? Math.min(Date.now(), monthEnd)
       : monthEnd;
 
   const safeDays = Math.max(0, Math.floor(num(daysAgo)));
-  const start = safeDays
-    ? Math.max(
-        monthStart,
-        end - safeDays * DAY_MS,
-      )
-    : monthStart;
+
+  let start = monthStart;
+
+  if (safeDays > 0) {
+    const startDate = new Date(end);
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(
+      startDate.getDate() - (safeDays - 1),
+    );
+    start = startDate.getTime();
+  }
 
   return {
     start,
     end,
-    days: Math.max(
-      1,
-      Math.ceil((end - start) / DAY_MS),
-    ),
+    days:
+      safeDays > 0
+        ? safeDays
+        : Math.max(
+            1,
+            Math.ceil((end - start + 1) / DAY_MS),
+          ),
   };
 }
 
-function dateIsInMonthWindow(value, monthId, daysAgo) {
+function previousDateWindow(window) {
+  if (!window?.start || !window?.days) {
+    return {
+      start: 0,
+      end: 0,
+      days: 0,
+    };
+  }
+
+  const end = window.start - 1;
+  const start = window.start - window.days * DAY_MS;
+
+  return {
+    start,
+    end,
+    days: window.days,
+  };
+}
+
+function dateIsInWindow(value, window) {
   const timestamp = dateTimestamp(value);
-  const window = monthDateWindow(monthId, daysAgo);
 
   return Boolean(
     timestamp &&
-      window.start &&
+      window?.start &&
       timestamp >= window.start &&
       timestamp <= window.end,
   );
@@ -1264,21 +1293,21 @@ function percentageChange(current, previous) {
 function comparisonInfo(
   current,
   previous,
-  previousMonth,
+  previousPeriodLabel,
   lowerIsBetter = false,
 ) {
   const change = percentageChange(current, previous);
 
   if (change == null) {
     return {
-      text: `No ${shortMonthLabel(previousMonth)} baseline`,
+      text: `No ${previousPeriodLabel || 'previous period'} baseline`,
       tone: 'neutral',
     };
   }
 
   if (change === 0) {
     return {
-      text: `• 0% vs ${shortMonthLabel(previousMonth)}`,
+      text: `• 0% vs ${previousPeriodLabel || 'previous period'}`,
       tone: 'neutral',
     };
   }
@@ -1288,7 +1317,7 @@ function comparisonInfo(
   return {
     text: `${change > 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(
       0,
-    )}% vs ${shortMonthLabel(previousMonth)} · ${
+    )}% vs ${previousPeriodLabel || 'previous period'} · ${
       improved ? 'better' : 'worse'
     }`,
     tone: improved ? 'positive' : 'negative',
@@ -1365,12 +1394,26 @@ function buildReview(
   selectedMonth,
   daysAgo = DEFAULT_RECAP_DAYS_AGO,
 ) {
+  const selectedWindow = monthDateWindow(
+    selectedMonth,
+    daysAgo,
+  );
+  const previousCalendarMonth =
+    previousMonthId(selectedMonth);
+  const previousWindow =
+    num(daysAgo) > 0
+      ? previousDateWindow(selectedWindow)
+      : monthDateWindow(previousCalendarMonth, 0);
+  const previousPeriodLabel =
+    num(daysAgo) > 0
+      ? `previous ${selectedWindow.days} days`
+      : shortMonthLabel(previousCalendarMonth);
+
   const monthLogs = (logs || [])
     .filter((log) =>
-      dateIsInMonthWindow(
+      dateIsInWindow(
         dateOf(log),
-        selectedMonth,
-        daysAgo,
+        selectedWindow,
       ),
     )
     .map((log) => ({
@@ -1378,14 +1421,11 @@ function buildReview(
       date: dateOf(log),
     }));
 
-  const previousMonth = previousMonthId(selectedMonth);
-
   const previousLogs = (logs || [])
     .filter((log) =>
-      dateIsInMonthWindow(
+      dateIsInWindow(
         dateOf(log),
-        previousMonth,
-        daysAgo,
+        previousWindow,
       ),
     )
     .map((log) => ({
@@ -1448,10 +1488,6 @@ function buildReview(
       ) / rows.length
     : 0;
 
-  const selectedWindow = monthDateWindow(
-    selectedMonth,
-    daysAgo,
-  );
   totals.avgWarsPerWeek = selectedWindow.days
     ? totals.wars / (selectedWindow.days / 7)
     : 0;
@@ -1561,7 +1597,7 @@ function buildReview(
       )[0] || null;
 
   return {
-    previousMonth,
+    previousMonth: previousPeriodLabel,
     totals,
     previousTotals,
     players,
@@ -2981,6 +3017,11 @@ export default function MonthlyRecap({
     [logs, selectedMonth, daysAgo],
   );
 
+  const activeDateWindow = useMemo(
+    () => monthDateWindow(selectedMonth, daysAgo),
+    [selectedMonth, daysAgo],
+  );
+
   const {
     previousMonth,
     totals,
@@ -3013,7 +3054,12 @@ export default function MonthlyRecap({
             </span>
             <span className="text-[#52637b]">
               {' '}
-              · {daysAgo ? `Last ${daysAgo} days` : 'Full month'}
+              ·{' '}
+              {daysAgo
+                ? `${formatDate(activeDateWindow.start)} – ${formatDate(
+                    activeDateWindow.end,
+                  )}`
+                : 'Full month'}
             </span>
           </p>
         </div>
