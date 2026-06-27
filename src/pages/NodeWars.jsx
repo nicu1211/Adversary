@@ -22,6 +22,8 @@ import { buildNodeWarRow, scrollCls } from '../lib/logUtils';
 const NODE_WARS_PANEL_CSS = `
   .adversary-content .nodewars-guild-panel {
     --nodewars-accent-rgb: 96, 165, 250;
+    position: relative;
+    isolation: isolate;
     background-color: rgba(2, 6, 23, 0.62) !important;
     background-image:
       radial-gradient(
@@ -51,6 +53,38 @@ const NODE_WARS_PANEL_CSS = `
       transform 180ms ease;
   }
 
+  /* Soft gradient border that fades at both ends instead of drawing a hard box. */
+  .adversary-content .nodewars-guild-panel::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    border: 1px solid transparent;
+    border-radius: inherit;
+    background: linear-gradient(
+      110deg,
+      transparent 0%,
+      rgba(var(--nodewars-accent-rgb), 0.08) 8%,
+      rgba(var(--nodewars-accent-rgb), 0.34) 24%,
+      rgba(255, 255, 255, 0.075) 50%,
+      rgba(var(--nodewars-accent-rgb), 0.24) 76%,
+      rgba(var(--nodewars-accent-rgb), 0.06) 92%,
+      transparent 100%
+    ) border-box;
+    -webkit-mask:
+      linear-gradient(#000 0 0) padding-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.42;
+    transition: opacity 180ms ease;
+  }
+
+  .adversary-content .nodewars-guild-panel:hover::after {
+    opacity: 0.64;
+  }
+
   .adversary-content .nodewars-guild-panel:hover {
     background-color: rgba(2, 6, 23, 0.58) !important;
     background-image:
@@ -75,12 +109,34 @@ const NODE_WARS_PANEL_CSS = `
   }
 
   .adversary-content .nodewars-guild-panel.nodewars-selected {
-    background-color: rgba(2, 6, 23, 0.56) !important;
+    background-color: transparent !important;
+    background-image: none !important;
     box-shadow:
-      inset 0 0 52px rgba(var(--nodewars-accent-rgb), 0.15),
-      0 0 0 1px rgba(255, 255, 255, 0.10),
-      0 0 24px rgba(var(--nodewars-accent-rgb), 0.28),
-      0 14px 30px rgba(0, 0, 0, 0.26) !important;
+      0 0 22px rgba(var(--nodewars-accent-rgb), 0.25),
+      0 12px 26px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .adversary-content .nodewars-guild-panel.nodewars-selected::after {
+    opacity: 0.78;
+  }
+
+  /* The selectable Node War cards sit directly on the page artwork. */
+  .adversary-content .nodewars-war-card,
+  .adversary-content .nodewars-war-card:hover {
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .adversary-content .nodewars-war-card:not(.nodewars-selected) {
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .adversary-content .nodewars-war-card:not(.nodewars-selected):hover {
+    box-shadow:
+      0 0 20px rgba(var(--nodewars-accent-rgb), 0.18),
+      0 10px 24px rgba(0, 0, 0, 0.14) !important;
   }
 
   .adversary-content .nodewars-war-date {
@@ -452,7 +508,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
   return (
     <div
       onClick={onOpen}
-      className={`nodewars-guild-panel group relative grid cursor-pointer overflow-visible rounded-xl border transition duration-200 ${
+      className={`nodewars-guild-panel nodewars-war-card group relative grid cursor-pointer overflow-visible rounded-xl border transition duration-200 ${
         checked
           ? 'nodewars-selected'
           : 'hover:-translate-y-[1px]'
@@ -534,7 +590,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
               </div>
             </div>
 
-            <div className="mt-2.5 h-px bg-slate-800/80" />
+            <div className="mt-2.5 h-px bg-slate-700/25" />
 
             <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
               <WarMetric
@@ -1076,7 +1132,7 @@ export default function NodeWars({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-700/25 pt-4">
             <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-400">
               <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1">
                 Displayed: <b className="text-white">{rows.length}</b>
