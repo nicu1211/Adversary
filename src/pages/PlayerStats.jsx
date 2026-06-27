@@ -706,7 +706,7 @@ function PlayerComparisonPanel({
         </div>
       </div>
 
-      <div className="relative grid h-[calc(100dvh-250px)] min-h-[560px] items-stretch gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_520px]">
+      <div className="relative grid h-[calc(100dvh-250px)] min-h-[560px] items-stretch gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_600px]">
         <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(15,23,42,.62),rgba(2,6,23,.74))] shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_24px_70px_rgba(0,0,0,.28)] backdrop-blur-2xl">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute left-[7%] top-[12%] h-52 w-52 rounded-full bg-violet-600/18 blur-[90px]" />
@@ -1155,7 +1155,7 @@ function PlayerComparisonPanel({
                 <p className="text-[13px] font-black uppercase tracking-[0.14em] text-slate-200">
                   Key Comparison
                 </p>
-                <p className="truncate text-[10px] font-bold text-slate-500">
+                <p className="truncate text-[11px] font-bold text-slate-500">
                   {mode === 'average'
                     ? 'Average per war'
                     : 'Totals and best records'}
@@ -1163,7 +1163,7 @@ function PlayerComparisonPanel({
                 </p>
               </div>
 
-              <span className="shrink-0 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.11em] text-slate-400">
+              <span className="shrink-0 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
                 {metrics.length} metrics
               </span>
             </div>
@@ -1193,7 +1193,7 @@ function PlayerComparisonPanel({
                         : 'border-white/[0.045] bg-slate-950/18 hover:border-white/[0.08] hover:bg-white/[0.025]'
                     }`}
                   >
-                    <div className="mb-2 flex min-h-[34px] items-center justify-between gap-2">
+                    <div className="mb-2 grid min-h-[38px] grid-cols-[minmax(0,1fr)_minmax(170px,.9fr)] items-center gap-3">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <span
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-[13px] ${
@@ -1205,14 +1205,14 @@ function PlayerComparisonPanel({
                           {metric.icon}
                         </span>
 
-                        <span className="truncate text-[11px] font-black uppercase tracking-[0.08em] text-slate-200">
+                        <span className="truncate text-[13px] font-black uppercase tracking-[0.08em] text-slate-100">
                           {metric.label}
                         </span>
                       </div>
 
-                      <span className="flex min-h-[30px] shrink-0 items-center gap-2 rounded-xl border border-white/[0.075] bg-slate-950/50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.07em] text-slate-500">
+                      <span className="flex min-h-[34px] w-full items-center justify-between gap-3 rounded-xl border border-white/[0.075] bg-slate-950/50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.05em] text-slate-500">
                         Guild average{' '}
-                        <b className="text-[12px] font-black tracking-normal text-slate-200">
+                        <b className="text-[11px] font-black tracking-normal text-slate-200">
                           {metric.format(
                             metricScales[metric.key]?.average,
                           )}
@@ -1265,7 +1265,7 @@ function PlayerComparisonPanel({
                                 />
 
                                 <span
-                                  className="truncate text-[10px] font-black text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,.95)]"
+                                  className="truncate text-[11px] font-black text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,.95)]"
                                   title={player.name}
                                 >
                                   {player.name}
@@ -1294,7 +1294,7 @@ function PlayerComparisonPanel({
               })}
             </div>
 
-            <p className="relative mt-2 text-center text-[9px] font-bold text-slate-600">
+            <p className="relative mt-2 text-center text-[11px] font-bold text-slate-600">
               0 Days Ago shows all available history
             </p>
           </div>
