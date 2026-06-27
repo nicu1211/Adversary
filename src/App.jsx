@@ -441,54 +441,58 @@ const GLOBAL_PANEL_CSS = `
       0 16px 34px rgba(0, 0, 0, 0.26) !important;
   }
 
-  /* Guild panels keep a dark glass base with a visible but restrained tint.
-     This avoids washing the page in colour while still showing each accent. */
+  /* Guild page: every surface uses the same dark tinted glass treatment as
+     the summary cards at the top. Colour stays inside the panel, but the dark
+     base remains dominant so nested Guild panels never become solid blocks. */
   body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel {
-    background-color: rgba(2, 6, 23, 0.62) !important;
+    --adversary-guild-accent-rgb: var(--adversary-panel-accent-rgb, 96, 165, 250);
+    background-color: rgba(2, 6, 23, 0.76) !important;
     background-image:
       radial-gradient(
-        ellipse at 14% 0%,
-        rgba(var(--adversary-panel-accent-rgb), 0.18) 0%,
-        rgba(var(--adversary-panel-accent-rgb), 0.09) 42%,
-        rgba(var(--adversary-panel-accent-rgb), 0.035) 74%,
-        transparent 100%
+        ellipse at 10% 0%,
+        rgba(var(--adversary-guild-accent-rgb), 0.17) 0%,
+        rgba(var(--adversary-guild-accent-rgb), 0.085) 38%,
+        rgba(var(--adversary-guild-accent-rgb), 0.028) 68%,
+        transparent 88%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--adversary-panel-accent-rgb), 0.075) 0%,
-        rgba(7, 13, 29, 0.52) 54%,
-        rgba(2, 6, 23, 0.66) 100%
+        rgba(var(--adversary-guild-accent-rgb), 0.07) 0%,
+        rgba(8, 15, 32, 0.64) 48%,
+        rgba(2, 6, 23, 0.78) 100%
       ) !important;
-    border-color: rgba(var(--adversary-panel-accent-rgb), 0.40) !important;
+    border-color: rgba(var(--adversary-guild-accent-rgb), 0.46) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.16),
-      0 12px 28px rgba(0, 0, 0, 0.24) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 -1px 0 rgba(var(--adversary-guild-accent-rgb), 0.14),
+      0 10px 24px rgba(0, 0, 0, 0.24) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(112%);
+    backdrop-filter: blur(8px) saturate(112%);
   }
 
   body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover {
-    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-color: rgba(2, 6, 23, 0.72) !important;
     background-image:
       radial-gradient(
-        ellipse at 14% 0%,
-        rgba(var(--adversary-panel-accent-rgb), 0.25) 0%,
-        rgba(var(--adversary-panel-accent-rgb), 0.13) 44%,
-        rgba(var(--adversary-panel-accent-rgb), 0.05) 76%,
-        transparent 100%
+        ellipse at 10% 0%,
+        rgba(var(--adversary-guild-accent-rgb), 0.24) 0%,
+        rgba(var(--adversary-guild-accent-rgb), 0.12) 40%,
+        rgba(var(--adversary-guild-accent-rgb), 0.04) 70%,
+        transparent 90%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--adversary-panel-accent-rgb), 0.10) 0%,
-        rgba(7, 13, 29, 0.48) 54%,
-        rgba(2, 6, 23, 0.62) 100%
+        rgba(var(--adversary-guild-accent-rgb), 0.095) 0%,
+        rgba(8, 15, 32, 0.61) 48%,
+        rgba(2, 6, 23, 0.74) 100%
       ) !important;
-    border-color: rgba(var(--adversary-panel-accent-rgb), 0.66) !important;
+    border-color: rgba(var(--adversary-guild-accent-rgb), 0.70) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.22),
-      0 0 0 1px rgba(var(--adversary-panel-accent-rgb), 0.08),
-      0 0 22px rgba(var(--adversary-panel-accent-rgb), 0.22),
-      0 14px 32px rgba(0, 0, 0, 0.26) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(var(--adversary-guild-accent-rgb), 0.20),
+      0 0 0 1px rgba(var(--adversary-guild-accent-rgb), 0.07),
+      0 0 20px rgba(var(--adversary-guild-accent-rgb), 0.21),
+      0 13px 28px rgba(0, 0, 0, 0.26) !important;
   }
 
   /* Keep the Enemy Guild Tier List hover card above nearby rows and prevent
@@ -497,125 +501,166 @@ const GLOBAL_PANEL_CSS = `
     overflow: visible !important;
   }
 
+  /* The tier-list shell keeps its original accent, but uses the exact same
+     dark glass recipe as the top Guild cards. */
   body[data-adversary-page="guild"] .adversary-enemy-tier-panel {
     position: relative;
     z-index: 100;
     isolation: isolate;
-    --adversary-panel-accent-rgb: 96, 165, 250;
-    background-color: rgba(2, 6, 23, 0.70) !important;
+    --adversary-guild-accent-rgb: var(--adversary-panel-accent-rgb, 244, 63, 94);
+    background-color: rgba(2, 6, 23, 0.78) !important;
     background-image:
       radial-gradient(
         ellipse at 10% 0%,
-        rgba(96, 165, 250, 0.10) 0%,
-        rgba(96, 165, 250, 0.04) 42%,
-        transparent 74%
-      ),
-      linear-gradient(145deg, rgba(8, 15, 32, 0.62), rgba(2, 6, 23, 0.74)) !important;
-    border-color: rgba(96, 165, 250, 0.34) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      0 16px 38px rgba(0, 0, 0, 0.26) !important;
-  }
-
-  body[data-adversary-page="guild"] .adversary-enemy-tier-neutral {
-    background-color: rgba(2, 6, 23, 0.72) !important;
-    background-image: linear-gradient(
-      145deg,
-      rgba(15, 23, 42, 0.46),
-      rgba(2, 6, 23, 0.68)
-    ) !important;
-    border-color: rgba(100, 116, 139, 0.30) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.035),
-      0 8px 20px rgba(0, 0, 0, 0.18) !important;
-  }
-
-  body[data-adversary-page="guild"] .adversary-enemy-tier-row {
-    --adversary-tier-rgb: 96, 165, 250;
-    background-color: rgba(2, 6, 23, 0.68) !important;
-    background-image:
-      radial-gradient(
-        ellipse at 8% 0%,
-        rgba(var(--adversary-tier-rgb), 0.13) 0%,
-        rgba(var(--adversary-tier-rgb), 0.065) 46%,
+        rgba(var(--adversary-guild-accent-rgb), 0.13) 0%,
+        rgba(var(--adversary-guild-accent-rgb), 0.06) 40%,
         transparent 78%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--adversary-tier-rgb), 0.055),
-        rgba(2, 6, 23, 0.70) 64%
+        rgba(var(--adversary-guild-accent-rgb), 0.05),
+        rgba(2, 6, 23, 0.80) 66%
       ) !important;
-    border-color: rgba(var(--adversary-tier-rgb), 0.46) !important;
+    border-color: rgba(var(--adversary-guild-accent-rgb), 0.43) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      inset 0 -1px 0 rgba(var(--adversary-tier-rgb), 0.14),
-      0 10px 24px rgba(0, 0, 0, 0.20) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(var(--adversary-guild-accent-rgb), 0.12),
+      0 14px 34px rgba(0, 0, 0, 0.26) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(110%);
+    backdrop-filter: blur(8px) saturate(110%);
   }
 
-  body[data-adversary-page="guild"] .adversary-enemy-tier-row:hover {
-    background-color: rgba(2, 6, 23, 0.64) !important;
+  /* Filters and controls are neutral versions of the same header-card glass. */
+  body[data-adversary-page="guild"] .adversary-enemy-tier-neutral {
+    --adversary-neutral-rgb: 100, 116, 139;
+    background-color: rgba(2, 6, 23, 0.80) !important;
     background-image:
       radial-gradient(
-        ellipse at 8% 0%,
-        rgba(var(--adversary-tier-rgb), 0.18) 0%,
-        rgba(var(--adversary-tier-rgb), 0.085) 48%,
+        ellipse at 10% 0%,
+        rgba(var(--adversary-neutral-rgb), 0.12) 0%,
+        rgba(var(--adversary-neutral-rgb), 0.05) 40%,
         transparent 80%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--adversary-tier-rgb), 0.075),
-        rgba(2, 6, 23, 0.67) 64%
+        rgba(var(--adversary-neutral-rgb), 0.045),
+        rgba(2, 6, 23, 0.82) 66%
       ) !important;
-    border-color: rgba(var(--adversary-tier-rgb), 0.68) !important;
+    border-color: rgba(var(--adversary-neutral-rgb), 0.36) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -1px 0 rgba(var(--adversary-tier-rgb), 0.20),
-      0 0 24px rgba(var(--adversary-tier-rgb), 0.18),
-      0 12px 28px rgba(0, 0, 0, 0.22) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      inset 0 -1px 0 rgba(var(--adversary-neutral-rgb), 0.10),
+      0 8px 20px rgba(0, 0, 0, 0.20) !important;
+    -webkit-backdrop-filter: blur(7px) saturate(106%);
+    backdrop-filter: blur(7px) saturate(106%);
   }
 
-  body[data-adversary-page="guild"] .adversary-enemy-tier-card {
+  body[data-adversary-page="guild"] .adversary-enemy-tier-neutral:hover {
+    border-color: rgba(var(--adversary-neutral-rgb), 0.52) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 -1px 0 rgba(var(--adversary-neutral-rgb), 0.14),
+      0 0 16px rgba(var(--adversary-neutral-rgb), 0.12),
+      0 9px 22px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  /* Each tier row uses the top-card glass style with only its tier colour.
+     The tint is intentionally lighter because guild cards sit inside it. */
+  body[data-adversary-page="guild"] .adversary-enemy-tier-row {
     --adversary-tier-rgb: 96, 165, 250;
-    background-color: rgba(2, 6, 23, 0.74) !important;
+    background-color: rgba(2, 6, 23, 0.78) !important;
     background-image:
       radial-gradient(
-        ellipse at 12% 0%,
+        ellipse at 8% 0%,
         rgba(var(--adversary-tier-rgb), 0.12) 0%,
-        rgba(var(--adversary-tier-rgb), 0.052) 46%,
-        transparent 78%
+        rgba(var(--adversary-tier-rgb), 0.055) 42%,
+        transparent 80%
       ),
       linear-gradient(
         145deg,
         rgba(var(--adversary-tier-rgb), 0.045),
-        rgba(2, 6, 23, 0.72) 66%
+        rgba(2, 6, 23, 0.80) 68%
       ) !important;
-    border-color: rgba(var(--adversary-tier-rgb), 0.40) !important;
+    border-color: rgba(var(--adversary-tier-rgb), 0.46) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
       inset 0 -1px 0 rgba(var(--adversary-tier-rgb), 0.12),
-      0 6px 16px rgba(0, 0, 0, 0.16) !important;
+      0 9px 22px rgba(0, 0, 0, 0.21) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(110%);
+    backdrop-filter: blur(8px) saturate(110%);
   }
 
-  body[data-adversary-page="guild"] .adversary-enemy-tier-card:hover {
-    background-color: rgba(2, 6, 23, 0.68) !important;
+  body[data-adversary-page="guild"] .adversary-enemy-tier-row:hover {
+    background-color: rgba(2, 6, 23, 0.75) !important;
     background-image:
       radial-gradient(
-        ellipse at 12% 0%,
-        rgba(var(--adversary-tier-rgb), 0.20) 0%,
-        rgba(var(--adversary-tier-rgb), 0.085) 48%,
-        transparent 80%
+        ellipse at 8% 0%,
+        rgba(var(--adversary-tier-rgb), 0.17) 0%,
+        rgba(var(--adversary-tier-rgb), 0.075) 44%,
+        transparent 82%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--adversary-tier-rgb), 0.07),
-        rgba(2, 6, 23, 0.68) 66%
+        rgba(var(--adversary-tier-rgb), 0.06),
+        rgba(2, 6, 23, 0.77) 68%
       ) !important;
-    border-color: rgba(var(--adversary-tier-rgb), 0.68) !important;
+    border-color: rgba(var(--adversary-tier-rgb), 0.66) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 -1px 0 rgba(var(--adversary-tier-rgb), 0.17),
+      0 0 18px rgba(var(--adversary-tier-rgb), 0.16),
+      0 11px 25px rgba(0, 0, 0, 0.23) !important;
+  }
+
+  /* Individual guild cards and tier badges match the top summary cards most
+     closely: dark base, visible transparent tint, thin border, soft glow. */
+  body[data-adversary-page="guild"] .adversary-enemy-tier-card {
+    --adversary-tier-rgb: 96, 165, 250;
+    background-color: rgba(2, 6, 23, 0.80) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 10% 0%,
+        rgba(var(--adversary-tier-rgb), 0.17) 0%,
+        rgba(var(--adversary-tier-rgb), 0.085) 40%,
+        rgba(var(--adversary-tier-rgb), 0.025) 70%,
+        transparent 88%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--adversary-tier-rgb), 0.065),
+        rgba(2, 6, 23, 0.82) 66%
+      ) !important;
+    border-color: rgba(var(--adversary-tier-rgb), 0.48) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -1px 0 rgba(var(--adversary-tier-rgb), 0.18),
-      0 0 18px rgba(var(--adversary-tier-rgb), 0.22),
-      0 8px 18px rgba(0, 0, 0, 0.18) !important;
+      inset 0 -1px 0 rgba(var(--adversary-tier-rgb), 0.14),
+      0 7px 17px rgba(0, 0, 0, 0.18) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(112%);
+    backdrop-filter: blur(8px) saturate(112%);
+  }
+
+  body[data-adversary-page="guild"] .adversary-enemy-tier-card:hover {
+    background-color: rgba(2, 6, 23, 0.75) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 10% 0%,
+        rgba(var(--adversary-tier-rgb), 0.25) 0%,
+        rgba(var(--adversary-tier-rgb), 0.12) 42%,
+        rgba(var(--adversary-tier-rgb), 0.04) 72%,
+        transparent 90%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--adversary-tier-rgb), 0.09),
+        rgba(2, 6, 23, 0.78) 66%
+      ) !important;
+    border-color: rgba(var(--adversary-tier-rgb), 0.72) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(var(--adversary-tier-rgb), 0.20),
+      0 0 0 1px rgba(var(--adversary-tier-rgb), 0.07),
+      0 0 18px rgba(var(--adversary-tier-rgb), 0.23),
+      0 8px 19px rgba(0, 0, 0, 0.20) !important;
   }
 
   body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger {
@@ -853,7 +898,7 @@ export default function App() {
               if (card === row) return;
 
               const bounds = card.getBoundingClientRect();
-              const looksLikeGuildCard = bounds.width >= 170 && bounds.height >= 45;
+              const looksLikeGuildCard = bounds.width >= 48 && bounds.height >= 40;
 
               if (!looksLikeGuildCard) return;
 
