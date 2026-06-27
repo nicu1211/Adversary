@@ -20,6 +20,24 @@ import { buildNodeWarRow, scrollCls } from '../lib/logUtils';
 
 
 const NODE_WARS_PANEL_CSS = `
+  /* The outer Node Wars page shell must stay fully transparent. This removes
+     only the large coloured panel behind the selectable war cards. */
+  .adversary-content .nodewars-page-shell,
+  .adversary-content .nodewars-page-shell:hover {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    filter: none !important;
+  }
+
+  .adversary-content .nodewars-page-shell::before,
+  .adversary-content .nodewars-page-shell::after {
+    display: none !important;
+  }
+
   .adversary-content .nodewars-guild-panel {
     --nodewars-accent-rgb: 96, 165, 250;
     position: relative;
@@ -109,34 +127,79 @@ const NODE_WARS_PANEL_CSS = `
   }
 
   .adversary-content .nodewars-guild-panel.nodewars-selected {
-    background-color: transparent !important;
-    background-image: none !important;
+    background-color: rgba(2, 6, 23, 0.56) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--nodewars-accent-rgb), 0.24) 0%,
+        rgba(var(--nodewars-accent-rgb), 0.12) 44%,
+        rgba(var(--nodewars-accent-rgb), 0.045) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--nodewars-accent-rgb), 0.10) 0%,
+        rgba(7, 13, 29, 0.48) 54%,
+        rgba(2, 6, 23, 0.62) 100%
+      ) !important;
     box-shadow:
-      0 0 22px rgba(var(--nodewars-accent-rgb), 0.25),
-      0 12px 26px rgba(0, 0, 0, 0.18) !important;
+      inset 0 0 52px rgba(var(--nodewars-accent-rgb), 0.15),
+      0 0 24px rgba(var(--nodewars-accent-rgb), 0.28),
+      0 14px 30px rgba(0, 0, 0, 0.26) !important;
   }
 
   .adversary-content .nodewars-guild-panel.nodewars-selected::after {
     opacity: 0.78;
   }
 
-  /* The selectable Node War cards sit directly on the page artwork. */
-  .adversary-content .nodewars-war-card,
-  .adversary-content .nodewars-war-card:hover {
-    background-color: transparent !important;
-    background-image: none !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+  /* Keep the fill inside every selectable Node War card. Only the outer
+     page shell is transparent. */
+  .adversary-content .nodewars-war-card {
+    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--nodewars-accent-rgb), 0.18) 0%,
+        rgba(var(--nodewars-accent-rgb), 0.09) 42%,
+        rgba(var(--nodewars-accent-rgb), 0.035) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--nodewars-accent-rgb), 0.075) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
+      ) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(122%) !important;
+    backdrop-filter: blur(8px) saturate(122%) !important;
   }
 
   .adversary-content .nodewars-war-card:not(.nodewars-selected) {
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12) !important;
+    box-shadow:
+      inset 0 0 42px rgba(var(--nodewars-accent-rgb), 0.075),
+      0 8px 22px rgba(0, 0, 0, 0.18) !important;
   }
 
   .adversary-content .nodewars-war-card:not(.nodewars-selected):hover {
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--nodewars-accent-rgb), 0.25) 0%,
+        rgba(var(--nodewars-accent-rgb), 0.13) 44%,
+        rgba(var(--nodewars-accent-rgb), 0.05) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--nodewars-accent-rgb), 0.10) 0%,
+        rgba(7, 13, 29, 0.48) 54%,
+        rgba(2, 6, 23, 0.62) 100%
+      ) !important;
     box-shadow:
-      0 0 20px rgba(var(--nodewars-accent-rgb), 0.18),
-      0 10px 24px rgba(0, 0, 0, 0.14) !important;
+      inset 0 0 48px rgba(var(--nodewars-accent-rgb), 0.13),
+      0 0 20px rgba(var(--nodewars-accent-rgb), 0.22),
+      0 10px 24px rgba(0, 0, 0, 0.20) !important;
   }
 
   .adversary-content .nodewars-war-date {
@@ -1069,7 +1132,7 @@ export default function NodeWars({
   }
 
   return (
-    <Panel cls="border-0 bg-transparent p-0 shadow-none">
+    <Panel cls="nodewars-page-shell border-0 bg-transparent p-0 shadow-none">
       <style>{NODE_WARS_PANEL_CSS}</style>
       <div className="space-y-3">
         {/* FILTER PANEL */}
