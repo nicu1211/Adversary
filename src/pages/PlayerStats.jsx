@@ -1150,7 +1150,7 @@ function PlayerComparisonPanel({
             <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-500/12 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-blue-500/8 blur-3xl" />
 
-            <div className="relative mb-2 flex items-center justify-between gap-3">
+            <div className="relative mb-2 block">
               <div className="min-w-0">
                 <p className="text-[13px] font-black uppercase tracking-[0.14em] text-slate-200">
                   Key Comparison
@@ -1163,9 +1163,6 @@ function PlayerComparisonPanel({
                 </p>
               </div>
 
-              <span className="shrink-0 rounded-xl border border-white/[0.08] bg-slate-950/45 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
-                {metrics.length} metrics
-              </span>
             </div>
 
             <div className="relative grid min-h-0 flex-1 grid-cols-2 grid-rows-4 gap-1.5">
@@ -1193,8 +1190,8 @@ function PlayerComparisonPanel({
                         : 'border-white/[0.045] bg-slate-950/18 hover:border-white/[0.08] hover:bg-white/[0.025]'
                     }`}
                   >
-                    <div className="mb-2 grid min-h-[38px] grid-cols-[minmax(0,1fr)_minmax(170px,.9fr)] items-center gap-3">
-                      <div className="flex min-w-0 items-center gap-1.5">
+                    <div className="mb-2 space-y-1.5">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-[13px] ${
                             active
@@ -1205,19 +1202,20 @@ function PlayerComparisonPanel({
                           {metric.icon}
                         </span>
 
-                        <span className="truncate text-[13px] font-black uppercase tracking-[0.08em] text-slate-100">
+                        <span className="whitespace-normal text-[14px] font-black uppercase leading-tight tracking-[0.06em] text-white">
                           {metric.label}
                         </span>
                       </div>
 
-                      <span className="flex min-h-[34px] w-full items-center justify-between gap-3 rounded-xl border border-white/[0.075] bg-slate-950/50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.05em] text-slate-500">
-                        Guild average{' '}
-                        <b className="text-[11px] font-black tracking-normal text-slate-200">
+                      <div className="flex min-h-[28px] w-full items-center justify-between gap-3 rounded-lg border border-white/[0.075] bg-slate-950/50 px-2.5 py-1 text-[11px] font-black text-slate-300">
+                        <span>Guild average</span>
+
+                        <b className="text-[11px] font-black text-slate-100">
                           {metric.format(
                             metricScales[metric.key]?.average,
                           )}
                         </b>
-                      </span>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
