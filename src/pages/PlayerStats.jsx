@@ -611,7 +611,7 @@ function PlayerComparisonPanel({
   );
 
   return (
-    <div className="relative mb-5 overflow-hidden rounded-[32px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(15,23,42,.20),rgba(2,6,23,.12)_48%,rgba(15,23,42,.18))] shadow-[0_34px_110px_rgba(0,0,0,.28)] backdrop-blur-[2px]">
+    <div className="adversary-panel player-comparison-panel relative mb-5 overflow-hidden rounded-[32px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(15,23,42,.20),rgba(2,6,23,.12)_48%,rgba(15,23,42,.18))] shadow-[0_34px_110px_rgba(0,0,0,.28)] backdrop-blur-[2px]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/55 to-transparent" />
         <div className="absolute -left-28 -top-24 h-[360px] w-[360px] rounded-full bg-violet-600/[0.06] blur-[100px]" />
@@ -4489,7 +4489,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
   }, [player, stats, averageRankTable]);
 
   return (
-    <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+    <div className="adversary-panel player-stats-page rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
