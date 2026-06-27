@@ -289,6 +289,66 @@ async function deleteApiLog(log) {
   );
 }
 
+
+function GlobalGlassStyles() {
+  return (
+    <style>{`
+      .adversary-shell {
+        background: #020617;
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"]:not([class*="rounded-full"]) {
+        background-color: rgba(2, 6, 23, 0.24) !important;
+        -webkit-backdrop-filter: blur(3px) saturate(118%);
+        backdrop-filter: blur(3px) saturate(118%);
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-slate-950"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-slate-900"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-slate-800"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-black"]:not([class*="rounded-full"]) {
+        background-color: rgba(2, 6, 23, 0.28) !important;
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-blue-"]:not([class*="rounded-full"]) {
+        background-color: rgba(37, 99, 235, 0.14) !important;
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-cyan-"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-sky-"]:not([class*="rounded-full"]) {
+        background-color: rgba(8, 145, 178, 0.13) !important;
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-emerald-"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-green-"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-teal-"]:not([class*="rounded-full"]) {
+        background-color: rgba(5, 150, 105, 0.13) !important;
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-amber-"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-yellow-"]:not([class*="rounded-full"]) {
+        background-color: rgba(217, 119, 6, 0.13) !important;
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-red-"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-rose-"]:not([class*="rounded-full"]) {
+        background-color: rgba(225, 29, 72, 0.12) !important;
+      }
+
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-purple-"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-violet-"]:not([class*="rounded-full"]),
+      .adversary-shell :where(main, aside) :where(section, article, div)[class*="rounded"][class*="border"][class*="bg-fuchsia-"]:not([class*="rounded-full"]) {
+        background-color: rgba(124, 58, 237, 0.12) !important;
+      }
+
+      .adversary-shell main > div,
+      .adversary-shell main > section {
+        position: relative;
+      }
+    `}</style>
+  );
+}
+
 function PageLoader({ text = 'Loading...' }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
@@ -878,7 +938,9 @@ export default function App() {
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+    <div className="adversary-shell relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+      <GlobalGlassStyles />
+
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
@@ -886,17 +948,18 @@ export default function App() {
         <div className="absolute inset-0 bg-slate-950" />
 
         <div
-          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.18] drop-shadow-[0_0_90px_rgba(250,204,21,.16)]"
+          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.30] drop-shadow-[0_0_120px_rgba(250,204,21,.24)]"
           style={{
             backgroundImage: `url("${adversaryEmblem}")`,
-            backgroundSize: 'min(92vw, 1050px) min(92vh, 1050px)',
+            backgroundSize: 'min(112vw, 1450px) min(112vh, 1450px)',
+            backgroundPosition: 'center 44%',
           }}
         />
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,transparent_0%,rgba(2,6,23,.30)_42%,rgba(2,6,23,.92)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.32),rgba(2,6,23,.06)_28%,rgba(2,6,23,.22)_70%,rgba(2,6,23,.72))]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,transparent_0%,rgba(2,6,23,.10)_48%,rgba(2,6,23,.62)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.16),rgba(2,6,23,.02)_28%,rgba(2,6,23,.10)_70%,rgba(2,6,23,.42))]" />
       </div>
-      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
+      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/65 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black text-white">
           Battle Analytics
         </div>
@@ -958,7 +1021,7 @@ export default function App() {
       </div>
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/90 p-4 backdrop-blur-2xl lg:flex">
+        <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/55 p-4 backdrop-blur-xl lg:flex">
           <h1 className="mb-6 text-2xl font-black text-white">
             Battle Analytics
           </h1>
