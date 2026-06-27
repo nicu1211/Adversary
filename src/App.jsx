@@ -441,6 +441,59 @@ const GLOBAL_PANEL_CSS = `
       0 16px 34px rgba(0, 0, 0, 0.26) !important;
   }
 
+  /* Guild uses many nested dark surfaces. Give every decorated Guild panel a
+     clearly visible accent-coloured glass fill instead of a nearly black fill. */
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel {
+    background-color: rgba(var(--adversary-panel-accent-rgb), 0.14) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 4%,
+        rgba(var(--adversary-panel-accent-rgb), 0.38) 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.25) 34%,
+        rgba(var(--adversary-panel-accent-rgb), 0.14) 66%,
+        rgba(var(--adversary-panel-accent-rgb), 0.09) 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--adversary-panel-accent-rgb), 0.22) 0%,
+        rgba(5, 10, 25, 0.40) 58%,
+        rgba(2, 6, 23, 0.48) 100%
+      ) !important;
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.56) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.32),
+      inset 0 0 58px rgba(var(--adversary-panel-accent-rgb), 0.15),
+      0 12px 30px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover {
+    background-color: rgba(var(--adversary-panel-accent-rgb), 0.19) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 4%,
+        rgba(var(--adversary-panel-accent-rgb), 0.48) 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.32) 36%,
+        rgba(var(--adversary-panel-accent-rgb), 0.18) 68%,
+        rgba(var(--adversary-panel-accent-rgb), 0.11) 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--adversary-panel-accent-rgb), 0.28) 0%,
+        rgba(5, 10, 25, 0.36) 58%,
+        rgba(2, 6, 23, 0.44) 100%
+      ) !important;
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.78) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.40),
+      inset 0 0 64px rgba(var(--adversary-panel-accent-rgb), 0.21),
+      0 0 0 1px rgba(var(--adversary-panel-accent-rgb), 0.13),
+      0 0 24px rgba(var(--adversary-panel-accent-rgb), 0.34),
+      0 0 48px rgba(var(--adversary-panel-accent-rgb), 0.17),
+      0 16px 34px rgba(0, 0, 0, 0.24) !important;
+  }
+
   /* Keep the Enemy Guild Tier List hover card above nearby rows and prevent
      only its tooltip ancestors from clipping it. */
   body[data-adversary-page="guild"] .adversary-guild-tooltip-overflow {
