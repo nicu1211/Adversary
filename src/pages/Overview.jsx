@@ -19,6 +19,158 @@ import {
 
 ChartJS.register(LinearScale, PointElement, ChartTooltip, Legend);
 
+
+const OVERVIEW_GUILD_PANEL_CSS = `
+  .overview-guild-page {
+    --overview-glass-dark: rgba(2, 6, 23, 0.60);
+  }
+
+  .overview-guild-page .overview-guild-panel {
+    --overview-panel-accent-rgb: 59, 130, 246;
+    position: relative;
+    border-color: transparent !important;
+    background-color: var(--overview-glass-dark) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--overview-panel-accent-rgb), 0.22) 0%,
+        rgba(var(--overview-panel-accent-rgb), 0.105) 42%,
+        rgba(var(--overview-panel-accent-rgb), 0.038) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-panel-accent-rgb), 0.085) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
+      ) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(118%);
+    backdrop-filter: blur(8px) saturate(118%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(var(--overview-panel-accent-rgb), 0.14),
+      0 14px 34px rgba(0, 0, 0, 0.24) !important;
+    transition:
+      background-image 180ms ease,
+      box-shadow 180ms ease,
+      filter 180ms ease,
+      transform 180ms ease;
+  }
+
+  .overview-guild-page .overview-guild-panel:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--overview-panel-accent-rgb), 0.30) 0%,
+        rgba(var(--overview-panel-accent-rgb), 0.145) 44%,
+        rgba(var(--overview-panel-accent-rgb), 0.052) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-panel-accent-rgb), 0.11) 0%,
+        rgba(7, 13, 29, 0.49) 54%,
+        rgba(2, 6, 23, 0.63) 100%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 rgba(var(--overview-panel-accent-rgb), 0.20),
+      0 0 22px rgba(var(--overview-panel-accent-rgb), 0.20),
+      0 16px 36px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  .overview-guild-page .overview-accent-amber {
+    --overview-panel-accent-rgb: 245, 158, 11;
+  }
+
+  .overview-guild-page .overview-accent-blue {
+    --overview-panel-accent-rgb: 59, 130, 246;
+  }
+
+  .overview-guild-page .overview-accent-violet {
+    --overview-panel-accent-rgb: 139, 92, 246;
+  }
+
+  .overview-guild-page .overview-accent-cyan {
+    --overview-panel-accent-rgb: 6, 182, 212;
+  }
+
+  .overview-guild-page .overview-accent-rose {
+    --overview-panel-accent-rgb: 244, 63, 94;
+  }
+
+  .overview-guild-page .overview-accent-orange {
+    --overview-panel-accent-rgb: 249, 115, 22;
+  }
+
+  .overview-guild-page .overview-summary-panel > div:last-child > div,
+  .overview-guild-page .overview-summary-panel [class*="rounded"][class*="border"] {
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(116%);
+    backdrop-filter: blur(6px) saturate(116%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 10px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .overview-guild-page .overview-chart-shell {
+    overflow: hidden;
+    border-radius: 24px;
+  }
+
+  .overview-guild-page .overview-soft-surface {
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.44) !important;
+    background-image: linear-gradient(
+      145deg,
+      rgba(var(--overview-panel-accent-rgb), 0.055),
+      rgba(2, 6, 23, 0.52) 68%
+    ) !important;
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      0 8px 20px rgba(0, 0, 0, 0.16);
+  }
+
+  .overview-player-performance-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 12000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: clamp(4px, 1.2vw, 18px) !important;
+  }
+
+  .overview-player-performance-dialog {
+    position: relative !important;
+    inset: auto !important;
+    width: min(98.5vw, 1800px) !important;
+    max-width: 1800px !important;
+    height: min(95vh, 1120px) !important;
+    max-height: 96vh !important;
+    margin: auto !important;
+    transform: none !important;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.96) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      0 0 34px rgba(59, 130, 246, 0.16),
+      0 42px 140px rgba(0, 0, 0, 0.78) !important;
+  }
+
+  @media (max-width: 640px) {
+    .overview-player-performance-dialog {
+      width: 98vw !important;
+      height: 96vh !important;
+      max-height: 96vh !important;
+      border-radius: 22px !important;
+    }
+  }
+`;
+
 function compactNumber(value, digits = 1) {
   const number = Number(value) || 0;
   const abs = Math.abs(number);
@@ -278,7 +430,7 @@ function RankList({ title, items, valueKey }) {
   const max = Math.max(1, ...rows.map((x) => Number(x[valueKey]) || 0));
 
   return (
-    <Panel>
+    <Panel cls="overview-guild-panel overview-accent-blue">
       <h3 className="mb-4 text-xl font-black">{title}</h3>
 
       {!rows.length ? (
@@ -1625,7 +1777,7 @@ function AverageRank({
   }
 
   return (
-    <Panel cls="h-[680px]">
+    <Panel cls="overview-guild-panel overview-accent-violet h-[680px]">
       <div className="flex h-full flex-col">
         <h3 className="text-xl font-black">♛ Average Rank</h3>
 
@@ -1915,7 +2067,7 @@ function PlayerPerformanceModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/88 p-2 backdrop-blur-md sm:p-4"
+      className="overview-player-performance-overlay fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/88 p-1 backdrop-blur-md sm:p-2"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           close();
@@ -1926,7 +2078,7 @@ function PlayerPerformanceModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative flex max-h-[94vh] w-[min(96vw,1540px)] flex-col overflow-hidden rounded-[30px] border border-blue-400/20 bg-slate-950/95 shadow-[0_38px_120px_rgba(0,0,0,.72)]"
+        className="overview-player-performance-dialog relative flex h-[min(95vh,1120px)] max-h-[96vh] w-[min(98.5vw,1800px)] flex-col overflow-hidden rounded-[30px] border border-transparent bg-slate-950/95 shadow-[0_38px_140px_rgba(0,0,0,.78)]"
       >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/45 to-transparent" />
@@ -2991,7 +3143,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     };
   }, [selected, lifetimeLogs]);
   return (
-    <Panel cls="h-[680px]">
+    <Panel cls="overview-guild-panel overview-accent-cyan h-[680px]">
       <div className="flex h-full flex-col">
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -3009,7 +3161,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800">
+        <div className="overview-soft-surface min-h-0 flex-1 overflow-hidden rounded-2xl border border-transparent">
           <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
             <table className="w-full table-fixed text-xs">
               <colgroup>
@@ -3783,7 +3935,7 @@ function EnemyGuilds({ guilds, events }) {
   }
 
   return (
-    <Panel cls="h-[520px]">
+    <Panel cls="overview-guild-panel overview-accent-rose h-[520px]">
       <div className="flex h-full flex-col">
         <div className="mb-4 flex items-start justify-between gap-3">
           <h3 className="text-xl font-black">🛡 Enemy Guilds</h3>
@@ -3818,7 +3970,7 @@ function EnemyGuilds({ guilds, events }) {
         {!chartRows.length ? (
           <p className="text-slate-500">No guild data yet.</p>
         ) : (
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-700/80 bg-white/[0.035] backdrop-blur-sm">
+          <div className="overview-soft-surface relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-transparent bg-white/[0.035] backdrop-blur-sm">
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(239,68,68,0.045)_0%,rgba(255,255,255,0.018)_46%,rgba(255,255,255,0.018)_54%,rgba(34,197,94,0.045)_100%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left_center,rgba(239,68,68,0.05),transparent_42%),radial-gradient(circle_at_right_center,rgba(34,197,94,0.05),transparent_42%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.008))]" />
@@ -4043,7 +4195,7 @@ function KillFeedPanel({ killFeeds, events }) {
     .slice(0, 5);
 
   return (
-    <Panel cls="h-[520px]">
+    <Panel cls="overview-guild-panel overview-accent-orange h-[520px]">
       <div className="flex h-full flex-col">
         <h3 className="mb-4 text-xl font-black">🔥 Kill Feed</h3>
 
@@ -4219,8 +4371,9 @@ export default function OverviewPage({
     Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0;
 
   return (
-    <>
-      <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
+    <div className="overview-guild-page space-y-4">
+      <style>{OVERVIEW_GUILD_PANEL_CSS}</style>
+      <header className="overview-guild-panel overview-accent-amber overview-summary-panel rounded-3xl border border-transparent bg-slate-950/70 p-5">
         <div className="mb-4">
           <h2 className="text-2xl font-black">Battle Analytics</h2>
           <p className="text-slate-400">{label}</p>
@@ -4297,11 +4450,13 @@ export default function OverviewPage({
         </div>
       </header>
 
-      <KillDeathChart
-        data={stats.line}
-        title="▧ Global Kill/Death Timeline"
-        killFeedMarkers={[...topKillFeedMarkers, ...flowMarkers]}
-      />
+      <div className="overview-guild-panel overview-accent-blue overview-chart-shell">
+        <KillDeathChart
+          data={stats.line}
+          title="▧ Global Kill/Death Timeline"
+          killFeedMarkers={[...topKillFeedMarkers, ...flowMarkers]}
+        />
+      </div>
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[520px_minmax(0,1fr)]">
         <AverageRank
@@ -4328,6 +4483,6 @@ export default function OverviewPage({
 
         <KillFeedPanel killFeeds={panelKillFeeds} events={stats.ev} />
       </section>
-    </>
+    </div>
   );
 }
