@@ -411,6 +411,7 @@ function radarPolygonPoints(cx, cy, radius, count, scale = 1) {
 
 function PlayerComparisonPanel({
   players,
+  benchmarks,
   daysAgo,
   onDaysAgoChange,
   mode,
@@ -469,35 +470,72 @@ function PlayerComparisonPanel({
   const activeMetric =
     metrics.find((metric) => metric.key === hoveredMetricKey) || null;
 
-  const metricRanges = Object.fromEntries(
+  const metricScales = Object.fromEntries(
     metrics.map((metric) => {
-      const values = players.map(
+      const fallbackValues = players.map(
         (player) => Number(player[metric.key]) || 0,
       );
+      const fallbackMaximum = Math.max(
+        1,
+        ...fallbackValues,
+      );
+      const source = benchmarks?.[metric.key];
 
       return [
         metric.key,
         {
-          min: Math.min(...values),
-          max: Math.max(...values),
+          average: Number(source?.average) || 0,
+          maximum:
+            Number(source?.maximum) > 0
+              ? Number(source.maximum)
+              : fallbackMaximum,
+          players: Number(source?.players) || 0,
         },
       ];
     }),
   );
 
   function normalizedScore(player, metric) {
-    const value = Number(player[metric.key]) || 0;
-    const range = metricRanges[metric.key];
+    const value = Math.max(
+      0,
+      Number(player[metric.key]) || 0,
+    );
+    const maximum =
+      Number(metricScales[metric.key]?.maximum) || 1;
 
-    if (!range || range.max === range.min) {
-      return range?.max > 0 ? 100 : 0;
-    }
-
-    const progress =
-      (value - range.min) / (range.max - range.min);
-
-    return 16 + Math.max(0, Math.min(1, progress)) * 84;
+    return Math.max(
+      0,
+      Math.min(100, (value / maximum) * 100),
+    );
   }
+
+  const guildAveragePoints = metrics.map(
+    (metric, index) => {
+      const scale = metricScales[metric.key];
+      const maximum = Number(scale?.maximum) || 1;
+      const average = Math.max(
+        0,
+        Number(scale?.average) || 0,
+      );
+      const score = Math.max(
+        0,
+        Math.min(100, (average / maximum) * 100),
+      );
+      const point = radarPoint(
+        cx,
+        cy,
+        radius * (score / 100),
+        index,
+        metricCount,
+      );
+
+      return {
+        ...point,
+        metric,
+        value: average,
+      };
+    },
+  );
 
   const hasData = metrics.some((metric) =>
     players.some((player) => Number(player[metric.key]) > 0),
@@ -640,6 +678,30 @@ function PlayerComparisonPanel({
                 </span>
               </div>
 
+              <div className="mb-2 grid grid-cols-2 gap-1.5 border-b border-white/8 pb-2">
+                <div className="rounded-lg border border-slate-800 bg-slate-900/55 px-2 py-1.5">
+                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-600">
+                    Guild Avg
+                  </p>
+                  <p className="mt-0.5 text-xs font-black text-slate-300">
+                    {activeMetric.format(
+                      metricScales[activeMetric.key]?.average,
+                    )}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-blue-400/15 bg-blue-500/8 px-2 py-1.5">
+                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-blue-400/60">
+                    Axis Max
+                  </p>
+                  <p className="mt-0.5 text-xs font-black text-blue-200">
+                    {activeMetric.format(
+                      metricScales[activeMetric.key]?.maximum,
+                    )}
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 {players.map((player, index) => {
                   const theme =
@@ -774,13 +836,14 @@ function PlayerComparisonPanel({
                     : labelPoint.x > cx
                       ? 'start'
                       : 'end';
-                const pillWidth = 104;
+                const pillWidth = 116;
                 const pillX =
                   anchor === 'middle'
                     ? labelPoint.x - pillWidth / 2
                     : anchor === 'start'
                       ? labelPoint.x - 8
                       : labelPoint.x - pillWidth + 8;
+                const scale = metricScales[metric.key];
 
                 return (
                   <g
@@ -824,9 +887,9 @@ function PlayerComparisonPanel({
 
                     <rect
                       x={pillX}
-                      y={labelPoint.y - 15}
+                      y={labelPoint.y - 20}
                       width={pillWidth}
-                      height="30"
+                      height="40"
                       rx="10"
                       fill={
                         active
@@ -849,9 +912,8 @@ function PlayerComparisonPanel({
                             ? labelPoint.x + 2
                             : labelPoint.x - 2
                       }
-                      y={labelPoint.y}
+                      y={labelPoint.y - 5}
                       textAnchor={anchor}
-                      dominantBaseline="middle"
                       fill={
                         active
                           ? 'rgba(219,234,254,.98)'
@@ -861,11 +923,81 @@ function PlayerComparisonPanel({
                       fontWeight="900"
                       letterSpacing=".65"
                     >
-                      {metric.label}
+                      <tspan
+                        x={
+                          anchor === 'middle'
+                            ? labelPoint.x
+                            : anchor === 'start'
+                              ? labelPoint.x + 2
+                              : labelPoint.x - 2
+                        }
+                      >
+                        {metric.label}
+                      </tspan>
+                      <tspan
+                        x={
+                          anchor === 'middle'
+                            ? labelPoint.x
+                            : anchor === 'start'
+                              ? labelPoint.x + 2
+                              : labelPoint.x - 2
+                        }
+                        dy="13"
+                        fill={
+                          active
+                            ? 'rgba(147,197,253,.92)'
+                            : 'rgba(100,116,139,.9)'
+                        }
+                        fontSize="8.5"
+                        fontWeight="800"
+                        letterSpacing=".45"
+                      >
+                        MAX {metric.format(scale?.maximum)}
+                      </tspan>
                     </text>
                   </g>
                 );
               })}
+
+              <polygon
+                points={guildAveragePoints
+                  .map(
+                    (point) =>
+                      `${point.x.toFixed(2)},${point.y.toFixed(2)}`,
+                  )
+                  .join(' ')}
+                fill="rgba(148,163,184,.035)"
+                stroke="rgba(148,163,184,.72)"
+                strokeWidth="2"
+                strokeDasharray="7 7"
+                strokeLinejoin="round"
+              >
+                <title>Guild average</title>
+              </polygon>
+
+              {guildAveragePoints.map((point) => (
+                <circle
+                  key={`guild-average-${point.metric.key}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={
+                    hoveredMetricKey === point.metric.key
+                      ? 5
+                      : 3
+                  }
+                  fill="rgba(203,213,225,.9)"
+                  stroke="rgba(2,6,23,.95)"
+                  strokeWidth="1.5"
+                  onMouseEnter={() =>
+                    setHoveredMetricKey(point.metric.key)
+                  }
+                  className="cursor-pointer"
+                >
+                  <title>
+                    {`Guild Average · ${point.metric.label}: ${point.metric.format(point.value)}`}
+                  </title>
+                </circle>
+              ))}
 
               {players.map((player, playerIndex) => {
                 const theme =
@@ -951,8 +1083,8 @@ function PlayerComparisonPanel({
           )}
 
           <div className="absolute bottom-3 left-3 rounded-xl border border-slate-800 bg-slate-950/82 px-2.5 py-1.5 text-[9px] font-bold text-slate-500 backdrop-blur">
-            Radar values are normalized between the selected players.
-            Hover or click a stat for exact numbers.
+            Axes use guild-wide maximums for this period and view.
+            Dashed shape = guild average. Hover or click for exact numbers.
           </div>
         </div>
 
@@ -3504,9 +3636,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
     [stats],
   );
 
-  const comparedPlayers = useMemo(() => {
-    if (!comparedPlayerNames.length) return [];
-
+  const comparisonPopulation = useMemo(() => {
     const events = (stats?.ev || []).filter((event) =>
       comparisonDateIsInRange(event?.date, compareDaysAgo),
     );
@@ -3533,14 +3663,9 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       eventsByWar[warId].push(event);
     });
 
-    return comparedPlayerNames
-      .map((playerName) => {
-        const playerRow = sortedPlayers.find((item) =>
-          samePlayerName(item.name, playerName),
-        );
-
-        if (!playerRow) return null;
-
+    return sortedPlayers
+      .map((playerRow) => {
+        const playerName = playerRow.name;
         const matchMap = {};
 
         Object.entries(eventsByWar).forEach(
@@ -3777,12 +3902,63 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       })
       .filter(Boolean);
   }, [
-    comparedPlayerNames,
     compareDaysAgo,
     compareMode,
     stats,
     sortedPlayers,
   ]);
+
+  const comparedPlayers = useMemo(
+    () =>
+      comparedPlayerNames
+        .map((playerName) =>
+          comparisonPopulation.find((player) =>
+            samePlayerName(player.name, playerName),
+          ),
+        )
+        .filter(Boolean),
+    [comparedPlayerNames, comparisonPopulation],
+  );
+
+  const comparisonBenchmarks = useMemo(() => {
+    const activePlayers = comparisonPopulation.filter(
+      (player) => Number(player.wars) > 0,
+    );
+    const metricKeys = [
+      'kills',
+      'wars',
+      'kd',
+      'killstreak',
+      'killfeed',
+      'damageDealt',
+      'ccHits',
+      'damageToFort',
+    ];
+
+    return Object.fromEntries(
+      metricKeys.map((metric) => {
+        const values = activePlayers
+          .map((player) => Number(player[metric]) || 0)
+          .filter((value) => Number.isFinite(value) && value >= 0);
+        const average = values.length
+          ? values.reduce((sum, value) => sum + value, 0) /
+            values.length
+          : 0;
+        const maximum = values.length
+          ? Math.max(...values)
+          : 0;
+
+        return [
+          metric,
+          {
+            average,
+            maximum: maximum > 0 ? maximum : 1,
+            players: values.length,
+          },
+        ];
+      }),
+    );
+  }, [comparisonPopulation]);
 
   const selectedStats = useMemo(() => {
     if (!player) return null;
@@ -4089,6 +4265,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
 
       <PlayerComparisonPanel
         players={comparedPlayers}
+        benchmarks={comparisonBenchmarks}
         daysAgo={compareDaysAgo}
         onDaysAgoChange={setCompareDaysAgo}
         mode={compareMode}
