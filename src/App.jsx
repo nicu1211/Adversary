@@ -494,12 +494,8 @@ const GLOBAL_PANEL_CSS = `
       0 14px 32px rgba(0, 0, 0, 0.26) !important;
   }
 
-  /* The tier-list container uses the same glass recipe; these rules only
-     manage stacking so its hover popup remains above nearby rows. */
-  body[data-adversary-page="guild"] .adversary-guild-tooltip-overflow {
-    overflow: visible !important;
-  }
-
+  /* The tier-list container keeps its original overflow and horizontal
+     layout. Only stacking is adjusted for the real guild hover popup. */
   body[data-adversary-page="guild"] .adversary-enemy-tier-panel {
     position: relative;
     z-index: 100;
@@ -567,47 +563,47 @@ const GLOBAL_PANEL_CSS = `
     ) !important;
   }
 
-  /* Raise the hovered guild card and its complete tier row above all sibling
-     stacking contexts created by backdrop filters. */
+  /* Raise only the actual hovered guild card and its tier row. Do not change
+     overflow on the horizontal tier-list wrappers, because that destroys the
+     original grid/scroll layout. */
   body[data-adversary-page="guild"] .adversary-enemy-tier-row,
   body[data-adversary-page="guild"] .adversary-enemy-tier-card,
   body[data-adversary-page="guild"] .adversary-guild-tooltip-row,
   body[data-adversary-page="guild"] .adversary-guild-tooltip-card {
     position: relative !important;
-    overflow: visible !important;
   }
 
-  body[data-adversary-page="guild"] .adversary-enemy-tier-row {
+  body[data-adversary-page="guild"] .adversary-enemy-tier-row,
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-row {
     z-index: 1;
   }
 
-  body[data-adversary-page="guild"] .adversary-enemy-tier-card {
+  body[data-adversary-page="guild"] .adversary-enemy-tier-card,
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-card {
     z-index: 2;
   }
 
   body[data-adversary-page="guild"] .adversary-enemy-tier-row:has(.adversary-guild-tooltip-trigger:hover),
   body[data-adversary-page="guild"] .adversary-guild-tooltip-row:has(.adversary-guild-tooltip-trigger:hover) {
-    z-index: 2147483000 !important;
+    z-index: 10000 !important;
   }
 
   body[data-adversary-page="guild"] .adversary-enemy-tier-card:has(.adversary-guild-tooltip-trigger:hover),
-  body[data-adversary-page="guild"] .adversary-guild-tooltip-card:has(.adversary-guild-tooltip-trigger:hover) {
-    z-index: 2147483100 !important;
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-card:has(.adversary-guild-tooltip-trigger:hover),
+  body[data-adversary-page="guild"] .adversary-enemy-tier-card:hover {
+    z-index: 10010 !important;
   }
 
   body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger {
     position: relative;
-    overflow: visible !important;
   }
 
   body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger:hover {
-    z-index: 2147483200 !important;
+    z-index: 10020 !important;
   }
 
   body[data-adversary-page="guild"] .adversary-guild-tooltip {
-    position: absolute !important;
-    z-index: 2147483647 !important;
-    isolation: isolate;
+    z-index: 10030 !important;
   }
 
   /* The Overview player War Performance overlay is intentionally page-scoped
@@ -893,14 +889,37 @@ export default function App() {
         }
 
         const tooltipCandidates = enemyTierPanel
-          ? enemyTierPanel.querySelectorAll(
-              [
-                '[role="tooltip"]',
-                '[class*="tooltip"]:not(.adversary-guild-tooltip):not(.adversary-guild-tooltip-trigger):not(.adversary-guild-tooltip-overflow)',
-                '[class*="popover"]',
-                '[class*="group-hover"]',
-              ].join(','),
-            )
+          ? [
+              ...enemyTierPanel.querySelectorAll(
+                [
+                  '[role="tooltip"]',
+                  '[data-tooltip]',
+                  '[class*="tooltip"]:not(.adversary-guild-tooltip):not(.adversary-guild-tooltip-trigger)',
+                  '[class*="popover"]',
+                  '[class*="group-hover"][class*="absolute"]',
+                  '[class*="group-hover"][class*="fixed"]',
+                ].join(','),
+              ),
+            ].filter((candidate) => {
+              const classText =
+                typeof candidate.className === 'string' ? candidate.className : '';
+              const role = candidate.getAttribute('role') || '';
+              const styles = window.getComputedStyle(candidate);
+              const positionedOverlay =
+                styles.position === 'absolute' ||
+                styles.position === 'fixed' ||
+                classText.includes('absolute') ||
+                classText.includes('fixed');
+              const explicitlyTooltip =
+                role === 'tooltip' ||
+                candidate.hasAttribute('data-tooltip') ||
+                classText.toLowerCase().includes('tooltip') ||
+                classText.toLowerCase().includes('popover');
+              const hoverOverlay =
+                classText.includes('group-hover') && positionedOverlay;
+
+              return positionedOverlay && (explicitlyTooltip || hoverOverlay);
+            })
           : [];
 
         tooltipCandidates.forEach((tooltip) => {
@@ -914,23 +933,6 @@ export default function App() {
 
           guildCard?.classList.add('adversary-guild-tooltip-card');
           tierRow?.classList.add('adversary-guild-tooltip-row');
-
-          let ancestor = trigger;
-
-          while (ancestor && ancestor !== contentRoot) {
-            const styles = window.getComputedStyle(ancestor);
-            const clipsTooltip = [
-              styles.overflow,
-              styles.overflowX,
-              styles.overflowY,
-            ].some((value) => value === 'hidden' || value === 'clip');
-
-            if (clipsTooltip) {
-              ancestor.classList.add('adversary-guild-tooltip-overflow');
-            }
-
-            ancestor = ancestor.parentElement;
-          }
         });
       }
 
