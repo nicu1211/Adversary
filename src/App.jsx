@@ -528,16 +528,86 @@ const GLOBAL_PANEL_CSS = `
     color: rgba(var(--adversary-tier-rgb), 0.82) !important;
   }
 
+  /* Guild page only: remove every visible panel outline without changing the
+     panel dimensions. Keep the coloured glass fill and hover glow. */
+  body[data-adversary-page="guild"] .adversary-page-guild :is(section, article, div)[class*="rounded"][class*="border"],
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover {
+    border-color: transparent !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel {
+    box-shadow:
+      inset 0 0 42px rgba(var(--adversary-panel-accent-rgb), 0.075),
+      0 12px 28px rgba(0, 0, 0, 0.24) !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover {
+    box-shadow:
+      inset 0 0 48px rgba(var(--adversary-panel-accent-rgb), 0.13),
+      0 0 20px rgba(var(--adversary-panel-accent-rgb), 0.30),
+      0 0 42px rgba(var(--adversary-panel-accent-rgb), 0.15),
+      0 16px 34px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  /* F tier uses a true brown accent, including the filled progress bars. */
+  body[data-adversary-page="guild"] .adversary-tier-f {
+    --adversary-panel-accent-rgb: 146, 92, 56 !important;
+    --adversary-tier-rgb: 146, 92, 56 !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-tier-f [style*="width"]:not([style*="width: 100%"]),
+  body[data-adversary-page="guild"] .adversary-tier-f [style*="width:"]:not([style*="width:100%"]) {
+    background-color: rgb(146, 92, 56) !important;
+    background-image: linear-gradient(
+      90deg,
+      rgb(183, 121, 74),
+      rgb(146, 92, 56),
+      rgb(111, 66, 40)
+    ) !important;
+  }
+
+  /* Raise the hovered guild card and its complete tier row above all sibling
+     stacking contexts created by backdrop filters. */
+  body[data-adversary-page="guild"] .adversary-enemy-tier-row,
+  body[data-adversary-page="guild"] .adversary-enemy-tier-card,
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-row,
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-card {
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-enemy-tier-row {
+    z-index: 1;
+  }
+
+  body[data-adversary-page="guild"] .adversary-enemy-tier-card {
+    z-index: 2;
+  }
+
+  body[data-adversary-page="guild"] .adversary-enemy-tier-row:has(.adversary-guild-tooltip-trigger:hover),
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-row:has(.adversary-guild-tooltip-trigger:hover) {
+    z-index: 2147483000 !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-enemy-tier-card:has(.adversary-guild-tooltip-trigger:hover),
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-card:has(.adversary-guild-tooltip-trigger:hover) {
+    z-index: 2147483100 !important;
+  }
+
   body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger {
     position: relative;
+    overflow: visible !important;
   }
 
   body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger:hover {
-    z-index: 9998 !important;
+    z-index: 2147483200 !important;
   }
 
   body[data-adversary-page="guild"] .adversary-guild-tooltip {
-    z-index: 9999 !important;
+    position: absolute !important;
+    z-index: 2147483647 !important;
+    isolation: isolate;
   }
 
   /* The Overview player War Performance overlay is intentionally page-scoped
@@ -710,6 +780,7 @@ export default function App() {
             C: '139, 92, 246',
             D: '244, 63, 94',
             E: '249, 115, 22',
+            F: '146, 92, 56',
             T: '100, 116, 139',
           };
 
@@ -779,6 +850,11 @@ export default function App() {
               'adversary-enemy-tier-row',
             );
             row.style.setProperty('--adversary-panel-accent-rgb', accent);
+            row.style.setProperty('--adversary-tier-rgb', accent);
+
+            if (tierName === 'F') {
+              row.classList.add('adversary-tier-f');
+            }
 
             row.querySelectorAll(MAJOR_PANEL_SELECTOR).forEach((card) => {
               if (card === row) return;
@@ -793,6 +869,11 @@ export default function App() {
                 'adversary-enemy-tier-card',
               );
               card.style.setProperty('--adversary-panel-accent-rgb', accent);
+              card.style.setProperty('--adversary-tier-rgb', accent);
+
+              if (tierName === 'F') {
+                card.classList.add('adversary-tier-f');
+              }
             });
 
             if (tierName === 'T') {
@@ -827,6 +908,12 @@ export default function App() {
 
           const trigger = tooltip.parentElement;
           trigger?.classList.add('adversary-guild-tooltip-trigger');
+
+          const guildCard = trigger?.closest('.adversary-enemy-tier-card');
+          const tierRow = trigger?.closest('.adversary-enemy-tier-row');
+
+          guildCard?.classList.add('adversary-guild-tooltip-card');
+          tierRow?.classList.add('adversary-guild-tooltip-row');
 
           let ancestor = trigger;
 
