@@ -116,6 +116,61 @@ const MONTHLY_GUILD_PANEL_CSS = `
     background-color: rgba(2, 6, 23, 0.14) !important;
     background-image: none !important;
   }
+
+  /* These three section shells intentionally expose the page artwork.
+     Their individual cards keep the Guild-style coloured glass treatment. */
+  .monthly-recap-guild-style .monthly-panel-transparent,
+  .monthly-recap-guild-style .monthly-panel-transparent:hover {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Players Performance keeps a glass surface, but with a quieter cyan tint. */
+  .monthly-recap-guild-style .monthly-panel-subtle {
+    background-color: rgba(2, 6, 23, 0.46) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.10) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.05) 42%,
+        rgba(var(--monthly-panel-accent-rgb), 0.018) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.035) 0%,
+        rgba(7, 13, 29, 0.38) 54%,
+        rgba(2, 6, 23, 0.50) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 36px rgba(var(--monthly-panel-accent-rgb), 0.04),
+      0 10px 24px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .monthly-recap-guild-style .monthly-panel-subtle:hover {
+    background-color: rgba(2, 6, 23, 0.44) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.15) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.075) 44%,
+        rgba(var(--monthly-panel-accent-rgb), 0.028) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.05) 0%,
+        rgba(7, 13, 29, 0.36) 54%,
+        rgba(2, 6, 23, 0.48) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 40px rgba(var(--monthly-panel-accent-rgb), 0.065),
+      0 0 16px rgba(var(--monthly-panel-accent-rgb), 0.16),
+      0 12px 28px rgba(0, 0, 0, 0.20) !important;
+  }
 `;
 
 const GUILD_ROSTER = Object.freeze([
@@ -1733,10 +1788,23 @@ function buildReview(
   };
 }
 
-function SectionShell({ icon: Icon, title, accent = 'blue', children }) {
+function SectionShell({
+  icon: Icon,
+  title,
+  accent = 'blue',
+  transparent = false,
+  subtle = false,
+  children,
+}) {
+  const surfaceClass = transparent
+    ? 'monthly-panel-transparent'
+    : subtle
+      ? 'monthly-panel-subtle'
+      : '';
+
   return (
     <section
-      className="monthly-guild-panel overflow-hidden rounded-[22px] border border-transparent"
+      className={`monthly-guild-panel ${surfaceClass} overflow-hidden rounded-[22px] border border-transparent`}
       style={monthlyPanelStyle(accent)}
     >
       <div className="monthly-section-header flex h-9 items-center gap-2 border-b px-4">
@@ -3307,7 +3375,7 @@ export default function MonthlyRecap({
         />
       </div>
 
-      <SectionShell icon={Swords} title="Featured Wars" accent="blue">
+      <SectionShell icon={Swords} title="Featured Wars" accent="blue" transparent>
         <div className="grid gap-2 p-2 xl:grid-cols-3">
           {featuredWars.length ? (
             featuredWars.map((item) => (
@@ -3325,7 +3393,7 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <SectionShell icon={Shield} title="Enemy Guild Report" accent="violet">
+      <SectionShell icon={Shield} title="Enemy Guild Report" accent="violet" transparent>
         <div className="grid items-stretch gap-0 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,.95fr)]">
           <div className="border-b border-[#28405f]/70 p-2 xl:border-b-0 xl:border-r">
             <div className="grid min-h-[488px] grid-cols-1 content-stretch gap-2">
@@ -3408,13 +3476,16 @@ export default function MonthlyRecap({
             </div>
           </div>
 
-          <div className="min-w-0">
+          <div
+            className="monthly-guild-panel min-w-0 overflow-hidden rounded-[22px] border border-transparent"
+            style={monthlyPanelStyle('violet')}
+          >
             <EnemyGuildReport enemies={enemies} />
           </div>
         </div>
       </SectionShell>
 
-      <SectionShell icon={Users} title="Player Highlights" accent="green">
+      <SectionShell icon={Users} title="Player Highlights" accent="green" transparent>
         <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <PlayerHighlight
             icon={Crosshair}
@@ -3492,7 +3563,7 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <SectionShell icon={Activity} title="Players Performance" accent="cyan">
+      <SectionShell icon={Activity} title="Players Performance" accent="cyan" subtle>
         <PlayersTable players={players} />
       </SectionShell>
 
