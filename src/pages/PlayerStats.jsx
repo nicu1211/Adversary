@@ -16,7 +16,7 @@ function PlayerSelect({ players, value, onChange }) {
   );
 
   return (
-    <div className="relative mb-4 max-w-xl">
+    <div className="relative mb-4 w-full max-w-2xl lg:flex-1">
       <button
         type="button"
         onClick={() => setOpen((state) => !state)}
