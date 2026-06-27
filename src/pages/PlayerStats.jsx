@@ -101,28 +101,37 @@ function PlayerSelect({ players, value, onChange }) {
 
 const PLAYER_COMPARE_THEMES = [
   {
+    id: 'cyan',
     dot: 'bg-cyan-300',
     border: 'border-cyan-400/30',
     text: 'text-cyan-200',
-    soft: 'from-cyan-500/15 via-slate-950/70 to-slate-950/80',
+    soft: 'from-cyan-500/18 via-blue-500/6 to-slate-950/78',
     stroke: '#22d3ee',
-    fill: 'rgba(34,211,238,.16)',
+    glow: 'rgba(34,211,238,.58)',
+    fillStart: 'rgba(34,211,238,.36)',
+    fillEnd: 'rgba(37,99,235,.055)',
   },
   {
+    id: 'violet',
     dot: 'bg-violet-300',
     border: 'border-violet-400/30',
     text: 'text-violet-200',
-    soft: 'from-violet-500/15 via-slate-950/70 to-slate-950/80',
+    soft: 'from-violet-500/18 via-fuchsia-500/6 to-slate-950/78',
     stroke: '#a78bfa',
-    fill: 'rgba(167,139,250,.16)',
+    glow: 'rgba(167,139,250,.60)',
+    fillStart: 'rgba(167,139,250,.38)',
+    fillEnd: 'rgba(126,34,206,.055)',
   },
   {
+    id: 'amber',
     dot: 'bg-amber-300',
     border: 'border-amber-400/30',
     text: 'text-amber-200',
-    soft: 'from-amber-500/15 via-slate-950/70 to-slate-950/80',
+    soft: 'from-amber-500/18 via-orange-500/6 to-slate-950/78',
     stroke: '#fbbf24',
-    fill: 'rgba(251,191,36,.16)',
+    glow: 'rgba(251,191,36,.58)',
+    fillStart: 'rgba(251,191,36,.36)',
+    fillEnd: 'rgba(245,158,11,.055)',
   },
 ];
 
@@ -421,41 +430,49 @@ function PlayerComparisonPanel({
     {
       key: 'kills',
       label: 'Kills',
+      icon: '⚔',
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'wars',
       label: 'Wars',
+      icon: '⚑',
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'kd',
       label: 'K/D',
+      icon: '◎',
       format: (value) => Number(value || 0).toFixed(2),
     },
     {
       key: 'killstreak',
       label: 'Killstreak',
+      icon: 'ϟ',
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'killfeed',
       label: 'Killfeed',
+      icon: '🔥',
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'damageDealt',
       label: 'DMG Dealt',
+      icon: '✦',
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'ccHits',
       label: 'CC Hits',
+      icon: '⛓',
       format: (value) => formatCompactNumber(value),
     },
     {
       key: 'damageToFort',
       label: 'Fort DMG',
+      icon: '♜',
       format: (value) => formatCompactNumber(value),
     },
   ];
@@ -463,9 +480,9 @@ function PlayerComparisonPanel({
 
   if (!players.length) return null;
 
-  const cx = 380;
-  const cy = 278;
-  const radius = 184;
+  const cx = 390;
+  const cy = 316;
+  const radius = 212;
   const metricCount = metrics.length;
   const activeMetric =
     metrics.find((metric) => metric.key === hoveredMetricKey) || null;
@@ -475,10 +492,7 @@ function PlayerComparisonPanel({
       const fallbackValues = players.map(
         (player) => Number(player[metric.key]) || 0,
       );
-      const fallbackMaximum = Math.max(
-        1,
-        ...fallbackValues,
-      );
+      const fallbackMaximum = Math.max(1, ...fallbackValues);
       const source = benchmarks?.[metric.key];
 
       return [
@@ -537,37 +551,106 @@ function PlayerComparisonPanel({
     },
   );
 
+  const playerSeries = players.map((player, playerIndex) => {
+    const theme =
+      PLAYER_COMPARE_THEMES[playerIndex] ||
+      PLAYER_COMPARE_THEMES[0];
+    const points = metrics.map((metric, index) => {
+      const score = normalizedScore(player, metric);
+      const point = radarPoint(
+        cx,
+        cy,
+        radius * (score / 100),
+        index,
+        metricCount,
+      );
+
+      return {
+        ...point,
+        metric,
+        value: player[metric.key],
+        score,
+      };
+    });
+
+    return {
+      player,
+      theme,
+      points,
+      polygon: points
+        .map(
+          (point) =>
+            `${point.x.toFixed(2)},${point.y.toFixed(2)}`,
+        )
+        .join(' '),
+    };
+  });
+
+  const metricLeaders = Object.fromEntries(
+    metrics.map((metric) => {
+      const highest = Math.max(
+        ...players.map(
+          (player) => Number(player[metric.key]) || 0,
+        ),
+      );
+
+      return [
+        metric.key,
+        players
+          .filter(
+            (player) =>
+              (Number(player[metric.key]) || 0) === highest,
+          )
+          .map((player) => player.name),
+      ];
+    }),
+  );
+
+  const leaderCounts = Object.fromEntries(
+    players.map((player) => [
+      player.name,
+      metrics.filter((metric) =>
+        metricLeaders[metric.key]?.some((name) =>
+          samePlayerName(name, player.name),
+        ),
+      ).length,
+    ]),
+  );
+
   const hasData = metrics.some((metric) =>
     players.some((player) => Number(player[metric.key]) > 0),
   );
 
   return (
-    <div className="relative mb-5 overflow-hidden rounded-[28px] border border-blue-400/15 bg-slate-950/85 shadow-[0_24px_70px_rgba(0,0,0,.38)]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/35 to-transparent" />
-        <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
-        <div className="absolute -left-24 bottom-0 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.025)_1px,transparent_1px)] bg-[size:34px_34px]" />
+    <div className="relative mb-5 overflow-hidden rounded-[32px] border border-white/[0.09] bg-[linear-gradient(145deg,rgba(15,23,42,.92),rgba(2,6,23,.96)_48%,rgba(15,23,42,.91))] shadow-[0_34px_110px_rgba(0,0,0,.52)] backdrop-blur-2xl">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/55 to-transparent" />
+        <div className="absolute -left-28 -top-24 h-[360px] w-[360px] rounded-full bg-violet-600/16 blur-[100px]" />
+        <div className="absolute right-[12%] -top-32 h-[340px] w-[340px] rounded-full bg-blue-500/13 blur-[110px]" />
+        <div className="absolute -bottom-40 right-[-60px] h-[420px] w-[420px] rounded-full bg-fuchsia-600/12 blur-[120px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(96,165,250,.065),transparent_46%)]" />
+        <div className="absolute inset-0 opacity-30 [mask-image:linear-gradient(to_bottom,black,transparent_88%)] bg-[linear-gradient(rgba(148,163,184,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.035)_1px,transparent_1px)] bg-[size:38px_38px]" />
       </div>
 
-      <div className="relative flex flex-col gap-3 border-b border-white/8 bg-slate-950/45 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="relative flex flex-col gap-3 border-b border-white/[0.07] bg-white/[0.018] px-4 py-4 backdrop-blur-2xl xl:flex-row xl:items-center xl:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10 shadow-[0_0_22px_rgba(59,130,246,.12)]">
-            <div className="h-4 w-4 rotate-45 border-2 border-blue-300/80" />
+          <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-300/25 bg-gradient-to-br from-violet-500/20 to-blue-500/10 shadow-[0_0_30px_rgba(139,92,246,.16)]">
+            <div className="absolute inset-1 rounded-xl border border-white/[0.07]" />
+            <div className="h-[17px] w-[17px] rotate-45 border-2 border-violet-200/90 shadow-[0_0_14px_rgba(196,181,253,.55)]" />
           </div>
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-black text-white">
+              <h3 className="text-lg font-black tracking-tight text-white">
                 Player Comparison
               </h3>
 
-              <span className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-200">
-                Radar
+              <span className="rounded-full border border-violet-300/25 bg-violet-500/12 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-violet-200 shadow-[0_0_18px_rgba(139,92,246,.09)]">
+                Glass Radar
               </span>
             </div>
 
-            <p className="text-xs font-bold text-slate-500">
+            <p className="mt-0.5 text-xs font-bold text-slate-500">
               {daysAgo === 0
                 ? 'All-time statistics'
                 : `Last ${daysAgo} days`}
@@ -579,9 +662,9 @@ function PlayerComparisonPanel({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2.5">
           <label className="block">
-            <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.15em] text-slate-500">
               Days Ago
             </span>
 
@@ -598,17 +681,17 @@ function PlayerComparisonPanel({
                   ),
                 )
               }
-              className="h-9 w-[92px] rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm font-black text-slate-100 outline-none transition focus:border-blue-400 focus:shadow-[0_0_18px_rgba(59,130,246,.12)]"
+              className="h-10 w-[100px] rounded-xl border border-white/[0.09] bg-slate-950/55 px-3 text-sm font-black text-slate-100 shadow-inner outline-none backdrop-blur-xl transition focus:border-violet-300/45 focus:bg-violet-500/[0.06] focus:shadow-[0_0_24px_rgba(139,92,246,.13)]"
               title="Use 0 for all time"
             />
           </label>
 
           <div>
-            <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.15em] text-slate-500">
               View
             </span>
 
-            <div className="flex h-9 rounded-xl border border-slate-700 bg-slate-950/80 p-1">
+            <div className="flex h-10 rounded-xl border border-white/[0.09] bg-slate-950/55 p-1 shadow-inner backdrop-blur-xl">
               {[
                 ['total', 'Total'],
                 ['average', 'Average'],
@@ -617,12 +700,15 @@ function PlayerComparisonPanel({
                   type="button"
                   key={id}
                   onClick={() => onModeChange(id)}
-                  className={`rounded-lg px-3 text-[10px] font-black uppercase tracking-[0.12em] transition ${
+                  className={`relative overflow-hidden rounded-lg px-3.5 text-[10px] font-black uppercase tracking-[0.12em] transition ${
                     mode === id
-                      ? 'border border-blue-400/20 bg-blue-500/20 text-blue-100 shadow-[0_0_16px_rgba(59,130,246,.12)]'
-                      : 'border border-transparent text-slate-500 hover:text-slate-200'
+                      ? 'border border-violet-300/25 bg-gradient-to-r from-violet-600/35 to-blue-500/20 text-violet-100 shadow-[0_0_22px_rgba(139,92,246,.16)]'
+                      : 'border border-transparent text-slate-500 hover:bg-white/[0.035] hover:text-slate-200'
                   }`}
                 >
+                  {mode === id && (
+                    <span className="pointer-events-none absolute inset-x-2 bottom-0 h-px bg-gradient-to-r from-transparent via-violet-300/90 to-transparent" />
+                  )}
                   {label}
                 </button>
               ))}
@@ -631,14 +717,22 @@ function PlayerComparisonPanel({
         </div>
       </div>
 
-      <div className="relative grid gap-3 p-3 xl:grid-cols-[minmax(0,1.42fr)_minmax(320px,.58fr)]">
-        <div className="relative min-h-[500px] overflow-hidden rounded-[24px] border border-slate-800/90 bg-gradient-to-br from-slate-950/92 via-slate-950/78 to-blue-950/20 shadow-inner">
-          <div className="pointer-events-none absolute inset-x-5 top-4 z-10 flex items-center justify-between">
-            <div className="rounded-xl border border-slate-800 bg-slate-950/75 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500 backdrop-blur">
-              Hover a stat
+      <div className="relative grid gap-3 p-3 2xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="relative min-h-[650px] overflow-hidden rounded-[28px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(15,23,42,.62),rgba(2,6,23,.74))] shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_24px_70px_rgba(0,0,0,.28)] backdrop-blur-2xl">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-[7%] top-[12%] h-52 w-52 rounded-full bg-violet-600/18 blur-[90px]" />
+            <div className="absolute right-[8%] top-[20%] h-48 w-48 rounded-full bg-blue-500/14 blur-[90px]" />
+            <div className="absolute bottom-[4%] left-[38%] h-52 w-52 rounded-full bg-fuchsia-500/10 blur-[100px]" />
+            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(30,64,175,.12),transparent_48%)]" />
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-5 top-4 z-10 flex items-center justify-between gap-3">
+            <div className="rounded-xl border border-white/[0.08] bg-slate-950/40 px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-slate-500 shadow-[0_10px_30px_rgba(0,0,0,.2)] backdrop-blur-2xl">
+              Hover or click a metric
             </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/75 px-2.5 py-1.5 backdrop-blur">
+            <div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-white/[0.08] bg-slate-950/38 px-3 py-2 shadow-[0_12px_34px_rgba(0,0,0,.22)] backdrop-blur-2xl">
               {players.map((player, index) => {
                 const theme =
                   PLAYER_COMPARE_THEMES[index] ||
@@ -650,13 +744,13 @@ function PlayerComparisonPanel({
                     className="flex min-w-0 items-center gap-1.5"
                   >
                     <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.dot}`}
+                      className={`h-2 w-2 shrink-0 rounded-full ${theme.dot}`}
                       style={{
-                        boxShadow: `0 0 10px ${theme.stroke}`,
+                        boxShadow: `0 0 13px ${theme.stroke}`,
                       }}
                     />
                     <span
-                      className={`max-w-[92px] truncate text-[9px] font-black ${theme.text}`}
+                      className={`max-w-[100px] truncate text-[9px] font-black ${theme.text}`}
                       title={player.name}
                     >
                       {player.name}
@@ -664,26 +758,43 @@ function PlayerComparisonPanel({
                   </div>
                 );
               })}
+
+              <span className="mx-0.5 h-4 w-px bg-white/10" />
+
+              <div className="flex items-center gap-1.5">
+                <span className="block h-px w-4 border-t border-dashed border-slate-300/65" />
+                <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-500">
+                  Guild avg
+                </span>
+              </div>
             </div>
           </div>
 
           {activeMetric && (
-            <div className="pointer-events-none absolute right-4 top-14 z-20 w-[220px] rounded-2xl border border-blue-400/20 bg-slate-950/92 p-3 shadow-[0_18px_50px_rgba(0,0,0,.45)] backdrop-blur-xl">
-              <div className="mb-2 flex items-center justify-between gap-3 border-b border-white/8 pb-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-200">
-                  {activeMetric.label}
-                </p>
+            <div className="pointer-events-none absolute right-5 top-[70px] z-20 w-[238px] overflow-hidden rounded-[20px] border border-white/[0.10] bg-[linear-gradient(145deg,rgba(15,23,42,.82),rgba(2,6,23,.92))] p-3 shadow-[0_24px_70px_rgba(0,0,0,.52)] backdrop-blur-2xl">
+              <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-violet-500/18 blur-3xl" />
+
+              <div className="relative mb-2.5 flex items-center justify-between gap-3 border-b border-white/[0.07] pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-violet-300/20 bg-violet-500/10 text-[12px] text-violet-200">
+                    {activeMetric.icon}
+                  </span>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-100">
+                    {activeMetric.label}
+                  </p>
+                </div>
+
                 <span className="text-[8px] font-black uppercase tracking-[0.12em] text-slate-600">
                   Exact values
                 </span>
               </div>
 
-              <div className="mb-2 border-b border-white/8 pb-2">
-                <div className="rounded-lg border border-slate-800 bg-slate-900/55 px-2 py-1.5">
-                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-600">
-                    Guild Avg
+              <div className="relative mb-2.5 rounded-xl border border-white/[0.065] bg-white/[0.025] px-2.5 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[8px] font-black uppercase tracking-[0.11em] text-slate-600">
+                    Guild average
                   </p>
-                  <p className="mt-0.5 text-xs font-black text-slate-300">
+                  <p className="text-xs font-black text-slate-300">
                     {activeMetric.format(
                       metricScales[activeMetric.key]?.average,
                     )}
@@ -691,16 +802,25 @@ function PlayerComparisonPanel({
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="relative space-y-1.5">
                 {players.map((player, index) => {
                   const theme =
                     PLAYER_COMPARE_THEMES[index] ||
                     PLAYER_COMPARE_THEMES[0];
+                  const isLeader =
+                    metricLeaders[activeMetric.key]?.some(
+                      (name) =>
+                        samePlayerName(name, player.name),
+                    );
 
                   return (
                     <div
                       key={`${player.name}-${activeMetric.key}-tooltip`}
-                      className="flex items-center justify-between gap-3"
+                      className={`flex items-center justify-between gap-3 rounded-xl border px-2.5 py-2 ${
+                        isLeader
+                          ? `${theme.border} bg-white/[0.05]`
+                          : 'border-transparent bg-white/[0.018]'
+                      }`}
                     >
                       <div className="flex min-w-0 items-center gap-2">
                         <span
@@ -715,6 +835,11 @@ function PlayerComparisonPanel({
                         >
                           {player.name}
                         </span>
+                        {isLeader && (
+                          <span className="text-[10px] text-amber-300">
+                            ♛
+                          </span>
+                        )}
                       </div>
 
                       <span className={`shrink-0 text-sm font-black ${theme.text}`}>
@@ -730,8 +855,8 @@ function PlayerComparisonPanel({
           )}
 
           {!hasData ? (
-            <div className="flex min-h-[500px] items-center justify-center px-6 text-center">
-              <div>
+            <div className="relative flex min-h-[650px] items-center justify-center px-6 text-center">
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] px-8 py-7 backdrop-blur-xl">
                 <p className="text-sm font-black text-slate-300">
                   No comparison data in this period.
                 </p>
@@ -742,33 +867,110 @@ function PlayerComparisonPanel({
             </div>
           ) : (
             <svg
-              viewBox="0 0 760 560"
-              className="h-full min-h-[500px] w-full"
+              viewBox="0 0 780 650"
+              className="relative h-full min-h-[650px] w-full"
               role="img"
-              aria-label="Radar chart comparing selected players"
+              aria-label="Glass radar chart comparing selected players"
               onMouseLeave={() => setHoveredMetricKey('')}
             >
               <defs>
-                <radialGradient id="compareRadarGlow">
-                  <stop offset="0%" stopColor="rgba(59,130,246,.10)" />
-                  <stop offset="58%" stopColor="rgba(139,92,246,.055)" />
+                <radialGradient id="glassRadarBackdrop">
+                  <stop offset="0%" stopColor="rgba(96,165,250,.12)" />
+                  <stop offset="48%" stopColor="rgba(139,92,246,.055)" />
                   <stop offset="100%" stopColor="rgba(2,6,23,0)" />
                 </radialGradient>
 
-                <filter id="compareRadarSoftGlow">
-                  <feGaussianBlur stdDeviation="5" result="blur" />
+                <linearGradient
+                  id="glassRadarGrid"
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="rgba(196,181,253,.42)" />
+                  <stop offset="48%" stopColor="rgba(96,165,250,.20)" />
+                  <stop offset="100%" stopColor="rgba(148,163,184,.08)" />
+                </linearGradient>
+
+                <linearGradient
+                  id="glassRadarAxis"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="rgba(196,181,253,.48)" />
+                  <stop offset="54%" stopColor="rgba(96,165,250,.18)" />
+                  <stop offset="100%" stopColor="rgba(71,85,105,.06)" />
+                </linearGradient>
+
+                <linearGradient
+                  id="glassMetricPill"
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="rgba(139,92,246,.22)" />
+                  <stop offset="54%" stopColor="rgba(30,41,59,.82)" />
+                  <stop offset="100%" stopColor="rgba(2,6,23,.86)" />
+                </linearGradient>
+
+                <filter
+                  id="glassRadarPointGlow"
+                  x="-120%"
+                  y="-120%"
+                  width="340%"
+                  height="340%"
+                >
+                  <feGaussianBlur stdDeviation="4.5" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
+
+                {playerSeries.map(({ theme }) => (
+                  <linearGradient
+                    key={`${theme.id}-gradient`}
+                    id={`compareGradient-${theme.id}`}
+                    x1="0"
+                    y1="0"
+                    x2="1"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor={theme.fillStart} />
+                    <stop offset="58%" stopColor={theme.fillStart} />
+                    <stop offset="100%" stopColor={theme.fillEnd} />
+                  </linearGradient>
+                ))}
+
+                {playerSeries.map(({ theme }) => (
+                  <radialGradient
+                    key={`${theme.id}-point-gradient`}
+                    id={`comparePoint-${theme.id}`}
+                  >
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="32%" stopColor={theme.stroke} />
+                    <stop offset="100%" stopColor={theme.stroke} />
+                  </radialGradient>
+                ))}
               </defs>
 
               <circle
                 cx={cx}
                 cy={cy}
-                r={radius + 76}
-                fill="url(#compareRadarGlow)"
+                r={radius + 112}
+                fill="url(#glassRadarBackdrop)"
+              />
+
+              <circle
+                cx={cx}
+                cy={cy}
+                r={radius + 48}
+                fill="none"
+                stroke="rgba(139,92,246,.055)"
+                strokeWidth="34"
               />
 
               {[0.2, 0.4, 0.6, 0.8, 1].map((scale) => (
@@ -783,24 +985,21 @@ function PlayerComparisonPanel({
                   )}
                   fill={
                     scale === 1
-                      ? 'rgba(15,23,42,.42)'
-                      : 'rgba(15,23,42,.025)'
+                      ? 'rgba(15,23,42,.20)'
+                      : 'rgba(255,255,255,.006)'
                   }
-                  stroke={
-                    scale === 1
-                      ? 'rgba(96,165,250,.24)'
-                      : 'rgba(100,116,139,.18)'
-                  }
-                  strokeWidth={scale === 1 ? 1.5 : 1}
+                  stroke="url(#glassRadarGrid)"
+                  strokeOpacity={0.20 + scale * 0.31}
+                  strokeWidth={scale === 1 ? 1.6 : 1}
                 />
               ))}
 
               <circle
                 cx={cx}
                 cy={cy}
-                r="4"
-                fill="rgba(147,197,253,.9)"
-                filter="url(#compareRadarSoftGlow)"
+                r="5"
+                fill="rgba(221,214,254,.92)"
+                filter="url(#glassRadarPointGlow)"
               />
 
               {metrics.map((metric, index) => {
@@ -815,7 +1014,7 @@ function PlayerComparisonPanel({
                 const labelPoint = radarPoint(
                   cx,
                   cy,
-                  radius + 48,
+                  radius + 61,
                   index,
                   metricCount,
                 );
@@ -825,13 +1024,13 @@ function PlayerComparisonPanel({
                     : labelPoint.x > cx
                       ? 'start'
                       : 'end';
-                const pillWidth = 104;
+                const pillWidth = 122;
                 const pillX =
                   anchor === 'middle'
                     ? labelPoint.x - pillWidth / 2
                     : anchor === 'start'
-                      ? labelPoint.x - 8
-                      : labelPoint.x - pillWidth + 8;
+                      ? labelPoint.x - 10
+                      : labelPoint.x - pillWidth + 10;
 
                 return (
                   <g
@@ -853,13 +1052,13 @@ function PlayerComparisonPanel({
                       y2={axisEnd.y}
                       stroke={
                         active
-                          ? 'rgba(147,197,253,.92)'
-                          : 'rgba(100,116,139,.27)'
+                          ? 'rgba(196,181,253,.95)'
+                          : 'url(#glassRadarAxis)'
                       }
-                      strokeWidth={active ? 2 : 1}
+                      strokeWidth={active ? 2.2 : 1}
                       style={{
                         filter: active
-                          ? 'drop-shadow(0 0 5px rgba(96,165,250,.65))'
+                          ? 'drop-shadow(0 0 7px rgba(167,139,250,.78))'
                           : 'none',
                       }}
                     />
@@ -870,26 +1069,28 @@ function PlayerComparisonPanel({
                       x2={labelPoint.x}
                       y2={labelPoint.y}
                       stroke="transparent"
-                      strokeWidth="34"
+                      strokeWidth="38"
                     />
 
                     <rect
                       x={pillX}
-                      y={labelPoint.y - 15}
+                      y={labelPoint.y - 17}
                       width={pillWidth}
-                      height="30"
-                      rx="10"
-                      fill={
-                        active
-                          ? 'rgba(37,99,235,.22)'
-                          : 'rgba(2,6,23,.76)'
-                      }
+                      height="34"
+                      rx="12"
+                      fill="url(#glassMetricPill)"
+                      fillOpacity={active ? 1 : 0.72}
                       stroke={
                         active
-                          ? 'rgba(147,197,253,.55)'
-                          : 'rgba(71,85,105,.55)'
+                          ? 'rgba(196,181,253,.72)'
+                          : 'rgba(148,163,184,.16)'
                       }
                       strokeWidth="1"
+                      style={{
+                        filter: active
+                          ? 'drop-shadow(0 0 11px rgba(139,92,246,.28))'
+                          : 'drop-shadow(0 7px 14px rgba(0,0,0,.18))',
+                      }}
                     />
 
                     <text
@@ -897,22 +1098,22 @@ function PlayerComparisonPanel({
                         anchor === 'middle'
                           ? labelPoint.x
                           : anchor === 'start'
-                            ? labelPoint.x + 2
-                            : labelPoint.x - 2
+                            ? labelPoint.x + 4
+                            : labelPoint.x - 4
                       }
                       y={labelPoint.y}
                       textAnchor={anchor}
                       dominantBaseline="middle"
                       fill={
                         active
-                          ? 'rgba(219,234,254,.98)'
-                          : 'rgba(203,213,225,.82)'
+                          ? 'rgba(237,233,254,.98)'
+                          : 'rgba(203,213,225,.84)'
                       }
                       fontSize="11.5"
                       fontWeight="900"
-                      letterSpacing=".65"
+                      letterSpacing=".55"
                     >
-                      {metric.label}
+                      {`${metric.icon}  ${metric.label}`}
                     </text>
                   </g>
                 );
@@ -925,9 +1126,9 @@ function PlayerComparisonPanel({
                       `${point.x.toFixed(2)},${point.y.toFixed(2)}`,
                   )
                   .join(' ')}
-                fill="rgba(148,163,184,.035)"
-                stroke="rgba(148,163,184,.72)"
-                strokeWidth="2"
+                fill="rgba(148,163,184,.018)"
+                stroke="rgba(203,213,225,.58)"
+                strokeWidth="1.7"
                 strokeDasharray="7 7"
                 strokeLinejoin="round"
               >
@@ -944,8 +1145,8 @@ function PlayerComparisonPanel({
                       ? 5
                       : 3
                   }
-                  fill="rgba(203,213,225,.9)"
-                  stroke="rgba(2,6,23,.95)"
+                  fill="rgba(226,232,240,.84)"
+                  stroke="rgba(15,23,42,.96)"
                   strokeWidth="1.5"
                   onMouseEnter={() =>
                     setHoveredMetricKey(point.metric.key)
@@ -958,42 +1159,29 @@ function PlayerComparisonPanel({
                 </circle>
               ))}
 
-              {players.map((player, playerIndex) => {
-                const theme =
-                  PLAYER_COMPARE_THEMES[playerIndex] ||
-                  PLAYER_COMPARE_THEMES[0];
-                const points = metrics.map((metric, index) => {
-                  const score = normalizedScore(player, metric);
-                  const point = radarPoint(
-                    cx,
-                    cy,
-                    radius * (score / 100),
-                    index,
-                    metricCount,
-                  );
-
-                  return {
-                    ...point,
-                    metric,
-                    value: player[metric.key],
-                  };
-                });
-
-                return (
+              {playerSeries.map(
+                ({ player, theme, points, polygon }) => (
                   <g key={player.name}>
                     <polygon
-                      points={points
-                        .map(
-                          (point) =>
-                            `${point.x.toFixed(2)},${point.y.toFixed(2)}`,
-                        )
-                        .join(' ')}
-                      fill={theme.fill}
+                      points={polygon}
+                      fill="none"
                       stroke={theme.stroke}
-                      strokeWidth="3"
+                      strokeWidth="10"
+                      strokeOpacity=".08"
                       strokeLinejoin="round"
                       style={{
-                        filter: `drop-shadow(0 0 7px ${theme.stroke}55)`,
+                        filter: `drop-shadow(0 0 16px ${theme.glow})`,
+                      }}
+                    />
+
+                    <polygon
+                      points={polygon}
+                      fill={`url(#compareGradient-${theme.id})`}
+                      stroke={theme.stroke}
+                      strokeWidth="2.6"
+                      strokeLinejoin="round"
+                      style={{
+                        filter: `drop-shadow(0 0 7px ${theme.glow})`,
                       }}
                     >
                       <title>{player.name}</title>
@@ -1004,14 +1192,8 @@ function PlayerComparisonPanel({
                         hoveredMetricKey === point.metric.key;
 
                       return (
-                        <circle
+                        <g
                           key={`${player.name}-${point.metric.key}`}
-                          cx={point.x}
-                          cy={point.y}
-                          r={active ? 6 : 4.5}
-                          fill={theme.stroke}
-                          stroke="rgba(2,6,23,.96)"
-                          strokeWidth="2"
                           onMouseEnter={() =>
                             setHoveredMetricKey(
                               point.metric.key,
@@ -1023,120 +1205,271 @@ function PlayerComparisonPanel({
                             )
                           }
                           className="cursor-pointer"
-                          style={{
-                            filter: active
-                              ? `drop-shadow(0 0 8px ${theme.stroke})`
-                              : 'none',
-                          }}
                         >
-                          <title>
-                            {`${player.name} · ${point.metric.label}: ${point.metric.format(point.value)}`}
-                          </title>
-                        </circle>
+                          {active && (
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r="11"
+                              fill={theme.stroke}
+                              fillOpacity=".12"
+                              stroke={theme.stroke}
+                              strokeOpacity=".24"
+                            />
+                          )}
+
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={active ? 6.4 : 4.8}
+                            fill={`url(#comparePoint-${theme.id})`}
+                            stroke="rgba(2,6,23,.92)"
+                            strokeWidth="2"
+                            filter={
+                              active
+                                ? 'url(#glassRadarPointGlow)'
+                                : undefined
+                            }
+                          >
+                            <title>
+                              {`${player.name} · ${point.metric.label}: ${point.metric.format(point.value)}`}
+                            </title>
+                          </circle>
+                        </g>
                       );
                     })}
                   </g>
-                );
-              })}
+                ),
+              )}
             </svg>
           )}
 
-          <div className="absolute bottom-3 left-3 rounded-xl border border-slate-800 bg-slate-950/82 px-2.5 py-1.5 text-[9px] font-bold text-slate-500 backdrop-blur">
-            Axes use a stable guild-wide scale for this period and view.
-            Dashed shape = guild average. Hover or click for exact numbers.
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-slate-950/42 px-3 py-2 text-center text-[9px] font-bold text-slate-500 shadow-[0_12px_34px_rgba(0,0,0,.20)] backdrop-blur-2xl">
+            Stable guild-wide scale · dashed polygon is the guild average
           </div>
         </div>
 
         <div className="grid content-start gap-3">
-          {players.map((player, index) => {
-            const theme =
-              PLAYER_COMPARE_THEMES[index] ||
-              PLAYER_COMPARE_THEMES[0];
+          <div className="relative overflow-hidden rounded-[26px] border border-white/[0.08] bg-white/[0.025] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_18px_50px_rgba(0,0,0,.22)] backdrop-blur-2xl">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-500/12 blur-3xl" />
 
-            return (
-              <div
-                key={player.name}
-                className={`relative overflow-hidden rounded-[22px] border ${theme.border} bg-gradient-to-br ${theme.soft} p-3 shadow-[0_14px_34px_rgba(0,0,0,.18)]`}
-              >
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className="relative mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-300">
+                  Key Comparison
+                </p>
+                <p className="text-[9px] font-bold text-slate-600">
+                  Shared guild-wide scale
+                </p>
+              </div>
 
-                <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${theme.dot}`}
+              <span className="rounded-lg border border-white/[0.07] bg-slate-950/40 px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-slate-500">
+                {metrics.length} metrics
+              </span>
+            </div>
+
+            <div className="relative space-y-1">
+              {metrics.map((metric) => {
+                const active = hoveredMetricKey === metric.key;
+
+                return (
+                  <button
+                    type="button"
+                    key={`${metric.key}-comparison-row`}
+                    onMouseEnter={() =>
+                      setHoveredMetricKey(metric.key)
+                    }
+                    onMouseLeave={() =>
+                      setHoveredMetricKey('')
+                    }
+                    onClick={() =>
+                      setHoveredMetricKey((current) =>
+                        current === metric.key ? '' : metric.key,
+                      )
+                    }
+                    className={`grid w-full grid-cols-[96px_1fr_18px] items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition ${
+                      active
+                        ? 'border-violet-300/25 bg-violet-500/[0.075] shadow-[0_0_18px_rgba(139,92,246,.07)]'
+                        : 'border-transparent hover:border-white/[0.06] hover:bg-white/[0.025]'
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[10px] ${
+                          active
+                            ? 'border-violet-300/25 bg-violet-500/12 text-violet-200'
+                            : 'border-white/[0.06] bg-slate-950/34 text-slate-500'
+                        }`}
+                      >
+                        {metric.icon}
+                      </span>
+
+                      <span className="truncate text-[9px] font-black text-slate-400">
+                        {metric.label}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {players.map((player, index) => {
+                        const theme =
+                          PLAYER_COMPARE_THEMES[index] ||
+                          PLAYER_COMPARE_THEMES[0];
+                        const width = Math.max(
+                          3,
+                          normalizedScore(player, metric),
+                        );
+
+                        return (
+                          <div
+                            key={`${metric.key}-${player.name}-micro`}
+                            className="relative h-2 overflow-hidden rounded-full border border-white/[0.055] bg-slate-950/68"
+                            title={`${player.name}: ${metric.format(
+                              player[metric.key],
+                            )}`}
+                          >
+                            <div
+                              className="absolute inset-y-0 left-0 rounded-full"
+                              style={{
+                                width: `${width}%`,
+                                background: `linear-gradient(90deg, ${theme.stroke}55, ${theme.stroke})`,
+                                boxShadow: `0 0 10px ${theme.glow}`,
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <span className="text-center text-[10px] text-amber-300">
+                      {metricLeaders[metric.key]?.length === 1
+                        ? '♛'
+                        : '·'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-[26px] border border-white/[0.08] bg-white/[0.025] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_18px_50px_rgba(0,0,0,.22)] backdrop-blur-2xl">
+            <div className="pointer-events-none absolute -bottom-16 left-1/2 h-36 w-36 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl" />
+
+            <div className="relative mb-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-300">
+                Top Performer Count
+              </p>
+              <p className="text-[9px] font-bold text-slate-600">
+                Number of metrics led
+              </p>
+            </div>
+
+            <div className="relative grid grid-cols-3 gap-2">
+              {players.map((player, index) => {
+                const theme =
+                  PLAYER_COMPARE_THEMES[index] ||
+                  PLAYER_COMPARE_THEMES[0];
+                const count = leaderCounts[player.name] || 0;
+
+                return (
+                  <div
+                    key={`${player.name}-leader-count`}
+                    className={`relative overflow-hidden rounded-2xl border ${theme.border} bg-gradient-to-br ${theme.soft} px-2 py-3 text-center`}
+                  >
+                    <div
+                      className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.10] bg-slate-950/45 text-lg font-black"
                       style={{
-                        boxShadow: `0 0 16px ${theme.stroke}`,
+                        color: theme.stroke,
+                        boxShadow: `inset 0 0 18px ${theme.stroke}18, 0 0 18px ${theme.stroke}16`,
                       }}
-                    />
-
+                    >
+                      {count}
+                    </div>
                     <p
-                      className={`truncate text-sm font-black ${theme.text}`}
+                      className={`mt-2 truncate text-[9px] font-black ${theme.text}`}
                       title={player.name}
                     >
                       {player.name}
                     </p>
                   </div>
+                );
+              })}
+            </div>
+          </div>
 
-                  <span className="shrink-0 rounded-lg border border-white/10 bg-slate-950/55 px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">
-                    Player {index + 1}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
-                  {metrics.map((metric) => {
-                    const active =
-                      hoveredMetricKey === metric.key;
-
-                    return (
-                      <button
-                        type="button"
-                        key={`${player.name}-${metric.key}-value`}
-                        onMouseEnter={() =>
-                          setHoveredMetricKey(metric.key)
-                        }
-                        onMouseLeave={() =>
-                          setHoveredMetricKey('')
-                        }
-                        onClick={() =>
-                          setHoveredMetricKey((current) =>
-                            current === metric.key
-                              ? ''
-                              : metric.key,
-                          )
-                        }
-                        className={`min-w-0 rounded-xl border px-2 py-2 text-left transition ${
-                          active
-                            ? `${theme.border} bg-white/[0.07] shadow-[0_0_16px_rgba(59,130,246,.08)]`
-                            : 'border-white/[0.07] bg-slate-950/45 hover:border-white/15 hover:bg-white/[0.04]'
-                        }`}
-                      >
-                        <p className="truncate text-[8px] font-black uppercase tracking-[0.08em] text-slate-600">
-                          {metric.label}
-                        </p>
-                        <p
-                          className={`mt-1 truncate text-xs font-black ${theme.text}`}
-                          title={metric.format(player[metric.key])}
-                        >
-                          {metric.format(player[metric.key])}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-
-          <div className="rounded-[20px] border border-slate-800 bg-slate-950/58 px-3 py-2.5 text-[10px] font-bold leading-relaxed text-slate-500">
+          <div className="rounded-[22px] border border-white/[0.07] bg-slate-950/38 px-3 py-3 text-[10px] font-bold leading-relaxed text-slate-500 shadow-inner backdrop-blur-xl">
             <span className="font-black text-slate-300">
               {mode === 'average' ? 'Average:' : 'Total:'}
             </span>{' '}
             {mode === 'average'
-              ? 'performance metrics are calculated per war; Wars remains the participation count.'
+              ? 'performance metrics are calculated per war; Wars remains participation count.'
               : 'counting stats are summed, K/D is overall, and Killstreak/Killfeed use the best match.'}
             {' '}Use 0 Days Ago for all available history.
           </div>
         </div>
+      </div>
+
+      <div className="relative grid gap-3 border-t border-white/[0.065] bg-white/[0.012] p-3 md:grid-cols-3">
+        {players.map((player, index) => {
+          const theme =
+            PLAYER_COMPARE_THEMES[index] ||
+            PLAYER_COMPARE_THEMES[0];
+          const count = leaderCounts[player.name] || 0;
+
+          return (
+            <div
+              key={`${player.name}-summary`}
+              className={`group relative overflow-hidden rounded-[24px] border ${theme.border} bg-gradient-to-br ${theme.soft} p-4 shadow-[0_18px_48px_rgba(0,0,0,.22)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(0,0,0,.30)]`}
+            >
+              <div
+                className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full blur-3xl"
+                style={{ background: `${theme.stroke}18` }}
+              />
+              <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+
+              <div className="relative flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    className={`h-3 w-3 shrink-0 rounded-full ${theme.dot}`}
+                    style={{
+                      boxShadow: `0 0 18px ${theme.stroke}`,
+                    }}
+                  />
+                  <p
+                    className={`truncate text-sm font-black ${theme.text}`}
+                    title={player.name}
+                  >
+                    {player.name}
+                  </p>
+                </div>
+
+                <span className="rounded-lg border border-white/[0.08] bg-slate-950/40 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-slate-500">
+                  {count} leads
+                </span>
+              </div>
+
+              <div className="relative mt-4 grid grid-cols-4 gap-2">
+                {[
+                  ['Kills', formatCompactNumber(player.kills)],
+                  ['K/D', Number(player.kd || 0).toFixed(2)],
+                  ['Wars', formatCompactNumber(player.wars)],
+                  ['Fort', formatCompactNumber(player.damageToFort)],
+                ].map(([label, value]) => (
+                  <div
+                    key={`${player.name}-${label}-summary`}
+                    className="min-w-0 rounded-xl border border-white/[0.055] bg-slate-950/32 px-2 py-2 text-center backdrop-blur"
+                  >
+                    <p className="truncate text-[8px] font-black uppercase tracking-[0.09em] text-slate-600">
+                      {label}
+                    </p>
+                    <p className={`mt-1 truncate text-xs font-black ${theme.text}`}>
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
