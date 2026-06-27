@@ -791,30 +791,18 @@ export default function App() {
     setPage('overview');
   }
 
-  function openMatchOverviewFromMonthlyRecap(matchOrMatches) {
-    const matches = Array.isArray(matchOrMatches)
-      ? matchOrMatches
-      : [matchOrMatches];
+  function openMatchOverviewFromMonthlyRecap(match) {
+    const warId = String(match?.id || match?.warId || '').trim();
 
-    const warIds = [
-      ...new Set(
-        matches
-          .map((match) =>
-            String(match?.id || match?.warId || '').trim(),
-          )
-          .filter(Boolean),
-      ),
-    ];
-
-    if (!warIds.length) {
-      setMessage('These matches have no valid war IDs.');
+    if (!warId) {
+      setMessage('This match has no valid war ID.');
       return;
     }
 
     setNodeWarsWarning('');
     setMatchHistoryDateFilter('');
     setSelectedDays(['all']);
-    setSelectedWars(warIds);
+    setSelectedWars([warId]);
     setPage('overview');
   }
 
@@ -983,6 +971,8 @@ export default function App() {
                   label={label}
                   members={members}
                   selectedLogs={activeLogs}
+                  lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
+                  loadLifetimeLogs={loadAllLogs}
                 />
               )}
             </Suspense>
