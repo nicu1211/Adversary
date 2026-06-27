@@ -1809,7 +1809,15 @@ function MatchupCard({
   );
 }
 
-function PlayerHighlight({ icon: Icon, label, name, value, unit, accent }) {
+function PlayerHighlight({
+  icon: Icon,
+  label,
+  labelSub,
+  name,
+  value,
+  unit,
+  accent,
+}) {
   const classes = {
     blue: 'border-blue-500/30 text-blue-300',
     violet: 'border-violet-500/30 text-violet-300',
@@ -1826,9 +1834,14 @@ function PlayerHighlight({ icon: Icon, label, name, value, unit, accent }) {
           <Icon size={34} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <p className="flex min-h-[24px] items-end text-[9px] font-black uppercase leading-[1.15] tracking-[0.08em]">
-            {label}
-          </p>
+          <div className="flex h-[28px] flex-col justify-end overflow-hidden">
+            <p className="truncate text-[9px] font-black uppercase leading-none tracking-[0.08em]">
+              {label}
+            </p>
+            <p className="mt-1 h-[9px] text-[8px] font-black uppercase leading-none tracking-[0.08em] text-current/70">
+              {labelSub || ' '}
+            </p>
+          </div>
           <p className="mt-1 truncate text-[13px] font-black text-white">
             {name || '-'}
           </p>
@@ -2383,7 +2396,7 @@ function PerformanceMetricCell({
 }
 
 function PlayersTable({ players }) {
-  const [viewMode, setViewMode] = useState('total');
+  const [viewMode, setViewMode] = useState('average');
   const [overallWeights, setOverallWeights] = useState(
     () => ({ ...DEFAULT_OVERALL_WEIGHTS }),
   );
@@ -3316,7 +3329,8 @@ export default function MonthlyRecap({
           />
           <PlayerHighlight
             icon={Gauge}
-            label="Highest K/D Single Match"
+            label="Highest K/D"
+            labelSub="Single Match"
             name={bestKd?.name}
             value={bestKd ? bestKd.kd.toFixed(2) : '-'}
             unit={
