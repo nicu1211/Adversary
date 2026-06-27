@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
-import adversaryEmblem from './assets/adversary-emblem.png';
+import adversaryEmblem from './assets/adversary-emblem.png?url';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -315,11 +315,10 @@ function ActivePageBrand({ page }) {
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,rgba(250,204,21,.07),transparent_34%,rgba(59,130,246,.045))]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
 
-      <img
-        src={adversaryEmblem}
-        alt=""
+      <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-5 top-1/2 h-40 w-40 -translate-y-1/2 object-contain opacity-[0.13] drop-shadow-[0_0_35px_rgba(250,204,21,.16)] sm:right-4 sm:h-48 sm:w-48"
+        className="pointer-events-none absolute -right-5 top-1/2 h-40 w-40 -translate-y-1/2 bg-contain bg-center bg-no-repeat opacity-20 drop-shadow-[0_0_35px_rgba(250,204,21,.20)] sm:right-4 sm:h-48 sm:w-48"
+        style={{ backgroundImage: `url("${adversaryEmblem}")` }}
       />
 
       <div className="relative flex min-w-0 items-center gap-3.5">
@@ -886,10 +885,12 @@ export default function App() {
       >
         <div className="absolute inset-0 bg-slate-950" />
 
-        <img
-          src={adversaryEmblem}
-          alt=""
-          className="absolute left-1/2 top-1/2 h-[min(92vh,1050px)] w-[min(92vw,1050px)] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.065] drop-shadow-[0_0_80px_rgba(250,204,21,.10)]"
+        <div
+          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.18] drop-shadow-[0_0_90px_rgba(250,204,21,.16)]"
+          style={{
+            backgroundImage: `url("${adversaryEmblem}")`,
+            backgroundSize: 'min(92vw, 1050px) min(92vh, 1050px)',
+          }}
         />
 
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,transparent_0%,rgba(2,6,23,.30)_42%,rgba(2,6,23,.92)_100%)]" />
