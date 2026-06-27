@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Panel, Metric } from '../components/UI';
+import { Metric } from '../components/UI';
 import { AveragePerformanceChart } from '../components/Charts';
 import { add, scrollCls } from '../lib/logUtils';
 
@@ -105,7 +105,7 @@ const PLAYER_COMPARE_THEMES = [
     dot: 'bg-cyan-300',
     border: 'border-cyan-400/30',
     text: 'text-cyan-200',
-    soft: 'from-cyan-500/18 via-blue-500/6 to-slate-950/78',
+    soft: 'from-cyan-500/18 via-blue-500/6 to-slate-950/22',
     stroke: '#22d3ee',
     glow: 'rgba(34,211,238,.58)',
     fillStart: 'rgba(34,211,238,.36)',
@@ -116,7 +116,7 @@ const PLAYER_COMPARE_THEMES = [
     dot: 'bg-violet-300',
     border: 'border-violet-400/30',
     text: 'text-violet-200',
-    soft: 'from-violet-500/18 via-fuchsia-500/6 to-slate-950/78',
+    soft: 'from-violet-500/18 via-fuchsia-500/6 to-slate-950/22',
     stroke: '#a78bfa',
     glow: 'rgba(167,139,250,.60)',
     fillStart: 'rgba(167,139,250,.38)',
@@ -127,7 +127,7 @@ const PLAYER_COMPARE_THEMES = [
     dot: 'bg-amber-300',
     border: 'border-amber-400/30',
     text: 'text-amber-200',
-    soft: 'from-amber-500/18 via-orange-500/6 to-slate-950/78',
+    soft: 'from-amber-500/18 via-orange-500/6 to-slate-950/22',
     stroke: '#fbbf24',
     glow: 'rgba(251,191,36,.58)',
     fillStart: 'rgba(251,191,36,.36)',
@@ -611,12 +611,12 @@ function PlayerComparisonPanel({
   );
 
   return (
-    <div className="relative mb-5 overflow-hidden rounded-[32px] border border-white/[0.09] bg-[linear-gradient(145deg,rgba(15,23,42,.92),rgba(2,6,23,.96)_48%,rgba(15,23,42,.91))] shadow-[0_34px_110px_rgba(0,0,0,.52)] backdrop-blur-2xl">
+    <div className="relative mb-5 overflow-hidden rounded-[32px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(15,23,42,.20),rgba(2,6,23,.12)_48%,rgba(15,23,42,.18))] shadow-[0_34px_110px_rgba(0,0,0,.28)] backdrop-blur-[2px]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/55 to-transparent" />
-        <div className="absolute -left-28 -top-24 h-[360px] w-[360px] rounded-full bg-violet-600/16 blur-[100px]" />
-        <div className="absolute right-[12%] -top-32 h-[340px] w-[340px] rounded-full bg-blue-500/13 blur-[110px]" />
-        <div className="absolute -bottom-40 right-[-60px] h-[420px] w-[420px] rounded-full bg-fuchsia-600/12 blur-[120px]" />
+        <div className="absolute -left-28 -top-24 h-[360px] w-[360px] rounded-full bg-violet-600/[0.06] blur-[100px]" />
+        <div className="absolute right-[12%] -top-32 h-[340px] w-[340px] rounded-full bg-blue-500/[0.05] blur-[110px]" />
+        <div className="absolute -bottom-40 right-[-60px] h-[420px] w-[420px] rounded-full bg-fuchsia-600/[0.045] blur-[120px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(96,165,250,.065),transparent_46%)]" />
         <div className="absolute inset-0 opacity-30 [mask-image:linear-gradient(to_bottom,black,transparent_88%)] bg-[linear-gradient(rgba(148,163,184,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.035)_1px,transparent_1px)] bg-[size:38px_38px]" />
       </div>
@@ -707,11 +707,11 @@ function PlayerComparisonPanel({
       </div>
 
       <div className="relative grid h-[calc(100dvh-250px)] min-h-[560px] items-stretch gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_600px]">
-        <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(15,23,42,.62),rgba(2,6,23,.74))] shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_24px_70px_rgba(0,0,0,.28)] backdrop-blur-2xl">
+        <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] border border-white/[0.10] bg-[linear-gradient(145deg,rgba(15,23,42,.18),rgba(2,6,23,.10))] shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_24px_70px_rgba(0,0,0,.20)] backdrop-blur-[2px]">
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-[7%] top-[12%] h-52 w-52 rounded-full bg-violet-600/18 blur-[90px]" />
-            <div className="absolute right-[8%] top-[20%] h-48 w-48 rounded-full bg-blue-500/14 blur-[90px]" />
-            <div className="absolute bottom-[4%] left-[38%] h-52 w-52 rounded-full bg-fuchsia-500/10 blur-[100px]" />
+            <div className="absolute left-[7%] top-[12%] h-52 w-52 rounded-full bg-violet-600/[0.065] blur-[90px]" />
+            <div className="absolute right-[8%] top-[20%] h-48 w-48 rounded-full bg-blue-500/[0.055] blur-[90px]" />
+            <div className="absolute bottom-[4%] left-[38%] h-52 w-52 rounded-full bg-fuchsia-500/[0.045] blur-[100px]" />
             <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(30,64,175,.12),transparent_48%)]" />
           </div>
@@ -1146,7 +1146,7 @@ function PlayerComparisonPanel({
         </div>
 
         <div className="h-full min-h-0">
-          <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-white/[0.08] bg-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_18px_50px_rgba(0,0,0,.22)] backdrop-blur-2xl">
+          <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border border-white/[0.08] bg-slate-950/10 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.045),0_18px_50px_rgba(0,0,0,.22)] backdrop-blur-2xl">
             <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-500/12 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-blue-500/8 blur-3xl" />
 
@@ -1368,13 +1368,13 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
   const redShade = 'from-rose-500/80 via-red-500/75 to-pink-400/70';
 
   return (
-    <Panel cls="h-full">
+    <div className="h-full rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="flex h-full flex-col">
         <div className="mb-4">
           <h3 className="text-2xl font-black">Targets & Nemesis</h3>
         </div>
 
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/75 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/16 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -1493,7 +1493,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
           )}
         </div>
       </div>
-    </Panel>
+    </div>
   );
 }
 
@@ -1560,7 +1560,7 @@ function EnemyGuildTable({ rows }) {
   }, [rows, sort]);
 
   return (
-    <Panel>
+    <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="mb-4">
         <h3 className="text-2xl font-black">Enemy Guilds</h3>
       </div>
@@ -1570,7 +1570,7 @@ function EnemyGuildTable({ rows }) {
       ) : (
         <div className={`max-h-[520px] overflow-y-auto pr-2 ${scrollCls}`}>
           <div className="space-y-2">
-            <div className="sticky top-0 z-10 grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] gap-2 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur">
+            <div className="sticky top-0 z-10 grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] gap-2 rounded-2xl border border-slate-800 bg-slate-950/34 px-3 py-2.5 backdrop-blur-[2px]">
               <SortButton
                 id="guild"
                 label="Guild"
@@ -1668,7 +1668,7 @@ function EnemyGuildTable({ rows }) {
           </div>
         </div>
       )}
-    </Panel>
+    </div>
   );
 }
 
@@ -2417,7 +2417,7 @@ function PremiumStatList({ title, items, accent = 'emerald' }) {
 
       <div className="relative mb-3 flex items-center gap-3 border-b border-white/10 pb-3">
         <div
-          className={`rounded-xl border ${theme.border} bg-slate-950/60 px-2.5 py-1 text-[11px] font-black ${theme.valueColor}`}
+          className={`rounded-xl border ${theme.border} bg-slate-950/22 px-2.5 py-1 text-[11px] font-black ${theme.valueColor}`}
         >
           Top {items.length}
         </div>
@@ -2428,7 +2428,7 @@ function PremiumStatList({ title, items, accent = 'emerald' }) {
       </div>
 
       {!items.length ? (
-        <p className="relative rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-5 text-sm text-slate-500">
+        <p className="relative rounded-2xl border border-slate-800 bg-slate-950/18 px-4 py-5 text-sm text-slate-500">
           No data yet.
         </p>
       ) : (
@@ -2457,7 +2457,7 @@ function PremiumStatList({ title, items, accent = 'emerald' }) {
                     </div>
                   </div>
 
-                  <div className="relative h-3 overflow-hidden rounded-md border border-white/10 bg-slate-950/70 shadow-inner">
+                  <div className="relative h-3 overflow-hidden rounded-md border border-white/10 bg-slate-950/26 shadow-inner">
                     <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] bg-[length:18px_100%] opacity-20" />
 
                     <div
@@ -2495,7 +2495,7 @@ function PremiumStatList({ title, items, accent = 'emerald' }) {
 
 function StreakFeedPanel({ streakItems, feedItems }) {
   return (
-    <Panel>
+    <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="grid gap-4 xl:grid-cols-2">
         <PremiumStatList
           title="Killstreak"
@@ -2509,7 +2509,7 @@ function StreakFeedPanel({ streakItems, feedItems }) {
           accent="amber"
         />
       </div>
-    </Panel>
+    </div>
   );
 }
 
@@ -3538,7 +3538,7 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
     'grid-cols-[38px_minmax(190px,1.65fr)_minmax(82px,.72fr)_minmax(82px,.72fr)_minmax(88px,.76fr)_minmax(112px,.95fr)_minmax(104px,.9fr)_minmax(126px,1.06fr)_minmax(126px,1.06fr)_minmax(96px,.82fr)_minmax(132px,1.1fr)]';
 
   return (
-    <Panel>
+    <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="mb-4">
         <h3 className="text-2xl font-black">Match History</h3>
         <p className="mt-0.5 text-xs font-bold text-slate-500">
@@ -3550,7 +3550,7 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
         <div className="w-full min-w-[1240px] space-y-2">
           {/* Header */}
           <div
-            className={`sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 backdrop-blur`}
+            className={`sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/34 px-3 py-2.5 backdrop-blur-[2px]`}
           >
             <div />
             <MatchHistoryHeaderCell
@@ -3726,7 +3726,7 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
           })}
         </div>
       </div>
-    </Panel>
+    </div>
   );
 }
 
@@ -4489,7 +4489,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
   }, [player, stats, averageRankTable]);
 
   return (
-    <Panel>
+    <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -4593,6 +4593,6 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
 
         </>
       )}
-    </Panel>
+    </div>
   );
 }
