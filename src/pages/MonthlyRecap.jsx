@@ -3074,11 +3074,18 @@ function EnemyGuildReport({ enemies }) {
           <select
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value)}
-            className="h-8 rounded-md border border-[#263c59] bg-slate-950/22 px-2 text-[11px] font-black text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
+            className="h-8 rounded-md border border-[#263c59] bg-[#020813] px-2 text-[11px] font-black text-white outline-none focus:border-[#4ea1ff]"
+            style={{ colorScheme: 'dark' }}
           >
-            <option value="wars">Wars</option>
-            <option value="kd">K/D</option>
-            <option value="kills">Kills</option>
+            <option className="bg-[#020813] text-white" value="wars">
+              Wars
+            </option>
+            <option className="bg-[#020813] text-white" value="kd">
+              K/D
+            </option>
+            <option className="bg-[#020813] text-white" value="kills">
+              Kills
+            </option>
           </select>
         </label>
       </div>
