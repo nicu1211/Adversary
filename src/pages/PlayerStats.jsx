@@ -98,6 +98,379 @@ function PlayerSelect({ players, value, onChange }) {
   );
 }
 
+
+const PLAYER_COMPARE_THEMES = [
+  {
+    dot: 'bg-cyan-300',
+    border: 'border-cyan-400/30',
+    text: 'text-cyan-200',
+    soft: 'from-cyan-500/15 via-slate-950/70 to-slate-950/80',
+  },
+  {
+    dot: 'bg-violet-300',
+    border: 'border-violet-400/30',
+    text: 'text-violet-200',
+    soft: 'from-violet-500/15 via-slate-950/70 to-slate-950/80',
+  },
+  {
+    dot: 'bg-amber-300',
+    border: 'border-amber-400/30',
+    text: 'text-amber-200',
+    soft: 'from-amber-500/15 via-slate-950/70 to-slate-950/80',
+  },
+];
+
+function ComparePlayersSelect({ players, values, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const selectedPlayers = values
+    .map((name) =>
+      players.find((player) => samePlayerName(player.name, name)),
+    )
+    .filter(Boolean);
+
+  const list = players.filter((player) =>
+    `${player.name} ${player.family || ''}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+
+  const atLimit = values.length >= 3;
+
+  function isSelected(name) {
+    return values.some((value) => samePlayerName(value, name));
+  }
+
+  function togglePlayer(name) {
+    if (isSelected(name)) {
+      onChange(
+        values.filter((value) => !samePlayerName(value, name)),
+      );
+      return;
+    }
+
+    if (atLimit) return;
+
+    onChange([...values, name]);
+  }
+
+  return (
+    <div className="relative mb-4 w-full max-w-xl lg:w-[390px] lg:shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((state) => !state)}
+        className="flex w-full items-center justify-between rounded-2xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-left shadow-lg backdrop-blur-xl transition hover:border-violet-300/50 hover:bg-violet-500/15"
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Compare players
+            </p>
+
+            <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-black text-violet-200">
+              {values.length}/3
+            </span>
+          </div>
+
+          <p className="truncate text-sm font-black">
+            {selectedPlayers.length
+              ? selectedPlayers.map((player) => player.name).join(' · ')
+              : 'Select up to 3 members'}
+          </p>
+        </div>
+
+        <span
+          className={`${open ? 'rotate-180 ' : ''}ml-3 shrink-0 text-slate-400 transition`}
+        >
+          ⌄
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 z-50 mt-2 rounded-2xl border border-violet-400/20 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl">
+          {selectedPlayers.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] p-2">
+              {selectedPlayers.map((player, index) => {
+                const theme =
+                  PLAYER_COMPARE_THEMES[index] ||
+                  PLAYER_COMPARE_THEMES[0];
+
+                return (
+                  <button
+                    type="button"
+                    key={player.name}
+                    onClick={() => togglePlayer(player.name)}
+                    className={`inline-flex min-w-0 items-center gap-1.5 rounded-lg border ${theme.border} bg-slate-900/80 px-2 py-1 text-[11px] font-black ${theme.text}`}
+                    title={`Remove ${player.name}`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.dot}`}
+                    />
+                    <span className="max-w-[120px] truncate">
+                      {player.name}
+                    </span>
+                    <span className="text-slate-500">×</span>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="ml-auto rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            autoFocus
+            placeholder="Search members..."
+            className="mb-2 w-full rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:border-violet-400"
+          />
+
+          <div className={`max-h-72 overflow-y-auto pr-1 ${scrollCls}`}>
+            {!list.length ? (
+              <p className="px-3 py-4 text-sm text-slate-500">
+                No members found.
+              </p>
+            ) : (
+              list.map((player) => {
+                const selected = isSelected(player.name);
+                const disabled = !selected && atLimit;
+
+                return (
+                  <button
+                    type="button"
+                    key={player.name}
+                    disabled={disabled}
+                    onClick={() => togglePlayer(player.name)}
+                    className={`mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                      selected
+                        ? 'bg-violet-500/25 text-violet-100'
+                        : disabled
+                          ? 'cursor-not-allowed text-slate-700'
+                          : 'text-slate-300 hover:bg-white/5'
+                    }`}
+                  >
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-black ${
+                        selected
+                          ? 'border-violet-300 bg-violet-400/20 text-violet-100'
+                          : 'border-slate-700 bg-slate-900 text-transparent'
+                      }`}
+                    >
+                      ✓
+                    </span>
+
+                    <span className="min-w-0 flex-1 truncate font-bold">
+                      {player.name}
+                    </span>
+
+                    {selected && (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-violet-300">
+                        Selected
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-2 flex items-center justify-between border-t border-white/10 px-1 pt-2">
+            <p className="text-[10px] font-bold text-slate-500">
+              {atLimit
+                ? 'Maximum 3 members selected'
+                : `Choose ${3 - values.length} more`}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setQuery('');
+              }}
+              className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-violet-200 transition hover:bg-violet-500/20"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlayerComparisonPanel({ players }) {
+  const metrics = [
+    {
+      key: 'kills',
+      label: 'Kills',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'deaths',
+      label: 'Deaths',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'kd',
+      label: 'K/D',
+      format: (value) => Number(value).toFixed(2),
+    },
+    {
+      key: 'wars',
+      label: 'Wars',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'averageRank',
+      label: 'Average Rank',
+      format: (value) =>
+        value == null ? '—' : Number(value).toFixed(2),
+    },
+    {
+      key: 'killstreak',
+      label: 'Killstreak',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'killfeed',
+      label: 'Killfeed',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'damageDealt',
+      label: 'DMG Dealt',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'damageTaken',
+      label: 'DMG Taken',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'ccHits',
+      label: 'CC Hits',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
+      key: 'damageToFort',
+      label: 'DMG to Fort',
+      format: (value) => formatCompactNumber(value),
+    },
+  ];
+
+  if (!players.length) return null;
+
+  const gridTemplateColumns = `minmax(132px, .72fr) repeat(${players.length}, minmax(160px, 1fr))`;
+
+  return (
+    <div className="relative mb-5 overflow-hidden rounded-[28px] border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-slate-950/90 to-blue-950/30 shadow-[0_24px_70px_rgba(0,0,0,.32)]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/45 to-transparent" />
+        <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="absolute -left-24 bottom-0 h-52 w-52 rounded-full bg-blue-500/10 blur-3xl" />
+      </div>
+
+      <div className="relative flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+        <div>
+          <h3 className="text-lg font-black text-white">
+            Player Comparison
+          </h3>
+          <p className="text-xs font-bold text-slate-500">
+            All-time member statistics
+          </p>
+        </div>
+
+        <span className="rounded-xl border border-violet-400/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-violet-200">
+          {players.length} {players.length === 1 ? 'member' : 'members'}
+        </span>
+      </div>
+
+      <div className={`relative overflow-x-auto ${scrollCls}`}>
+        <div
+          className="min-w-max p-3"
+          style={{ display: 'grid', gridTemplateColumns }}
+        >
+          <div className="rounded-l-2xl border border-r-0 border-slate-800 bg-slate-950/75 px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            Statistic
+          </div>
+
+          {players.map((player, index) => {
+            const theme =
+              PLAYER_COMPARE_THEMES[index] ||
+              PLAYER_COMPARE_THEMES[0];
+
+            return (
+              <div
+                key={player.name}
+                className={`border border-slate-800 bg-gradient-to-br ${theme.soft} px-3 py-3 ${
+                  index === players.length - 1 ? 'rounded-r-2xl' : ''
+                }`}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${theme.dot} shadow-[0_0_14px_currentColor]`}
+                  />
+                  <p
+                    className={`truncate text-sm font-black ${theme.text}`}
+                    title={player.name}
+                  >
+                    {player.name}
+                  </p>
+                </div>
+
+                <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  {player.family || 'Guild member'}
+                </p>
+              </div>
+            );
+          })}
+
+          {metrics.flatMap((metric, metricIndex) => [
+            <div
+              key={`${metric.key}-label`}
+              className={`border-x border-b border-slate-800 bg-slate-950/65 px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400 ${
+                metricIndex === metrics.length - 1
+                  ? 'rounded-bl-2xl'
+                  : ''
+              }`}
+            >
+              {metric.label}
+            </div>,
+            ...players.map((player, playerIndex) => {
+              const theme =
+                PLAYER_COMPARE_THEMES[playerIndex] ||
+                PLAYER_COMPARE_THEMES[0];
+
+              return (
+                <div
+                  key={`${metric.key}-${player.name}`}
+                  className={`border-b border-r border-slate-800 bg-slate-950/45 px-3 py-2.5 text-center text-sm font-black ${theme.text} ${
+                    metricIndex === metrics.length - 1 &&
+                    playerIndex === players.length - 1
+                      ? 'rounded-br-2xl'
+                      : ''
+                  }`}
+                  title={`${player.name} · ${metric.label}`}
+                >
+                  {metric.format(player[metric.key])}
+                </div>
+              );
+            }),
+          ])}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function shortenMiddle(name, maxLength = 12) {
   const text = String(name || '');
 
@@ -2534,11 +2907,187 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
 
 export default function PlayerStats({ stats, onOpenMatchOverview }) {
   const [player, setPlayer] = useState('');
+  const [comparedPlayerNames, setComparedPlayerNames] = useState([]);
+
+  const sortedPlayers = useMemo(
+    () =>
+      [...(stats?.players || [])].sort((a, b) =>
+        String(a.name || '').localeCompare(String(b.name || '')),
+      ),
+    [stats?.players],
+  );
 
   const averageRankTable = useMemo(
     () => buildBestOverallAverageRankTable(stats),
     [stats],
   );
+
+  const comparedPlayers = useMemo(() => {
+    if (!comparedPlayerNames.length) return [];
+
+    const events = stats?.ev || [];
+    const secondaryRows = stats?.secondary?.rows || [];
+    const secondaryPresence =
+      getSecondaryWarMetricPresence(secondaryRows);
+    const eventsByWar = {};
+
+    events.forEach((event, index) => {
+      const warId = String(
+        event?.id ||
+          event?.war ||
+          event?.date ||
+          `combat-${index}`,
+      );
+
+      eventsByWar[warId] ||= [];
+      eventsByWar[warId].push(event);
+    });
+
+    return comparedPlayerNames
+      .map((playerName) => {
+        const playerRow = sortedPlayers.find((item) =>
+          samePlayerName(item.name, playerName),
+        );
+
+        if (!playerRow) return null;
+
+        const warIds = new Set();
+        let bestKillstreak = 0;
+        let bestKillfeed = 0;
+        const secondaryTotals = {
+          damageDealt: 0,
+          damageTaken: 0,
+          ccHits: 0,
+          damageToFort: 0,
+        };
+
+        Object.entries(eventsByWar).forEach(
+          ([warId, warEvents]) => {
+            const involved = warEvents.some((event) =>
+              samePlayerName(
+                getGuildPlayerFromEvent(event),
+                playerName,
+              ),
+            );
+
+            if (!involved) return;
+
+            warIds.add(warId);
+            bestKillstreak = Math.max(
+              bestKillstreak,
+              getBestKillstreakForWar(
+                warEvents,
+                playerName,
+              ),
+            );
+            bestKillfeed = Math.max(
+              bestKillfeed,
+              getBestKillfeedForWar(
+                warEvents,
+                playerName,
+              ),
+            );
+          },
+        );
+
+        secondaryRows.forEach((row, index) => {
+          const rowPlayer = row?.player || row?.name;
+
+          if (!samePlayerName(rowPlayer, playerName)) return;
+
+          const warId = secondaryWarId(row, index);
+          const warPresence = secondaryPresence[warId] || {};
+          const rowStats = getSecondaryMatchStats(row);
+
+          warIds.add(warId);
+
+          if (
+            getSecondaryMetricExists(
+              row,
+              'killfeed',
+              warPresence,
+            )
+          ) {
+            bestKillfeed = Math.max(
+              bestKillfeed,
+              Number(rowStats.killfeed) || 0,
+            );
+          }
+
+          [
+            'damageDealt',
+            'damageTaken',
+            'ccHits',
+            'damageToFort',
+          ].forEach((metric) => {
+            if (
+              getSecondaryMetricExists(
+                row,
+                metric,
+                warPresence,
+              )
+            ) {
+              secondaryTotals[metric] +=
+                Number(rowStats[metric]) || 0;
+            }
+          });
+        });
+
+        const kills = Number(playerRow.kills) || 0;
+        const deaths = Number(playerRow.deaths) || 0;
+        const rawKd = Number(playerRow.kd);
+        const averageRankEntry =
+          averageRankTable[
+            normalizePlayerName(playerName)
+          ];
+
+        return {
+          name: playerRow.name,
+          family: playerRow.family || '',
+          kills,
+          deaths,
+          kd: Number.isFinite(rawKd)
+            ? rawKd
+            : deaths
+              ? kills / deaths
+              : kills,
+          wars: warIds.size,
+          averageRank:
+            averageRankEntry?.average == null
+              ? null
+              : Number(averageRankEntry.average),
+          killstreak: Math.max(
+            Number(playerRow.killstreak) || 0,
+            Number(playerRow.streak) || 0,
+            bestKillstreak,
+          ),
+          killfeed: Math.max(
+            Number(playerRow.killfeed) || 0,
+            Number(playerRow.feed) || 0,
+            bestKillfeed,
+          ),
+          damageDealt:
+            Number(playerRow.damageDealt) ||
+            secondaryTotals.damageDealt,
+          damageTaken:
+            Number(playerRow.damageTaken) ||
+            secondaryTotals.damageTaken,
+          ccHits:
+            Number(playerRow.ccHits) ||
+            secondaryTotals.ccHits,
+          damageToFort:
+            Number(playerRow.damageToFort) ||
+            Number(playerRow.fortDamage) ||
+            secondaryTotals.damageToFort,
+        };
+      })
+      .filter(Boolean);
+  }, [
+    comparedPlayerNames,
+    stats,
+    sortedPlayers,
+    averageRankTable,
+  ]);
 
   const selectedStats = useMemo(() => {
     if (!player) return null;
@@ -2829,13 +3378,21 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
     <Panel>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
-      <PlayerSelect
-        players={[...stats.players].sort((a, b) =>
-          String(a.name || '').localeCompare(String(b.name || '')),
-        )}
-        value={player}
-        onChange={setPlayer}
-      />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <PlayerSelect
+          players={sortedPlayers}
+          value={player}
+          onChange={setPlayer}
+        />
+
+        <ComparePlayersSelect
+          players={sortedPlayers}
+          values={comparedPlayerNames}
+          onChange={setComparedPlayerNames}
+        />
+      </div>
+
+      <PlayerComparisonPanel players={comparedPlayers} />
 
       {selectedStats && (
         <>
