@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
+import adversaryEmblem from './assets/adversary-emblem.png';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -296,8 +297,77 @@ function PageLoader({ text = 'Loading...' }) {
   );
 }
 
+const PAGE_TITLES = {
+  guild: 'Guild',
+  monthly: 'Monthly Recap',
+  nodewars: 'Node Wars',
+  overview: 'Overview',
+  players: 'Player Stats',
+  hall: 'Hall of Fame',
+  raw: 'Raw Logs',
+};
+
+function ActivePageBrand({ page }) {
+  const title = PAGE_TITLES[page] || 'Battle Analytics';
+
+  return (
+    <section className="relative mb-4 overflow-hidden rounded-[26px] border border-amber-300/15 bg-slate-950/72 px-4 py-3 shadow-[0_24px_75px_rgba(0,0,0,.30)] backdrop-blur-2xl sm:px-5 sm:py-4">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,rgba(250,204,21,.07),transparent_34%,rgba(59,130,246,.045))]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
+
+      <img
+        src={adversaryEmblem}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-5 top-1/2 h-40 w-40 -translate-y-1/2 object-contain opacity-[0.13] drop-shadow-[0_0_35px_rgba(250,204,21,.16)] sm:right-4 sm:h-48 sm:w-48"
+      />
+
+      <div className="relative flex min-w-0 items-center gap-3.5">
+        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/20 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_0_28px_rgba(250,204,21,.10)] sm:h-16 sm:w-16">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(250,204,21,.13),transparent_68%)]" />
+          <img
+            src={adversaryEmblem}
+            alt=""
+            aria-hidden="true"
+            className="relative h-[88%] w-[88%] object-contain"
+          />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300/75 sm:text-[10px]">
+            Battle Analytics
+          </p>
+          <h2 className="mt-0.5 truncate text-xl font-black tracking-tight text-white sm:text-2xl">
+            {title}
+          </h2>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState('nodewars');
+
+  useEffect(() => {
+    const title = PAGE_TITLES[page] || 'Battle Analytics';
+    document.title = `${title} · Battle Analytics`;
+
+    let icon = document.querySelector(
+      'link[data-adversary-favicon="true"]',
+    );
+
+    if (!icon) {
+      icon = document.createElement('link');
+      icon.rel = 'icon';
+      icon.type = 'image/png';
+      icon.dataset.adversaryFavicon = 'true';
+      document.head.appendChild(icon);
+    }
+
+    icon.href = adversaryEmblem;
+  }, [page]);
+
 
   const [raw, setRaw] = useState('');
   const [date, setDate] = useState(today());
@@ -809,7 +879,22 @@ export default function App() {
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-slate-950" />
+
+        <img
+          src={adversaryEmblem}
+          alt=""
+          className="absolute left-1/2 top-1/2 h-[min(92vh,1050px)] w-[min(92vw,1050px)] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.065] drop-shadow-[0_0_80px_rgba(250,204,21,.10)]"
+        />
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_44%,transparent_0%,rgba(2,6,23,.30)_42%,rgba(2,6,23,.92)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.32),rgba(2,6,23,.06)_28%,rgba(2,6,23,.22)_70%,rgba(2,6,23,.72))]" />
+      </div>
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black text-white">
           Battle Analytics
@@ -827,7 +912,17 @@ export default function App() {
                   : 'border border-slate-700 bg-slate-900 text-slate-300'
               }`}
             >
-              {title}
+              <span className="flex items-center justify-center gap-2">
+                {id === 'guild' && (
+                  <img
+                    src={adversaryEmblem}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(250,204,21,.28)]"
+                  />
+                )}
+                <span>{title}</span>
+              </span>
             </button>
           ))}
         </div>
@@ -861,8 +956,8 @@ export default function App() {
         )}
       </div>
 
-      <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="hidden min-h-screen flex-col border-r border-slate-800 bg-slate-950 p-4 lg:flex">
+      <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
+        <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/90 p-4 backdrop-blur-2xl lg:flex">
           <h1 className="mb-6 text-2xl font-black text-white">
             Battle Analytics
           </h1>
@@ -884,7 +979,19 @@ export default function App() {
                           : 'hover:bg-slate-900'
                       }`}
                     >
-                      {title}
+                      <span className="flex items-center gap-3">
+                        {id === 'guild' && (
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30">
+                            <img
+                              src={adversaryEmblem}
+                              alt=""
+                              aria-hidden="true"
+                              className="h-7 w-7 object-contain drop-shadow-[0_0_10px_rgba(250,204,21,.26)]"
+                            />
+                          </span>
+                        )}
+                        <span>{title}</span>
+                      </span>
                     </button>
 
                     {isNodeWars && (
@@ -934,7 +1041,8 @@ export default function App() {
           </div>
         </aside>
 
-        <main className="min-w-0 p-3 sm:p-5 lg:p-6">
+        <main className="relative min-w-0 p-3 sm:p-5 lg:p-6">
+          <ActivePageBrand page={page} />
           {page === 'guild' && (
             <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
               {!guildReady || loadingAllLogs ? (
