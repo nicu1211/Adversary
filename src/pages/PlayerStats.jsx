@@ -1150,16 +1150,10 @@ function PlayerComparisonPanel({
             <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-500/12 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-12 h-36 w-36 rounded-full bg-blue-500/8 blur-3xl" />
 
-            <div className="relative mb-2 block">
+            <div className="relative mb-1 block">
               <div className="min-w-0">
-                <p className="text-[13px] font-black uppercase tracking-[0.14em] text-slate-200">
+                <p className="text-[12px] font-black uppercase tracking-[0.12em] text-slate-200">
                   Key Comparison
-                </p>
-                <p className="truncate text-[11px] font-bold text-slate-500">
-                  {mode === 'average'
-                    ? 'Average per war'
-                    : 'Totals and best records'}
-                  {' · '}exact values · guild-wide scale
                 </p>
               </div>
 
@@ -1184,16 +1178,16 @@ function PlayerComparisonPanel({
                         current === metric.key ? '' : metric.key,
                       )
                     }
-                    className={`flex min-h-0 flex-col justify-center rounded-2xl border px-3 py-2.5 text-left transition ${
+                    className={`flex min-h-0 flex-col justify-center rounded-2xl border px-3 py-2 text-left transition ${
                       active
                         ? 'border-violet-300/25 bg-violet-500/[0.075] shadow-[0_0_18px_rgba(139,92,246,.07)]'
                         : 'border-white/[0.045] bg-slate-950/18 hover:border-white/[0.08] hover:bg-white/[0.025]'
                     }`}
                   >
-                    <div className="mb-2 space-y-1.5">
-                      <div className="flex min-w-0 items-center gap-2">
+                    <div className="mb-1.5 space-y-1">
+                      <div className="flex min-w-0 items-start gap-2">
                         <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-[13px] ${
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-[12px] ${
                             active
                               ? 'border-violet-300/25 bg-violet-500/12 text-violet-200'
                               : 'border-white/[0.06] bg-slate-950/34 text-slate-500'
@@ -1202,12 +1196,12 @@ function PlayerComparisonPanel({
                           {metric.icon}
                         </span>
 
-                        <span className="whitespace-normal text-[14px] font-black uppercase leading-tight tracking-[0.06em] text-white">
+                        <span className="whitespace-normal break-words text-[12px] font-black uppercase leading-[1.05] tracking-[0.04em] text-white">
                           {metric.label}
                         </span>
                       </div>
 
-                      <div className="flex min-h-[28px] w-full items-center justify-between gap-3 rounded-lg border border-white/[0.075] bg-slate-950/50 px-2.5 py-1 text-[11px] font-black text-slate-300">
+                      <div className="flex min-h-[26px] w-full items-center justify-between gap-3 rounded-lg border border-white/[0.075] bg-slate-950/50 px-2.5 py-0.5 text-[11px] font-black text-slate-300">
                         <span>Guild average</span>
 
                         <b className="text-[11px] font-black text-slate-100">
