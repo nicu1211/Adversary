@@ -298,14 +298,10 @@ function PageLoader({ text = 'Loading...' }) {
 }
 
 const PANEL_ACCENTS = [
-  '59, 130, 246',
-  '139, 92, 246',
-  '6, 182, 212',
-  '16, 185, 129',
-  '245, 158, 11',
-  '244, 63, 94',
-  '99, 102, 241',
-  '20, 184, 166',
+  '96, 165, 250',
+  '52, 211, 153',
+  '250, 204, 21',
+  '251, 113, 133',
 ];
 
 const PANEL_ACCENT_BY_CLASS = {
@@ -388,37 +384,57 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-content .adversary-color-panel {
-    --adversary-panel-accent-rgb: 59, 130, 246;
-    background-color: rgba(2, 6, 23, 0.18) !important;
-    background-image: linear-gradient(
-      145deg,
-      rgba(var(--adversary-panel-accent-rgb), 0.18) 0%,
-      rgba(15, 23, 42, 0.22) 46%,
-      rgba(2, 6, 23, 0.13) 72%,
-      rgba(var(--adversary-panel-accent-rgb), 0.075) 100%
-    ) !important;
-    border-color: rgba(var(--adversary-panel-accent-rgb), 0.42) !important;
+    --adversary-panel-accent-rgb: 96, 165, 250;
+    background-color: rgba(2, 6, 23, 0.30) !important;
+    background-image:
+      linear-gradient(
+        135deg,
+        rgba(var(--adversary-panel-accent-rgb), 0.125) 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.055) 48%,
+        rgba(2, 6, 23, 0.08) 100%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.16),
+        rgba(2, 6, 23, 0.10)
+      ) !important;
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.30) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.055),
-      inset 0 0 34px rgba(var(--adversary-panel-accent-rgb), 0.035),
-      0 14px 34px rgba(0, 0, 0, 0.20);
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.16),
+      inset 0 0 28px rgba(var(--adversary-panel-accent-rgb), 0.025),
+      0 12px 28px rgba(0, 0, 0, 0.18);
+    -webkit-backdrop-filter: blur(7px) saturate(112%);
+    backdrop-filter: blur(7px) saturate(112%);
     transition:
       border-color 180ms ease,
       box-shadow 180ms ease,
-      background-color 180ms ease,
-      filter 180ms ease,
-      transform 180ms ease;
+      background-image 180ms ease,
+      filter 180ms ease;
   }
 
   .adversary-content .adversary-color-panel:hover {
-    border-color: rgba(var(--adversary-panel-accent-rgb), 0.72) !important;
+    background-image:
+      linear-gradient(
+        135deg,
+        rgba(var(--adversary-panel-accent-rgb), 0.16) 0%,
+        rgba(var(--adversary-panel-accent-rgb), 0.072) 50%,
+        rgba(2, 6, 23, 0.07) 100%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.17),
+        rgba(2, 6, 23, 0.10)
+      ) !important;
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.54) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 0 42px rgba(var(--adversary-panel-accent-rgb), 0.075),
-      0 0 0 1px rgba(var(--adversary-panel-accent-rgb), 0.18),
-      0 0 28px rgba(var(--adversary-panel-accent-rgb), 0.34),
-      0 0 58px rgba(var(--adversary-panel-accent-rgb), 0.18),
-      0 22px 58px rgba(0, 0, 0, 0.34) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.065),
+      inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.26),
+      inset 0 0 34px rgba(var(--adversary-panel-accent-rgb), 0.055),
+      0 0 0 1px rgba(var(--adversary-panel-accent-rgb), 0.08),
+      0 0 18px rgba(var(--adversary-panel-accent-rgb), 0.22),
+      0 0 36px rgba(var(--adversary-panel-accent-rgb), 0.10),
+      0 16px 34px rgba(0, 0, 0, 0.24) !important;
   }
 
   /* Keep the Enemy Guild Tier List hover card above nearby rows and prevent
