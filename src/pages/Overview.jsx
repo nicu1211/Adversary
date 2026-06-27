@@ -1904,12 +1904,105 @@ function PlayerAverageComparisonCard({
   );
 }
 
-function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
+
+function PlayerPerformanceModal({
+  title,
+  subtitle,
+  close,
+  children,
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/88 p-2 backdrop-blur-md sm:p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          close();
+        }
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative flex max-h-[94vh] w-[min(96vw,1540px)] flex-col overflow-hidden rounded-[30px] border border-blue-400/20 bg-slate-950/95 shadow-[0_38px_120px_rgba(0,0,0,.72)]"
+      >
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/45 to-transparent" />
+          <div className="absolute -right-28 -top-28 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
+          <div className="absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.018)_1px,transparent_1px)] bg-[size:38px_38px]" />
+        </div>
+
+        <div className="relative flex items-center justify-between gap-4 border-b border-white/8 bg-slate-950/72 px-4 py-3.5 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10 shadow-[0_0_24px_rgba(59,130,246,.12)]">
+              <div className="h-4 w-4 rotate-45 border-2 border-blue-300/85" />
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="truncate text-lg font-black text-white sm:text-xl">
+                  {title}
+                </h3>
+
+                <span className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-200">
+                  War Performance
+                </span>
+              </div>
+
+              <p className="truncate text-[11px] font-bold text-slate-500">
+                {subtitle}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={close}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 text-lg font-black text-slate-400 transition hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200"
+            aria-label="Close player performance"
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          className={`relative min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 ${scrollCls}`}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLifetimeLogs }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState(['kills', 'desc']);
   const [selected, setSelected] = useState(null);
+  const [lifetimeLoading, setLifetimeLoading] = useState(false);
 
   const [key, direction] = sort;
+
+  async function openPlayerDetails(player) {
+    setSelected(player);
+
+    if (
+      Array.isArray(lifetimeLogs) &&
+      lifetimeLogs.length > 0
+    ) {
+      return;
+    }
+
+    if (typeof loadLifetimeLogs !== 'function') return;
+
+    try {
+      setLifetimeLoading(true);
+      await loadLifetimeLogs();
+    } finally {
+      setLifetimeLoading(false);
+    }
+  }
 
   function formatNumber(value) {
     const number = Number(value) || 0;
@@ -2129,11 +2222,11 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
     };
   }, [history, selected]);
 
-  const selectedAverageStats = useMemo(() => {
+  const selectedLifetimeAverageStats = useMemo(() => {
     if (!selected) return null;
 
-    const logs = Array.isArray(selectedLogs)
-      ? selectedLogs
+    const logs = Array.isArray(lifetimeLogs)
+      ? lifetimeLogs.filter(Boolean)
       : [];
 
     if (!logs.length) return null;
@@ -2387,7 +2480,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
         ? totals.fortDamage / counts.fortDamage
         : null,
     };
-  }, [selected, selectedLogs]);
+  }, [selected, lifetimeLogs]);
   return (
     <Panel cls="h-[680px]">
       <div className="flex h-full flex-col">
@@ -2465,7 +2558,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                   >
                     <td className="py-2 pl-3">
                       <button
-                        onClick={() => setSelected(player)}
+                        onClick={() => openPlayerDetails(player)}
                         className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
                       >
                         {player.name}
@@ -2537,41 +2630,25 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
         </div>
 
         {selected && (
-          <Popup
-            title={`${selected.name} highlights & history`}
+          <PlayerPerformanceModal
+            title={selected.name}
+            subtitle="Selected war compared with full lifetime per-war averages"
             close={() => setSelected(null)}
           >
-            <div className="mb-4 flex flex-wrap gap-2 text-sm">
-              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-                Kills <b className="text-blue-300">{kills}</b>
-              </span>
-
-              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-                Deaths <b className="text-pink-300">{deaths}</b>
-              </span>
-
-              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-                KD <b className="text-emerald-300">{kd}</b>
-              </span>
-
-              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-                Killstreak <b>{streaks[selected.name] || 0}</b>
-              </span>
-
-              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
-                Killfeed{' '}
-                <b className="text-orange-300">{feeds[selected.name] || 0}</b>
-              </span>
-            </div>
-
+            <div className="relative overflow-hidden rounded-[24px] border border-slate-800/90 bg-slate-950/58 p-3 shadow-inner sm:p-4">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/25 to-transparent" />
             <div className="mb-4">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-300">
-                    War vs Player Average
+                    War vs Lifetime Average
                   </p>
                   <p className="text-[11px] font-bold text-slate-500">
-                    Compared with {selectedAverageStats?.wars || 0} available wars
+                    {lifetimeLoading
+                      ? 'Loading full lifetime history…'
+                      : `Lifetime average across ${
+                          selectedLifetimeAverageStats?.wars || 0
+                        } wars`}
                   </p>
                 </div>
 
@@ -2580,11 +2657,11 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 </p>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9">
                 <PlayerAverageComparisonCard
                   label="Kills"
                   current={kills}
-                  average={selectedAverageStats?.kills}
+                  average={selectedLifetimeAverageStats?.kills}
                   type="average"
                   tone="blue"
                 />
@@ -2592,7 +2669,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="Deaths"
                   current={deaths}
-                  average={selectedAverageStats?.deaths}
+                  average={selectedLifetimeAverageStats?.deaths}
                   lowerIsBetter
                   type="average"
                   tone="pink"
@@ -2601,7 +2678,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="K/D"
                   current={kdNumber}
-                  average={selectedAverageStats?.kd}
+                  average={selectedLifetimeAverageStats?.kd}
                   type="kd"
                   tone="emerald"
                 />
@@ -2609,7 +2686,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="Killstreak"
                   current={streaks[selected.name] || 0}
-                  average={selectedAverageStats?.streak}
+                  average={selectedLifetimeAverageStats?.streak}
                   type="average"
                   tone="slate"
                 />
@@ -2617,7 +2694,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="Killfeed"
                   current={feeds[selected.name] || 0}
-                  average={selectedAverageStats?.feed}
+                  average={selectedLifetimeAverageStats?.feed}
                   type="average"
                   tone="orange"
                 />
@@ -2625,7 +2702,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="DMG Dealt"
                   current={selected.damageDealt}
-                  average={selectedAverageStats?.damageDealt}
+                  average={selectedLifetimeAverageStats?.damageDealt}
                   type="average"
                   tone="cyan"
                 />
@@ -2633,7 +2710,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="DMG Taken"
                   current={selected.damageTaken}
-                  average={selectedAverageStats?.damageTaken}
+                  average={selectedLifetimeAverageStats?.damageTaken}
                   lowerIsBetter
                   type="average"
                   tone="rose"
@@ -2642,7 +2719,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="CC Hits"
                   current={selected.ccHits}
-                  average={selectedAverageStats?.ccHits}
+                  average={selectedLifetimeAverageStats?.ccHits}
                   type="average"
                   tone="violet"
                 />
@@ -2650,7 +2727,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 <PlayerAverageComparisonCard
                   label="DMG to Fort"
                   current={selected.fortDamage}
-                  average={selectedAverageStats?.fortDamage}
+                  average={selectedLifetimeAverageStats?.fortDamage}
                   type="average"
                   tone="amber"
                 />
@@ -2658,7 +2735,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
             </div>
 
             <div className="mb-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+              <div className="relative overflow-hidden rounded-2xl border border-blue-400/15 bg-gradient-to-br from-blue-500/8 via-slate-950/72 to-slate-950/90 p-4 shadow-[0_14px_34px_rgba(0,0,0,.18)]">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Favorite victim
                 </p>
@@ -2668,7 +2745,7 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+              <div className="relative overflow-hidden rounded-2xl border border-rose-400/15 bg-gradient-to-br from-rose-500/8 via-slate-950/72 to-slate-950/90 p-4 shadow-[0_14px_34px_rgba(0,0,0,.18)]">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Nemesis
                 </p>
@@ -2798,7 +2875,8 @@ function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
                 </tbody>
               </table>
             </div>
-          </Popup>
+            </div>
+          </PlayerPerformanceModal>
         )}
       </div>
     </Panel>
@@ -3480,6 +3558,8 @@ export default function OverviewPage({
   label,
   members,
   selectedLogs,
+  lifetimeLogs = [],
+  loadLifetimeLogs,
 }) {
   const timelineKillFeeds = calculateKillFeed(
     stats.ev,
@@ -3702,7 +3782,8 @@ export default function OverviewPage({
           streaks={stats.st}
           feeds={stats.fd}
           events={stats.ev}
-          selectedLogs={selectedLogs}
+          lifetimeLogs={lifetimeLogs}
+          loadLifetimeLogs={loadLifetimeLogs}
         />
       </section>
 
