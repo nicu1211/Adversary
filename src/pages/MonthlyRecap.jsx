@@ -30,6 +30,94 @@ const MIN_MONTH = '2026-05';
 const DEFAULT_RECAP_DAYS_AGO = 0;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const MONTHLY_PANEL_ACCENTS = Object.freeze({
+  blue: '59, 130, 246',
+  violet: '139, 92, 246',
+  rose: '244, 63, 94',
+  cyan: '6, 182, 212',
+  green: '16, 185, 129',
+  emerald: '16, 185, 129',
+  amber: '245, 158, 11',
+  pink: '217, 70, 239',
+  slate: '100, 116, 139',
+});
+
+function monthlyPanelStyle(accent = 'blue') {
+  return {
+    '--monthly-panel-accent-rgb':
+      MONTHLY_PANEL_ACCENTS[accent] || MONTHLY_PANEL_ACCENTS.blue,
+  };
+}
+
+const MONTHLY_GUILD_PANEL_CSS = `
+  .monthly-recap-guild-style .monthly-guild-panel {
+    --monthly-panel-accent-rgb: 59, 130, 246;
+    position: relative;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.18) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.09) 42%,
+        rgba(var(--monthly-panel-accent-rgb), 0.035) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.075) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 42px rgba(var(--monthly-panel-accent-rgb), 0.075),
+      0 12px 28px rgba(0, 0, 0, 0.24) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: blur(8px) saturate(122%);
+    transition:
+      box-shadow 180ms ease,
+      background-color 180ms ease,
+      background-image 180ms ease,
+      filter 180ms ease;
+  }
+
+  .monthly-recap-guild-style .monthly-guild-panel:hover {
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.25) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.13) 44%,
+        rgba(var(--monthly-panel-accent-rgb), 0.05) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.10) 0%,
+        rgba(7, 13, 29, 0.48) 54%,
+        rgba(2, 6, 23, 0.62) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 48px rgba(var(--monthly-panel-accent-rgb), 0.13),
+      0 0 20px rgba(var(--monthly-panel-accent-rgb), 0.30),
+      0 0 42px rgba(var(--monthly-panel-accent-rgb), 0.15),
+      0 16px 34px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  .monthly-recap-guild-style .monthly-section-header {
+    background: transparent !important;
+    border-color: rgba(var(--monthly-panel-accent-rgb), 0.12) !important;
+  }
+
+
+  .monthly-recap-guild-style .monthly-formula-panel,
+  .monthly-recap-guild-style .monthly-guild-ranking-header {
+    background-color: rgba(2, 6, 23, 0.14) !important;
+    background-image: none !important;
+  }
+`;
+
 const GUILD_ROSTER = Object.freeze([
   'GojuSaki',
   'Aspeen',
@@ -1645,11 +1733,19 @@ function buildReview(
   };
 }
 
-function SectionShell({ icon: Icon, title, children }) {
+function SectionShell({ icon: Icon, title, accent = 'blue', children }) {
   return (
-    <section className="overflow-hidden rounded-[10px] border border-[#28405f]/80 bg-slate-950/16 shadow-[0_14px_40px_rgba(0,0,0,.20)] backdrop-blur-[2px]">
-      <div className="flex h-8 items-center gap-2 border-b border-[#28405f]/70 bg-slate-950/12 px-3">
-        <Icon size={14} className="text-[#5fa8ff]" />
+    <section
+      className="monthly-guild-panel overflow-hidden rounded-[22px] border border-transparent"
+      style={monthlyPanelStyle(accent)}
+    >
+      <div className="monthly-section-header flex h-9 items-center gap-2 border-b px-4">
+        <Icon
+          size={14}
+          style={{
+            color: `rgb(${MONTHLY_PANEL_ACCENTS[accent] || MONTHLY_PANEL_ACCENTS.blue})`,
+          }}
+        />
         <h2 className="text-[12px] font-black uppercase tracking-[0.08em] text-[#d8e5f7]">
           {title}
         </h2>
@@ -1697,7 +1793,8 @@ function KpiCard({
 
   return (
     <div
-      className={`min-h-[86px] rounded-[10px] border border-[#28405f]/75 bg-gradient-to-br from-slate-950/28 via-slate-950/14 to-transparent p-3 backdrop-blur-[2px] ${theme.shadow}`}
+      className={`monthly-guild-panel min-h-[86px] rounded-[22px] border border-transparent p-3 ${theme.shadow}`}
+      style={monthlyPanelStyle(accent)}
     >
       <div className="flex items-center gap-3">
         <div
@@ -1767,11 +1864,10 @@ function MatchupCard({
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`group flex min-h-[86px] w-full items-center gap-3 rounded-[10px] border p-3 text-left transition ${
-        onClick
-          ? 'cursor-pointer hover:-translate-y-0.5 hover:brightness-110'
-          : 'cursor-default'
+      className={`monthly-guild-panel group flex min-h-[86px] w-full items-center gap-3 rounded-[22px] border border-transparent p-3 text-left ${
+        onClick ? 'cursor-pointer' : 'cursor-default'
       } ${classes}`}
+      style={monthlyPanelStyle(accent)}
     >
       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-current/30 bg-black/25">
         <Icon size={30} />
@@ -1828,7 +1924,10 @@ function PlayerHighlight({
   }[accent];
 
   return (
-    <div className={`min-h-[96px] rounded-[10px] border bg-gradient-to-br from-slate-950/26 via-slate-950/12 to-transparent p-3 backdrop-blur-[2px] ${classes}`}>
+    <div
+      className={`monthly-guild-panel min-h-[96px] rounded-[22px] border border-transparent p-3 ${classes}`}
+      style={monthlyPanelStyle(accent)}
+    >
       <div className="flex h-full items-center gap-3">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[12px] border border-current/25 bg-black/25">
           <Icon size={34} />
@@ -1868,7 +1967,8 @@ function FeaturedWar({ item, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(item.row)}
-      className={`group relative min-h-[108px] overflow-hidden rounded-[10px] border bg-gradient-to-r ${accent} to-transparent p-4 text-left backdrop-blur-[2px] transition hover:-translate-y-0.5 hover:brightness-110`}
+      className={`monthly-guild-panel group relative min-h-[108px] overflow-hidden rounded-[22px] border border-transparent p-4 text-left ${accent}`}
+      style={monthlyPanelStyle(item.accent)}
     >
       <div className="absolute inset-y-0 right-0 w-[58%] opacity-75">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_65%_45%,rgba(255,255,255,.14),transparent_30%)]" />
@@ -2535,7 +2635,7 @@ function PlayersTable({ players }) {
 
   return (
     <>
-      <div className="border-b border-[#28405f]/70 bg-slate-950/14 px-3 py-3">
+      <div className="monthly-formula-panel border-b border-[#28405f]/40 px-3 py-3">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -2894,7 +2994,7 @@ function EnemyGuildReport({ enemies }) {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-[#28405f]/70 bg-slate-950/14 px-3 py-2">
+      <div className="monthly-guild-ranking-header flex items-center justify-between border-b border-[#28405f]/40 px-3 py-2">
         <p className="text-[10px] font-black uppercase tracking-[0.09em] text-[#8291a7]">
           Guild Rankings
         </p>
@@ -3054,7 +3154,8 @@ export default function MonthlyRecap({
   } = review;
 
   return (
-    <div className="space-y-2.5 bg-transparent text-white">
+    <div className="monthly-recap-guild-style space-y-2.5 bg-transparent text-white">
+      <style>{MONTHLY_GUILD_PANEL_CSS}</style>
       <div className="flex flex-col gap-3 pb-1 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-[32px] font-black leading-none tracking-[-0.02em] text-white">
@@ -3206,7 +3307,7 @@ export default function MonthlyRecap({
         />
       </div>
 
-      <SectionShell icon={Swords} title="Featured Wars">
+      <SectionShell icon={Swords} title="Featured Wars" accent="blue">
         <div className="grid gap-2 p-2 xl:grid-cols-3">
           {featuredWars.length ? (
             featuredWars.map((item) => (
@@ -3224,7 +3325,7 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <SectionShell icon={Shield} title="Enemy Guild Report">
+      <SectionShell icon={Shield} title="Enemy Guild Report" accent="violet">
         <div className="grid items-stretch gap-0 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,.95fr)]">
           <div className="border-b border-[#28405f]/70 p-2 xl:border-b-0 xl:border-r">
             <div className="grid min-h-[488px] grid-cols-1 content-stretch gap-2">
@@ -3313,7 +3414,7 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <SectionShell icon={Users} title="Player Highlights">
+      <SectionShell icon={Users} title="Player Highlights" accent="green">
         <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <PlayerHighlight
             icon={Crosshair}
@@ -3391,7 +3492,7 @@ export default function MonthlyRecap({
         </div>
       </SectionShell>
 
-      <SectionShell icon={Activity} title="Players Performance">
+      <SectionShell icon={Activity} title="Players Performance" accent="cyan">
         <PlayersTable players={players} />
       </SectionShell>
 
