@@ -27,7 +27,7 @@ import {
 } from '../lib/logUtils';
 
 const MIN_MONTH = '2026-05';
-const DEFAULT_RECAP_DAYS_AGO = 30;
+const DEFAULT_RECAP_DAYS_AGO = 0;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const GUILD_ROSTER = Object.freeze([
@@ -1825,8 +1825,8 @@ function PlayerHighlight({ icon: Icon, label, name, value, unit, accent }) {
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[12px] border border-current/25 bg-black/25">
           <Icon size={34} />
         </div>
-        <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.08em]">
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          <p className="flex min-h-[24px] items-end text-[9px] font-black uppercase leading-[1.15] tracking-[0.08em]">
             {label}
           </p>
           <p className="mt-1 truncate text-[13px] font-black text-white">
@@ -3316,7 +3316,7 @@ export default function MonthlyRecap({
           />
           <PlayerHighlight
             icon={Gauge}
-            label="Best K/D"
+            label="Highest K/D Single Match"
             name={bestKd?.name}
             value={bestKd ? bestKd.kd.toFixed(2) : '-'}
             unit={
