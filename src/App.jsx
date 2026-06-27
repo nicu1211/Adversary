@@ -506,6 +506,28 @@ const GLOBAL_PANEL_CSS = `
     isolation: isolate;
   }
 
+  /* These three structural Guild sections should show the page artwork
+     directly behind them. Keep their borders and hover glow, but remove all
+     panel fill on both normal and hover states. */
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel.adversary-transparent-surface,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel.adversary-transparent-surface:hover {
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-tier-letter {
+    color: rgb(var(--adversary-tier-rgb)) !important;
+    text-shadow:
+      0 0 10px rgba(var(--adversary-tier-rgb), 0.62),
+      0 0 22px rgba(var(--adversary-tier-rgb), 0.28);
+  }
+
+  body[data-adversary-page="guild"] .adversary-trash-label {
+    color: rgba(var(--adversary-tier-rgb), 0.82) !important;
+  }
+
   body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger {
     position: relative;
   }
@@ -661,10 +683,18 @@ export default function App() {
 
         titleElements.forEach((heading) => {
           const title = heading.textContent?.trim().toLowerCase() || '';
+          const panel = heading.closest(MAJOR_PANEL_SELECTOR);
+
+          if (
+            panel &&
+            (title.includes('averages') ||
+              title.includes('enemy guild tier list') ||
+              title.includes('tier list filters'))
+          ) {
+            panel.classList.add('adversary-transparent-surface');
+          }
 
           if (!title.includes('enemy guild tier list')) return;
-
-          const panel = heading.closest(MAJOR_PANEL_SELECTOR);
 
           if (panel) {
             panel.classList.add('adversary-enemy-tier-panel');
@@ -680,6 +710,7 @@ export default function App() {
             C: '139, 92, 246',
             D: '244, 63, 94',
             E: '249, 115, 22',
+            T: '100, 116, 139',
           };
 
           /* Do not replace the tier-list panels with a different visual
@@ -716,6 +747,10 @@ export default function App() {
           tierLabels.forEach((label) => {
             const tierName = label.textContent?.trim().toUpperCase() || '';
             const accent = tierAccentByName[tierName];
+
+            label.classList.add('adversary-tier-letter');
+            label.style.setProperty('--adversary-tier-rgb', accent);
+
             let ancestor = label.parentElement;
             let row = null;
 
@@ -759,6 +794,20 @@ export default function App() {
               );
               card.style.setProperty('--adversary-panel-accent-rgb', accent);
             });
+
+            if (tierName === 'T') {
+              const tierCaption = [...row.querySelectorAll('div, span, p, small, strong')]
+                .find((element) => element.textContent?.trim().toUpperCase() === 'TIER');
+
+              if (tierCaption) {
+                if (tierCaption.textContent !== 'Trash') {
+                  tierCaption.textContent = 'Trash';
+                }
+
+                tierCaption.classList.add('adversary-trash-label');
+                tierCaption.style.setProperty('--adversary-tier-rgb', accent);
+              }
+            }
           });
         }
 
