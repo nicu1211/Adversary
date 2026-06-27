@@ -1647,8 +1647,8 @@ function buildReview(
 
 function SectionShell({ icon: Icon, title, children }) {
   return (
-    <section className="overflow-hidden rounded-[10px] border border-[#13243a] bg-[#020813] shadow-[0_14px_40px_rgba(0,0,0,.32)]">
-      <div className="flex h-8 items-center gap-2 border-b border-[#13243a] bg-[#06111f] px-3">
+    <section className="overflow-hidden rounded-[10px] border border-[#28405f]/80 bg-slate-950/16 shadow-[0_14px_40px_rgba(0,0,0,.20)] backdrop-blur-[2px]">
+      <div className="flex h-8 items-center gap-2 border-b border-[#28405f]/70 bg-slate-950/12 px-3">
         <Icon size={14} className="text-[#5fa8ff]" />
         <h2 className="text-[12px] font-black uppercase tracking-[0.08em] text-[#d8e5f7]">
           {title}
@@ -1697,7 +1697,7 @@ function KpiCard({
 
   return (
     <div
-      className={`min-h-[86px] rounded-[10px] border border-[#13243a] bg-gradient-to-br from-[#071322] to-[#020813] p-3 ${theme.shadow}`}
+      className={`min-h-[86px] rounded-[10px] border border-[#28405f]/75 bg-gradient-to-br from-slate-950/28 via-slate-950/14 to-transparent p-3 backdrop-blur-[2px] ${theme.shadow}`}
     >
       <div className="flex items-center gap-3">
         <div
@@ -1755,11 +1755,11 @@ function MatchupCard({
 }) {
   const classes = {
     violet:
-      'border-violet-500/40 bg-gradient-to-r from-violet-950/55 to-[#020813] text-violet-300',
+      'border-violet-500/40 bg-gradient-to-r from-violet-950/24 via-slate-950/12 to-transparent text-violet-300',
     cyan:
-      'border-cyan-500/40 bg-gradient-to-r from-cyan-950/45 to-[#020813] text-cyan-300',
+      'border-cyan-500/40 bg-gradient-to-r from-cyan-950/22 via-slate-950/12 to-transparent text-cyan-300',
     rose:
-      'border-rose-500/40 bg-gradient-to-r from-rose-950/45 to-[#020813] text-rose-300',
+      'border-rose-500/40 bg-gradient-to-r from-rose-950/22 via-slate-950/12 to-transparent text-rose-300',
   }[accent];
 
   return (
@@ -1828,7 +1828,7 @@ function PlayerHighlight({
   }[accent];
 
   return (
-    <div className={`min-h-[96px] rounded-[10px] border bg-gradient-to-br from-[#071322] to-[#020813] p-3 ${classes}`}>
+    <div className={`min-h-[96px] rounded-[10px] border bg-gradient-to-br from-slate-950/26 via-slate-950/12 to-transparent p-3 backdrop-blur-[2px] ${classes}`}>
       <div className="flex h-full items-center gap-3">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[12px] border border-current/25 bg-black/25">
           <Icon size={34} />
@@ -1859,16 +1859,16 @@ function PlayerHighlight({
 
 function FeaturedWar({ item, onOpen }) {
   const accent = {
-    blue: 'border-blue-500/55 from-blue-950/90 via-[#07162b]',
-    violet: 'border-violet-500/55 from-violet-950/90 via-[#1a0d31]',
-    cyan: 'border-cyan-500/55 from-cyan-950/85 via-[#06242c]',
+    blue: 'border-blue-500/55 from-blue-950/34 via-slate-950/14',
+    violet: 'border-violet-500/55 from-violet-950/34 via-slate-950/14',
+    cyan: 'border-cyan-500/55 from-cyan-950/32 via-slate-950/14',
   }[item.accent];
 
   return (
     <button
       type="button"
       onClick={() => onOpen(item.row)}
-      className={`group relative min-h-[108px] overflow-hidden rounded-[10px] border bg-gradient-to-r ${accent} to-[#020813] p-4 text-left transition hover:-translate-y-0.5 hover:brightness-110`}
+      className={`group relative min-h-[108px] overflow-hidden rounded-[10px] border bg-gradient-to-r ${accent} to-transparent p-4 text-left backdrop-blur-[2px] transition hover:-translate-y-0.5 hover:brightness-110`}
     >
       <div className="absolute inset-y-0 right-0 w-[58%] opacity-75">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_65%_45%,rgba(255,255,255,.14),transparent_30%)]" />
@@ -1918,7 +1918,7 @@ function BarCell({ value, max, color }) {
       <span className="w-[48px] text-right text-[11px] font-black text-[#d8e5f7]">
         {compact(value)}
       </span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#0b1728]">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-950/32">
         <div
           className={`h-full rounded-full ${color}`}
           style={{ width: `${width}%` }}
@@ -2535,7 +2535,7 @@ function PlayersTable({ players }) {
 
   return (
     <>
-      <div className="border-b border-[#13243a] bg-[#05101d] px-3 py-3">
+      <div className="border-b border-[#28405f]/70 bg-slate-950/14 px-3 py-3">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -2552,7 +2552,7 @@ function PlayersTable({ players }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="rounded-md border border-[#263c59] bg-[#071422] px-2.5 py-1.5 text-[9px] font-black text-slate-400">
+            <div className="rounded-md border border-[#263c59] bg-slate-950/22 px-2.5 py-1.5 text-[9px] font-black text-slate-400">
               Weight pool:{' '}
               <span className="text-white">
                 {overallWeightTotal}
@@ -2562,12 +2562,12 @@ function PlayersTable({ players }) {
             <button
               type="button"
               onClick={resetOverallWeights}
-              className="rounded-md border border-[#263c59] bg-[#071422] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-slate-400 transition hover:border-[#4ea1ff] hover:text-white"
+              className="rounded-md border border-[#263c59] bg-slate-950/22 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-slate-400 transition hover:border-[#4ea1ff] hover:text-white"
             >
               Reset
             </button>
 
-            <div className="flex items-center rounded-lg border border-[#263c59] bg-[#071422] p-1">
+            <div className="flex items-center rounded-lg border border-[#263c59] bg-slate-950/22 p-1">
               {[
                 ['total', 'Total'],
                 ['average', 'Average'],
@@ -2638,7 +2638,7 @@ function PlayersTable({ players }) {
       <div className={`max-h-[720px] overflow-y-auto overflow-x-hidden ${scrollCls}`}>
         <div className="w-full min-w-0">
           <div
-            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-1 border-b border-[#13243a] bg-[#071422] px-2 py-2 text-[9px] font-black uppercase tracking-[0.045em]`}
+            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-1 border-b border-[#28405f]/70 bg-slate-950/22 px-2 py-2 text-[9px] font-black uppercase tracking-[0.045em]`}
           >
             <span className="text-[#7f8da2]">#</span>
 
@@ -2738,7 +2738,7 @@ function PlayersTable({ players }) {
             />
           </div>
 
-          <div className="divide-y divide-[#102038]">
+          <div className="divide-y divide-[#28405f]/45">
             {rows.map((player, index) => {
               const inactive = player.inactive;
 
@@ -2746,7 +2746,7 @@ function PlayersTable({ players }) {
                 <div
                   key={player.name}
                   className={`grid ${gridColumns} items-center gap-1 px-2 py-2 text-[12px] transition hover:bg-white/[.02] ${
-                    inactive ? 'bg-[#030914]/55' : ''
+                    inactive ? 'bg-slate-950/16' : ''
                   }`}
                 >
                   <span
@@ -2894,7 +2894,7 @@ function EnemyGuildReport({ enemies }) {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-[#13243a] bg-[#05101d] px-3 py-2">
+      <div className="flex items-center justify-between border-b border-[#28405f]/70 bg-slate-950/14 px-3 py-2">
         <p className="text-[10px] font-black uppercase tracking-[0.09em] text-[#8291a7]">
           Guild Rankings
         </p>
@@ -2906,7 +2906,7 @@ function EnemyGuildReport({ enemies }) {
           <select
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value)}
-            className="h-8 rounded-md border border-[#263c59] bg-[#071422] px-2 text-[11px] font-black text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
+            className="h-8 rounded-md border border-[#263c59] bg-slate-950/22 px-2 text-[11px] font-black text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
           >
             <option value="wars">Wars</option>
             <option value="kd">K/D</option>
@@ -2921,7 +2921,7 @@ function EnemyGuildReport({ enemies }) {
         </div>
       ) : (
         <div
-          className={`max-h-[448px] overflow-y-auto divide-y divide-[#102038] ${scrollCls}`}
+          className={`max-h-[448px] overflow-y-auto divide-y divide-[#28405f]/45 ${scrollCls}`}
         >
           {rows.map((enemy, index) => {
             const positive = enemy.kd >= 1;
@@ -2939,7 +2939,7 @@ function EnemyGuildReport({ enemies }) {
                         ? 'border-slate-300/20 bg-slate-300/5 text-slate-300'
                         : index === 2
                           ? 'border-orange-400/25 bg-orange-400/10 text-orange-300'
-                          : 'border-[#263c59] bg-[#081626] text-[#7589a3]'
+                          : 'border-[#263c59] bg-slate-950/22 text-[#7589a3]'
                   }`}
                 >
                   {index + 1}
@@ -3054,7 +3054,7 @@ export default function MonthlyRecap({
   } = review;
 
   return (
-    <div className="space-y-2.5 bg-[#020611] text-white">
+    <div className="space-y-2.5 bg-transparent text-white">
       <div className="flex flex-col gap-3 pb-1 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-[32px] font-black leading-none tracking-[-0.02em] text-white">
@@ -3086,7 +3086,7 @@ export default function MonthlyRecap({
             <select
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
-              className="h-10 rounded-[8px] border border-[#23364f] bg-[#020813] py-2 pl-9 pr-9 text-[12px] font-bold text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
+              className="h-10 rounded-[8px] border border-[#23364f] bg-slate-950/24 py-2 pl-9 pr-9 text-[12px] font-bold text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
             >
               {months.map((month) => (
                 <option key={month} value={month}>
@@ -3096,7 +3096,7 @@ export default function MonthlyRecap({
             </select>
           </label>
 
-          <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#23364f] bg-[#020813] px-3 focus-within:border-[#4ea1ff]">
+          <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#23364f] bg-slate-950/24 px-3 focus-within:border-[#4ea1ff]">
             <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.07em] text-[#7f8da2]">
               Days Ago
             </span>
@@ -3226,7 +3226,7 @@ export default function MonthlyRecap({
 
       <SectionShell icon={Shield} title="Enemy Guild Report">
         <div className="grid items-stretch gap-0 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,.95fr)]">
-          <div className="border-b border-[#13243a] p-2 xl:border-b-0 xl:border-r">
+          <div className="border-b border-[#28405f]/70 p-2 xl:border-b-0 xl:border-r">
             <div className="grid min-h-[488px] grid-cols-1 content-stretch gap-2">
               <MatchupCard
                 icon={Swords}
