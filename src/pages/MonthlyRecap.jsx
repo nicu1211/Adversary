@@ -1948,7 +1948,7 @@ function SortHeader({
     <button
       type="button"
       onClick={() => onSort(sortKey)}
-      className={`flex items-center gap-1 text-left transition hover:brightness-125 ${
+      className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-left transition hover:brightness-125 ${
         active ? 'brightness-125' : ''
       } ${
         rainbow
@@ -2635,10 +2635,10 @@ function PlayersTable({ players }) {
         </div>
       </div>
 
-      <div className={`max-h-[720px] overflow-y-auto overflow-x-hidden ${scrollCls}`}>
-        <div className="w-full min-w-0">
+      <div className={`isolate max-h-[720px] overflow-auto ${scrollCls}`}>
+        <div className="w-full min-w-[1160px]">
           <div
-            className={`sticky top-0 z-10 grid ${gridColumns} items-center gap-1 border-b border-[#28405f]/70 bg-slate-950/22 px-2 py-2 text-[9px] font-black uppercase tracking-[0.045em]`}
+            className={`monthly-player-performance-header sticky top-0 z-30 grid ${gridColumns} items-center gap-1 border-b border-[#28405f]/80 px-2 py-2 text-[9px] font-black uppercase tracking-[0.045em]`}
           >
             <span className="text-[#7f8da2]">#</span>
 
@@ -2738,7 +2738,7 @@ function PlayersTable({ players }) {
             />
           </div>
 
-          <div className="divide-y divide-[#28405f]/45">
+          <div className="relative z-0 divide-y divide-[#28405f]/45">
             {rows.map((player, index) => {
               const inactive = player.inactive;
 
