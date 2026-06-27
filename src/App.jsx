@@ -297,25 +297,85 @@ function PageLoader({ text = 'Loading...' }) {
   );
 }
 
+const PANEL_ACCENTS = [
+  '59, 130, 246',
+  '139, 92, 246',
+  '6, 182, 212',
+  '16, 185, 129',
+  '245, 158, 11',
+  '244, 63, 94',
+  '99, 102, 241',
+  '20, 184, 166',
+];
+
+const PANEL_ACCENT_BY_CLASS = {
+  blue: '59, 130, 246',
+  sky: '14, 165, 233',
+  cyan: '6, 182, 212',
+  teal: '20, 184, 166',
+  emerald: '16, 185, 129',
+  green: '34, 197, 94',
+  amber: '245, 158, 11',
+  yellow: '234, 179, 8',
+  orange: '249, 115, 22',
+  red: '239, 68, 68',
+  rose: '244, 63, 94',
+  pink: '236, 72, 153',
+  fuchsia: '217, 70, 239',
+  purple: '168, 85, 247',
+  violet: '139, 92, 246',
+  indigo: '99, 102, 241',
+};
+
+const MAJOR_PANEL_SELECTOR =
+  ':is(section, article, div)[class*="rounded"][class*="border"]';
+
+function getPanelAccent(element, index) {
+  const classText =
+    typeof element?.className === 'string' ? element.className : '';
+
+  for (const [name, rgb] of Object.entries(PANEL_ACCENT_BY_CLASS)) {
+    if (classText.includes(`border-${name}-`)) {
+      return rgb;
+    }
+  }
+
+  const borderColor = window.getComputedStyle(element).borderTopColor;
+  const match = borderColor.match(
+    /rgba?\(\s*(\d+)\D+(\d+)\D+(\d+)(?:\D+([\d.]+))?\s*\)/,
+  );
+
+  if (match) {
+    const red = Number(match[1]);
+    const green = Number(match[2]);
+    const blue = Number(match[3]);
+    const alpha = match[4] == null ? 1 : Number(match[4]);
+    const spread = Math.max(red, green, blue) - Math.min(red, green, blue);
+
+    if (alpha > 0.05 && spread >= 36) {
+      return `${red}, ${green}, ${blue}`;
+    }
+  }
+
+  return PANEL_ACCENTS[index % PANEL_ACCENTS.length];
+}
+
 const GLOBAL_PANEL_CSS = `
   .adversary-content {
     --adversary-panel-bg-top: rgba(15, 23, 42, 0.24);
     --adversary-panel-bg-bottom: rgba(2, 6, 23, 0.12);
     --adversary-panel-border: rgba(100, 116, 139, 0.36);
-    --adversary-panel-glow-blue: rgba(59, 130, 246, 0.30);
-    --adversary-panel-glow-violet: rgba(139, 92, 246, 0.16);
   }
 
-  /* Page components sometimes paint an opaque full-page wrapper. Remove that
-     first so the centered emblem remains visible on every route. */
+  /* Keep route wrappers transparent so the full-page artwork stays visible. */
   .adversary-content > :is(div, section, article)[class*="bg-"],
   .adversary-content > :is(div, section, article) > :is(div, section, article)[class*="bg-"]:not([class*="rounded"]) {
     background-color: transparent !important;
     background-image: none !important;
   }
 
-  /* Force every bordered content surface to remain translucent, even when
-     an individual page uses an opaque Tailwind background or gradient. */
+  /* All bordered surfaces remain translucent. Major panels receive their own
+     accent variable from React so their tint and hover glow always match. */
   .adversary-content :is(section, article, div)[class*="border"][class*="bg-"] {
     background-color: rgba(2, 6, 23, 0.16) !important;
     background-image: linear-gradient(
@@ -323,58 +383,100 @@ const GLOBAL_PANEL_CSS = `
       var(--adversary-panel-bg-top),
       var(--adversary-panel-bg-bottom)
     ) !important;
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
   }
 
-  /* Major panels get a smooth coloured glow without making every tiny chip
-     or table cell flash at the same time. */
-  .adversary-content :is(section, article, div)[class*="rounded-3xl"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-2xl"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[32px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[30px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[28px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[26px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[24px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[22px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[20px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[16px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[14px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[12px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-[10px]"][class*="border"],
-  .adversary-content :is(section, article, div)[class*="rounded-xl"][class*="border"][class*="shadow"] {
+  .adversary-content .adversary-color-panel {
+    --adversary-panel-accent-rgb: 59, 130, 246;
+    background-color: rgba(2, 6, 23, 0.18) !important;
+    background-image: linear-gradient(
+      145deg,
+      rgba(var(--adversary-panel-accent-rgb), 0.18) 0%,
+      rgba(15, 23, 42, 0.22) 46%,
+      rgba(2, 6, 23, 0.13) 72%,
+      rgba(var(--adversary-panel-accent-rgb), 0.075) 100%
+    ) !important;
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.42) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 0 34px rgba(var(--adversary-panel-accent-rgb), 0.035),
+      0 14px 34px rgba(0, 0, 0, 0.20);
     transition:
       border-color 180ms ease,
       box-shadow 180ms ease,
       background-color 180ms ease,
-      filter 180ms ease;
+      filter 180ms ease,
+      transform 180ms ease;
   }
 
-  .adversary-content :is(section, article, div)[class*="rounded-3xl"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-2xl"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[32px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[30px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[28px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[26px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[24px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[22px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[20px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[16px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[14px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[12px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-[10px]"][class*="border"]:hover,
-  .adversary-content :is(section, article, div)[class*="rounded-xl"][class*="border"][class*="shadow"]:hover {
-    border-color: rgba(96, 165, 250, 0.56) !important;
+  .adversary-content .adversary-color-panel:hover {
+    border-color: rgba(var(--adversary-panel-accent-rgb), 0.72) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.07),
-      0 0 0 1px rgba(96, 165, 250, 0.14),
-      0 0 28px var(--adversary-panel-glow-blue),
-      0 0 52px var(--adversary-panel-glow-violet),
-      0 20px 56px rgba(0, 0, 0, 0.30) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 0 42px rgba(var(--adversary-panel-accent-rgb), 0.075),
+      0 0 0 1px rgba(var(--adversary-panel-accent-rgb), 0.18),
+      0 0 28px rgba(var(--adversary-panel-accent-rgb), 0.34),
+      0 0 58px rgba(var(--adversary-panel-accent-rgb), 0.18),
+      0 22px 58px rgba(0, 0, 0, 0.34) !important;
   }
 
-  /* The sticky Player Performance heading must stay readable while rows
-     move underneath it. It is intentionally less transparent than panels. */
+  /* Keep the Enemy Guild Tier List hover card above nearby rows and prevent
+     only its tooltip ancestors from clipping it. */
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-overflow {
+    overflow: visible !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-enemy-tier-panel {
+    position: relative;
+    z-index: 100;
+    isolation: isolate;
+  }
+
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger {
+    position: relative;
+  }
+
+  body[data-adversary-page="guild"] .adversary-guild-tooltip-trigger:hover {
+    z-index: 9998 !important;
+  }
+
+  body[data-adversary-page="guild"] .adversary-guild-tooltip {
+    z-index: 9999 !important;
+  }
+
+  /* The Overview player War Performance overlay is intentionally page-scoped
+     so no other dialog or page layout is changed. */
+  body[data-adversary-page="overview"] .adversary-war-performance-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: clamp(14px, 3vw, 36px) !important;
+  }
+
+  body[data-adversary-page="overview"] .adversary-war-performance-dialog {
+    position: relative !important;
+    inset: auto !important;
+    width: min(1120px, 96vw) !important;
+    max-width: 1120px !important;
+    max-height: 90vh !important;
+    margin: auto !important;
+    overflow: auto !important;
+    transform: none !important;
+    z-index: 10001 !important;
+  }
+
+  @media (max-width: 640px) {
+    body[data-adversary-page="overview"] .adversary-war-performance-dialog {
+      width: 96vw !important;
+      max-height: 88vh !important;
+    }
+  }
+
+  /* Preserve the existing Player Performance scrolling and sticky header. */
   .adversary-content .monthly-player-performance-header {
     background: rgba(2, 6, 17, 0.94) !important;
     -webkit-backdrop-filter: blur(16px) !important;
@@ -382,6 +484,7 @@ const GLOBAL_PANEL_CSS = `
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42) !important;
   }
 `;
+
 
 const PAGE_TITLES = {
   guild: 'Guild',
@@ -448,6 +551,138 @@ export default function App() {
     }
 
     icon.href = adversaryEmblem;
+  }, [page]);
+
+  useEffect(() => {
+    document.body.dataset.adversaryPage = page;
+
+    let frameId = 0;
+
+    const decorateSurfaces = () => {
+      frameId = 0;
+
+      const contentRoot = document.querySelector('.adversary-content');
+
+      if (contentRoot) {
+        const panels = [...contentRoot.querySelectorAll(MAJOR_PANEL_SELECTOR)].filter(
+          (panel) => {
+            const bounds = panel.getBoundingClientRect();
+            return bounds.width >= 140 && bounds.height >= 48;
+          },
+        );
+
+        panels.forEach((panel, index) => {
+          panel.classList.add('adversary-color-panel');
+          panel.style.setProperty(
+            '--adversary-panel-accent-rgb',
+            getPanelAccent(panel, index),
+          );
+        });
+      }
+
+      if (page === 'guild' && contentRoot) {
+        let enemyTierPanel = null;
+        const titleElements = contentRoot.querySelectorAll(
+          'h1, h2, h3, h4, h5, h6, [class*="font-black"], [class*="font-bold"]',
+        );
+
+        titleElements.forEach((heading) => {
+          const title = heading.textContent?.trim().toLowerCase() || '';
+
+          if (!title.includes('enemy guild tier list')) return;
+
+          const panel = heading.closest(MAJOR_PANEL_SELECTOR);
+
+          if (panel) {
+            panel.classList.add('adversary-enemy-tier-panel');
+            enemyTierPanel = panel;
+          }
+        });
+
+        const tooltipCandidates = enemyTierPanel
+          ? enemyTierPanel.querySelectorAll(
+              [
+                '[role="tooltip"]',
+                '[class*="tooltip"]:not(.adversary-guild-tooltip):not(.adversary-guild-tooltip-trigger):not(.adversary-guild-tooltip-overflow)',
+                '[class*="popover"]',
+                '[class*="group-hover"]',
+              ].join(','),
+            )
+          : [];
+
+        tooltipCandidates.forEach((tooltip) => {
+          tooltip.classList.add('adversary-guild-tooltip');
+
+          const trigger = tooltip.parentElement;
+          trigger?.classList.add('adversary-guild-tooltip-trigger');
+
+          let ancestor = trigger;
+
+          while (ancestor && ancestor !== contentRoot) {
+            const styles = window.getComputedStyle(ancestor);
+            const clipsTooltip = [
+              styles.overflow,
+              styles.overflowX,
+              styles.overflowY,
+            ].some((value) => value === 'hidden' || value === 'clip');
+
+            if (clipsTooltip) {
+              ancestor.classList.add('adversary-guild-tooltip-overflow');
+            }
+
+            ancestor = ancestor.parentElement;
+          }
+        });
+      }
+
+      if (page === 'overview') {
+        const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+        headings.forEach((heading) => {
+          const title = heading.textContent?.trim().toLowerCase() || '';
+
+          if (!title.includes('war performance')) return;
+
+          const modal = heading.closest('[class*="fixed"]');
+
+          if (!modal) return;
+
+          modal.classList.add('adversary-war-performance-modal');
+
+          const dialog = heading.closest(
+            ':is(section, article, div)[class*="rounded"]',
+          );
+
+          if (dialog && modal.contains(dialog)) {
+            dialog.classList.add('adversary-war-performance-dialog');
+          }
+        });
+      }
+    };
+
+    const scheduleDecoration = () => {
+      if (frameId) return;
+      frameId = window.requestAnimationFrame(decorateSurfaces);
+    };
+
+    scheduleDecoration();
+
+    const observer = new MutationObserver(scheduleDecoration);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('resize', scheduleDecoration);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', scheduleDecoration);
+
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      if (document.body.dataset.adversaryPage === page) {
+        delete document.body.dataset.adversaryPage;
+      }
+    };
   }, [page]);
 
 
@@ -969,22 +1204,24 @@ export default function App() {
       >
         <div className="absolute inset-0 bg-slate-950" />
 
-        <div className="absolute inset-0 flex items-center justify-center">
-          <img
-            src={adversaryEmblem}
-            alt=""
-            className="h-[min(90vh,1180px)] w-[min(90%,1180px)] object-contain opacity-[0.24] drop-shadow-[0_0_105px_rgba(250,204,21,.18)]"
-            style={{
-              WebkitMaskImage:
-                'radial-gradient(ellipse at center, #000 0%, #000 55%, rgba(0,0,0,.88) 68%, rgba(0,0,0,.42) 82%, transparent 97%)',
-              maskImage:
-                'radial-gradient(ellipse at center, #000 0%, #000 55%, rgba(0,0,0,.88) 68%, rgba(0,0,0,.42) 82%, transparent 97%)',
-            }}
-          />
-        </div>
+        <div
+          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.30]"
+          style={{
+            backgroundImage: `url("${adversaryEmblem}")`,
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+            filter: 'saturate(1.18) contrast(1.06)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 88% 86% at 50% 48%, #000 0%, #000 43%, rgba(0,0,0,.94) 58%, rgba(0,0,0,.62) 72%, rgba(0,0,0,.22) 86%, transparent 100%)',
+            maskImage:
+              'radial-gradient(ellipse 88% 86% at 50% 48%, #000 0%, #000 43%, rgba(0,0,0,.94) 58%, rgba(0,0,0,.62) 72%, rgba(0,0,0,.22) 86%, transparent 100%)',
+          }}
+        />
 
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_48%,rgba(2,6,23,.18)_72%,rgba(2,6,23,.66)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.025)_30%,rgba(2,6,23,.10)_72%,rgba(2,6,23,.48))]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.16)_0%,rgba(250,204,21,.075)_32%,rgba(180,83,9,.045)_56%,transparent_76%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_38%,rgba(120,53,15,.10)_66%,rgba(2,6,23,.74)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.34),rgba(120,53,15,.035)_28%,rgba(120,53,15,.055)_68%,rgba(2,6,23,.66))]" />
       </div>
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
@@ -1132,7 +1369,7 @@ export default function App() {
           </div>
         </aside>
 
-        <main className="adversary-content relative min-w-0 p-3 sm:p-5 lg:p-6">
+        <main className={`adversary-content adversary-page-${page} relative min-w-0 p-3 sm:p-5 lg:p-6`}>
           <ActivePageBrand page={page} />
           {page === 'guild' && (
             <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
