@@ -438,7 +438,7 @@ function majorityGuildForKillFeed(feed, events = []) {
   return majorityGuild || cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
 }
 
-function BestOverall({
+function AverageRank({
   players,
   members,
   streaks,
@@ -1627,7 +1627,7 @@ function BestOverall({
   return (
     <Panel cls="h-[680px]">
       <div className="flex h-full flex-col">
-        <h3 className="text-xl font-black">♛ Best Overall</h3>
+        <h3 className="text-xl font-black">♛ Average Rank</h3>
 
         <p className="mb-3 text-xs text-slate-400">
           Average of only columns physically present in each log
@@ -1750,7 +1750,161 @@ function BestOverall({
   );
 }
 
-function PlayerOverview({ players, streaks, feeds, events }) {
+
+function formatPlayerComparisonValue(value, type = 'number') {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return '—';
+
+  if (type === 'kd') return number.toFixed(2);
+  if (type === 'average') {
+    return Math.abs(number) >= 1000
+      ? compactNumber(number)
+      : number.toFixed(1).replace(/\.0$/, '');
+  }
+
+  return compactNumber(number);
+}
+
+function PlayerAverageComparisonCard({
+  label,
+  current,
+  average,
+  lowerIsBetter = false,
+  type = 'number',
+  tone = 'blue',
+}) {
+  const currentNumber = Number(current);
+  const averageNumber = Number(average);
+  const hasCurrent = Number.isFinite(currentNumber);
+  const hasAverage = Number.isFinite(averageNumber);
+  const difference =
+    hasCurrent && hasAverage
+      ? currentNumber - averageNumber
+      : 0;
+  const direction =
+    difference > 0 ? 'up' : difference < 0 ? 'down' : 'same';
+  const beneficial =
+    direction === 'same'
+      ? null
+      : lowerIsBetter
+        ? direction === 'down'
+        : direction === 'up';
+  const percentage =
+    hasCurrent && hasAverage
+      ? averageNumber === 0
+        ? currentNumber === 0
+          ? 0
+          : 100
+        : Math.abs((difference / averageNumber) * 100)
+      : null;
+
+  const themes = {
+    blue: {
+      border: 'border-blue-400/20',
+      bg: 'from-blue-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-blue-300',
+    },
+    pink: {
+      border: 'border-pink-400/20',
+      bg: 'from-pink-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-pink-300',
+    },
+    emerald: {
+      border: 'border-emerald-400/20',
+      bg: 'from-emerald-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-emerald-300',
+    },
+    slate: {
+      border: 'border-slate-500/25',
+      bg: 'from-slate-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-slate-100',
+    },
+    orange: {
+      border: 'border-orange-400/20',
+      bg: 'from-orange-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-orange-300',
+    },
+    cyan: {
+      border: 'border-cyan-400/20',
+      bg: 'from-cyan-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-cyan-300',
+    },
+    rose: {
+      border: 'border-rose-400/20',
+      bg: 'from-rose-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-rose-300',
+    },
+    violet: {
+      border: 'border-violet-400/20',
+      bg: 'from-violet-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-violet-300',
+    },
+    amber: {
+      border: 'border-amber-400/20',
+      bg: 'from-amber-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-amber-300',
+    },
+  };
+
+  const theme = themes[tone] || themes.blue;
+  const changeClass =
+    beneficial === true
+      ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-300'
+      : beneficial === false
+        ? 'border-rose-400/20 bg-rose-500/10 text-rose-300'
+        : 'border-slate-700 bg-slate-900/70 text-slate-400';
+  const arrow =
+    direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→';
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border ${theme.border} bg-gradient-to-br ${theme.bg} p-3 shadow-[0_12px_30px_rgba(0,0,0,.18)]`}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="truncate text-[9px] font-black uppercase tracking-[0.13em] text-slate-500">
+          {label}
+        </p>
+
+        <span
+          className={`shrink-0 rounded-lg border px-1.5 py-0.5 text-[9px] font-black ${changeClass}`}
+        >
+          {percentage == null
+            ? '—'
+            : `${arrow} ${percentage.toFixed(1)}%`}
+        </span>
+      </div>
+
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className={`text-lg font-black leading-none ${theme.value}`}>
+            {hasCurrent
+              ? formatPlayerComparisonValue(currentNumber, type)
+              : '—'}
+          </p>
+          <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-slate-600">
+            This war
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p className="text-sm font-black leading-none text-slate-300">
+            {hasAverage
+              ? formatPlayerComparisonValue(averageNumber, type)
+              : '—'}
+          </p>
+          <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-slate-600">
+            Average
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayerOverview({ players, streaks, feeds, events, selectedLogs }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState(['kills', 'desc']);
   const [selected, setSelected] = useState(null);
@@ -1867,15 +2021,23 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     );
   }
 
-  const history = selected
-    ? events
-        .filter(
-          (event) =>
-            samePlayerName(event.killer, selected.name) ||
-            samePlayerName(event.victim, selected.name),
-        )
-        .sort((a, b) => a.date.localeCompare(b.date) || a.sec - b.sec)
-    : [];
+  const history = useMemo(() => {
+    if (!selected) return [];
+
+    return [...(events || [])]
+      .filter(
+        (event) =>
+          samePlayerName(event.killer, selected.name) ||
+          samePlayerName(event.victim, selected.name),
+      )
+      .sort(
+        (a, b) =>
+          String(a.date || '').localeCompare(
+            String(b.date || ''),
+          ) ||
+          Number(a.sec || 0) - Number(b.sec || 0),
+      );
+  }, [events, selected]);
 
   const kills = history.filter(
     (event) => samePlayerName(event.killer, selected?.name),
@@ -1885,22 +2047,347 @@ function PlayerOverview({ players, streaks, feeds, events }) {
     (event) => samePlayerName(event.victim, selected?.name),
   ).length;
 
-  const kd = deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2);
+  const kdNumber = deaths ? kills / deaths : kills;
+  const kd = kdNumber.toFixed(2);
 
-  const victims = {};
-  const nemesis = {};
+  const {
+    favourite,
+    worst,
+    guildBreakdown,
+  } = useMemo(() => {
+    const victims = {};
+    const nemesis = {};
+    const guilds = {};
 
-  history.forEach((event) => {
-    if (samePlayerName(event.killer, selected?.name)) add(victims, event.victim);
-    if (samePlayerName(event.victim, selected?.name)) add(nemesis, event.killer);
-  });
+    history.forEach((event) => {
+      const isKill = samePlayerName(
+        event.killer,
+        selected?.name,
+      );
+      const isDeath = samePlayerName(
+        event.victim,
+        selected?.name,
+      );
 
-  const favourite =
-    Object.entries(victims).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+      if (isKill) add(victims, event.victim);
+      if (isDeath) add(nemesis, event.killer);
 
-  const worst =
-    Object.entries(nemesis).sort((a, b) => b[1] - a[1])[0] || ['-', 0];
+      const guild =
+        cleanGuild(event.guild) ||
+        cleanGuild(event.war);
 
+      if (!guild || (!isKill && !isDeath)) return;
+
+      guilds[guild] ||= {
+        name: guild,
+        kills: 0,
+        deaths: 0,
+        wars: new Set(),
+      };
+
+      if (isKill) guilds[guild].kills += 1;
+      if (isDeath) guilds[guild].deaths += 1;
+
+      guilds[guild].wars.add(
+        String(event.war || event.date || guild),
+      );
+    });
+
+    const favouriteVictim =
+      Object.entries(victims).sort(
+        (a, b) =>
+          b[1] - a[1] ||
+          String(a[0]).localeCompare(String(b[0])),
+      )[0] || ['-', 0];
+
+    const worstNemesis =
+      Object.entries(nemesis).sort(
+        (a, b) =>
+          b[1] - a[1] ||
+          String(a[0]).localeCompare(String(b[0])),
+      )[0] || ['-', 0];
+
+    const guildRows = Object.values(guilds)
+      .map((guild) => ({
+        ...guild,
+        wars: guild.wars.size,
+        kd: guild.deaths
+          ? guild.kills / guild.deaths
+          : guild.kills,
+      }))
+      .sort(
+        (a, b) =>
+          b.kills + b.deaths - (a.kills + a.deaths) ||
+          b.kills - a.kills ||
+          a.name.localeCompare(b.name),
+      );
+
+    return {
+      favourite: favouriteVictim,
+      worst: worstNemesis,
+      guildBreakdown: guildRows,
+    };
+  }, [history, selected]);
+
+  const selectedAverageStats = useMemo(() => {
+    if (!selected) return null;
+
+    const logs = Array.isArray(selectedLogs)
+      ? selectedLogs
+      : [];
+
+    if (!logs.length) return null;
+
+    const totals = {
+      kills: 0,
+      deaths: 0,
+      kd: 0,
+      streak: 0,
+      feed: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+    };
+    const counts = {
+      kills: 0,
+      deaths: 0,
+      kd: 0,
+      streak: 0,
+      feed: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+    };
+    let wars = 0;
+
+    function readExplicitMetric(sources, aliases) {
+      for (const source of sources) {
+        if (!source) continue;
+
+        const key = aliases.find(
+          (alias) =>
+            Object.prototype.hasOwnProperty.call(
+              source,
+              alias,
+            ) &&
+            source[alias] !== undefined &&
+            source[alias] !== null &&
+            source[alias] !== '',
+        );
+
+        if (key) {
+          const value = Number(source[key]);
+
+          return {
+            exists: Number.isFinite(value),
+            value: Number.isFinite(value) ? value : 0,
+          };
+        }
+      }
+
+      return {
+        exists: false,
+        value: 0,
+      };
+    }
+
+    function addAverageMetric(metric, value, exists = true) {
+      const number = Number(value);
+
+      if (!exists || !Number.isFinite(number)) return;
+
+      totals[metric] += number;
+      counts[metric] += 1;
+    }
+
+    logs.forEach((log) => {
+      const oneStats = calculateStats([log]);
+      const playerRow = (oneStats?.players || []).find(
+        (player) =>
+          samePlayerName(player?.name, selected.name),
+      );
+      const secondaryRow = (
+        oneStats?.secondary?.rows || []
+      ).find((row) =>
+        samePlayerName(
+          row?.player || row?.name,
+          selected.name,
+        ),
+      );
+      const playerEvents = (oneStats?.ev || []).filter(
+        (event) =>
+          samePlayerName(event?.killer, selected.name) ||
+          samePlayerName(event?.victim, selected.name),
+      );
+      const participated =
+        Boolean(playerRow) ||
+        Boolean(secondaryRow) ||
+        playerEvents.length > 0;
+
+      if (!participated) return;
+
+      wars += 1;
+
+      const eventKills = playerEvents.filter(
+        (event) =>
+          samePlayerName(event?.killer, selected.name),
+      ).length;
+      const eventDeaths = playerEvents.filter(
+        (event) =>
+          samePlayerName(event?.victim, selected.name),
+      ).length;
+      const killMetric = readExplicitMetric(
+        [secondaryRow, playerRow],
+        ['kills', 'Kills'],
+      );
+      const deathMetric = readExplicitMetric(
+        [secondaryRow, playerRow],
+        ['deaths', 'Deaths'],
+      );
+      const warKills = killMetric.exists
+        ? killMetric.value
+        : eventKills;
+      const warDeaths = deathMetric.exists
+        ? deathMetric.value
+        : eventDeaths;
+      const warKd = warDeaths
+        ? warKills / warDeaths
+        : warKills;
+
+      addAverageMetric('kills', warKills);
+      addAverageMetric('deaths', warDeaths);
+      addAverageMetric('kd', warKd);
+
+      const streakValue = Number(
+        getPlayerObjectValue(
+          oneStats?.st,
+          selected.name,
+          0,
+        ),
+      );
+      const feedValue = Number(
+        getPlayerObjectValue(
+          oneStats?.fd,
+          selected.name,
+          0,
+        ),
+      );
+
+      addAverageMetric(
+        'streak',
+        streakValue,
+        playerEvents.length > 0 ||
+          getPlayerKeyFromObject(
+            oneStats?.st,
+            selected.name,
+          ) != null,
+      );
+      addAverageMetric(
+        'feed',
+        feedValue,
+        playerEvents.length > 0 ||
+          getPlayerKeyFromObject(
+            oneStats?.fd,
+            selected.name,
+          ) != null,
+      );
+
+      const damageDealtMetric = readExplicitMetric(
+        [secondaryRow, playerRow],
+        [
+          'damageDealt',
+          'damage_dealt',
+          'damage dealt',
+          'damageDone',
+          'damage',
+        ],
+      );
+      const damageTakenMetric = readExplicitMetric(
+        [secondaryRow, playerRow],
+        [
+          'damageTaken',
+          'damage_taken',
+          'damage taken',
+          'Damage Taken',
+        ],
+      );
+      const ccHitsMetric = readExplicitMetric(
+        [secondaryRow, playerRow],
+        [
+          'ccHits',
+          'cc_hits',
+          'cc hits',
+          'CC Hits',
+          'cc',
+          'CC',
+        ],
+      );
+      const fortDamageMetric = readExplicitMetric(
+        [secondaryRow, playerRow],
+        [
+          'fortDamage',
+          'damageToFort',
+          'damage_to_fort',
+          'damage to fort',
+          'Fort Damage',
+        ],
+      );
+
+      addAverageMetric(
+        'damageDealt',
+        damageDealtMetric.value,
+        damageDealtMetric.exists,
+      );
+      addAverageMetric(
+        'damageTaken',
+        damageTakenMetric.value,
+        damageTakenMetric.exists,
+      );
+      addAverageMetric(
+        'ccHits',
+        ccHitsMetric.value,
+        ccHitsMetric.exists,
+      );
+      addAverageMetric(
+        'fortDamage',
+        fortDamageMetric.value,
+        fortDamageMetric.exists,
+      );
+    });
+
+    if (!wars) return null;
+
+    return {
+      wars,
+      kills: counts.kills
+        ? totals.kills / counts.kills
+        : null,
+      deaths: counts.deaths
+        ? totals.deaths / counts.deaths
+        : null,
+      kd: counts.kd ? totals.kd / counts.kd : null,
+      streak: counts.streak
+        ? totals.streak / counts.streak
+        : null,
+      feed: counts.feed
+        ? totals.feed / counts.feed
+        : null,
+      damageDealt: counts.damageDealt
+        ? totals.damageDealt / counts.damageDealt
+        : null,
+      damageTaken: counts.damageTaken
+        ? totals.damageTaken / counts.damageTaken
+        : null,
+      ccHits: counts.ccHits
+        ? totals.ccHits / counts.ccHits
+        : null,
+      fortDamage: counts.fortDamage
+        ? totals.fortDamage / counts.fortDamage
+        : null,
+    };
+  }, [selected, selectedLogs]);
   return (
     <Panel cls="h-[680px]">
       <div className="flex h-full flex-col">
@@ -2077,6 +2564,99 @@ function PlayerOverview({ players, streaks, feeds, events }) {
               </span>
             </div>
 
+            <div className="mb-4">
+              <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-300">
+                    War vs Player Average
+                  </p>
+                  <p className="text-[11px] font-bold text-slate-500">
+                    Compared with {selectedAverageStats?.wars || 0} available wars
+                  </p>
+                </div>
+
+                <p className="text-[9px] font-bold text-slate-600">
+                  Green = better · Red = worse
+                </p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <PlayerAverageComparisonCard
+                  label="Kills"
+                  current={kills}
+                  average={selectedAverageStats?.kills}
+                  type="average"
+                  tone="blue"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="Deaths"
+                  current={deaths}
+                  average={selectedAverageStats?.deaths}
+                  lowerIsBetter
+                  type="average"
+                  tone="pink"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="K/D"
+                  current={kdNumber}
+                  average={selectedAverageStats?.kd}
+                  type="kd"
+                  tone="emerald"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="Killstreak"
+                  current={streaks[selected.name] || 0}
+                  average={selectedAverageStats?.streak}
+                  type="average"
+                  tone="slate"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="Killfeed"
+                  current={feeds[selected.name] || 0}
+                  average={selectedAverageStats?.feed}
+                  type="average"
+                  tone="orange"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="DMG Dealt"
+                  current={selected.damageDealt}
+                  average={selectedAverageStats?.damageDealt}
+                  type="average"
+                  tone="cyan"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="DMG Taken"
+                  current={selected.damageTaken}
+                  average={selectedAverageStats?.damageTaken}
+                  lowerIsBetter
+                  type="average"
+                  tone="rose"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="CC Hits"
+                  current={selected.ccHits}
+                  average={selectedAverageStats?.ccHits}
+                  type="average"
+                  tone="violet"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="DMG to Fort"
+                  current={selected.fortDamage}
+                  average={selectedAverageStats?.fortDamage}
+                  type="average"
+                  tone="amber"
+                />
+              </div>
+            </div>
+
             <div className="mb-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
                 <p className="text-xs font-bold uppercase text-slate-500">
@@ -2097,6 +2677,78 @@ function PlayerOverview({ players, streaks, feeds, events }) {
                   {worst[1]} deaths
                 </p>
               </div>
+            </div>
+
+            <div className="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/45">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/75 px-4 py-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">
+                    Guild Matchups
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-600">
+                    Every enemy guild this player fought
+                  </p>
+                </div>
+
+                <span className="rounded-lg border border-slate-700 bg-slate-950/70 px-2 py-1 text-[10px] font-black text-slate-400">
+                  {guildBreakdown.length} guilds
+                </span>
+              </div>
+
+              {!guildBreakdown.length ? (
+                <p className="px-4 py-5 text-sm text-slate-500">
+                  No guild matchup data found.
+                </p>
+              ) : (
+                <div className={`max-h-[240px] overflow-y-auto ${scrollCls}`}>
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 z-10 bg-slate-950/95 text-[9px] uppercase tracking-[0.12em] text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left">Guild</th>
+                        <th className="px-3 py-2.5 text-center">Wars</th>
+                        <th className="px-3 py-2.5 text-center">Kills</th>
+                        <th className="px-3 py-2.5 text-center">Deaths</th>
+                        <th className="px-4 py-2.5 text-center">K/D</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {guildBreakdown.map((guild) => (
+                        <tr
+                          key={guild.name}
+                          className="border-t border-slate-800/80 bg-slate-950/25 transition hover:bg-slate-900/55"
+                        >
+                          <td className="max-w-[240px] truncate px-4 py-2.5 font-black text-slate-200">
+                            {guild.name}
+                          </td>
+
+                          <td className="px-3 py-2.5 text-center font-black text-slate-400">
+                            {guild.wars}
+                          </td>
+
+                          <td className="px-3 py-2.5 text-center font-black text-blue-300">
+                            {guild.kills}
+                          </td>
+
+                          <td className="px-3 py-2.5 text-center font-black text-pink-300">
+                            {guild.deaths}
+                          </td>
+
+                          <td
+                            className={`px-4 py-2.5 text-center font-black ${
+                              guild.kd >= 1
+                                ? 'text-emerald-300'
+                                : 'text-rose-300'
+                            }`}
+                          >
+                            {guild.kd.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             <div
@@ -3036,7 +3688,7 @@ export default function OverviewPage({
       />
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[520px_minmax(0,1fr)]">
-        <BestOverall
+        <AverageRank
           players={stats.players}
           members={members}
           streaks={stats.st}
@@ -3050,6 +3702,7 @@ export default function OverviewPage({
           streaks={stats.st}
           feeds={stats.fd}
           events={stats.ev}
+          selectedLogs={selectedLogs}
         />
       </section>
 
