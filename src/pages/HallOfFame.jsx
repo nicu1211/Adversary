@@ -50,22 +50,11 @@ function cls(...items) {
   return items.filter(Boolean).join(' ');
 }
 
-function comparePlayerChronology(a, b) {
-  const aKey = String(
-    a?.chronologyKey ||
-      a?.reachedKey ||
-      a?.date ||
-      '9999-99-99 99999999 99999999',
-  );
-  const bKey = String(
-    b?.chronologyKey ||
-      b?.reachedKey ||
-      b?.date ||
-      '9999-99-99 99999999 99999999',
-  );
-
+function compareChronology(a, b) {
   return (
-    aKey.localeCompare(bKey) ||
+    String(a?.chronologyKey || '9999-99-99 99999999 99999999').localeCompare(
+      String(b?.chronologyKey || '9999-99-99 99999999 99999999'),
+    ) ||
     String(a?.name || '').localeCompare(String(b?.name || ''))
   );
 }
@@ -133,7 +122,155 @@ const demoStats = {
   ],
 };
 
-function buildHallData(stats) {
+
+const HALL_DATA_CACHE_LIMIT = 4;
+const hallDataObjectCache = new WeakMap();
+const hallDataSignatureCache = new Map();
+
+function hallHashText(hash, value) {
+  const text = String(value ?? '');
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function hallHashArraySample(items, readItem) {
+  const rows = Array.isArray(items) ? items : [];
+
+  if (!rows.length) return '0';
+
+  let hash = 2166136261;
+  const sampleCount = Math.min(32, rows.length);
+  const step = Math.max(1, Math.floor(rows.length / sampleCount));
+
+  for (let index = 0; index < rows.length; index += step) {
+    hash = hallHashText(hash, readItem(rows[index], index));
+  }
+
+  const lastIndex = rows.length - 1;
+  hash = hallHashText(
+    hash,
+    readItem(rows[lastIndex], lastIndex),
+  );
+
+  return `${rows.length}:${hash >>> 0}`;
+}
+
+function hallStatsSignature(stats, minimumWars) {
+  const safe = stats?.players?.length ? stats : demoStats;
+  const players = Array.isArray(safe?.players)
+    ? safe.players
+    : [];
+  const events = Array.isArray(safe?.ev) ? safe.ev : [];
+  const secondaryCandidate =
+    safe?.secondary?.rows ||
+    safe?.secondaryRows ||
+    safe?.manualRows ||
+    safe?.secondary ||
+    [];
+  const secondaryRows = Array.isArray(secondaryCandidate)
+    ? secondaryCandidate
+    : [];
+
+  const playerHash = hallHashArraySample(
+    players,
+    (player) =>
+      [
+        player?.name,
+        player?.kills,
+        player?.deaths,
+        player?.wars,
+        player?.warCount,
+        player?.matches,
+        player?.damageDealt,
+        player?.damageTaken,
+        player?.ccHits,
+        player?.fortDamage,
+      ].join('|'),
+  );
+
+  const eventHash = hallHashArraySample(
+    events,
+    (event) =>
+      [
+        event?.id,
+        event?.war,
+        event?.date,
+        event?.sec,
+        event?.i,
+        event?.type,
+        event?.guildPlayer,
+        event?.killer,
+        event?.victim,
+        event?.source,
+      ].join('|'),
+  );
+
+  const secondaryHash = hallHashArraySample(
+    secondaryRows,
+    (row) =>
+      [
+        row?.id,
+        row?.war,
+        row?.date,
+        row?.player,
+        row?.name,
+        row?.kills,
+        row?.deaths,
+        row?.killFeed,
+        row?.feed,
+        row?.damageDealt,
+        row?.damageTaken,
+        row?.ccHits,
+        row?.fortDamage,
+        row?.damageToFort,
+      ].join('|'),
+  );
+
+  const streakHash = hallHashArraySample(
+    Object.entries(safe?.st || {}),
+    ([name, value]) => `${name}:${value}`,
+  );
+  const feedHash = hallHashArraySample(
+    Object.entries(safe?.fd || {}),
+    ([name, value]) => `${name}:${value}`,
+  );
+
+  return [
+    minimumWars,
+    safe?.version,
+    safe?.updatedAt,
+    safe?.kills,
+    safe?.deaths,
+    safe?.kd,
+    playerHash,
+    eventHash,
+    secondaryHash,
+    streakHash,
+    feedHash,
+  ].join('::');
+}
+
+function rememberHallData(signature, data) {
+  if (hallDataSignatureCache.has(signature)) {
+    hallDataSignatureCache.delete(signature);
+  }
+
+  hallDataSignatureCache.set(signature, data);
+
+  while (hallDataSignatureCache.size > HALL_DATA_CACHE_LIMIT) {
+    const oldestKey =
+      hallDataSignatureCache.keys().next().value;
+
+    hallDataSignatureCache.delete(oldestKey);
+  }
+}
+
+function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
   const secondaryRows =
@@ -249,6 +386,19 @@ function buildHallData(stats) {
 
   const secondaryKillKeys = ['kills', 'Kills', 'kill', 'Kill', 'k', 'K'];
   const secondaryDeathKeys = ['deaths', 'Deaths', 'death', 'Death', 'd', 'D'];
+  const secondaryFeedKeys = [
+    'killFeed',
+    'killfeed',
+    'feed',
+    'KillFeed',
+    'Killfeed',
+    // Legacy aliases from summaries created before the parser fix.
+    'killStreak',
+    'killstreak',
+    'streak',
+    'Killstreak',
+    'KillStreak',
+  ];
   const secondaryDamageDealtKeys = [
     'damageDealt',
     'damage_dealt',
@@ -260,6 +410,16 @@ function buildHallData(stats) {
     'DMG Dealt',
     'dmgDealt',
     'dmg dealt',
+  ];
+  const secondaryDamageTakenKeys = [
+    'damageTaken',
+    'damage_taken',
+    'damage taken',
+    'Damage Taken',
+    'DamageTaken',
+    'DMG Taken',
+    'dmgTaken',
+    'dmg taken',
   ];
   const secondaryFortDamageKeys = [
     'fortDamage',
@@ -290,13 +450,21 @@ function buildHallData(stats) {
   const secondaryMetricKeys = {
     kills: secondaryKillKeys,
     deaths: secondaryDeathKeys,
+    feed: secondaryFeedKeys,
     damageDealt: secondaryDamageDealtKeys,
+    damageTaken: secondaryDamageTakenKeys,
     fortDamage: secondaryFortDamageKeys,
     ccHits: secondaryCcHitsKeys,
   };
 
   const secondaryCoreMetrics = new Set(['kills', 'deaths']);
-  const secondaryDetailMetrics = ['damageDealt', 'fortDamage', 'ccHits'];
+  const secondaryDetailMetrics = [
+    'feed',
+    'damageDealt',
+    'damageTaken',
+    'fortDamage',
+    'ccHits',
+  ];
 
   function normalizeHallMetricText(value) {
     return String(value || '')
@@ -620,37 +788,6 @@ function buildHallData(stats) {
     return '';
   }
 
-  function getPlayerChronologyKey(name) {
-    const firstCombatEvent = [...events]
-      .filter((event) => getGuildInvolvedPlayer(event) === name)
-      .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))[0];
-
-    if (firstCombatEvent) {
-      return eventSortKey(firstCombatEvent);
-    }
-
-    const firstTrackedMatch = Object.values(playerMatchMap[name] || {})
-      .sort((a, b) =>
-        warSortKey(a.warId, a.date).localeCompare(
-          warSortKey(b.warId, b.date),
-        ),
-      )[0];
-
-    return firstTrackedMatch
-      ? warSortKey(firstTrackedMatch.warId, firstTrackedMatch.date)
-      : '9999-99-99 99999999 99999999';
-  }
-
-  function getPlayerWarChronologyKey(warEvents, playerName) {
-    const firstCombatEvent = getWarEventsSorted(warEvents).find(
-      (event) => getGuildInvolvedPlayer(event) === playerName,
-    );
-
-    return firstCombatEvent
-      ? eventSortKey(firstCombatEvent)
-      : getPlayerChronologyKey(playerName);
-  }
-
   function ensureWar(id, date = '') {
     warMap[id] ||= {
       id,
@@ -768,6 +905,25 @@ function buildHallData(stats) {
     warList.map((war, index) => [war.id, index]),
   );
 
+  // Build chronology once. This avoids repeatedly scanning and sorting the
+  // complete Combat Log inside every player and leaderboard calculation.
+  const firstCombatKeyByPlayer = {};
+  const firstCombatKeyByWarPlayer = {};
+
+  [...events]
+    .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))
+    .forEach((event) => {
+      const playerName = getGuildInvolvedPlayer(event);
+
+      if (!playerName) return;
+
+      const eventKey = eventSortKey(event);
+      const warPlayerKey = `${eventWarId(event)}::${playerName}`;
+
+      firstCombatKeyByPlayer[playerName] ||= eventKey;
+      firstCombatKeyByWarPlayer[warPlayerKey] ||= eventKey;
+    });
+
   const totalWars = warList.length || new Set(events.map((event) => String(event.id || event.date))).size;
 
   const firstSeenWarIndex = {};
@@ -817,12 +973,30 @@ function buildHallData(stats) {
             fromFirstLogWars: globalWarIndex + 1,
             fromPlayerFirstLogWars: participatedWarCount,
             totalKillsAtReach: after,
-            reachedKey: warSortKey(match.warId, match.date),
+            chronologyKey: warSortKey(match.warId, match.date),
           });
         }
       });
     });
   });
+
+  function getPlayerChronologyKey(name) {
+    const firstTrackedWarIndex = firstSeenWarIndex[name];
+
+    return (
+      firstCombatKeyByPlayer[name] ||
+      (Number.isFinite(Number(firstTrackedWarIndex))
+        ? `${String(firstTrackedWarIndex).padStart(8, '0')} 00000000 00000000`
+        : '9999-99-99 99999999 99999999')
+    );
+  }
+
+  function getPlayerWarChronologyKey(warId, name) {
+    return (
+      firstCombatKeyByWarPlayer[`${warId}::${name}`] ||
+      getPlayerChronologyKey(name)
+    );
+  }
 
   function getPlayerMatchValues(name) {
     return Object.values(playerMatchMap[name] || {}).filter((match) => match.hasKills);
@@ -974,125 +1148,705 @@ function buildHallData(stats) {
     return best;
   }
 
-  function buildTieAwareRank(rowsForWar, key, desc = true) {
+  // Average Rank uses the same formula as Overview -> Best Overall:
+  // 1. Rank every available metric inside each war.
+  // 2. Average each metric column only across wars where that column exists.
+  // 3. Calculate the final Average Rank only from available column averages.
+  // No shared store is used.
+
+  function normalizeAverageRankPlayerName(value) {
+    const key = String(value || '')
+      .normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, '')
+      .trim()
+      .toLowerCase();
+
+    if (key === 'mrsracoon' || key === 'mrsraccoon') {
+      return 'mrsraccoon';
+    }
+
+    return key;
+  }
+
+  function getAverageRankEventPlayer(event) {
+    return (
+      event?.guildPlayer ||
+      getGuildInvolvedPlayer(event) ||
+      (event?.type === 'kill' ? event?.killer : event?.victim) ||
+      ''
+    );
+  }
+
+  function averageRankEventKey(event) {
+    return [
+      String(event?.date || '9999-99-99'),
+      String(Number(event?.sec) || 0).padStart(8, '0'),
+      String(Number(event?.i) || 0).padStart(8, '0'),
+      eventWarId(event),
+    ].join(' ');
+  }
+
+  function averageRankFallbackKey(index = 0) {
+    return `9999-99-99 99999999 ${String(index).padStart(8, '0')}`;
+  }
+
+  function buildOverviewStyleRank(
+    rowsForWar,
+    metric,
+    desc = true,
+    chronologyFields = [],
+  ) {
+    const eligibleRows = rowsForWar.filter(
+      (row) => row?.available?.[metric],
+    );
+
     return Object.fromEntries(
-      [...rowsForWar]
+      [...eligibleRows]
+        .map((row, originalIndex) => ({
+          ...row,
+          originalIndex,
+        }))
         .sort((a, b) => {
-          const av = Number(a[key]) || 0;
-          const bv = Number(b[key]) || 0;
+          const av = Number(a[metric]) || 0;
+          const bv = Number(b[metric]) || 0;
 
           if (av !== bv) {
             return desc ? bv - av : av - bv;
           }
 
-          return comparePlayerChronology(a, b);
+          for (const field of chronologyFields) {
+            const aKey = String(
+              a?.[field] ||
+                a?.fallbackKey ||
+                averageRankFallbackKey(a.originalIndex),
+            );
+            const bKey = String(
+              b?.[field] ||
+                b?.fallbackKey ||
+                averageRankFallbackKey(b.originalIndex),
+            );
+
+            if (aKey !== bKey) {
+              return aKey.localeCompare(bKey);
+            }
+          }
+
+          return (
+            String(
+              a?.fallbackKey ||
+                averageRankFallbackKey(a.originalIndex),
+            ).localeCompare(
+              String(
+                b?.fallbackKey ||
+                  averageRankFallbackKey(b.originalIndex),
+              ),
+            ) ||
+            a.originalIndex - b.originalIndex ||
+            String(a.name).localeCompare(String(b.name))
+          );
         })
-        .map((row, index) => [row.name, index + 1]),
+        .map((row, index) => [row.playerKey, index + 1]),
     );
   }
 
-  function buildKillsRankLikePlayerStats(rowsForWar, warEvents) {
-    const sortedEvents = getWarEventsSorted(warEvents);
-    const byName = Object.fromEntries(rowsForWar.map((row) => [row.name, row]));
-    const runningKills = {};
-    const reached = {};
+  function buildOverviewCombatRows(warEvents) {
+    const sortedEvents = getWarEventsSorted(warEvents || []).filter(
+      (event) =>
+        event?.hasTimestamp !== false &&
+        event?.source !== 'summary' &&
+        (event?.type === 'kill' || event?.type === 'death'),
+    );
+    const playersByKey = {};
+    const currentStreak = {};
+    const killEventsByPlayer = {};
 
-    sortedEvents
-      .filter((event) => event.type === 'kill')
-      .forEach((event) => {
-        const guildPlayer = getGuildKillPlayer(event);
+    function ensureCombatPlayer(rawName, fallbackIndex = 0) {
+      const playerKey = normalizeAverageRankPlayerName(rawName);
 
-        if (!guildPlayer) return;
+      if (!playerKey) return null;
 
-        runningKills[guildPlayer] = (runningKills[guildPlayer] || 0) + 1;
+      playersByKey[playerKey] ||= {
+        playerKey,
+        name: String(rawName || '').trim() || playerKey,
+        kills: 0,
+        deaths: 0,
+        kdNumber: 0,
+        streak: 0,
+        feed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        fortDamage: 0,
+        firstKey: '',
+        lastKey: '',
+        finalKillKey: '',
+        finalDeathKey: '',
+        streakKey: '',
+        feedKey: '',
+        fallbackKey: averageRankFallbackKey(fallbackIndex),
+        available: {
+          kills: true,
+          deaths: true,
+          kdNumber: true,
+          streak: true,
+          feed: true,
+          damageDealt: false,
+          damageTaken: false,
+          ccHits: false,
+          fortDamage: false,
+        },
+      };
 
-        const finalKills = byName[guildPlayer]?.kills || 0;
+      return playersByKey[playerKey];
+    }
 
-        if (finalKills && runningKills[guildPlayer] === finalKills && !reached[guildPlayer]) {
-          reached[guildPlayer] = `${String(event.sec || 0).padStart(8, '0')} ${String(
-            event.i || 0,
-          ).padStart(8, '0')}`;
+    sortedEvents.forEach((event, index) => {
+      const rawName = getAverageRankEventPlayer(event);
+      const player = ensureCombatPlayer(rawName, index);
+
+      if (!player) return;
+
+      const key = averageRankEventKey(event);
+
+      player.firstKey ||= key;
+      player.lastKey = key;
+
+      if (event.type === 'kill') {
+        player.kills += 1;
+        player.finalKillKey = key;
+
+        currentStreak[player.playerKey] =
+          (currentStreak[player.playerKey] || 0) + 1;
+
+        if (currentStreak[player.playerKey] > player.streak) {
+          player.streak = currentStreak[player.playerKey];
+          player.streakKey = key;
         }
-      });
 
-    return Object.fromEntries(
-      [...rowsForWar]
-        .sort(
-          (a, b) =>
-            b.kills - a.kills ||
-            (reached[a.name] || '99999999').localeCompare(reached[b.name] || '99999999') ||
-            comparePlayerChronology(a, b),
-        )
-        .map((row, index) => [row.name, index + 1]),
+        killEventsByPlayer[player.playerKey] ||= [];
+        killEventsByPlayer[player.playerKey].push({
+          sec: Number(event?.sec) || 0,
+          key,
+        });
+      }
+
+      if (event.type === 'death') {
+        player.deaths += 1;
+        player.finalDeathKey = key;
+        currentStreak[player.playerKey] = 0;
+      }
+    });
+
+    Object.values(playersByKey).forEach((player) => {
+      player.kdNumber = player.deaths
+        ? Number((player.kills / player.deaths).toFixed(2))
+        : Number(player.kills.toFixed(2));
+
+      const killEvents = killEventsByPlayer[player.playerKey] || [];
+      let left = 0;
+      let best = 0;
+      let bestKey = '';
+
+      for (let right = 0; right < killEvents.length; right += 1) {
+        while (
+          killEvents[right].sec - killEvents[left].sec > 30
+        ) {
+          left += 1;
+        }
+
+        const count = right - left + 1;
+        const windowKey = killEvents[left]?.key || '';
+
+        if (
+          count > best ||
+          (count === best &&
+            windowKey &&
+            (!bestKey || windowKey < bestKey))
+        ) {
+          best = count;
+          bestKey = windowKey;
+        }
+      }
+
+      player.feed = best;
+      player.feedKey = bestKey;
+    });
+
+    return playersByKey;
+  }
+
+  function buildOverviewSecondaryRows(
+    rowsForWar,
+    warPresence,
+    warIndex,
+  ) {
+    const playersByKey = {};
+
+    (rowsForWar || []).forEach((row, rowIndex) => {
+      const rawName = getSecondaryPlayerName(row);
+      const playerKey = normalizeAverageRankPlayerName(rawName);
+
+      if (!playerKey) return;
+
+      const player =
+        playersByKey[playerKey] ||
+        {
+          playerKey,
+          name: String(rawName || '').trim() || playerKey,
+          kills: 0,
+          deaths: 0,
+          kdNumber: 0,
+          streak: 0,
+          feed: 0,
+          damageDealt: 0,
+          damageTaken: 0,
+          ccHits: 0,
+          fortDamage: 0,
+          firstKey: '',
+          lastKey: '',
+          finalKillKey: '',
+          finalDeathKey: '',
+          streakKey: '',
+          feedKey: '',
+          fallbackKey: averageRankFallbackKey(
+            warIndex * 1000 + rowIndex,
+          ),
+          available: {
+            kills: false,
+            deaths: false,
+            kdNumber: false,
+            streak: false,
+            feed: false,
+            damageDealt: false,
+            damageTaken: false,
+            ccHits: false,
+            fortDamage: false,
+          },
+        };
+
+      const hasKills = getSecondaryMetricExists(
+        row,
+        'kills',
+        warPresence,
+      );
+      const hasDeaths = getSecondaryMetricExists(
+        row,
+        'deaths',
+        warPresence,
+      );
+      const hasFeed = getSecondaryMetricExists(
+        row,
+        'feed',
+        warPresence,
+      );
+      const hasDamageDealt = getSecondaryMetricExists(
+        row,
+        'damageDealt',
+        warPresence,
+      );
+      const hasDamageTaken = getSecondaryMetricExists(
+        row,
+        'damageTaken',
+        warPresence,
+      );
+      const hasCcHits = getSecondaryMetricExists(
+        row,
+        'ccHits',
+        warPresence,
+      );
+      const hasFortDamage = getSecondaryMetricExists(
+        row,
+        'fortDamage',
+        warPresence,
+      );
+
+      if (hasKills) {
+        player.kills = getSecondaryMetricNumber(
+          row,
+          'kills',
+          0,
+        );
+        player.available.kills = true;
+      }
+
+      if (hasDeaths) {
+        player.deaths = getSecondaryMetricNumber(
+          row,
+          'deaths',
+          0,
+        );
+        player.available.deaths = true;
+      }
+
+      player.available.kdNumber =
+        player.available.kills &&
+        player.available.deaths;
+
+      if (player.available.kdNumber) {
+        player.kdNumber = player.deaths
+          ? Number(
+              (player.kills / player.deaths).toFixed(2),
+            )
+          : Number(player.kills.toFixed(2));
+      }
+
+      if (hasFeed) {
+        player.feed = getSecondaryMetricNumber(
+          row,
+          'feed',
+          0,
+        );
+        player.available.feed = true;
+      }
+
+      if (hasDamageDealt) {
+        player.damageDealt = getSecondaryMetricNumber(
+          row,
+          'damageDealt',
+          0,
+        );
+        player.available.damageDealt = true;
+      }
+
+      if (hasDamageTaken) {
+        player.damageTaken = getSecondaryMetricNumber(
+          row,
+          'damageTaken',
+          0,
+        );
+        player.available.damageTaken = true;
+      }
+
+      if (hasCcHits) {
+        player.ccHits = getSecondaryMetricNumber(
+          row,
+          'ccHits',
+          0,
+        );
+        player.available.ccHits = true;
+      }
+
+      if (hasFortDamage) {
+        player.fortDamage = getSecondaryMetricNumber(
+          row,
+          'fortDamage',
+          0,
+        );
+        player.available.fortDamage = true;
+      }
+
+      playersByKey[playerKey] = player;
+    });
+
+    return playersByKey;
+  }
+
+  function mergeOverviewWarRows(
+    combatPlayers,
+    secondaryPlayers,
+    warIndex,
+  ) {
+    const playerKeys = new Set([
+      ...Object.keys(combatPlayers || {}),
+      ...Object.keys(secondaryPlayers || {}),
+    ]);
+
+    return [...playerKeys].map((playerKey, index) => {
+      const combat = combatPlayers?.[playerKey];
+      const secondary = secondaryPlayers?.[playerKey];
+      const hasCombat = Boolean(combat);
+
+      return {
+        playerKey,
+        name: combat?.name || secondary?.name || playerKey,
+        kills: hasCombat
+          ? combat.kills
+          : secondary?.kills || 0,
+        deaths: hasCombat
+          ? combat.deaths
+          : secondary?.deaths || 0,
+        kdNumber: hasCombat
+          ? combat.kdNumber
+          : secondary?.kdNumber || 0,
+        streak: hasCombat ? combat.streak : 0,
+        feed: hasCombat
+          ? combat.feed
+          : secondary?.feed || 0,
+        damageDealt: secondary?.damageDealt || 0,
+        damageTaken: secondary?.damageTaken || 0,
+        ccHits: secondary?.ccHits || 0,
+        fortDamage: secondary?.fortDamage || 0,
+        firstKey: combat?.firstKey || '',
+        lastKey: combat?.lastKey || '',
+        finalKillKey: combat?.finalKillKey || '',
+        finalDeathKey: combat?.finalDeathKey || '',
+        streakKey: combat?.streakKey || '',
+        feedKey: combat?.feedKey || '',
+        fallbackKey:
+          combat?.firstKey ||
+          secondary?.fallbackKey ||
+          averageRankFallbackKey(
+            warIndex * 1000 + index,
+          ),
+        available: {
+          kills:
+            hasCombat ||
+            Boolean(secondary?.available?.kills),
+          deaths:
+            hasCombat ||
+            Boolean(secondary?.available?.deaths),
+          kdNumber:
+            hasCombat ||
+            Boolean(secondary?.available?.kdNumber),
+          streak: hasCombat,
+          feed:
+            hasCombat ||
+            Boolean(secondary?.available?.feed),
+          damageDealt: Boolean(
+            secondary?.available?.damageDealt,
+          ),
+          damageTaken: Boolean(
+            secondary?.available?.damageTaken,
+          ),
+          ccHits: Boolean(
+            secondary?.available?.ccHits,
+          ),
+          fortDamage: Boolean(
+            secondary?.available?.fortDamage,
+          ),
+        },
+      };
+    });
+  }
+
+  const averageRankCombatWarMap = {};
+  const averageRankSecondaryWarMap = {};
+
+  events.forEach((event, index) => {
+    const warId = String(
+      event?.id ||
+        event?.war ||
+        event?.date ||
+        `combat-${index}`,
     );
+
+    averageRankCombatWarMap[warId] ||= [];
+    averageRankCombatWarMap[warId].push(event);
+  });
+
+  (Array.isArray(secondaryRows) ? secondaryRows : []).forEach(
+    (row, index) => {
+      const warId = secondaryWarId(row, index);
+
+      averageRankSecondaryWarMap[warId] ||= [];
+      averageRankSecondaryWarMap[warId].push(row);
+    },
+  );
+
+  const averageRankWarIds = [
+    ...new Set([
+      ...Object.keys(averageRankCombatWarMap),
+      ...Object.keys(averageRankSecondaryWarMap),
+    ]),
+  ];
+  const averageRankResult = {};
+
+  function ensureAverageRankPlayer(row) {
+    averageRankResult[row.playerKey] ||= {
+      name: row.name,
+      matches: 0,
+      metricTotals: {
+        kills: 0,
+        deaths: 0,
+        kd: 0,
+        streak: 0,
+        feed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        fortDamage: 0,
+      },
+      metricMatches: {
+        kills: 0,
+        deaths: 0,
+        kd: 0,
+        streak: 0,
+        feed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        fortDamage: 0,
+      },
+    };
+
+    return averageRankResult[row.playerKey];
   }
 
-  function getRankRowsForWar(warId) {
-    const warEvents = warMap[warId]?.events || [];
+  const averageRankMetricSettings = {
+    kills: {
+      rowMetric: 'kills',
+      desc: true,
+      chronology: ['finalKillKey', 'firstKey'],
+    },
+    deaths: {
+      rowMetric: 'deaths',
+      desc: false,
+      chronology: ['finalDeathKey', 'firstKey'],
+    },
+    kd: {
+      rowMetric: 'kdNumber',
+      desc: true,
+      chronology: ['lastKey', 'firstKey'],
+    },
+    streak: {
+      rowMetric: 'streak',
+      desc: true,
+      chronology: ['streakKey', 'firstKey'],
+    },
+    feed: {
+      rowMetric: 'feed',
+      desc: true,
+      chronology: ['feedKey', 'firstKey'],
+    },
+    damageDealt: {
+      rowMetric: 'damageDealt',
+      desc: true,
+      chronology: ['firstKey', 'lastKey'],
+    },
+    damageTaken: {
+      rowMetric: 'damageTaken',
+      desc: false,
+      chronology: ['firstKey', 'lastKey'],
+    },
+    ccHits: {
+      rowMetric: 'ccHits',
+      desc: true,
+      chronology: ['firstKey', 'lastKey'],
+    },
+    fortDamage: {
+      rowMetric: 'fortDamage',
+      desc: true,
+      chronology: ['firstKey', 'lastKey'],
+    },
+  };
 
-    return Object.entries(playerMatchMap)
-      .map(([name, matchesByWar]) => {
-        const match = matchesByWar[warId];
+  averageRankWarIds.forEach((warId, warIndex) => {
+    const combatPlayers = buildOverviewCombatRows(
+      averageRankCombatWarMap[warId] || [],
+    );
+    const secondaryPlayers = buildOverviewSecondaryRows(
+      averageRankSecondaryWarMap[warId] || [],
+      secondaryWarPresence[warId] || {},
+      warIndex,
+    );
+    const rowsForWar = mergeOverviewWarRows(
+      combatPlayers,
+      secondaryPlayers,
+      warIndex,
+    );
 
-        if (!match) return null;
+    if (!rowsForWar.length) return;
 
-        const kills = Number(match.kills) || 0;
-        const deaths = Number(match.deaths) || 0;
-        const eventStreak = getBestWarKillstreak(warEvents, name);
-        const eventFeed = getBestWarKillfeed(warEvents, name);
+    const ranks = Object.fromEntries(
+      Object.entries(averageRankMetricSettings).map(
+        ([metric, settings]) => [
+          metric,
+          buildOverviewStyleRank(
+            rowsForWar,
+            settings.rowMetric,
+            settings.desc,
+            settings.chronology,
+          ),
+        ],
+      ),
+    );
 
-        return {
-          name,
-          kills,
-          deaths,
-          kdNumber: kd(kills, deaths),
-          streak: eventStreak,
-          feed: eventFeed,
-          chronologyKey: getPlayerWarChronologyKey(warEvents, name),
-        };
-      })
-      .filter(Boolean);
+    rowsForWar.forEach((row) => {
+      const entry = ensureAverageRankPlayer(row);
+      let hasAnyRank = false;
+
+      Object.keys(averageRankMetricSettings).forEach(
+        (metric) => {
+          const rank = ranks[metric]?.[row.playerKey];
+
+          if (
+            rank === null ||
+            rank === undefined ||
+            !Number.isFinite(Number(rank)) ||
+            Number(rank) <= 0
+          ) {
+            return;
+          }
+
+          hasAnyRank = true;
+          entry.metricTotals[metric] += Number(rank);
+          entry.metricMatches[metric] += 1;
+        },
+      );
+
+      if (hasAnyRank) {
+        entry.matches += 1;
+      }
+    });
+  });
+
+  const averageRankTable = Object.fromEntries(
+    Object.entries(averageRankResult).map(
+      ([playerKey, data]) => {
+        const columnRanks = Object.fromEntries(
+          Object.keys(data.metricTotals).map((metric) => [
+            metric,
+            data.metricMatches[metric]
+              ? data.metricTotals[metric] /
+                data.metricMatches[metric]
+              : null,
+          ]),
+        );
+
+        const availableColumnRanks = Object.values(
+          columnRanks,
+        ).filter(
+          (value) =>
+            value !== null &&
+            value !== undefined &&
+            Number.isFinite(Number(value)),
+        );
+
+        const average = availableColumnRanks.length
+          ? availableColumnRanks.reduce(
+              (sum, value) => sum + Number(value),
+              0,
+            ) / availableColumnRanks.length
+          : null;
+
+        return [
+          playerKey,
+          {
+            name: data.name,
+            matches: data.matches,
+            ranks: columnRanks,
+            average,
+          },
+        ];
+      },
+    ),
+  );
+
+  function getOverviewFormulaAverageRank(name) {
+    const playerKey = normalizeAverageRankPlayerName(name);
+    const result = averageRankTable[playerKey];
+    const average = Number(result?.average);
+
+    return Number.isFinite(average)
+      ? Number(average.toFixed(2))
+      : null;
   }
 
-  function getPlayerAverageRankValues(name) {
-    return Object.keys(playerMatchMap[name] || {})
-      .map((warId) => {
-        const rowsForWar = getRankRowsForWar(warId);
+  function getOverviewFormulaAverageRankMatchCount(name) {
+    const playerKey = normalizeAverageRankPlayerName(name);
 
-        if (!rowsForWar.some((row) => row.name === name)) return null;
-
-        const warEvents = warMap[warId]?.events || [];
-        const hasEventData = warEvents.length > 0;
-
-        const ranks = {
-          kills: hasEventData
-            ? buildKillsRankLikePlayerStats(rowsForWar, warEvents)
-            : buildTieAwareRank(rowsForWar, 'kills', true),
-          deaths: buildTieAwareRank(rowsForWar, 'deaths', false),
-          kd: buildTieAwareRank(rowsForWar, 'kdNumber', true),
-          streak: buildTieAwareRank(rowsForWar, 'streak', true),
-          feed: buildTieAwareRank(rowsForWar, 'feed', true),
-        };
-
-        const rankParts = hasEventData
-          ? [ranks.kills[name], ranks.deaths[name], ranks.kd[name], ranks.streak[name], ranks.feed[name]]
-          : [ranks.kills[name], ranks.deaths[name], ranks.kd[name], ranks.streak[name]];
-
-        const cleanParts = rankParts.filter((value) => Number.isFinite(Number(value)));
-
-        if (!cleanParts.length) return null;
-
-        return cleanParts.reduce((sum, value) => sum + Number(value), 0) / cleanParts.length;
-      })
-      .filter((value) => Number.isFinite(Number(value)));
-  }
-
-  function getPlayerAverageRank(name) {
-    const values = getPlayerAverageRankValues(name);
-
-    if (!values.length) return null;
-
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
+    return Number(averageRankTable[playerKey]?.matches) || 0;
   }
 
   const rows = (safe.players || [])
@@ -1108,7 +1862,13 @@ function buildHallData(stats) {
       const fortDamage = num(player.fortDamage);
       const matchValues = getPlayerMatchValues(player.name);
       const avgKillsMatchCount = matchValues.length;
-      const wars = Object.keys(playerMatchMap[player.name] || {}).length;
+      const trackedWars = Object.keys(playerMatchMap[player.name] || {}).length;
+      const wars = Math.max(
+        trackedWars,
+        num(player.wars),
+        num(player.warCount),
+        num(player.matches),
+      );
       const maxMatchKills = Math.max(
         0,
         ...matchValues.map((match) => Number(match.kills) || 0),
@@ -1164,9 +1924,10 @@ function buildHallData(stats) {
       const avgCcHitsMatchCount = ccHitsMatchValues.length;
       const joinParticipation = getJoinParticipation(player.name);
       const consecutiveWars = getLongestConsecutiveWarStreak(player.name);
-      const averageRankValues = getPlayerAverageRankValues(player.name);
-      const averageRank = getPlayerAverageRank(player.name);
-      const averageRankMatchCount = averageRankValues.length;
+      const averageRank =
+        getOverviewFormulaAverageRank(player.name);
+      const averageRankMatchCount =
+        getOverviewFormulaAverageRankMatchCount(player.name);
       const chronologyKey = getPlayerChronologyKey(player.name);
       const score = Math.max(
         0,
@@ -1229,47 +1990,36 @@ function buildHallData(stats) {
     .sort(
       (a, b) =>
         b.score - a.score ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     );
 
-  const leaderboardRows = rows.filter((row) => row.wars >= MIN_HALL_WARS);
+  const leaderboardRows = rows.filter((row) => row.wars >= minimumWars);
   const eligiblePlayerNames = new Set(leaderboardRows.map((row) => row.name));
 
   const bestKd =
     [...leaderboardRows]
       .filter((row) => row.kills >= 5)
-      .sort(
-        (a, b) =>
-          b.kd - a.kd ||
-          comparePlayerChronology(a, b),
-      )[0] || leaderboardRows[0];
+      .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0] ||
+    leaderboardRows[0];
 
   const topKills =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.kills - a.kills ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.kills - a.kills || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const topStreak =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.streak - a.streak ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.streak - a.streak || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const topFeed =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.feed - a.feed ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.feed - a.feed || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const topWars =
     [...leaderboardRows].sort(
-      (a, b) =>
-        b.wars - a.wars ||
-        comparePlayerChronology(a, b),
+      (a, b) => b.wars - a.wars || compareChronology(a, b),
     )[0] || leaderboardRows[0];
 
   const achievements = [
@@ -1306,10 +2056,7 @@ function buildHallData(stats) {
           .sort(
             (a, b) =>
               a.globalWarIndex - b.globalWarIndex ||
-              String(a.reachedKey || '').localeCompare(
-                String(b.reachedKey || ''),
-              ) ||
-              comparePlayerChronology(a, b),
+              compareChronology(a, b),
           )
           .slice(0, 10),
         fastest: [...thresholdReached[threshold]]
@@ -1318,10 +2065,7 @@ function buildHallData(stats) {
             (a, b) =>
               a.fromPlayerFirstLogWars - b.fromPlayerFirstLogWars ||
               a.globalWarIndex - b.globalWarIndex ||
-              String(a.reachedKey || '').localeCompare(
-                String(b.reachedKey || ''),
-              ) ||
-              comparePlayerChronology(a, b),
+              compareChronology(a, b),
           )
           .slice(0, 10),
       },
@@ -1335,19 +2079,11 @@ function buildHallData(stats) {
     thresholdLeaderboards,
     topKillers: [...leaderboardRows]
       .filter((row) => row.kills > 0)
-      .sort(
-      (a, b) =>
-        b.kills - a.kills ||
-        comparePlayerChronology(a, b),
-    )
+      .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
       .slice(0, 10),
     topDamagePlayers: [...leaderboardRows]
       .filter((row) => row.damageDealt > 0)
-      .sort(
-      (a, b) =>
-        b.damageDealt - a.damageDealt ||
-        comparePlayerChronology(a, b),
-    )
+      .sort((a, b) => b.damageDealt - a.damageDealt || compareChronology(a, b))
       .slice(0, 10),
     totals: {
       kills: num(safe.kills) || rows.reduce((sum, row) => sum + row.kills, 0),
@@ -1359,6 +2095,53 @@ function buildHallData(stats) {
       damageDealt: rows.reduce((sum, row) => sum + row.damageDealt, 0),
     },
   };
+}
+
+function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
+  const safe = stats?.players?.length ? stats : demoStats;
+  const signature = hallStatsSignature(safe, minimumWars);
+
+  if (safe && typeof safe === 'object') {
+    const objectEntry = hallDataObjectCache.get(safe);
+
+    if (
+      objectEntry?.signature === signature &&
+      objectEntry?.data
+    ) {
+      return objectEntry.data;
+    }
+  }
+
+  const signatureEntry =
+    hallDataSignatureCache.get(signature);
+
+  if (signatureEntry) {
+    // Refresh LRU order.
+    hallDataSignatureCache.delete(signature);
+    hallDataSignatureCache.set(signature, signatureEntry);
+
+    if (safe && typeof safe === 'object') {
+      hallDataObjectCache.set(safe, {
+        signature,
+        data: signatureEntry,
+      });
+    }
+
+    return signatureEntry;
+  }
+
+  const data = computeHallData(safe, minimumWars);
+
+  rememberHallData(signature, data);
+
+  if (safe && typeof safe === 'object') {
+    hallDataObjectCache.set(safe, {
+      signature,
+      data,
+    });
+  }
+
+  return data;
 }
 
 const toneClasses = {
@@ -1853,18 +2636,10 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
   const bestKd = [...leaderboardRows]
     .filter((player) => player.kills >= 5)
-    .sort(
-      (a, b) =>
-        b.kd - a.kd ||
-        comparePlayerChronology(a, b),
-    )[0];
+    .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0];
 
   const topStreak = [...leaderboardRows]
-    .sort(
-      (a, b) =>
-        b.streak - a.streak ||
-        comparePlayerChronology(a, b),
-    )[0];
+    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))[0];
 
   const totalEligibleKills = leaderboardRows.reduce((sum, player) => sum + player.kills, 0);
   const totalEligibleDamage = leaderboardRows.reduce((sum, player) => sum + player.damageDealt, 0);
@@ -1918,40 +2693,30 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
 function CombatOutputPanel({ data }) {
   const topTotalKills = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.kills > 0)
-    .sort(
-      (a, b) =>
-        b.kills - a.kills ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.kills > 0)
+    .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgKillsMatchCount) > 0 &&
         Number.isFinite(Number(player.avgKillsPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgKillsPerMatch - a.avgKillsPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topFraggers = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgKillsMatchCount) > 0 &&
         player.maxMatchKills > 0,
     )
-    .sort(
-      (a, b) =>
-        b.maxMatchKills - a.maxMatchKills ||
-        comparePlayerChronology(a, b),
-    )
+    .sort((a, b) => b.maxMatchKills - a.maxMatchKills || compareChronology(a, b))
     .slice(0, 10);
 
   const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
@@ -1976,7 +2741,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
           )}
         </div>
 
@@ -1994,7 +2759,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
           )}
         </div>
 
@@ -2012,7 +2777,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 30 matches yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
           )}
         </div>
       </div>
@@ -2024,73 +2789,61 @@ function CombatRecordsPanel({ data }) {
   const topAverageKd = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgKdMatchCount) > 0 &&
         Number.isFinite(Number(player.avgKdPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgKdPerMatch - a.avgKdPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topHighestMatchKd = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.maxMatchKd) > 0 &&
         Number.isFinite(Number(player.maxMatchKd)),
     )
     .sort(
       (a, b) =>
         b.maxMatchKd - a.maxMatchKd ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topAverageRank = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.averageRankMatchCount) > 0 &&
         Number.isFinite(Number(player.averageRank)),
     )
     .sort(
       (a, b) =>
         a.averageRank - b.averageRank ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topStreaks = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.streak > 0)
-    .sort(
-      (a, b) =>
-        b.streak - a.streak ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.streak > 0)
+    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))
     .slice(0, 10);
 
   const topFeeds = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.feed > 0)
-    .sort(
-      (a, b) =>
-        b.feed - a.feed ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.feed > 0)
+    .sort((a, b) => b.feed - a.feed || compareChronology(a, b))
     .slice(0, 10);
 
   const topFiftyPlusKillWars = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.fiftyPlusKillWars) > 0,
     )
     .sort(
       (a, b) =>
         b.fiftyPlusKillWars - a.fiftyPlusKillWars ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
@@ -2362,57 +3115,55 @@ function ArsenalOutputPanel({ data }) {
 
 function DamageRecordsPanel({ data }) {
   const topSingleGameDamageDealt = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.maxMatchDamageDealt > 0)
+    .filter((player) => player.maxMatchDamageDealt > 0)
     .sort(
       (a, b) =>
         b.maxMatchDamageDealt - a.maxMatchDamageDealt ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topAverageDamageDealt = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgDamageDealtMatchCount) > 0 &&
         Number.isFinite(Number(player.avgDamageDealtPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgDamageDealtPerMatch - a.avgDamageDealtPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topSingleGameFortDamage = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.maxMatchFortDamage > 0)
+    .filter((player) => player.maxMatchFortDamage > 0)
     .sort(
       (a, b) =>
         b.maxMatchFortDamage - a.maxMatchFortDamage ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topSingleGameCcHits = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.maxMatchCcHits > 0)
+    .filter((player) => player.maxMatchCcHits > 0)
     .sort(
       (a, b) =>
         b.maxMatchCcHits - a.maxMatchCcHits ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topAverageCcHits = [...data.rows]
     .filter(
       (player) =>
-        player.wars >= MIN_HALL_WARS &&
         Number(player.avgCcHitsMatchCount) > 0 &&
         Number.isFinite(Number(player.avgCcHitsPerMatch)),
     )
     .sort(
       (a, b) =>
         b.avgCcHitsPerMatch - a.avgCcHitsPerMatch ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
@@ -2522,29 +3273,25 @@ function DamageRecordsPanel({ data }) {
 
 function NodeWarsRecordsPanel({ data }) {
   const topMostNodeWars = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.wars > 0)
-    .sort(
-      (a, b) =>
-        b.wars - a.wars ||
-        comparePlayerChronology(a, b),
-    )
+    .filter((player) => player.wars > 0)
+    .sort((a, b) => b.wars - a.wars || compareChronology(a, b))
     .slice(0, 10);
 
   const topJoinParticipation = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.wars > 0)
+    .filter((player) => player.wars > 0)
     .sort(
       (a, b) =>
         b.joinParticipation - a.joinParticipation ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
   const topConsecutiveWars = [...data.rows]
-    .filter((player) => player.wars >= MIN_HALL_WARS && player.consecutiveWars > 0)
+    .filter((player) => player.consecutiveWars > 0)
     .sort(
       (a, b) =>
         b.consecutiveWars - a.consecutiveWars ||
-        comparePlayerChronology(a, b),
+        compareChronology(a, b),
     )
     .slice(0, 10);
 
@@ -2658,10 +3405,17 @@ function PreviewAll({ data }) {
 
 export default function HallOfFame({ stats, allTimeStats } = {}) {
   const previewMode = !stats && !allTimeStats;
-  const data = useMemo(() => buildHallData(allTimeStats?.players?.length ? allTimeStats : stats), [stats, allTimeStats]);
+  const data = useMemo(
+    () =>
+      buildHallData(
+        allTimeStats?.players?.length ? allTimeStats : stats,
+        MIN_HALL_WARS,
+      ),
+    [stats, allTimeStats],
+  );
 
+  if (previewMode) return <PreviewAll data={buildHallData(demoStats, 0)} />;
   if (!data.rows.length) return <EmptyState />;
-  if (previewMode) return <PreviewAll data={buildHallData(demoStats)} />;
 
   return (
     <PageFrame>
