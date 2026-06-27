@@ -18,6 +18,135 @@ import {
 import { Panel } from '../components/UI';
 import { buildNodeWarRow, scrollCls } from '../lib/logUtils';
 
+
+const NODE_WARS_PANEL_CSS = `
+  .adversary-content .nodewars-guild-panel {
+    --nodewars-accent-rgb: 96, 165, 250;
+    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--nodewars-accent-rgb), 0.18) 0%,
+        rgba(var(--nodewars-accent-rgb), 0.09) 42%,
+        rgba(var(--nodewars-accent-rgb), 0.035) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--nodewars-accent-rgb), 0.075) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
+      ) !important;
+    border-color: transparent !important;
+    box-shadow:
+      inset 0 0 42px rgba(var(--nodewars-accent-rgb), 0.075),
+      0 12px 28px rgba(0, 0, 0, 0.24) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: blur(8px) saturate(122%);
+    transition:
+      background-color 180ms ease,
+      background-image 180ms ease,
+      box-shadow 180ms ease,
+      filter 180ms ease,
+      transform 180ms ease;
+  }
+
+  .adversary-content .nodewars-guild-panel:hover {
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--nodewars-accent-rgb), 0.25) 0%,
+        rgba(var(--nodewars-accent-rgb), 0.13) 44%,
+        rgba(var(--nodewars-accent-rgb), 0.05) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--nodewars-accent-rgb), 0.10) 0%,
+        rgba(7, 13, 29, 0.48) 54%,
+        rgba(2, 6, 23, 0.62) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 48px rgba(var(--nodewars-accent-rgb), 0.13),
+      0 0 20px rgba(var(--nodewars-accent-rgb), 0.30),
+      0 0 42px rgba(var(--nodewars-accent-rgb), 0.15),
+      0 16px 34px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  .adversary-content .nodewars-guild-panel.nodewars-selected {
+    background-color: rgba(2, 6, 23, 0.56) !important;
+    box-shadow:
+      inset 0 0 52px rgba(var(--nodewars-accent-rgb), 0.15),
+      0 0 0 1px rgba(255, 255, 255, 0.10),
+      0 0 24px rgba(var(--nodewars-accent-rgb), 0.28),
+      0 14px 30px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  .adversary-content .nodewars-war-date {
+    background-image:
+      radial-gradient(
+        circle at 24% 16%,
+        rgba(var(--nodewars-accent-rgb), 0.24),
+        rgba(var(--nodewars-accent-rgb), 0.10) 42%,
+        transparent 76%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--nodewars-accent-rgb), 0.12),
+        rgba(2, 6, 23, 0.18)
+      );
+  }
+
+  .adversary-content .nodewars-summary-stat {
+    --nodewars-accent-rgb: 96, 165, 250;
+    background-image:
+      radial-gradient(
+        ellipse at 18% 0%,
+        rgba(var(--nodewars-accent-rgb), 0.14) 0%,
+        rgba(var(--nodewars-accent-rgb), 0.055) 54%,
+        transparent 86%
+      );
+    transition: background-image 180ms ease, box-shadow 180ms ease;
+  }
+
+  .adversary-content .nodewars-summary-stat:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 18% 0%,
+        rgba(var(--nodewars-accent-rgb), 0.22) 0%,
+        rgba(var(--nodewars-accent-rgb), 0.085) 58%,
+        transparent 88%
+      );
+    box-shadow: inset 0 0 30px rgba(var(--nodewars-accent-rgb), 0.08);
+  }
+
+  .adversary-content .nodewars-dark-control {
+    background-color: rgba(0, 0, 0, 0.62) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: white !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .adversary-content .nodewars-dark-control:hover,
+  .adversary-content .nodewars-dark-control:focus {
+    background-color: rgba(0, 0, 0, 0.78) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: white !important;
+  }
+
+  .adversary-content .nodewars-period-menu {
+    background: #000 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #fff !important;
+    color-scheme: dark;
+  }
+
+  .adversary-content .nodewars-period-menu button {
+    color: #fff !important;
+  }
+`;
+
 /* -------------------- SORT HEADER -------------------- */
 function SortHeader({ id, label, sort, onSort }) {
   const active = sort.key === id;
@@ -26,10 +155,10 @@ function SortHeader({ id, label, sort, onSort }) {
     <button
       type="button"
       onClick={() => onSort(id)}
-      className={`rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-wider transition ${
+      className={`nodewars-dark-control rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-wider transition ${
         active
-          ? 'border-violet-400/40 bg-violet-500/15 text-violet-200'
-          : 'border-slate-800 bg-slate-950/70 text-slate-500 hover:border-slate-700 hover:text-slate-300'
+          ? 'bg-violet-500/15 text-violet-100 shadow-[0_0_18px_rgba(139,92,246,.14)]'
+          : 'text-slate-400 hover:text-white'
       }`}
     >
       {label} {active ? (sort.dir === 'desc' ? '↓' : '↑') : '↕'}
@@ -128,6 +257,7 @@ function compactNumber(value, digits = 1) {
 function accentByIndex(index) {
   const accents = [
     {
+      rgb: '139, 92, 246',
       date: 'from-violet-950/95 via-violet-900/35 to-slate-950',
       iconBox: 'bg-violet-500/15 text-violet-300 shadow-violet-500/20',
       topLine: 'from-violet-500/0 via-violet-400/40 to-violet-500/0',
@@ -135,6 +265,7 @@ function accentByIndex(index) {
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(139,92,246,0.20)]',
     },
     {
+      rgb: '59, 130, 246',
       date: 'from-blue-950/95 via-blue-900/35 to-slate-950',
       iconBox: 'bg-blue-500/15 text-blue-300 shadow-blue-500/20',
       topLine: 'from-blue-500/0 via-blue-400/40 to-blue-500/0',
@@ -142,6 +273,7 @@ function accentByIndex(index) {
       hoverShadow: 'hover:shadow-[0_0_34px_rgba(59,130,246,0.20)]',
     },
     {
+      rgb: '6, 182, 212',
       date: 'from-cyan-950/95 via-cyan-900/35 to-slate-950',
       iconBox: 'bg-cyan-500/15 text-cyan-300 shadow-cyan-500/20',
       topLine: 'from-cyan-500/0 via-cyan-400/40 to-cyan-500/0',
@@ -185,7 +317,7 @@ function PeriodSelect({ value, onChange, loading = false }) {
         type="button"
         disabled={loading}
         onClick={() => setOpen((current) => !current)}
-        className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-2 text-xs font-black text-slate-300 transition hover:border-slate-700 hover:bg-slate-900 disabled:cursor-wait disabled:opacity-60"
+        className="nodewars-dark-control flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-black text-white transition disabled:cursor-wait disabled:opacity-60"
       >
         <CalendarDays size={15} />
         {loading ? 'Loading...' : selected.label}
@@ -196,7 +328,7 @@ function PeriodSelect({ value, onChange, loading = false }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.45)]">
+        <div className="nodewars-period-menu absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border shadow-[0_20px_70px_rgba(0,0,0,0.65)]">
           {options.map((option) => (
             <button
               key={option.value}
@@ -207,8 +339,8 @@ function PeriodSelect({ value, onChange, loading = false }) {
               }}
               className={`block w-full px-4 py-3 text-left text-xs font-black transition ${
                 value === option.value
-                  ? 'bg-violet-500/15 text-violet-200'
-                  : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'
+                  ? 'bg-white/14 text-white'
+                  : 'bg-black text-white hover:bg-white/10'
               }`}
             >
               {option.label}
@@ -243,11 +375,11 @@ function EnemySearch({ value, onChange, suggestions, onPick }) {
           setOpen(true);
         }}
         placeholder="Search enemies..."
-        className="w-full rounded-xl border border-slate-800 bg-slate-950 py-3 pl-11 pr-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-600 focus:border-violet-400 focus:bg-slate-900"
+        className="nodewars-dark-control w-full rounded-xl border py-3 pl-11 pr-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-500 focus:shadow-[0_0_20px_rgba(139,92,246,.16)]"
       />
 
       {showSuggestions && (
-        <div className="absolute left-0 right-0 z-40 mt-2 max-h-72 overflow-auto rounded-xl border border-slate-800 bg-slate-950 shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+        <div className="nodewars-period-menu absolute left-0 right-0 z-40 mt-2 max-h-72 overflow-auto rounded-xl border shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
           {suggestions.map((enemy) => (
             <button
               key={enemy}
@@ -257,7 +389,7 @@ function EnemySearch({ value, onChange, suggestions, onPick }) {
                 onPick(enemy);
                 setOpen(false);
               }}
-              className="flex w-full items-center justify-between gap-3 border-b border-slate-900 px-4 py-3 text-left text-sm font-black text-slate-300 transition last:border-b-0 hover:bg-violet-500/10 hover:text-white"
+              className="flex w-full items-center justify-between gap-3 border-b border-white/5 bg-black px-4 py-3 text-left text-sm font-black text-white transition last:border-b-0 hover:bg-white/10"
             >
               <span className="truncate">{enemy}</span>
               <span className="text-[10px] uppercase tracking-wider text-slate-600">
@@ -274,7 +406,7 @@ function EnemySearch({ value, onChange, suggestions, onPick }) {
 /* -------------------- ENEMY PILL -------------------- */
 function EnemyPill({ enemy }) {
   return (
-    <div className="flex h-7 min-w-[92px] max-w-[155px] items-center justify-between gap-2 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="nodewars-dark-control flex h-7 min-w-[92px] max-w-[155px] items-center justify-between gap-2 rounded-xl border px-3">
       <span
         title={enemy.name}
         className="truncate text-[12px] font-black text-slate-100"
@@ -293,7 +425,7 @@ function EnemyPill({ enemy }) {
 function WarMetric({ icon, label, value, valueClass = 'text-slate-100' }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-900/80">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/30 shadow-[inset_0_0_16px_rgba(255,255,255,.025)]">
         {icon}
       </div>
 
@@ -320,18 +452,19 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
   return (
     <div
       onClick={onOpen}
-      className={`group relative grid cursor-pointer overflow-visible rounded-xl border transition duration-200 ${
+      className={`nodewars-guild-panel group relative grid cursor-pointer overflow-visible rounded-xl border transition duration-200 ${
         checked
-          ? 'border-violet-400/60 bg-slate-950 shadow-[0_0_34px_rgba(255,255,255,0.12)]'
-          : `border-slate-800/90 bg-slate-950 hover:-translate-y-[1px] hover:border-slate-600 ${accent.hoverShadow}`
+          ? 'nodewars-selected'
+          : 'hover:-translate-y-[1px]'
       } lg:grid-cols-[118px_1fr]`}
+      style={{ '--nodewars-accent-rgb': accent.rgb }}
     >
       <div
-        className={`pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-100`}
+        className={`pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-30`}
       />
 
       <div
-        className={`relative flex min-h-[94px] flex-col justify-between overflow-hidden rounded-l-xl bg-gradient-to-br ${accent.date} p-3`}
+        className="nodewars-war-date relative flex min-h-[94px] flex-col justify-between overflow-hidden rounded-l-xl p-3"
       >
         <div>
           <div
@@ -360,7 +493,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
         )}
       </div>
 
-      <div className="relative min-w-0 overflow-hidden rounded-r-xl p-3">
+      <div className="relative min-w-0 overflow-hidden rounded-r-xl bg-transparent p-3">
         <div
           className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.topLine} opacity-70`}
         />
@@ -494,10 +627,11 @@ function SummaryStat({
   value,
   valueClass = 'text-slate-100',
   barClass = 'bg-slate-100',
+  accentRgb = '96, 165, 250',
 }) {
   return (
-    <div className="flex items-center gap-3 border-slate-800 px-4 py-3 md:border-r">
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-900/80">
+    <div className="nodewars-summary-stat flex items-center gap-3 px-4 py-3" style={{ '--nodewars-accent-rgb': accentRgb }}>
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black/30 shadow-[inset_0_0_18px_rgba(255,255,255,.025)]">
         {icon}
       </div>
 
@@ -552,7 +686,7 @@ function KillsDeathsTrend({ rows }) {
   const deathsPoints = buildPoints(safeDeaths);
 
   return (
-    <div className="flex min-w-[260px] flex-1 items-center gap-4 px-4 py-3">
+    <div className="nodewars-summary-stat flex min-w-[260px] flex-1 items-center gap-4 px-4 py-3" style={{ '--nodewars-accent-rgb': '6, 182, 212' }}>
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cyan-500/10">
         <Activity size={20} className="text-cyan-300" />
       </div>
@@ -880,14 +1014,16 @@ export default function NodeWars({
 
   return (
     <Panel cls="border-0 bg-transparent p-0 shadow-none">
+      <style>{NODE_WARS_PANEL_CSS}</style>
       <div className="space-y-3">
         {/* FILTER PANEL */}
         <div
-          className={`relative z-30 rounded-xl border border-slate-800 bg-slate-950/95 shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition-all duration-300 ${
+          className={`nodewars-guild-panel relative z-30 rounded-xl border transition-all duration-300 ${
             filtersVisible
               ? 'max-h-[240px] overflow-visible p-4 opacity-100 translate-y-0'
               : 'max-h-0 overflow-hidden border-transparent p-0 opacity-0 -translate-y-2'
           }`}
+          style={{ '--nodewars-accent-rgb': '139, 92, 246' }}
         >
           <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
             <EnemySearch
@@ -996,19 +1132,20 @@ export default function NodeWars({
 
         {/* WARNING */}
         {(warning || externalWarning) && (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
+          <div className="nodewars-guild-panel rounded-xl border px-4 py-3 text-sm font-bold text-amber-200" style={{ '--nodewars-accent-rgb': '245, 158, 11' }}>
             {warning || externalWarning}
           </div>
         )}
 
         {/* SUMMARY */}
-        <div className="grid overflow-hidden rounded-xl border border-slate-800/90 bg-slate-950 shadow-[0_18px_70px_rgba(0,0,0,0.30)] md:grid-cols-2 xl:grid-cols-[repeat(8,minmax(112px,1fr))_minmax(220px,1.25fr)]">
+        <div className="nodewars-guild-panel grid overflow-hidden rounded-xl border md:grid-cols-2 xl:grid-cols-[repeat(8,minmax(112px,1fr))_minmax(220px,1.25fr)]" style={{ '--nodewars-accent-rgb': '59, 130, 246' }}>
           <SummaryStat
             label="Total Matches"
             value={totals.matches}
             valueClass="text-violet-400"
             barClass="bg-violet-400"
             icon={<Swords size={20} className="text-violet-300" />}
+            accentRgb="139, 92, 246"
           />
 
           <SummaryStat
@@ -1017,6 +1154,7 @@ export default function NodeWars({
             valueClass="text-emerald-400"
             barClass="bg-emerald-400"
             icon={<Crosshair size={20} className="text-emerald-300" />}
+            accentRgb="16, 185, 129"
           />
 
           <SummaryStat
@@ -1025,6 +1163,7 @@ export default function NodeWars({
             valueClass="text-rose-400"
             barClass="bg-rose-400"
             icon={<Skull size={20} className="text-rose-300" />}
+            accentRgb="244, 63, 94"
           />
 
           <SummaryStat
@@ -1037,6 +1176,7 @@ export default function NodeWars({
               Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'
             }
             icon={<Gauge size={20} className="text-cyan-300" />}
+            accentRgb="6, 182, 212"
           />
 
           <SummaryStat
@@ -1045,6 +1185,7 @@ export default function NodeWars({
             valueClass="text-amber-300"
             barClass="bg-amber-300"
             icon={<Zap size={20} className="text-amber-300" />}
+            accentRgb="245, 158, 11"
           />
 
           <SummaryStat
@@ -1053,6 +1194,7 @@ export default function NodeWars({
             valueClass="text-pink-300"
             barClass="bg-pink-300"
             icon={<Shield size={20} className="text-pink-300" />}
+            accentRgb="236, 72, 153"
           />
 
           <SummaryStat
@@ -1061,6 +1203,7 @@ export default function NodeWars({
             valueClass="text-cyan-300"
             barClass="bg-cyan-300"
             icon={<Hand size={20} className="text-cyan-300" />}
+            accentRgb="6, 182, 212"
           />
 
           <SummaryStat
@@ -1069,6 +1212,7 @@ export default function NodeWars({
             valueClass="text-violet-300"
             barClass="bg-violet-300"
             icon={<Castle size={20} className="text-violet-300" />}
+            accentRgb="139, 92, 246"
           />
 
           <KillsDeathsTrend rows={rows} />
@@ -1080,11 +1224,11 @@ export default function NodeWars({
           className={`${filtersVisible ? 'max-h-[calc(100vh-330px)]' : 'max-h-[calc(100vh-210px)]'} space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
         >
           {loading && !rows.length ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
+            <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400" style={{ '--nodewars-accent-rgb': '59, 130, 246' }}>
               Loading node wars...
             </div>
           ) : !rows.length ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-12 text-center text-sm font-bold text-slate-500">
+            <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400" style={{ '--nodewars-accent-rgb': '59, 130, 246' }}>
               No saved node wars found for this filter.
             </div>
           ) : (
