@@ -4313,22 +4313,33 @@ function EnemyGuilds({ guilds, events }) {
   const [guildSearch, setGuildSearch] = useState('');
   const [chartGuildFilter, setChartGuildFilter] = useState('');
 
+  function calculateGuildKd(kills, deaths) {
+    const safeKills = Number(kills) || 0;
+    const safeDeaths = Number(deaths) || 0;
+
+    if (safeDeaths > 0) return safeKills / safeDeaths;
+    return safeKills > 0 ? safeKills : 0;
+  }
+
   const guildMatchStats = useMemo(() => {
     const matchesByGuild = {};
 
-    [...(events || [])].forEach((event, eventIndex) => {
+    [...(events || [])].forEach((event) => {
       const guildName = cleanGuild(event.guild);
 
       if (!guildName) return;
 
       const matchKey = String(
-        event.id ||
-          event.matchId ||
+        event.matchId ||
           event.match_id ||
           event.logId ||
           event.log_id ||
+          event.sourceLogId ||
+          event.source_log_id ||
           [event.date, event.war].filter(Boolean).join('|') ||
-          `selected-war-${eventIndex}`,
+          event.date ||
+          event.war ||
+          'selected-war',
       );
 
       matchesByGuild[guildName] ||= new Map();
@@ -4353,21 +4364,31 @@ function EnemyGuilds({ guilds, events }) {
         const matches = [...matchMap.values()].filter(
           (match) => match.kills > 0 || match.deaths > 0,
         );
-        const averageKd = matches.length
-          ? matches.reduce((sum, match) => {
-              const kd = match.deaths
-                ? match.kills / match.deaths
-                : match.kills;
-
-              return sum + kd;
-            }, 0) / matches.length
-          : 0;
+        const totalMatches = matches.length;
+        const totalKills = matches.reduce(
+          (sum, match) => sum + (Number(match.kills) || 0),
+          0,
+        );
+        const totalDeaths = matches.reduce(
+          (sum, match) => sum + (Number(match.deaths) || 0),
+          0,
+        );
+        const averageKills = totalMatches ? totalKills / totalMatches : 0;
+        const averageDeaths = totalMatches ? totalDeaths / totalMatches : 0;
 
         return [
           guildName,
           {
-            totalMatches: matches.length,
-            averageKd,
+            totalMatches,
+            totalKills,
+            totalDeaths,
+            totalKd: calculateGuildKd(totalKills, totalDeaths),
+            averageKills,
+            averageDeaths,
+            // Use the ratio of the averaged kills and deaths. This keeps K/D
+            // weighted correctly across all selected wars and avoids a small
+            // zero-death war distorting the result.
+            averageKd: calculateGuildKd(averageKills, averageDeaths),
           },
         ];
       }),
@@ -4392,11 +4413,17 @@ function EnemyGuilds({ guilds, events }) {
     () =>
       [...(guilds || [])]
         .map((guild) => {
-          const kills = Number(guild.deaths) || 0;
-          const deaths = Number(guild.kills) || 0;
-          const totalInteractions = kills + deaths;
-          const kdNumber = deaths > 0 ? kills / deaths : kills > 0 ? kills : 0;
           const selectedMatchStats = guildMatchStats[guild.name];
+          const fallbackKills = Number(guild.deaths) || 0;
+          const fallbackDeaths = Number(guild.kills) || 0;
+          const kills = selectedMatchStats?.totalMatches
+            ? selectedMatchStats.totalKills
+            : fallbackKills;
+          const deaths = selectedMatchStats?.totalMatches
+            ? selectedMatchStats.totalDeaths
+            : fallbackDeaths;
+          const totalInteractions = kills + deaths;
+          const kdNumber = calculateGuildKd(kills, deaths);
           const totalMatches = Math.max(
             1,
             selectedMatchStats?.totalMatches ||
@@ -4405,11 +4432,16 @@ function EnemyGuilds({ guilds, events }) {
               Number(guild.totalMatches) ||
               0,
           );
-          const averageKills = kills / totalMatches;
-          const averageDeaths = deaths / totalMatches;
-          const averageKd = selectedMatchStats?.totalMatches
-            ? selectedMatchStats.averageKd
-            : kdNumber;
+          const averageKills = selectedMatchStats?.totalMatches
+            ? selectedMatchStats.averageKills
+            : kills / totalMatches;
+          const averageDeaths = selectedMatchStats?.totalMatches
+            ? selectedMatchStats.averageDeaths
+            : deaths / totalMatches;
+          const averageKd = calculateGuildKd(
+            averageKills,
+            averageDeaths,
+          );
 
           return {
             ...guild,
@@ -4565,6 +4597,27 @@ function EnemyGuilds({ guilds, events }) {
     }
 
     const [r, g, b] = kdColorChannels(Number(guild.kdNumber) || 0);
+    const showAverages = Number(guild.totalMatches) > 1;
+    const averagesMarkup = showAverages
+      ? `
+        <div class="overview-enemy-guild-tooltip__section-label">Average per selected war</div>
+        <div class="overview-enemy-guild-tooltip__grid overview-enemy-guild-tooltip__grid--averages">
+          <div class="overview-enemy-guild-tooltip__stat">
+            <span class="overview-enemy-guild-tooltip__label">Avg Kills</span>
+            <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average-kills">${escapeTooltipText(formatAverageValue(guild.averageKills))}</span>
+          </div>
+          <div class="overview-enemy-guild-tooltip__stat">
+            <span class="overview-enemy-guild-tooltip__label">Avg Deaths</span>
+            <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average-deaths">${escapeTooltipText(formatAverageValue(guild.averageDeaths))}</span>
+          </div>
+          <div class="overview-enemy-guild-tooltip__stat">
+            <span class="overview-enemy-guild-tooltip__label">Avg K/D</span>
+            <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(formatGuildKd(guild.averageKd))}</span>
+          </div>
+        </div>
+      `
+      : '';
+
     tooltipElement.style.setProperty('--enemy-tooltip-rgb', `${r}, ${g}, ${b}`);
     tooltipElement.innerHTML = `
       <div class="overview-enemy-guild-tooltip__header">
@@ -4584,25 +4637,11 @@ function EnemyGuilds({ guilds, events }) {
         </div>
         <div class="overview-enemy-guild-tooltip__stat">
           <span class="overview-enemy-guild-tooltip__label">K/D</span>
-          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(guild.kd)}</span>
+          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(formatGuildKd(guild.kdNumber))}</span>
         </div>
       </div>
 
-      <div class="overview-enemy-guild-tooltip__section-label">Average per selected war</div>
-      <div class="overview-enemy-guild-tooltip__grid overview-enemy-guild-tooltip__grid--averages">
-        <div class="overview-enemy-guild-tooltip__stat">
-          <span class="overview-enemy-guild-tooltip__label">Avg Kills</span>
-          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average-kills">${escapeTooltipText(formatAverageValue(guild.averageKills))}</span>
-        </div>
-        <div class="overview-enemy-guild-tooltip__stat">
-          <span class="overview-enemy-guild-tooltip__label">Avg Deaths</span>
-          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average-deaths">${escapeTooltipText(formatAverageValue(guild.averageDeaths))}</span>
-        </div>
-        <div class="overview-enemy-guild-tooltip__stat">
-          <span class="overview-enemy-guild-tooltip__label">Avg K/D</span>
-          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(formatGuildKd(guild.averageKd))}</span>
-        </div>
-      </div>
+      ${averagesMarkup}
     `;
 
     tooltipElement.dataset.visible = 'true';
