@@ -1572,6 +1572,23 @@ export default function App() {
           }}
         />
 
+        {/* Smoke overlaps the artwork itself so the image edges dissolve into
+            the page instead of ending in a visible vertical boundary. */}
+        <div
+          className="absolute -inset-[5%] opacity-[0.72]"
+          style={{
+            backgroundImage: [
+              'radial-gradient(ellipse 58% 96% at 8% 50%, rgba(253,224,71,.17) 0%, rgba(250,204,21,.12) 18%, rgba(245,158,11,.075) 36%, rgba(180,83,9,.035) 54%, transparent 74%)',
+              'radial-gradient(ellipse 58% 96% at 92% 50%, rgba(253,224,71,.17) 0%, rgba(250,204,21,.12) 18%, rgba(245,158,11,.075) 36%, rgba(180,83,9,.035) 54%, transparent 74%)',
+              'radial-gradient(ellipse 34% 42% at 22% 24%, rgba(250,204,21,.07) 0%, rgba(217,119,6,.03) 48%, transparent 76%)',
+              'radial-gradient(ellipse 34% 42% at 78% 76%, rgba(250,204,21,.07) 0%, rgba(217,119,6,.03) 48%, transparent 76%)',
+            ].join(', '),
+            filter: 'blur(40px) saturate(1.12)',
+            mixBlendMode: 'screen',
+            transform: 'scale(1.05)',
+          }}
+        />
+
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.13)_0%,rgba(250,204,21,.06)_32%,rgba(180,83,9,.04)_56%,transparent_76%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_38%,rgba(120,53,15,.10)_66%,rgba(2,6,23,.74)_100%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.34),rgba(120,53,15,.035)_28%,rgba(120,53,15,.055)_68%,rgba(2,6,23,.66))]" />
