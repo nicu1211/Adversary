@@ -357,15 +357,42 @@ function getPanelAccent(element, index) {
 }
 
 const GLOBAL_PANEL_CSS = `
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background: rgb(2, 6, 23);
+  }
+
+  body {
+    margin: 0;
+  }
+
+  .adversary-app {
+    isolation: isolate;
+    background-color: transparent !important;
+  }
+
+  .adversary-site-background {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
   .adversary-content {
     --adversary-panel-bg-top: rgba(15, 23, 42, 0.24);
     --adversary-panel-bg-bottom: rgba(2, 6, 23, 0.12);
     --adversary-panel-border: rgba(100, 116, 139, 0.36);
   }
 
-  /* Keep route wrappers transparent so the full-page artwork stays visible. */
-  .adversary-content > :is(div, section, article)[class*="bg-"],
-  .adversary-content > :is(div, section, article) > :is(div, section, article)[class*="bg-"]:not([class*="rounded"]) {
+  /* Keep every page-level route wrapper transparent so the same fixed
+     artwork remains visible on Overview, Node Wars, Player Stats, Monthly
+     Recap, Guild, Hall of Fame and Raw Logs. Rounded inner cards are left
+     untouched. */
+  .adversary-content,
+  .adversary-content > :is(div, section, article):not([class*="rounded"]),
+  .adversary-content > :is(div, section, article) > :is(div, section, article):not([class*="rounded"]),
+  .adversary-content > :is(div, section, article) > :is(div, section, article) > :is(div, section, article):not([class*="rounded"]) {
     background-color: transparent !important;
     background-image: none !important;
   }
@@ -1497,13 +1524,27 @@ export default function App() {
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
-    <div className="adversary-app relative min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+    <div className="adversary-app relative min-h-screen overflow-x-hidden text-slate-100">
       <style>{GLOBAL_PANEL_CSS}</style>
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-y-0 left-0 right-0 z-0 overflow-hidden lg:left-[250px]"
+        className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
       >
         <div className="absolute inset-0 bg-slate-950" />
+
+        <div
+          className="absolute inset-0 opacity-90"
+          style={{
+            backgroundImage: [
+              'radial-gradient(ellipse 46% 82% at 0% 48%, rgba(250,204,21,.17) 0%, rgba(245,158,11,.105) 24%, rgba(180,83,9,.055) 48%, transparent 76%)',
+              'radial-gradient(ellipse 46% 82% at 100% 52%, rgba(250,204,21,.17) 0%, rgba(245,158,11,.105) 24%, rgba(180,83,9,.055) 48%, transparent 76%)',
+              'radial-gradient(ellipse 32% 54% at 10% 18%, rgba(253,224,71,.075) 0%, rgba(217,119,6,.035) 52%, transparent 78%)',
+              'radial-gradient(ellipse 32% 54% at 90% 82%, rgba(253,224,71,.075) 0%, rgba(217,119,6,.035) 52%, transparent 78%)',
+            ].join(', '),
+            filter: 'blur(24px)',
+            transform: 'scale(1.04)',
+          }}
+        />
 
         <div
           className="absolute inset-0 bg-center bg-no-repeat opacity-[0.30]"
@@ -1511,20 +1552,20 @@ export default function App() {
             backgroundImage: `url("${adversaryEmblem}")`,
             backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
-            backgroundSize: 'cover',
+            backgroundSize: 'auto 100%',
             filter: 'saturate(1.18) contrast(1.06)',
             WebkitMaskImage:
-              'radial-gradient(ellipse 88% 86% at 50% 48%, #000 0%, #000 43%, rgba(0,0,0,.94) 58%, rgba(0,0,0,.62) 72%, rgba(0,0,0,.22) 86%, transparent 100%)',
+              'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 7%, rgba(0,0,0,.78) 18%, #000 29%, #000 71%, rgba(0,0,0,.78) 82%, rgba(0,0,0,.28) 93%, transparent 100%)',
             maskImage:
-              'radial-gradient(ellipse 88% 86% at 50% 48%, #000 0%, #000 43%, rgba(0,0,0,.94) 58%, rgba(0,0,0,.62) 72%, rgba(0,0,0,.22) 86%, transparent 100%)',
+              'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 7%, rgba(0,0,0,.78) 18%, #000 29%, #000 71%, rgba(0,0,0,.78) 82%, rgba(0,0,0,.28) 93%, transparent 100%)',
           }}
         />
 
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.16)_0%,rgba(250,204,21,.075)_32%,rgba(180,83,9,.045)_56%,transparent_76%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.13)_0%,rgba(250,204,21,.06)_32%,rgba(180,83,9,.04)_56%,transparent_76%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_38%,rgba(120,53,15,.10)_66%,rgba(2,6,23,.74)_100%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.34),rgba(120,53,15,.035)_28%,rgba(120,53,15,.055)_68%,rgba(2,6,23,.66))]" />
       </div>
-      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 p-3 backdrop-blur-xl lg:hidden">
+      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
           ADVERSARY
         </div>
@@ -1586,7 +1627,7 @@ export default function App() {
       </div>
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/90 p-4 backdrop-blur-2xl lg:flex">
+        <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <h1 className="mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
             ADVERSARY
           </h1>
