@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Chart as ChartJS,
   LinearScale,
@@ -115,8 +116,131 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   }
 
   .overview-guild-page .overview-chart-shell {
-    overflow: hidden;
+    overflow: visible;
     border-radius: 24px;
+  }
+
+  .overview-guild-page .overview-chart-shell > :is(div, section, article) {
+    border-color: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .overview-guild-page .overview-panel-transparent,
+  .overview-guild-page .overview-panel-transparent:hover {
+    border-color: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+
+  .overview-guild-page .overview-metric-card {
+    --overview-metric-rgb: 59, 130, 246;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 15% 0%,
+        rgba(var(--overview-metric-rgb), 0.31) 0%,
+        rgba(var(--overview-metric-rgb), 0.15) 42%,
+        rgba(var(--overview-metric-rgb), 0.055) 72%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-metric-rgb), 0.12),
+        rgba(2, 6, 23, 0.68) 66%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(var(--overview-metric-rgb), 0.17),
+      0 10px 24px rgba(0, 0, 0, 0.20) !important;
+    -webkit-backdrop-filter: blur(7px) saturate(120%);
+    backdrop-filter: blur(7px) saturate(120%);
+    transition: background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .overview-guild-page .overview-metric-card:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 15% 0%,
+        rgba(var(--overview-metric-rgb), 0.40) 0%,
+        rgba(var(--overview-metric-rgb), 0.20) 44%,
+        rgba(var(--overview-metric-rgb), 0.075) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-metric-rgb), 0.15),
+        rgba(2, 6, 23, 0.65) 66%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 rgba(var(--overview-metric-rgb), 0.23),
+      0 0 20px rgba(var(--overview-metric-rgb), 0.20),
+      0 12px 26px rgba(0, 0, 0, 0.23) !important;
+    transform: translateY(-1px);
+  }
+
+  .overview-guild-page .overview-metric-blue { --overview-metric-rgb: 29, 78, 216; }
+  .overview-guild-page .overview-metric-red { --overview-metric-rgb: 220, 38, 38; }
+  .overview-guild-page .overview-metric-emerald { --overview-metric-rgb: 34, 197, 94; }
+  .overview-guild-page .overview-metric-purple { --overview-metric-rgb: 168, 85, 247; }
+  .overview-guild-page .overview-metric-sky { --overview-metric-rgb: 56, 189, 248; }
+  .overview-guild-page .overview-metric-orange { --overview-metric-rgb: 249, 115, 22; }
+  .overview-guild-page .overview-metric-yellow { --overview-metric-rgb: 250, 204, 21; }
+  .overview-guild-page .overview-metric-brown { --overview-metric-rgb: 146, 64, 14; }
+
+  .overview-guild-page .overview-average-rank-row,
+  .overview-guild-page .overview-kill-feed-row {
+    --overview-name-rgb: 59, 130, 246;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.42) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 7% 0%,
+        rgba(var(--overview-name-rgb), 0.18) 0%,
+        rgba(var(--overview-name-rgb), 0.075) 44%,
+        transparent 76%
+      ),
+      linear-gradient(145deg, rgba(var(--overview-name-rgb), 0.045), rgba(2, 6, 23, 0.48) 68%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      0 8px 20px rgba(0, 0, 0, 0.14);
+    transition: background-image 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .overview-guild-page .overview-average-rank-row:hover,
+  .overview-guild-page .overview-kill-feed-row:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 7% 0%,
+        rgba(var(--overview-name-rgb), 0.25) 0%,
+        rgba(var(--overview-name-rgb), 0.11) 46%,
+        transparent 78%
+      ),
+      linear-gradient(145deg, rgba(var(--overview-name-rgb), 0.065), rgba(2, 6, 23, 0.46) 68%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 0 16px rgba(var(--overview-name-rgb), 0.14),
+      0 9px 22px rgba(0, 0, 0, 0.16);
+    transform: translateY(-1px);
+  }
+
+  .overview-guild-page .overview-player-name-chip {
+    color: rgb(var(--overview-name-rgb));
+    background: rgba(var(--overview-name-rgb), 0.12);
+    box-shadow: inset 0 0 0 1px rgba(var(--overview-name-rgb), 0.22);
+  }
+
+  .overview-guild-page .overview-average-rank-row > div:last-child > div {
+    background-color: rgba(var(--overview-name-rgb), 0.055) !important;
+    box-shadow: inset 0 0 0 1px rgba(var(--overview-name-rgb), 0.075);
   }
 
   .overview-guild-page .overview-soft-surface {
@@ -1777,20 +1901,23 @@ function AverageRank({
   }
 
   return (
-    <Panel cls="overview-guild-panel overview-accent-violet h-[680px]">
+    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-violet h-[680px]">
       <div className="flex h-full flex-col">
-        <h3 className="text-xl font-black">♛ Average Rank</h3>
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-xl font-black">♛ Average Rank</h3>
+            <p className="text-xs text-slate-400">
+              Average of only columns physically present in each log
+            </p>
+          </div>
 
-        <p className="mb-3 text-xs text-slate-400">
-          Average of only columns physically present in each log
-        </p>
-
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search player..."
-          className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-400"
-        />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search player..."
+            className="rounded-xl border border-slate-700/70 bg-slate-950/72 px-3 py-2 text-sm text-white outline-none transition focus:border-violet-400 md:w-64"
+          />
+        </div>
 
         {!final.length ? (
           <p className="text-slate-500">No players.</p>
@@ -1801,19 +1928,30 @@ function AverageRank({
             {final.map((player, index) => (
               <div
                 key={player.name}
-                className="rounded-xl border border-slate-800 bg-slate-900/70 p-2 hover:bg-slate-900"
+                className="overview-average-rank-row rounded-xl border p-2.5"
+                style={{
+                  '--overview-name-rgb': [
+                    '96, 165, 250',
+                    '52, 211, 153',
+                    '167, 139, 250',
+                    '34, 211, 238',
+                    '251, 146, 60',
+                    '244, 114, 182',
+                  ][index % 6],
+                }}
               >
-                <div className="mb-1.5 flex justify-between gap-2">
-                  <b className="truncate">
-                    <span className="mr-2 text-slate-500">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="w-6 shrink-0 text-center text-xs font-black text-slate-600">
                       {index + 1}
                     </span>
-                    {player.name}
-
-                    <span className="ml-2 text-xs font-bold text-slate-500">
+                    <span className="overview-player-name-chip min-w-0 truncate rounded-full px-2.5 py-1 text-xs font-black">
+                      {player.name}
+                    </span>
+                    <span className="shrink-0 text-[10px] font-bold text-slate-500">
                       {player.matches} wars
                     </span>
-                  </b>
+                  </div>
 
                   <span className="rounded-md border border-blue-400/20 bg-blue-500/5 px-2 py-1 text-sm font-black text-blue-300">
                     <small className="mr-1 text-[9px] uppercase text-blue-200/80">
@@ -3143,7 +3281,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     };
   }, [selected, lifetimeLogs]);
   return (
-    <Panel cls="overview-guild-panel overview-accent-cyan h-[680px]">
+    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-cyan h-[680px]">
       <div className="flex h-full flex-col">
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -3290,7 +3428,9 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
           </div>
         </div>
 
-        {selected && (
+        {selected &&
+          typeof document !== 'undefined' &&
+          createPortal(
           <PlayerPerformanceModal
             title={selected.name}
             subtitle="Selected war compared with full lifetime per-war averages"
@@ -3564,7 +3704,8 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </table>
             </div>
             </div>
-          </PlayerPerformanceModal>
+          </PlayerPerformanceModal>,
+          document.body,
         )}
       </div>
     </Panel>
@@ -4195,7 +4336,7 @@ function KillFeedPanel({ killFeeds, events }) {
     .slice(0, 5);
 
   return (
-    <Panel cls="overview-guild-panel overview-accent-orange h-[520px]">
+    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-orange h-[520px]">
       <div className="flex h-full flex-col">
         <h3 className="mb-4 text-xl font-black">🔥 Kill Feed</h3>
 
@@ -4212,10 +4353,19 @@ function KillFeedPanel({ killFeeds, events }) {
               return (
                 <div
                   key={`${feed.source || 'feed'}-${feed.date || ''}-${feed.name || ''}-${feed.sourceOrder || 0}-${feed.rowOrder || index}`}
-                  className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5"
+                  className="overview-kill-feed-row rounded-xl border px-3 py-2.5"
+                  style={{
+                    '--overview-name-rgb': [
+                      '249, 115, 22',
+                      '168, 85, 247',
+                      '6, 182, 212',
+                      '244, 63, 94',
+                      '234, 179, 8',
+                    ][index % 5],
+                  }}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
-                    <b className="truncate text-sm">
+                    <b className="overview-player-name-chip min-w-0 truncate rounded-full px-2.5 py-1 text-sm">
                       {index + 1}. {feed.name}
                     </b>
 
@@ -4373,7 +4523,7 @@ export default function OverviewPage({
   return (
     <div className="overview-guild-page space-y-4">
       <style>{OVERVIEW_GUILD_PANEL_CSS}</style>
-      <header className="overview-guild-panel overview-accent-amber overview-summary-panel rounded-3xl border border-transparent bg-slate-950/70 p-5">
+      <header className="overview-guild-panel overview-panel-transparent overview-accent-amber overview-summary-panel rounded-3xl border border-transparent p-5">
         <div className="mb-4">
           <h2 className="text-2xl font-black">Battle Analytics</h2>
           <p className="text-slate-400">{label}</p>
@@ -4385,7 +4535,7 @@ export default function OverviewPage({
             label="Total Kills"
             value={stats.kills}
             sub="Eliminations"
-            className="border-blue-800/30 from-blue-900/20 text-blue-700"
+            className="overview-metric-card overview-metric-blue border-blue-800/30 from-blue-900/20 text-blue-300"
           />
 
           <Metric
@@ -4393,7 +4543,7 @@ export default function OverviewPage({
             label="Total Deaths"
             value={stats.deaths}
             sub="Deaths"
-            className="border-red-800/30 from-red-900/20 text-red-700"
+            className="overview-metric-card overview-metric-red border-red-800/30 from-red-900/20 text-red-300"
           />
 
           <Metric
@@ -4403,8 +4553,8 @@ export default function OverviewPage({
             sub="Ratio"
             className={
               Number(stats.kd) < 1
-                ? "border-red-500/30 from-red-900/20 text-red-400"
-                : "border-emerald-500/30 from-emerald-900/20 text-emerald-400"
+                ? "overview-metric-card overview-metric-red border-red-500/30 from-red-900/20 text-red-400"
+                : "overview-metric-card overview-metric-emerald border-emerald-500/30 from-emerald-900/20 text-emerald-400"
             }
           />
 
@@ -4413,7 +4563,7 @@ export default function OverviewPage({
             label="Players"
             value={stats.players.length}
             sub="Active"
-            className="border-purple-500/30 from-purple-900/20 text-purple-400"
+            className="overview-metric-card overview-metric-purple border-purple-500/30 from-purple-900/20 text-purple-300"
           />
 
           <Metric
@@ -4421,7 +4571,7 @@ export default function OverviewPage({
             label="Damage"
             value={compactNumber(damageDealt)}
             sub="Dealt"
-            className="border-sky-400/30 from-sky-900/20 text-sky-300"
+            className="overview-metric-card overview-metric-sky border-sky-400/30 from-sky-900/20 text-sky-300"
           />
 
           <Metric
@@ -4429,7 +4579,7 @@ export default function OverviewPage({
             label="Damage Taken"
             value={compactNumber(damageTaken)}
             sub="Taken"
-            className="border-orange-500/30 from-orange-900/20 text-orange-400"
+            className="overview-metric-card overview-metric-orange border-orange-500/30 from-orange-900/20 text-orange-300"
           />
 
           <Metric
@@ -4437,7 +4587,7 @@ export default function OverviewPage({
             label="CC Hits"
             value={compactNumber(ccHits)}
             sub="Control"
-            className="border-yellow-400/30 from-yellow-900/20 text-yellow-300"
+            className="overview-metric-card overview-metric-yellow border-yellow-400/30 from-yellow-900/20 text-yellow-300"
           />
 
           <Metric
@@ -4445,12 +4595,12 @@ export default function OverviewPage({
             label="Fort Damage"
             value={compactNumber(fortDamage)}
             sub="Structure"
-            className="border-amber-900/40 from-amber-950/25 text-amber-800"
+            className="overview-metric-card overview-metric-brown border-amber-900/40 from-amber-950/25 text-amber-500"
           />
         </div>
       </header>
 
-      <div className="overview-guild-panel overview-accent-blue overview-chart-shell">
+      <div className="overview-guild-panel overview-panel-transparent overview-accent-blue overview-chart-shell">
         <KillDeathChart
           data={stats.line}
           title="▧ Global Kill/Death Timeline"
