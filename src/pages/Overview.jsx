@@ -451,10 +451,10 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     --overview-popup-rgb: 59, 130, 246;
     position: relative !important;
     inset: auto !important;
-    width: min(96vw, 1460px) !important;
-    max-width: 1460px !important;
-    height: 93vh !important;
-    max-height: 93vh !important;
+    width: min(97vw, 1520px) !important;
+    max-width: 1520px !important;
+    height: 94vh !important;
+    max-height: 94vh !important;
     margin: 0 auto !important;
     transform: translateY(-1.4vh) !important;
     color: #ffffff !important;
@@ -497,6 +497,23 @@ const OVERVIEW_GUILD_PANEL_CSS = `
 
   .overview-player-performance-dialog > div:last-child {
     background: transparent !important;
+    padding-top: 17px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) {
+    min-height: 72px !important;
+    padding: 15px 21px !important;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) h3 {
+    font-size: 1.28rem !important;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) button {
+    width: 40px !important;
+    height: 40px !important;
   }
 
   .overview-player-performance-dialog [class*="text-black"],
@@ -571,9 +588,9 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   }
 
   .overview-player-performance-dialog .overview-popup-card {
-    min-height: 48px !important;
-    padding: 5px 7px !important;
-    border-radius: 11px !important;
+    min-height: 53px !important;
+    padding: 7px 9px !important;
+    border-radius: 12px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-card p {
@@ -583,35 +600,35 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   }
 
   .overview-player-performance-dialog .overview-popup-card p[class*="text-lg"] {
-    font-size: 0.80rem !important;
+    font-size: 0.88rem !important;
   }
 
   .overview-player-performance-dialog .overview-popup-card p[class*="text-sm"] {
-    font-size: 0.70rem !important;
+    font-size: 0.76rem !important;
   }
 
   .overview-player-performance-dialog .overview-popup-card span[class*="text-\[9px\]"] {
-    font-size: 0.48rem !important;
+    font-size: 0.53rem !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section {
-    margin-bottom: 7px !important;
-    border-radius: 13px !important;
+    margin-bottom: 9px !important;
+    border-radius: 14px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section > div:first-child {
-    padding: 6px 8px !important;
+    padding: 8px 10px !important;
     background: rgba(2, 6, 23, 0.18) !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section th {
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section td {
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-card-blue,
@@ -661,6 +678,138 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-player-performance-dialog thead {
     color: #ffffff !important;
     background: rgba(2, 6, 23, 0.92) !important;
+  }
+
+  .overview-enemy-guild-tooltip {
+    --enemy-tooltip-rgb: 59, 130, 246;
+    position: fixed;
+    z-index: 15000;
+    width: 292px;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 18px;
+    color: #f8fafc;
+    border: 1px solid rgba(var(--enemy-tooltip-rgb), 0.28);
+    background:
+      radial-gradient(ellipse at 12% 0%, rgba(var(--enemy-tooltip-rgb), 0.34), rgba(var(--enemy-tooltip-rgb), 0.13) 42%, transparent 74%),
+      linear-gradient(145deg, rgba(7, 13, 29, 0.96), rgba(2, 6, 23, 0.97));
+    -webkit-backdrop-filter: blur(16px) saturate(125%);
+    backdrop-filter: blur(16px) saturate(125%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(var(--enemy-tooltip-rgb), 0.16),
+      0 0 24px rgba(var(--enemy-tooltip-rgb), 0.16),
+      0 22px 60px rgba(0, 0, 0, 0.52);
+    opacity: 0;
+    transform: translateY(5px) scale(0.985);
+    transition: opacity 120ms ease, transform 120ms ease;
+  }
+
+  .overview-enemy-guild-tooltip[data-visible="true"] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  .overview-enemy-guild-tooltip__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px 10px;
+    background: linear-gradient(100deg, rgba(var(--enemy-tooltip-rgb), 0.22), rgba(2, 6, 23, 0.24));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .overview-enemy-guild-tooltip__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 1.1;
+    font-weight: 900;
+    color: #ffffff;
+  }
+
+  .overview-enemy-guild-tooltip__badge {
+    flex: 0 0 auto;
+    border-radius: 9px;
+    padding: 4px 7px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(var(--enemy-tooltip-rgb));
+    background: rgba(var(--enemy-tooltip-rgb), 0.13);
+    box-shadow: inset 0 0 0 1px rgba(var(--enemy-tooltip-rgb), 0.24);
+  }
+
+  .overview-enemy-guild-tooltip__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    padding: 11px 12px 8px;
+  }
+
+  .overview-enemy-guild-tooltip__stat {
+    min-width: 0;
+    border-radius: 11px;
+    padding: 8px 7px;
+    text-align: center;
+    background: rgba(var(--enemy-tooltip-rgb), 0.065);
+    box-shadow: inset 0 0 0 1px rgba(var(--enemy-tooltip-rgb), 0.09);
+  }
+
+  .overview-enemy-guild-tooltip__label {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .overview-enemy-guild-tooltip__value {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    line-height: 1.1;
+    font-weight: 900;
+    color: #f8fafc;
+  }
+
+  .overview-enemy-guild-tooltip__value--kills { color: #67e8f9; }
+  .overview-enemy-guild-tooltip__value--deaths { color: #fda4af; }
+  .overview-enemy-guild-tooltip__value--kd { color: rgb(var(--enemy-tooltip-rgb)); }
+
+  .overview-enemy-guild-tooltip__averages {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0 12px 12px;
+    padding: 8px;
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.44);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.045);
+  }
+
+  .overview-enemy-guild-tooltip__average {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .overview-enemy-guild-tooltip__average b {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: #e2e8f0;
   }
 
   @media (max-width: 640px) {
@@ -2315,9 +2464,6 @@ function AverageRank({
         <div className="overview-section-header overview-header-violet mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-xl font-black">♛ Average Rank</h3>
-            <p className="text-xs text-slate-400">
-              Average of only columns physically present in each log
-            </p>
           </div>
 
           <input
@@ -2642,7 +2788,7 @@ function PlayerPerformanceModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="overview-player-performance-dialog relative flex h-[93vh] max-h-[93vh] w-[min(97vw,1460px)] flex-col overflow-hidden rounded-[24px] border border-transparent bg-transparent shadow-none"
+        className="overview-player-performance-dialog relative flex h-[94vh] max-h-[94vh] w-[min(97vw,1520px)] flex-col overflow-hidden rounded-[25px] border border-transparent bg-transparent shadow-none"
       >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/45 to-transparent" />
@@ -3714,7 +3860,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
           <div>
             <h3 className="text-xl font-black">♙ Player Overview</h3>
             <p className="text-xs text-slate-400">
-              Click a player name to view kill history
+              CLICK A PLAYER TO SEE WAR PERFORMANCE
             </p>
           </div>
 
@@ -4319,6 +4465,94 @@ function EnemyGuilds({ guilds, events }) {
     return `rgba(${r},${g},${b},${a})`;
   }
 
+  function escapeTooltipText(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function renderEnemyGuildTooltip({ chart, tooltip }) {
+    let tooltipElement = document.querySelector('.overview-enemy-guild-tooltip');
+
+    if (!tooltipElement) {
+      tooltipElement = document.createElement('div');
+      tooltipElement.className = 'overview-enemy-guild-tooltip';
+      tooltipElement.setAttribute('role', 'tooltip');
+      document.body.appendChild(tooltipElement);
+    }
+
+    if (!tooltip || tooltip.opacity === 0) {
+      tooltipElement.dataset.visible = 'false';
+      return;
+    }
+
+    const guild = tooltip.dataPoints?.[0]?.raw?.guild;
+
+    if (!guild) {
+      tooltipElement.dataset.visible = 'false';
+      return;
+    }
+
+    const [r, g, b] = kdColorChannels(Number(guild.kdNumber) || 0);
+    tooltipElement.style.setProperty('--enemy-tooltip-rgb', `${r}, ${g}, ${b}`);
+    tooltipElement.innerHTML = `
+      <div class="overview-enemy-guild-tooltip__header">
+        <div class="overview-enemy-guild-tooltip__name">${escapeTooltipText(guild.name || '-')}</div>
+        <div class="overview-enemy-guild-tooltip__badge">Enemy Guild</div>
+      </div>
+      <div class="overview-enemy-guild-tooltip__grid">
+        <div class="overview-enemy-guild-tooltip__stat">
+          <span class="overview-enemy-guild-tooltip__label">Matches</span>
+          <span class="overview-enemy-guild-tooltip__value">${escapeTooltipText(guild.totalMatches)}</span>
+        </div>
+        <div class="overview-enemy-guild-tooltip__stat">
+          <span class="overview-enemy-guild-tooltip__label">Kills</span>
+          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--kills">${escapeTooltipText(guild.kills)}</span>
+        </div>
+        <div class="overview-enemy-guild-tooltip__stat">
+          <span class="overview-enemy-guild-tooltip__label">Deaths</span>
+          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--deaths">${escapeTooltipText(guild.deaths)}</span>
+        </div>
+      </div>
+      <div class="overview-enemy-guild-tooltip__averages">
+        <div class="overview-enemy-guild-tooltip__average">
+          <span class="overview-enemy-guild-tooltip__label">K/D</span>
+          <b class="overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(guild.kd)}</b>
+        </div>
+        <div class="overview-enemy-guild-tooltip__average">
+          <span class="overview-enemy-guild-tooltip__label">Avg Kills</span>
+          <b>${escapeTooltipText(formatAverageValue(guild.averageKills))}</b>
+        </div>
+        <div class="overview-enemy-guild-tooltip__average">
+          <span class="overview-enemy-guild-tooltip__label">Avg Deaths</span>
+          <b>${escapeTooltipText(formatAverageValue(guild.averageDeaths))}</b>
+        </div>
+      </div>
+    `;
+
+    tooltipElement.dataset.visible = 'true';
+
+    const canvasRect = chart.canvas.getBoundingClientRect();
+    const tooltipWidth = tooltipElement.offsetWidth || 292;
+    const tooltipHeight = tooltipElement.offsetHeight || 190;
+    const gap = 16;
+    let left = canvasRect.left + tooltip.caretX + gap;
+    let top = canvasRect.top + tooltip.caretY - tooltipHeight / 2;
+
+    if (left + tooltipWidth > window.innerWidth - 10) {
+      left = canvasRect.left + tooltip.caretX - tooltipWidth - gap;
+    }
+
+    left = Math.max(10, Math.min(left, window.innerWidth - tooltipWidth - 10));
+    top = Math.max(10, Math.min(top, window.innerHeight - tooltipHeight - 10));
+
+    tooltipElement.style.left = `${Math.round(left)}px`;
+    tooltipElement.style.top = `${Math.round(top)}px`;
+  }
+
   const bubbleData = useMemo(
     () => ({
       datasets: [
@@ -4349,46 +4583,8 @@ function EnemyGuilds({ guilds, events }) {
       plugins: {
         legend: false,
         tooltip: {
-          enabled: true,
-          displayColors: false,
-          backgroundColor: 'rgba(2, 6, 23, 0.96)',
-          borderColor: 'rgba(148, 163, 184, 0.35)',
-          borderWidth: 1,
-          padding: 14,
-          titleColor: '#f8fafc',
-          bodyColor: '#cbd5e1',
-          titleFont: {
-            size: 14,
-            weight: 900,
-          },
-          bodyFont: {
-            size: 12,
-            weight: 700,
-          },
-          titleMarginBottom: 8,
-          bodySpacing: 4,
-          callbacks: {
-            title: (items) => {
-              const guild = items?.[0]?.raw?.guild;
-
-              return guild?.name || '-';
-            },
-            label: (context) => {
-              const guild = context.raw?.guild;
-
-              if (!guild) return '';
-
-              return [
-                `Matches: ${guild.totalMatches}`,
-                `Kills: ${guild.kills}`,
-                `Deaths: ${guild.deaths}`,
-                `K/D: ${guild.kd}`,
-                `Average kills: ${formatAverageValue(guild.averageKills)}`,
-                `Average deaths: ${formatAverageValue(guild.averageDeaths)}`,
-                `Average K/D: ${formatGuildKd(guild.averageKd)}`,
-              ];
-            },
-          },
+          enabled: false,
+          external: renderEnemyGuildTooltip,
         },
       },
       scales: {
