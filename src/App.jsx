@@ -707,7 +707,7 @@ const PAGE_TITLES = {
 };
 
 function ActivePageBrand({ page }) {
-  const title = PAGE_TITLES[page] || 'ADVERSARY';
+  const title = PAGE_TITLES[page] || 'Adversary';
 
   return (
     <section className="relative mb-4 overflow-hidden rounded-[26px] border border-amber-300/15 bg-slate-950/72 px-4 py-3 shadow-[0_24px_75px_rgba(0,0,0,.30)] backdrop-blur-2xl sm:px-5 sm:py-4">
@@ -745,8 +745,8 @@ export default function App() {
   const [page, setPage] = useState('nodewars');
 
   useEffect(() => {
-    const title = PAGE_TITLES[page] || 'ADVERSARY';
-    document.title = `${title} · ADVERSARY`;
+    const title = PAGE_TITLES[page] || 'Adversary';
+    document.title = `Adversary · ${title}`;
 
     let icon = document.querySelector(
       'link[data-adversary-favicon="true"]',
@@ -1615,7 +1615,7 @@ export default function App() {
       </div>
       <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 backdrop-blur-xl lg:hidden">
         <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
-          ADVERSARY
+          Adversary
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -1677,7 +1677,7 @@ export default function App() {
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <h1 className="mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
-            ADVERSARY
+            Adversary
           </h1>
 
           <nav className="flex-1">
