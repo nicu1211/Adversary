@@ -139,50 +139,54 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     box-shadow: none !important;
   }
 
-  .overview-guild-page .overview-metric-card {
+  .overview-guild-page .overview-summary-panel .overview-metric-card {
     --overview-metric-rgb: 59, 130, 246;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.56) !important;
+    background-color: rgba(var(--overview-metric-rgb), 0.17) !important;
     background-image:
       radial-gradient(
-        ellipse at 15% 0%,
-        rgba(var(--overview-metric-rgb), 0.43) 0%,
-        rgba(var(--overview-metric-rgb), 0.22) 42%,
-        rgba(var(--overview-metric-rgb), 0.085) 72%,
+        ellipse at 16% 2%,
+        rgba(var(--overview-metric-rgb), 0.62) 0%,
+        rgba(var(--overview-metric-rgb), 0.34) 40%,
+        rgba(var(--overview-metric-rgb), 0.18) 70%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-metric-rgb), 0.17),
-        rgba(2, 6, 23, 0.64) 66%
+        rgba(var(--overview-metric-rgb), 0.34) 0%,
+        rgba(var(--overview-metric-rgb), 0.20) 48%,
+        rgba(2, 6, 23, 0.58) 100%
       ) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      inset 0 -1px 0 rgba(var(--overview-metric-rgb), 0.17),
+      inset 0 1px 0 rgba(255, 255, 255, 0.075),
+      inset 0 -1px 0 rgba(var(--overview-metric-rgb), 0.28),
+      0 0 18px rgba(var(--overview-metric-rgb), 0.14),
       0 10px 24px rgba(0, 0, 0, 0.20) !important;
-    -webkit-backdrop-filter: blur(7px) saturate(120%);
-    backdrop-filter: blur(7px) saturate(120%);
+    -webkit-backdrop-filter: blur(7px) saturate(132%);
+    backdrop-filter: blur(7px) saturate(132%);
     transition: background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
 
-  .overview-guild-page .overview-metric-card:hover {
+  .overview-guild-page .overview-summary-panel .overview-metric-card:hover {
+    background-color: rgba(var(--overview-metric-rgb), 0.21) !important;
     background-image:
       radial-gradient(
-        ellipse at 15% 0%,
-        rgba(var(--overview-metric-rgb), 0.52) 0%,
-        rgba(var(--overview-metric-rgb), 0.28) 44%,
-        rgba(var(--overview-metric-rgb), 0.11) 74%,
+        ellipse at 16% 2%,
+        rgba(var(--overview-metric-rgb), 0.72) 0%,
+        rgba(var(--overview-metric-rgb), 0.42) 42%,
+        rgba(var(--overview-metric-rgb), 0.22) 72%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-metric-rgb), 0.21),
-        rgba(2, 6, 23, 0.61) 66%
+        rgba(var(--overview-metric-rgb), 0.40) 0%,
+        rgba(var(--overview-metric-rgb), 0.24) 50%,
+        rgba(2, 6, 23, 0.54) 100%
       ) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -1px 0 rgba(var(--overview-metric-rgb), 0.23),
-      0 0 20px rgba(var(--overview-metric-rgb), 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10),
+      inset 0 -1px 0 rgba(var(--overview-metric-rgb), 0.34),
+      0 0 24px rgba(var(--overview-metric-rgb), 0.24),
       0 12px 26px rgba(0, 0, 0, 0.23) !important;
     transform: translateY(-1px);
   }
@@ -331,19 +335,19 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     min-width: 100vw !important;
     min-height: 100vh !important;
     padding: clamp(18px, 3.2vh, 34px) clamp(8px, 1.4vw, 20px) 18px !important;
-    background: rgba(2, 6, 23, 0.46) !important;
+    background: rgba(2, 6, 23, 0.42) !important;
     overscroll-behavior: contain;
     touch-action: pan-y;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+    -webkit-backdrop-filter: blur(10px) saturate(108%) !important;
+    backdrop-filter: blur(10px) saturate(108%) !important;
   }
 
   .overview-player-performance-dialog {
     --overview-popup-rgb: 59, 130, 246;
     position: relative !important;
     inset: auto !important;
-    width: min(97vw, 1320px) !important;
-    max-width: 1320px !important;
+    width: min(96vw, 1460px) !important;
+    max-width: 1460px !important;
     height: auto !important;
     max-height: 88vh !important;
     margin: 0 auto !important;
@@ -3735,7 +3739,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                 </p>
               </div>
 
-              <div className="grid gap-1 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9">
+              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 <PlayerAverageComparisonCard
                   label="Kills"
                   current={kills}
