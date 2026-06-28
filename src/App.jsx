@@ -379,6 +379,19 @@ const GLOBAL_PANEL_CSS = `
     z-index: 0;
   }
 
+  .adversary-site-artwork {
+    background-position: center center;
+    background-size: auto 106%;
+  }
+
+  @media (min-width: 1024px) {
+    /* The desktop layout has a 250px sidebar. Shift the artwork by half of
+       that width so it is visually centered inside the main site area. */
+    .adversary-site-artwork {
+      background-position: calc(50% + 125px) center;
+    }
+  }
+
   .adversary-content {
     --adversary-panel-bg-top: rgba(15, 23, 42, 0.24);
     --adversary-panel-bg-bottom: rgba(2, 6, 23, 0.12);
@@ -1547,12 +1560,10 @@ export default function App() {
         />
 
         <div
-          className="absolute inset-0 bg-center bg-no-repeat opacity-[0.30]"
+          className="adversary-site-artwork absolute inset-0 bg-no-repeat opacity-[0.30]"
           style={{
             backgroundImage: `url("${adversaryEmblem}")`,
-            backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
-            backgroundSize: 'auto 100%',
             filter: 'saturate(1.18) contrast(1.06)',
             WebkitMaskImage:
               'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 7%, rgba(0,0,0,.78) 18%, #000 29%, #000 71%, rgba(0,0,0,.78) 82%, rgba(0,0,0,.28) 93%, transparent 100%)',
