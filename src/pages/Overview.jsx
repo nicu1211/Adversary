@@ -267,8 +267,8 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     justify-content: center !important;
     padding: clamp(14px, 3vw, 34px) !important;
     background: rgba(2, 6, 23, 0.76) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .overview-player-performance-dialog {
@@ -342,27 +342,27 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-player-performance-dialog .overview-popup-section {
     --overview-popup-card-rgb: 59, 130, 246;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-color: rgba(2, 6, 23, 0.38) !important;
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--overview-popup-card-rgb), 0.22) 0%,
-        rgba(var(--overview-popup-card-rgb), 0.105) 42%,
-        rgba(var(--overview-popup-card-rgb), 0.038) 74%,
+        rgba(var(--overview-popup-card-rgb), 0.17) 0%,
+        rgba(var(--overview-popup-card-rgb), 0.075) 42%,
+        rgba(var(--overview-popup-card-rgb), 0.025) 74%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-popup-card-rgb), 0.085) 0%,
-        rgba(7, 13, 29, 0.52) 54%,
-        rgba(2, 6, 23, 0.66) 100%
+        rgba(var(--overview-popup-card-rgb), 0.060) 0%,
+        rgba(7, 13, 29, 0.34) 54%,
+        rgba(2, 6, 23, 0.46) 100%
       ) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(118%);
-    backdrop-filter: blur(8px) saturate(118%);
+    -webkit-backdrop-filter: blur(4px) saturate(112%);
+    backdrop-filter: blur(4px) saturate(112%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.14),
-      0 14px 34px rgba(0, 0, 0, 0.24) !important;
+      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.10),
+      0 8px 20px rgba(0, 0, 0, 0.18) !important;
     transition:
       background-image 180ms ease,
       box-shadow 180ms ease,
@@ -375,37 +375,37 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--overview-popup-card-rgb), 0.30) 0%,
-        rgba(var(--overview-popup-card-rgb), 0.145) 44%,
-        rgba(var(--overview-popup-card-rgb), 0.052) 76%,
+        rgba(var(--overview-popup-card-rgb), 0.23) 0%,
+        rgba(var(--overview-popup-card-rgb), 0.105) 44%,
+        rgba(var(--overview-popup-card-rgb), 0.035) 76%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-popup-card-rgb), 0.11) 0%,
-        rgba(7, 13, 29, 0.49) 54%,
-        rgba(2, 6, 23, 0.63) 100%
+        rgba(var(--overview-popup-card-rgb), 0.080) 0%,
+        rgba(7, 13, 29, 0.32) 54%,
+        rgba(2, 6, 23, 0.43) 100%
       ) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.20),
-      0 0 22px rgba(var(--overview-popup-card-rgb), 0.20),
-      0 16px 36px rgba(0, 0, 0, 0.26) !important;
+      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.14),
+      0 0 16px rgba(var(--overview-popup-card-rgb), 0.16),
+      0 9px 22px rgba(0, 0, 0, 0.20) !important;
     transform: translateY(-1px);
   }
 
   .overview-player-performance-dialog .overview-popup-card {
-    min-height: 118px;
-    padding: 16px !important;
+    min-height: 86px;
+    padding: 11px 12px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section {
-    margin-bottom: 20px !important;
+    margin-bottom: 14px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section > div:first-child {
-    padding: 14px 16px !important;
-    background: rgba(2, 6, 23, 0.34) !important;
+    padding: 10px 12px !important;
+    background: rgba(2, 6, 23, 0.20) !important;
   }
 
   .overview-player-performance-dialog .overview-popup-card-blue,
@@ -2371,7 +2371,7 @@ function PlayerPerformanceModal({
 }) {
   return (
     <div
-      className="overview-player-performance-overlay fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/76 p-4 backdrop-blur-lg sm:p-6"
+      className="overview-player-performance-overlay fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/76 p-4 sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           close();
@@ -3602,9 +3602,9 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
             subtitle="Selected war compared with full lifetime per-war averages"
             close={() => setSelected(null)}
           >
-            <div className="overview-popup-shell relative overflow-visible rounded-[24px] border border-transparent bg-transparent p-1 sm:p-2">
+            <div className="overview-popup-shell relative overflow-visible rounded-[24px] border border-transparent bg-transparent p-0 sm:p-1">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/25 to-transparent" />
-            <div className="mb-6">
+            <div className="mb-4">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-300">
@@ -3624,7 +3624,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 <PlayerAverageComparisonCard
                   label="Kills"
                   current={kills}
@@ -3728,8 +3728,8 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </div>
             </div>
 
-            <div className="mb-6 grid gap-4 md:grid-cols-2">
-              <div className="overview-popup-card overview-popup-card-blue relative overflow-hidden rounded-2xl border border-transparent p-4">
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div className="overview-popup-card overview-popup-card-blue relative overflow-hidden rounded-2xl border border-transparent p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Favorite victim
                 </p>
@@ -3739,7 +3739,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                 </p>
               </div>
 
-              <div className="overview-popup-card overview-popup-card-rose relative overflow-hidden rounded-2xl border border-transparent p-4">
+              <div className="overview-popup-card overview-popup-card-rose relative overflow-hidden rounded-2xl border border-transparent p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Nemesis
                 </p>
@@ -3750,8 +3750,8 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </div>
             </div>
 
-            <div className="overview-popup-section overview-popup-accent-violet mb-6 overflow-hidden rounded-2xl border border-transparent">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/75 px-4 py-3">
+            <div className="overview-popup-section overview-popup-accent-violet mb-4 overflow-hidden rounded-2xl border border-transparent">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-800/60 bg-slate-950/20 px-3 py-2.5">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">
                     Guild Matchups
@@ -3823,7 +3823,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
             </div>
 
             <div
-              className={`overview-popup-section overview-popup-accent-cyan max-h-[38vh] overflow-auto rounded-2xl border border-transparent ${scrollCls}`}
+              className={`overview-popup-section overview-popup-accent-cyan max-h-[34vh] overflow-auto rounded-2xl border border-transparent ${scrollCls}`}
             >
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
