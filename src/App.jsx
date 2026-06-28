@@ -326,6 +326,75 @@ const PANEL_ACCENT_BY_CLASS = {
 const MAJOR_PANEL_SELECTOR =
   ':is(section, article, div)[class*="rounded"][class*="border"]';
 
+const MENU_ACCENTS = Object.freeze({
+  guild: '245, 158, 11',
+  monthly: '6, 182, 212',
+  nodewars: '59, 130, 246',
+  overview: '6, 182, 212',
+  players: '139, 92, 246',
+  hall: '250, 204, 21',
+  raw: '148, 163, 184',
+});
+
+const KNOWN_STAT_PANEL_SELECTOR = [
+  '.overview-battle-metric',
+  '.player-stats-summary-card',
+  '.nodewars-summary-stat',
+  '.monthly-panel-subtle',
+].join(',');
+
+const STAT_PANEL_LABEL_PATTERN = /(?:^|\b)(?:total|average|avg|kills?|deaths?|k\s*\/\s*d|kd|wars?|matches?|players?|damage|cc hits?|fort(?: damage)?|rank|score|streak|kill\s*feed|killfeed|participation|win rate|efficiency)(?:\b|$)/i;
+const STAT_PANEL_VALUE_PATTERN = /(?:^|\s)[+−-]?\d[\d,.]*(?:\s*(?:%|k|m|b|t))?(?:\s|$)/i;
+
+function looksLikeStatPanel(panel, activePage) {
+  if (!panel) return false;
+
+  if (panel.matches?.(KNOWN_STAT_PANEL_SELECTOR)) {
+    return true;
+  }
+
+  if (
+    panel.closest?.(
+      '.adversary-enemy-tier-panel, .adversary-guild-tooltip, table, tbody, thead, tr, [role="row"]',
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    activePage === 'guild' &&
+    panel.closest?.(
+      '.adversary-enemy-tier-row, .adversary-enemy-tier-card',
+    )
+  ) {
+    return false;
+  }
+
+  const bounds = panel.getBoundingClientRect();
+  const text = String(panel.textContent || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (
+    bounds.width < 140 ||
+    bounds.height < 48 ||
+    bounds.height > 240 ||
+    text.length < 2 ||
+    text.length > 210
+  ) {
+    return false;
+  }
+
+  const nestedPanels = panel.querySelectorAll?.(MAJOR_PANEL_SELECTOR)?.length || 0;
+
+  if (nestedPanels > 0) return false;
+
+  return (
+    STAT_PANEL_LABEL_PATTERN.test(text) &&
+    STAT_PANEL_VALUE_PATTERN.test(` ${text} `)
+  );
+}
+
 function getPanelAccent(element, index) {
   const classText =
     typeof element?.className === 'string' ? element.className : '';
@@ -655,6 +724,148 @@ const GLOBAL_PANEL_CSS = `
     z-index: 10030 !important;
   }
 
+  /* Sidebar navigation uses the same restrained coloured-glass language as
+     the rest of the site. Each page keeps a distinct accent while inactive
+     labels remain muted instead of plain grey. */
+  .adversary-menu-button {
+    --adversary-menu-rgb: 96, 165, 250;
+    color: rgba(var(--adversary-menu-rgb), 0.78) !important;
+    border-color: transparent !important;
+    background-color: transparent !important;
+    background-image: linear-gradient(
+      105deg,
+      rgba(var(--adversary-menu-rgb), 0.025),
+      transparent 64%
+    ) !important;
+    box-shadow: none !important;
+    transition:
+      color 170ms ease,
+      border-color 170ms ease,
+      background-color 170ms ease,
+      background-image 170ms ease,
+      box-shadow 170ms ease,
+      transform 170ms ease;
+  }
+
+  .adversary-menu-button:hover {
+    color: rgb(var(--adversary-menu-rgb)) !important;
+    border-color: rgba(var(--adversary-menu-rgb), 0.22) !important;
+    background-color: rgba(2, 6, 23, 0.44) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 8% 50%,
+        rgba(var(--adversary-menu-rgb), 0.16),
+        transparent 64%
+      ),
+      linear-gradient(
+        105deg,
+        rgba(var(--adversary-menu-rgb), 0.07),
+        rgba(2, 6, 23, 0.22) 72%
+      ) !important;
+    box-shadow:
+      inset 0 0 20px rgba(var(--adversary-menu-rgb), 0.035),
+      0 0 16px rgba(var(--adversary-menu-rgb), 0.08) !important;
+  }
+
+  .adversary-menu-button.is-active {
+    color: rgb(255, 255, 255) !important;
+    border-color: rgba(var(--adversary-menu-rgb), 0.36) !important;
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 10% 50%,
+        rgba(var(--adversary-menu-rgb), 0.24),
+        rgba(var(--adversary-menu-rgb), 0.08) 48%,
+        transparent 78%
+      ),
+      linear-gradient(
+        105deg,
+        rgba(var(--adversary-menu-rgb), 0.105),
+        rgba(2, 6, 23, 0.38) 72%
+      ) !important;
+    box-shadow:
+      inset 0 0 24px rgba(var(--adversary-menu-rgb), 0.065),
+      0 0 18px rgba(var(--adversary-menu-rgb), 0.13) !important;
+  }
+
+  .adversary-menu-button.is-active::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 22%;
+    bottom: 22%;
+    width: 2px;
+    border-radius: 999px;
+    background: rgb(var(--adversary-menu-rgb));
+    box-shadow: 0 0 10px rgba(var(--adversary-menu-rgb), 0.72);
+  }
+
+  .adversary-menu-button-mobile.is-active::before {
+    left: 18%;
+    right: 18%;
+    top: auto;
+    bottom: -1px;
+    width: auto;
+    height: 2px;
+  }
+
+  /* Compact cards that present a statistic now use the exact quiet cyan glass
+     recipe from Monthly Recap -> Players Performance. Metric text and icons
+     retain their semantic colours; only the card surface is unified. */
+  .adversary-content .adversary-stat-panel,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-stat-panel {
+    --adversary-panel-accent-rgb: 6, 182, 212 !important;
+    --player-stats-summary-rgb: 6, 182, 212 !important;
+    --player-stats-panel-rgb: 6, 182, 212 !important;
+    --nodewars-accent-rgb: 6, 182, 212 !important;
+    --monthly-panel-accent-rgb: 6, 182, 212 !important;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.46) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(6, 182, 212, 0.10) 0%,
+        rgba(6, 182, 212, 0.05) 42%,
+        rgba(6, 182, 212, 0.018) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(6, 182, 212, 0.035) 0%,
+        rgba(7, 13, 29, 0.38) 54%,
+        rgba(2, 6, 23, 0.50) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 36px rgba(6, 182, 212, 0.04),
+      0 10px 24px rgba(0, 0, 0, 0.18) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(122%) !important;
+    backdrop-filter: blur(8px) saturate(122%) !important;
+  }
+
+  .adversary-content .adversary-stat-panel:hover,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-stat-panel:hover {
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.44) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(6, 182, 212, 0.15) 0%,
+        rgba(6, 182, 212, 0.075) 44%,
+        rgba(6, 182, 212, 0.028) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(6, 182, 212, 0.05) 0%,
+        rgba(7, 13, 29, 0.36) 54%,
+        rgba(2, 6, 23, 0.48) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 40px rgba(6, 182, 212, 0.065),
+      0 0 16px rgba(6, 182, 212, 0.16),
+      0 12px 28px rgba(0, 0, 0, 0.20) !important;
+  }
+
   /* The Overview player War Performance overlay is intentionally page-scoped
      so no other dialog or page layout is changed. */
   body[data-adversary-page="overview"] .adversary-war-performance-modal {
@@ -782,10 +993,13 @@ export default function App() {
         );
 
         panels.forEach((panel, index) => {
+          const isStatPanel = looksLikeStatPanel(panel, page);
+
           panel.classList.add('adversary-color-panel');
+          panel.classList.toggle('adversary-stat-panel', isStatPanel);
           panel.style.setProperty(
             '--adversary-panel-accent-rgb',
-            getPanelAccent(panel, index),
+            isStatPanel ? '6, 182, 212' : getPanelAccent(panel, index),
           );
         });
       }
@@ -1624,11 +1838,13 @@ export default function App() {
               key={id}
               type="button"
               onClick={() => openPage(id)}
-              className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
-                isMenuActive(id)
-                  ? 'border border-blue-400 bg-blue-500/20 text-white'
-                  : 'border border-slate-700 bg-slate-900 text-slate-300'
+              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
+                isMenuActive(id) ? 'is-active' : ''
               }`}
+              style={{
+                '--adversary-menu-rgb':
+                  MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
+              }}
             >
               <span className="flex items-center justify-center gap-2">
                 {id === 'guild' && (
@@ -1650,11 +1866,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => openPage('nodewars')}
-              className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
-                page === 'nodewars'
-                  ? 'border border-blue-400 bg-blue-500/20 text-white'
-                  : 'border border-slate-700 bg-slate-900 text-slate-300'
+              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
+                page === 'nodewars' ? 'is-active' : ''
               }`}
+              style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
             >
               Match History
             </button>
@@ -1662,11 +1877,10 @@ export default function App() {
             <button
               type="button"
               onClick={openOverviewFromMenu}
-              className={`rounded-xl px-3 py-2 text-center text-xs font-black ${
-                page === 'overview'
-                  ? 'border border-blue-400 bg-blue-500/20 text-white'
-                  : 'border border-slate-700 bg-slate-900 text-slate-300'
+              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
+                page === 'overview' ? 'is-active' : ''
               }`}
+              style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
             >
               Overview
             </button>
@@ -1691,11 +1905,13 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => openPage(id)}
-                      className={`w-full rounded-xl px-4 py-3 text-left font-bold ${
-                        isMenuActive(id)
-                          ? 'border border-blue-400 bg-blue-500/20'
-                          : 'hover:bg-slate-900'
+                      className={`adversary-menu-button relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
+                        isMenuActive(id) ? 'is-active' : ''
                       }`}
+                      style={{
+                        '--adversary-menu-rgb':
+                          MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
+                      }}
                     >
                       <span className="flex items-center gap-3">
                         {id === 'guild' && (
@@ -1717,11 +1933,10 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => openPage('nodewars')}
-                          className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
-                            page === 'nodewars'
-                              ? 'bg-blue-500/20 text-white'
-                              : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                          className={`adversary-menu-button relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
+                            page === 'nodewars' ? 'is-active' : ''
                           }`}
+                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
                         >
                           Match History
                         </button>
@@ -1729,11 +1944,10 @@ export default function App() {
                         <button
                           type="button"
                           onClick={openOverviewFromMenu}
-                          className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold ${
-                            page === 'overview'
-                              ? 'bg-blue-500/20 text-white'
-                              : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                          className={`adversary-menu-button relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
+                            page === 'overview' ? 'is-active' : ''
                           }`}
+                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
                         >
                           Overview
                         </button>
@@ -1748,11 +1962,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => openPage('raw')}
-              className={`w-full rounded-xl px-4 py-3 text-left font-bold ${
-                isMenuActive('raw')
-                  ? 'border border-blue-400 bg-blue-500/20'
-                  : 'hover:bg-slate-900'
+              className={`adversary-menu-button relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
+                isMenuActive('raw') ? 'is-active' : ''
               }`}
+              style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
             >
               Raw Logs
             </button>
