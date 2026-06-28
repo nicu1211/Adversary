@@ -207,49 +207,63 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     min-height: 136px;
     overflow: hidden;
     border-radius: 18px;
-    border: 1px solid rgba(var(--overview-battle-rgb), 0.30) !important;
+    border: 1px solid rgba(var(--overview-battle-rgb), 0.18) !important;
     background:
       radial-gradient(
         ellipse at 18% 0%,
-        rgba(var(--overview-battle-rgb), 0.62) 0%,
-        rgba(var(--overview-battle-rgb), 0.36) 38%,
-        rgba(var(--overview-battle-rgb), 0.16) 68%,
+        rgba(var(--overview-battle-rgb), 0.34) 0%,
+        rgba(var(--overview-battle-rgb), 0.16) 40%,
+        rgba(var(--overview-battle-rgb), 0.055) 70%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-battle-rgb), 0.34) 0%,
-        rgba(var(--overview-battle-rgb), 0.20) 48%,
+        rgba(var(--overview-battle-rgb), 0.15) 0%,
+        rgba(var(--overview-battle-rgb), 0.075) 48%,
         rgba(2, 6, 23, 0.72) 100%
       ) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 rgba(var(--overview-battle-rgb), 0.30),
-      0 0 22px rgba(var(--overview-battle-rgb), 0.17),
-      0 12px 26px rgba(0, 0, 0, 0.24) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(138%);
-    backdrop-filter: blur(8px) saturate(138%);
-    transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 -1px 0 rgba(var(--overview-battle-rgb), 0.16),
+      0 0 16px rgba(var(--overview-battle-rgb), 0.09),
+      0 12px 26px rgba(0, 0, 0, 0.22) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: blur(8px) saturate(122%);
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
   }
 
   .overview-guild-page .overview-battle-metric:hover {
+    background:
+      radial-gradient(
+        ellipse at 18% 0%,
+        rgba(var(--overview-battle-rgb), 0.43) 0%,
+        rgba(var(--overview-battle-rgb), 0.21) 42%,
+        rgba(var(--overview-battle-rgb), 0.075) 72%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-battle-rgb), 0.19) 0%,
+        rgba(var(--overview-battle-rgb), 0.095) 50%,
+        rgba(2, 6, 23, 0.69) 100%
+      ) !important;
     transform: translateY(-1px);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      inset 0 -1px 0 rgba(var(--overview-battle-rgb), 0.38),
-      0 0 28px rgba(var(--overview-battle-rgb), 0.27),
-      0 14px 30px rgba(0, 0, 0, 0.27) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.075),
+      inset 0 -1px 0 rgba(var(--overview-battle-rgb), 0.21),
+      0 0 21px rgba(var(--overview-battle-rgb), 0.15),
+      0 14px 30px rgba(0, 0, 0, 0.25) !important;
   }
 
+  /* Same metric palette used by Player Overview. */
   .overview-guild-page .overview-battle-blue { --overview-battle-rgb: 59, 130, 246; }
   .overview-guild-page .overview-battle-pink { --overview-battle-rgb: 236, 72, 153; }
-  .overview-guild-page .overview-battle-red { --overview-battle-rgb: 239, 68, 68; }
-  .overview-guild-page .overview-battle-emerald { --overview-battle-rgb: 34, 197, 94; }
-  .overview-guild-page .overview-battle-violet { --overview-battle-rgb: 168, 85, 247; }
-  .overview-guild-page .overview-battle-cyan { --overview-battle-rgb: 56, 189, 248; }
-  .overview-guild-page .overview-battle-orange { --overview-battle-rgb: 249, 115, 22; }
-  .overview-guild-page .overview-battle-yellow { --overview-battle-rgb: 250, 204, 21; }
-  .overview-guild-page .overview-battle-amber { --overview-battle-rgb: 180, 83, 9; }
+  .overview-guild-page .overview-battle-red { --overview-battle-rgb: 244, 63, 94; }
+  .overview-guild-page .overview-battle-emerald { --overview-battle-rgb: 16, 185, 129; }
+  .overview-guild-page .overview-battle-violet { --overview-battle-rgb: 139, 92, 246; }
+  .overview-guild-page .overview-battle-cyan { --overview-battle-rgb: 6, 182, 212; }
+  .overview-guild-page .overview-battle-rose { --overview-battle-rgb: 244, 63, 94; }
+  .overview-guild-page .overview-battle-amber { --overview-battle-rgb: 245, 158, 11; }
 
   .overview-guild-page .overview-kill-feed-panel {
     overflow: visible !important;
@@ -281,7 +295,7 @@ const OVERVIEW_GUILD_PANEL_CSS = `
 
   .overview-guild-page .overview-kill-feed-panel .overview-player-name-chip {
     display: inline-flex;
-    min-height: 28px;
+    min-height: 24px;
     max-width: calc(100% - 54px);
     align-items: center;
     overflow: hidden;
@@ -4758,7 +4772,7 @@ function KillFeedPanel({ killFeeds, events }) {
         {!rows.length ? (
           <p className="text-slate-500">No kill feeds yet.</p>
         ) : (
-          <div className={`min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 ${scrollCls}`}>
+          <div className="grid min-h-0 flex-1 grid-rows-5 gap-1.5 overflow-hidden">
             {rows.map((feed, index) => {
               const guild = majorityGuildForKillFeed(feed, events);
               const detail = `${feed.date ? `${feed.date} · ` : ''}${
@@ -4768,7 +4782,7 @@ function KillFeedPanel({ killFeeds, events }) {
               return (
                 <div
                   key={`${feed.source || 'feed'}-${feed.date || ''}-${feed.name || ''}-${feed.sourceOrder || 0}-${feed.rowOrder || index}`}
-                  className="overview-kill-feed-row rounded-xl border px-3 py-2.5"
+                  className="overview-kill-feed-row min-h-0 rounded-xl border px-3 py-2"
                   style={{
                     '--overview-name-rgb': [
                       '249, 115, 22',
@@ -4779,8 +4793,8 @@ function KillFeedPanel({ killFeeds, events }) {
                     ][index % 5],
                   }}
                 >
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <b className="overview-player-name-chip min-w-0 truncate rounded-full px-2.5 py-1 text-sm">
+                  <div className="mb-0.5 flex items-center justify-between gap-2">
+                    <b className="overview-player-name-chip min-w-0 truncate rounded-full px-2.5 py-0.5 text-[13px]">
                       {index + 1}. {feed.name}
                     </b>
 
@@ -4991,30 +5005,30 @@ export default function OverviewPage({
           />
 
           <BattleMetricCard
-            icon={<MetricGlyph type="damageTaken" color="#f97316" />}
+            icon={<MetricGlyph type="damageTaken" color="#fb7185" />}
             label="Damage Taken"
             value={compactNumber(damageTaken)}
             sub="Taken"
-            tone="orange"
-            valueClass="text-orange-300"
+            tone="rose"
+            valueClass="text-rose-300"
           />
 
           <BattleMetricCard
-            icon={<MetricGlyph type="ccHits" color="#facc15" />}
+            icon={<MetricGlyph type="ccHits" color="#a855f7" />}
             label="CC Hits"
             value={compactNumber(ccHits)}
             sub="Control"
-            tone="yellow"
-            valueClass="text-yellow-300"
+            tone="violet"
+            valueClass="text-violet-300"
           />
 
           <BattleMetricCard
-            icon={<MetricGlyph type="damageToFort" color="#b45309" />}
+            icon={<MetricGlyph type="damageToFort" color="#f59e0b" />}
             label="Fort Damage"
             value={compactNumber(fortDamage)}
             sub="Structure"
             tone="amber"
-            valueClass="text-amber-400"
+            valueClass="text-amber-300"
           />
         </div>
       </header>
