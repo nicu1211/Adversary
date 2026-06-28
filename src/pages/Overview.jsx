@@ -200,6 +200,96 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-guild-page .overview-metric-yellow { --overview-metric-rgb: 250, 204, 21; }
   .overview-guild-page .overview-metric-brown { --overview-metric-rgb: 180, 83, 9; }
 
+  .overview-guild-page .overview-battle-metric {
+    --overview-battle-rgb: 59, 130, 246;
+    position: relative;
+    min-width: 0;
+    min-height: 136px;
+    overflow: hidden;
+    border-radius: 18px;
+    border: 1px solid rgba(var(--overview-battle-rgb), 0.30) !important;
+    background:
+      radial-gradient(
+        ellipse at 18% 0%,
+        rgba(var(--overview-battle-rgb), 0.62) 0%,
+        rgba(var(--overview-battle-rgb), 0.36) 38%,
+        rgba(var(--overview-battle-rgb), 0.16) 68%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-battle-rgb), 0.34) 0%,
+        rgba(var(--overview-battle-rgb), 0.20) 48%,
+        rgba(2, 6, 23, 0.72) 100%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 -1px 0 rgba(var(--overview-battle-rgb), 0.30),
+      0 0 22px rgba(var(--overview-battle-rgb), 0.17),
+      0 12px 26px rgba(0, 0, 0, 0.24) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(138%);
+    backdrop-filter: blur(8px) saturate(138%);
+    transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  }
+
+  .overview-guild-page .overview-battle-metric:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(var(--overview-battle-rgb), 0.38),
+      0 0 28px rgba(var(--overview-battle-rgb), 0.27),
+      0 14px 30px rgba(0, 0, 0, 0.27) !important;
+  }
+
+  .overview-guild-page .overview-battle-blue { --overview-battle-rgb: 59, 130, 246; }
+  .overview-guild-page .overview-battle-pink { --overview-battle-rgb: 236, 72, 153; }
+  .overview-guild-page .overview-battle-red { --overview-battle-rgb: 239, 68, 68; }
+  .overview-guild-page .overview-battle-emerald { --overview-battle-rgb: 34, 197, 94; }
+  .overview-guild-page .overview-battle-violet { --overview-battle-rgb: 168, 85, 247; }
+  .overview-guild-page .overview-battle-cyan { --overview-battle-rgb: 56, 189, 248; }
+  .overview-guild-page .overview-battle-orange { --overview-battle-rgb: 249, 115, 22; }
+  .overview-guild-page .overview-battle-yellow { --overview-battle-rgb: 250, 204, 21; }
+  .overview-guild-page .overview-battle-amber { --overview-battle-rgb: 180, 83, 9; }
+
+  .overview-guild-page .overview-kill-feed-panel {
+    overflow: visible !important;
+    padding-top: 10px !important;
+  }
+
+  .overview-guild-page .overview-kill-feed-panel > div {
+    min-height: 0;
+    overflow: visible !important;
+  }
+
+  .overview-guild-page .overview-kill-feed-panel .overview-section-header {
+    z-index: 3;
+    display: flex;
+    min-height: 52px;
+    flex: 0 0 auto;
+    align-items: center;
+    overflow: visible !important;
+    padding-top: 11px !important;
+    padding-bottom: 11px !important;
+  }
+
+  .overview-guild-page .overview-kill-feed-panel .overview-section-header h3 {
+    display: block;
+    overflow: visible !important;
+    line-height: 1.25 !important;
+    white-space: nowrap;
+  }
+
+  .overview-guild-page .overview-kill-feed-panel .overview-player-name-chip {
+    display: inline-flex;
+    min-height: 28px;
+    max-width: calc(100% - 54px);
+    align-items: center;
+    overflow: hidden;
+    line-height: 1.2 !important;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
   .overview-guild-page .overview-average-rank-row,
   .overview-guild-page .overview-kill-feed-row {
     --overview-name-rgb: 59, 130, 246;
@@ -335,11 +425,12 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     min-width: 100vw !important;
     min-height: 100vh !important;
     padding: clamp(18px, 3.2vh, 34px) clamp(8px, 1.4vw, 20px) 18px !important;
-    background: rgba(2, 6, 23, 0.42) !important;
+    background: rgba(2, 6, 23, 0.48) !important;
     overscroll-behavior: contain;
     touch-action: pan-y;
-    -webkit-backdrop-filter: blur(10px) saturate(108%) !important;
-    backdrop-filter: blur(10px) saturate(108%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(112%) !important;
+    backdrop-filter: blur(14px) saturate(112%) !important;
+    will-change: backdrop-filter;
   }
 
   .overview-player-performance-dialog {
@@ -348,8 +439,8 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     inset: auto !important;
     width: min(96vw, 1460px) !important;
     max-width: 1460px !important;
-    height: auto !important;
-    max-height: 88vh !important;
+    height: 93vh !important;
+    max-height: 93vh !important;
     margin: 0 auto !important;
     transform: translateY(-1.4vh) !important;
     color: #ffffff !important;
@@ -514,7 +605,14 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     --overview-popup-card-rgb: 59, 130, 246;
   }
 
-  .overview-player-performance-dialog .overview-popup-card-pink,
+  .overview-player-performance-dialog .overview-popup-card-pink {
+    --overview-popup-card-rgb: 236, 72, 153;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-red {
+    --overview-popup-card-rgb: 239, 68, 68;
+  }
+
   .overview-player-performance-dialog .overview-popup-card-rose,
   .overview-player-performance-dialog .overview-popup-accent-rose {
     --overview-popup-card-rgb: 244, 63, 94;
@@ -815,6 +913,35 @@ function MetricGlyph({ type, color }) {
   }
 
   return null;
+}
+
+function BattleMetricCard({
+  icon,
+  label,
+  value,
+  sub,
+  tone = 'blue',
+  valueClass = 'text-white',
+}) {
+  return (
+    <div className={`overview-battle-metric overview-battle-${tone} flex items-center gap-3 px-4 py-4`}>
+      <div className="grid h-12 w-12 shrink-0 place-items-center text-[2rem]">
+        {icon}
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium leading-tight text-slate-200">
+          {label}
+        </p>
+        <p className={`mt-1 text-[1.75rem] font-black leading-none ${valueClass}`}>
+          {value}
+        </p>
+        <p className="mt-1 text-[12px] font-medium text-slate-400">
+          {sub}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function RankList({ title, items, valueKey }) {
@@ -2369,6 +2496,11 @@ function PlayerAverageComparisonCard({
       bg: 'from-pink-500/10 via-slate-950/70 to-slate-950/85',
       value: 'text-pink-300',
     },
+    red: {
+      border: 'border-red-400/20',
+      bg: 'from-red-500/10 via-slate-950/70 to-slate-950/85',
+      value: 'text-red-400',
+    },
     emerald: {
       border: 'border-emerald-400/20',
       bg: 'from-emerald-500/10 via-slate-950/70 to-slate-950/85',
@@ -2496,7 +2628,7 @@ function PlayerPerformanceModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="overview-player-performance-dialog relative flex max-h-[88vh] w-[min(97vw,1320px)] flex-col overflow-hidden rounded-[24px] border border-transparent bg-transparent shadow-none"
+        className="overview-player-performance-dialog relative flex h-[93vh] max-h-[93vh] w-[min(97vw,1460px)] flex-col overflow-hidden rounded-[24px] border border-transparent bg-transparent shadow-none"
       >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/45 to-transparent" />
@@ -3771,7 +3903,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                     selectedLifetimeAverageStats?.metricWars?.kd || 0
                   }
                   type="kd"
-                  tone="emerald"
+                  tone={kdNumber < 1 ? 'red' : 'emerald'}
                 />
 
                 <PlayerAverageComparisonCard
@@ -4617,7 +4749,7 @@ function KillFeedPanel({ killFeeds, events }) {
     .slice(0, 5);
 
   return (
-    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-orange h-[520px]">
+    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-orange overview-kill-feed-panel h-[520px] overflow-visible">
       <div className="flex h-full flex-col">
         <div className="overview-section-header overview-header-orange mb-4">
           <h3 className="text-xl font-black">🔥 Kill Feed</h3>
@@ -4626,7 +4758,7 @@ function KillFeedPanel({ killFeeds, events }) {
         {!rows.length ? (
           <p className="text-slate-500">No kill feeds yet.</p>
         ) : (
-          <div className="grid gap-2">
+          <div className={`min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 ${scrollCls}`}>
             {rows.map((feed, index) => {
               const guild = majorityGuildForKillFeed(feed, events);
               const detail = `${feed.date ? `${feed.date} · ` : ''}${
@@ -4813,72 +4945,76 @@ export default function OverviewPage({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
-          <Metric
-            icon={<MetricGlyph type="kills" color="#1d4ed8" />}
+          <BattleMetricCard
+            icon={<MetricGlyph type="kills" color="#60a5fa" />}
             label="Total Kills"
             value={stats.kills}
             sub="Eliminations"
-            className="overview-metric-card overview-metric-blue border-blue-800/30 from-blue-900/20 text-blue-300"
+            tone="blue"
+            valueClass="text-blue-300"
           />
 
-          <Metric
-            icon={<MetricGlyph type="deaths" color="#dc2626" />}
+          <BattleMetricCard
+            icon={<MetricGlyph type="deaths" color="#ef4444" />}
             label="Total Deaths"
             value={stats.deaths}
             sub="Deaths"
-            className="overview-metric-card overview-metric-red border-red-800/30 from-red-900/20 text-red-300"
+            tone="pink"
+            valueClass="text-pink-300"
           />
 
-          <Metric
+          <BattleMetricCard
             icon={<MetricGlyph type="kd" color={Number(stats.kd) < 1 ? "#ef4444" : "#22c55e"} />}
             label="K/D"
             value={stats.kd}
             sub="Ratio"
-            className={
-              Number(stats.kd) < 1
-                ? "overview-metric-card overview-metric-red border-red-500/30 from-red-900/20 text-red-400"
-                : "overview-metric-card overview-metric-emerald border-emerald-500/30 from-emerald-900/20 text-emerald-400"
-            }
+            tone={Number(stats.kd) < 1 ? 'red' : 'emerald'}
+            valueClass={Number(stats.kd) < 1 ? 'text-red-400' : 'text-emerald-300'}
           />
 
-          <Metric
+          <BattleMetricCard
             icon={<MetricGlyph type="players" color="#a855f7" />}
             label="Players"
             value={stats.players.length}
             sub="Active"
-            className="overview-metric-card overview-metric-purple border-purple-500/30 from-purple-900/20 text-purple-300"
+            tone="violet"
+            valueClass="text-purple-300"
           />
 
-          <Metric
+          <BattleMetricCard
             icon={<MetricGlyph type="damageDealt" color="#38bdf8" />}
             label="Damage"
             value={compactNumber(damageDealt)}
             sub="Dealt"
-            className="overview-metric-card overview-metric-sky border-sky-400/30 from-sky-900/20 text-sky-300"
+            tone="cyan"
+            valueClass="text-cyan-300"
           />
 
-          <Metric
+          <BattleMetricCard
             icon={<MetricGlyph type="damageTaken" color="#f97316" />}
             label="Damage Taken"
             value={compactNumber(damageTaken)}
             sub="Taken"
-            className="overview-metric-card overview-metric-orange border-orange-500/30 from-orange-900/20 text-orange-300"
+            tone="orange"
+            valueClass="text-orange-300"
           />
 
-          <Metric
+          <BattleMetricCard
             icon={<MetricGlyph type="ccHits" color="#facc15" />}
             label="CC Hits"
             value={compactNumber(ccHits)}
             sub="Control"
-            className="overview-metric-card overview-metric-yellow border-yellow-400/30 from-yellow-900/20 text-yellow-300"
+            tone="yellow"
+            valueClass="text-yellow-300"
           />
 
-          <Metric
-            icon={<MetricGlyph type="damageToFort" color="#92400e" />}
+          <BattleMetricCard
+            icon={<MetricGlyph type="damageToFort" color="#b45309" />}
             label="Fort Damage"
             value={compactNumber(fortDamage)}
             sub="Structure"
-            className="overview-metric-card overview-metric-brown border-amber-900/40 from-amber-950/25 text-amber-500"
+            tone="amber"
+            valueClass="text-amber-400"
           />
         </div>
       </header>
