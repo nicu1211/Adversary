@@ -2650,7 +2650,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
         <HallHeaderCard
           icon={Swords}
           title="Kills"
-          value={shortNum(totalEligibleKills)}
+          value={nf.format(totalEligibleKills)}
           sub={`Min ${MIN_HALL_WARS} wars`}
           tone="blueRoyal"
           active={activeTab === 'kills'}
@@ -2736,7 +2736,7 @@ function CombatOutputPanel({ data }) {
                 label={`${index + 1}. ${player.name}`}
                 value={player.kills}
                 max={maxTotalKills}
-                right={shortNum(player.kills)}
+                right={nf.format(player.kills)}
                 tone="blueDark"
               />
             ))
