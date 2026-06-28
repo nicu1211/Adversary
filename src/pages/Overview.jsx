@@ -261,38 +261,65 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-guild-page .overview-section-header {
     --overview-header-rgb: 59, 130, 246;
     position: relative;
+    display: flex;
+    min-height: 56px;
+    align-items: center;
+    justify-content: space-between;
     overflow: hidden;
+    flex-shrink: 0;
     border-radius: 18px;
-    padding: 12px 15px;
+    padding: 12px 16px;
     color: #ffffff !important;
-    border: 1px solid rgba(var(--overview-header-rgb), 0.24) !important;
-    border-left: 4px solid rgba(var(--overview-header-rgb), 0.92) !important;
-    background:
+    border: 1px solid rgba(var(--overview-header-rgb), 0.34) !important;
+    border-left: 4px solid rgba(var(--overview-header-rgb), 0.98) !important;
+    background-color: rgba(var(--overview-header-rgb), 0.20) !important;
+    background-image:
       radial-gradient(
-        ellipse at 9% 0%,
-        rgba(var(--overview-header-rgb), 0.78) 0%,
-        rgba(var(--overview-header-rgb), 0.40) 34%,
-        rgba(var(--overview-header-rgb), 0.18) 62%,
-        transparent 82%
+        ellipse at 10% 0%,
+        rgba(var(--overview-header-rgb), 0.82) 0%,
+        rgba(var(--overview-header-rgb), 0.52) 34%,
+        rgba(var(--overview-header-rgb), 0.28) 62%,
+        rgba(var(--overview-header-rgb), 0.12) 84%,
+        transparent 100%
       ),
       linear-gradient(
         105deg,
-        rgba(var(--overview-header-rgb), 0.34) 0%,
-        rgba(var(--overview-header-rgb), 0.18) 42%,
-        rgba(2, 6, 23, 0.68) 78%,
-        rgba(2, 6, 23, 0.52) 100%
+        rgba(var(--overview-header-rgb), 0.52) 0%,
+        rgba(var(--overview-header-rgb), 0.34) 42%,
+        rgba(var(--overview-header-rgb), 0.20) 72%,
+        rgba(2, 6, 23, 0.58) 100%
       ) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 rgba(var(--overview-header-rgb), 0.28),
-      0 0 20px rgba(var(--overview-header-rgb), 0.13),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(var(--overview-header-rgb), 0.34),
+      0 0 24px rgba(var(--overview-header-rgb), 0.18),
       0 8px 22px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  .overview-guild-page .overview-section-header::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,0.10), transparent 32%, rgba(var(--overview-header-rgb),0.08) 74%, transparent);
+  }
+
+  .overview-guild-page .overview-section-header > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .overview-guild-page .overview-section-header h2,
+  .overview-guild-page .overview-section-header h3,
+  .overview-guild-page .overview-section-header p {
+    margin: 0 !important;
+    line-height: 1.18 !important;
   }
 
   .overview-guild-page .overview-section-header h2,
   .overview-guild-page .overview-section-header h3 {
     color: #ffffff !important;
-    text-shadow: 0 0 18px rgba(var(--overview-header-rgb), 0.28);
+    text-shadow: 0 0 18px rgba(var(--overview-header-rgb), 0.36);
   }
 
   .overview-guild-page .overview-header-amber { --overview-header-rgb: 245, 158, 11; }
@@ -303,22 +330,53 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-guild-page .overview-header-orange { --overview-header-rgb: 249, 115, 22; }
 
   .overview-guild-page .overview-chart-shell :is(h1, h2, h3) {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    min-height: 42px;
+    width: 100%;
+    min-height: 52px;
     margin: 0 0 12px !important;
-    padding: 9px 15px;
+    padding: 10px 16px;
     border-radius: 16px;
     color: #ffffff !important;
-    border: 1px solid rgba(59, 130, 246, 0.30) !important;
-    border-left: 4px solid rgba(59, 130, 246, 0.95) !important;
-    background:
-      radial-gradient(ellipse at 10% 0%, rgba(59, 130, 246, 0.78), rgba(59, 130, 246, 0.34) 38%, rgba(59, 130, 246, 0.12) 66%, transparent 84%),
-      linear-gradient(105deg, rgba(59, 130, 246, 0.32), rgba(59, 130, 246, 0.16) 46%, rgba(2, 6, 23, 0.66) 82%) !important;
+    border: 1px solid rgba(59, 130, 246, 0.36) !important;
+    border-left: 4px solid rgba(59, 130, 246, 0.98) !important;
+    background-color: rgba(59, 130, 246, 0.20) !important;
+    background-image:
+      radial-gradient(ellipse at 10% 0%, rgba(59, 130, 246, 0.84), rgba(59, 130, 246, 0.50) 38%, rgba(59, 130, 246, 0.24) 68%, rgba(59, 130, 246, 0.10) 88%, transparent 100%),
+      linear-gradient(105deg, rgba(59, 130, 246, 0.50), rgba(59, 130, 246, 0.31) 48%, rgba(59, 130, 246, 0.16) 76%, rgba(2, 6, 23, 0.58) 100%) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 rgba(59, 130, 246, 0.26),
-      0 0 18px rgba(59, 130, 246, 0.13) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.11),
+      inset 0 -1px 0 rgba(59, 130, 246, 0.32),
+      0 0 22px rgba(59, 130, 246, 0.17) !important;
+  }
+
+  .overview-guild-page .overview-header-orange {
+    min-height: 56px !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .overview-guild-page .overview-header-orange h3 {
+    display: flex;
+    align-items: center;
+    min-height: 28px;
+    overflow: visible !important;
+    white-space: nowrap;
+    line-height: 1.2 !important;
+  }
+
+  .overview-guild-page .overview-kill-feed-panel {
+    overflow: visible !important;
+  }
+
+  .overview-guild-page .overview-kill-feed-panel > div {
+    min-height: 0;
+  }
+
+  .overview-guild-page .overview-kill-feed-list {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1px 2px 4px;
   }
 
   .overview-player-performance-overlay {
@@ -331,11 +389,11 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     min-width: 100vw !important;
     min-height: 100vh !important;
     padding: clamp(18px, 3.2vh, 34px) clamp(8px, 1.4vw, 20px) 18px !important;
-    background: rgba(2, 6, 23, 0.46) !important;
+    background: rgba(2, 6, 23, 0.42) !important;
     overscroll-behavior: contain;
     touch-action: pan-y;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+    -webkit-backdrop-filter: blur(9px) saturate(106%) !important;
+    backdrop-filter: blur(9px) saturate(106%) !important;
   }
 
   .overview-player-performance-dialog {
@@ -4613,7 +4671,7 @@ function KillFeedPanel({ killFeeds, events }) {
     .slice(0, 5);
 
   return (
-    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-orange h-[520px]">
+    <Panel cls="overview-kill-feed-panel overview-guild-panel overview-panel-transparent overview-accent-orange h-[520px]">
       <div className="flex h-full flex-col">
         <div className="overview-section-header overview-header-orange mb-4">
           <h3 className="text-xl font-black">🔥 Kill Feed</h3>
@@ -4622,7 +4680,7 @@ function KillFeedPanel({ killFeeds, events }) {
         {!rows.length ? (
           <p className="text-slate-500">No kill feeds yet.</p>
         ) : (
-          <div className="grid gap-2">
+          <div className={`overview-kill-feed-list grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1 ${scrollCls}`}>
             {rows.map((feed, index) => {
               const guild = majorityGuildForKillFeed(feed, events);
               const detail = `${feed.date ? `${feed.date} · ` : ''}${
