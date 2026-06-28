@@ -3,6 +3,143 @@ import { Metric } from '../components/UI';
 import { AveragePerformanceChart } from '../components/Charts';
 import { add, scrollCls } from '../lib/logUtils';
 
+
+const PLAYER_STATS_GUILD_CSS = `
+  .player-stats-guild-style {
+    --player-stats-panel-rgb: 59, 130, 246;
+  }
+
+  .player-stats-guild-style.player-stats-root-transparent {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .player-stats-guild-style .player-stats-guild-panel {
+    --player-stats-panel-rgb: 59, 130, 246;
+    position: relative;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.60) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--player-stats-panel-rgb), 0.20) 0%,
+        rgba(var(--player-stats-panel-rgb), 0.095) 42%,
+        rgba(var(--player-stats-panel-rgb), 0.034) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--player-stats-panel-rgb), 0.075) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
+      ) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: blur(8px) saturate(122%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(var(--player-stats-panel-rgb), 0.14),
+      0 12px 28px rgba(0, 0, 0, 0.24) !important;
+    transition: background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .player-stats-guild-style .player-stats-guild-panel:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--player-stats-panel-rgb), 0.27) 0%,
+        rgba(var(--player-stats-panel-rgb), 0.13) 44%,
+        rgba(var(--player-stats-panel-rgb), 0.045) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--player-stats-panel-rgb), 0.10) 0%,
+        rgba(7, 13, 29, 0.49) 54%,
+        rgba(2, 6, 23, 0.63) 100%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 rgba(var(--player-stats-panel-rgb), 0.20),
+      0 0 20px rgba(var(--player-stats-panel-rgb), 0.22),
+      0 16px 34px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  .player-stats-guild-style .player-stats-accent-blue { --player-stats-panel-rgb: 59, 130, 246; }
+  .player-stats-guild-style .player-stats-accent-cyan { --player-stats-panel-rgb: 6, 182, 212; }
+  .player-stats-guild-style .player-stats-accent-violet { --player-stats-panel-rgb: 139, 92, 246; }
+  .player-stats-guild-style .player-stats-accent-rose { --player-stats-panel-rgb: 244, 63, 94; }
+  .player-stats-guild-style .player-stats-accent-amber { --player-stats-panel-rgb: 245, 158, 11; }
+
+  .player-stats-guild-style .player-stats-summary-card {
+    --player-stats-summary-rgb: 59, 130, 246;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.54) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 12% 0%,
+        rgba(var(--player-stats-summary-rgb), 0.48) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.25) 38%,
+        rgba(var(--player-stats-summary-rgb), 0.09) 68%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--player-stats-summary-rgb), 0.18) 0%,
+        rgba(2, 6, 23, 0.62) 68%
+      ) !important;
+    -webkit-backdrop-filter: blur(7px) saturate(120%);
+    backdrop-filter: blur(7px) saturate(120%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.20),
+      0 10px 24px rgba(0, 0, 0, 0.20) !important;
+    transition: background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .player-stats-guild-style .player-stats-summary-card:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 12% 0%,
+        rgba(var(--player-stats-summary-rgb), 0.58) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.31) 40%,
+        rgba(var(--player-stats-summary-rgb), 0.12) 70%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--player-stats-summary-rgb), 0.22) 0%,
+        rgba(2, 6, 23, 0.59) 68%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.065),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.26),
+      0 0 20px rgba(var(--player-stats-summary-rgb), 0.24),
+      0 12px 26px rgba(0, 0, 0, 0.22) !important;
+    transform: translateY(-1px);
+  }
+
+  .player-stats-guild-style .player-stats-summary-emerald { --player-stats-summary-rgb: 16, 185, 129; }
+  .player-stats-guild-style .player-stats-summary-pink { --player-stats-summary-rgb: 236, 72, 153; }
+  .player-stats-guild-style .player-stats-summary-blue { --player-stats-summary-rgb: 59, 130, 246; }
+  .player-stats-guild-style .player-stats-summary-amber { --player-stats-summary-rgb: 245, 158, 11; }
+  .player-stats-guild-style .player-stats-summary-violet { --player-stats-summary-rgb: 139, 92, 246; }
+
+  .player-stats-guild-style .player-stats-performance-shell > :first-child {
+    border-color: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  .player-stats-guild-style .player-stats-guild-panel [class*="border-slate-700"],
+  .player-stats-guild-style .player-stats-guild-panel [class*="border-slate-800"] {
+    border-color: rgba(var(--player-stats-panel-rgb), 0.10) !important;
+  }
+`;
+
 function PlayerSelect({ players, value, onChange }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -611,7 +748,7 @@ function PlayerComparisonPanel({
   );
 
   return (
-    <div className="adversary-panel player-comparison-panel relative mb-5 overflow-hidden rounded-[32px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(15,23,42,.20),rgba(2,6,23,.12)_48%,rgba(15,23,42,.18))] shadow-[0_34px_110px_rgba(0,0,0,.28)] backdrop-blur-[2px]">
+    <div className="adversary-panel player-comparison-panel player-stats-guild-panel player-stats-accent-violet relative mb-5 overflow-hidden rounded-[32px] border border-white/[0.12] bg-[linear-gradient(145deg,rgba(15,23,42,.20),rgba(2,6,23,.12)_48%,rgba(15,23,42,.18))] shadow-[0_34px_110px_rgba(0,0,0,.28)] backdrop-blur-[2px]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/55 to-transparent" />
         <div className="absolute -left-28 -top-24 h-[360px] w-[360px] rounded-full bg-violet-600/[0.06] blur-[100px]" />
@@ -1368,7 +1505,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
   const redShade = 'from-rose-500/80 via-red-500/75 to-pink-400/70';
 
   return (
-    <div className="h-full rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+    <div className="player-stats-guild-panel player-stats-accent-rose h-full rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="flex h-full flex-col">
         <div className="mb-4">
           <h3 className="text-2xl font-black">Targets & Nemesis</h3>
@@ -1560,7 +1697,7 @@ function EnemyGuildTable({ rows }) {
   }, [rows, sort]);
 
   return (
-    <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+    <div className="player-stats-guild-panel player-stats-accent-cyan rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="mb-4">
         <h3 className="text-2xl font-black">Enemy Guilds</h3>
       </div>
@@ -3538,7 +3675,7 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
     'grid-cols-[38px_minmax(190px,1.65fr)_minmax(82px,.72fr)_minmax(82px,.72fr)_minmax(88px,.76fr)_minmax(112px,.95fr)_minmax(104px,.9fr)_minmax(126px,1.06fr)_minmax(126px,1.06fr)_minmax(96px,.82fr)_minmax(132px,1.1fr)]';
 
   return (
-    <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+    <div className="player-stats-guild-panel player-stats-accent-blue rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="mb-4">
         <h3 className="text-2xl font-black">Match History</h3>
         <p className="mt-0.5 text-xs font-bold text-slate-500">
@@ -4489,7 +4626,8 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
   }, [player, stats, averageRankTable]);
 
   return (
-    <div className="adversary-panel player-stats-page rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+    <div className="adversary-panel player-stats-page player-stats-guild-style player-stats-root-transparent rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+      <style>{PLAYER_STATS_GUILD_CSS}</style>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -4523,7 +4661,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
               label="Kills"
               value={selectedStats.kills}
               sub={player}
-              className="border-emerald-400/25 from-emerald-500/20 text-emerald-300"
+              className="player-stats-summary-card player-stats-summary-emerald border-emerald-400/25 from-emerald-500/20 text-emerald-300"
             />
 
             <Metric
@@ -4531,7 +4669,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
               label="Deaths"
               value={selectedStats.deaths}
               sub="Total deaths"
-              className="border-pink-400/25 from-pink-500/20 text-pink-300"
+              className="player-stats-summary-card player-stats-summary-pink border-pink-400/25 from-pink-500/20 text-pink-300"
             />
 
             <Metric
@@ -4539,7 +4677,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
               label="K/D"
               value={selectedStats.kd}
               sub="Overall ratio"
-              className="border-blue-400/25 from-blue-500/20 text-blue-300"
+              className="player-stats-summary-card player-stats-summary-blue border-blue-400/25 from-blue-500/20 text-blue-300"
             />
 
             <Metric
@@ -4547,7 +4685,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
               label="Wars"
               value={selectedStats.wars}
               sub="Wars participated"
-              className="border-amber-400/25 from-amber-500/20 text-amber-300"
+              className="player-stats-summary-card player-stats-summary-amber border-amber-400/25 from-amber-500/20 text-amber-300"
             />
 
             <Metric
@@ -4555,11 +4693,11 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
               label="Average Rank"
               value={selectedStats.averageRank || '0.00'}
               sub=""
-              className="border-violet-400/25 from-violet-500/20 text-violet-300"
+              className="player-stats-summary-card player-stats-summary-violet border-violet-400/25 from-violet-500/20 text-violet-300"
             />
           </div>
 
-          <div className="player-stats-performance-no-summary">
+          <div className="player-stats-performance-no-summary player-stats-performance-shell player-stats-guild-panel player-stats-accent-blue mt-4 rounded-[28px] p-1">
             <style>
               {`.player-stats-performance-no-summary [class*="xl:justify-between"] > div:last-child {
                 display: none !important;
@@ -4571,7 +4709,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
             />
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 player-stats-section-shell">
             <MatchHistoryList
               matches={selectedStats.matchList}
               onOpenMatchOverview={onOpenMatchOverview}
