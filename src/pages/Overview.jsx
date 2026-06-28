@@ -142,19 +142,19 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-guild-page .overview-metric-card {
     --overview-metric-rgb: 59, 130, 246;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-color: rgba(2, 6, 23, 0.56) !important;
     background-image:
       radial-gradient(
         ellipse at 15% 0%,
-        rgba(var(--overview-metric-rgb), 0.31) 0%,
-        rgba(var(--overview-metric-rgb), 0.15) 42%,
-        rgba(var(--overview-metric-rgb), 0.055) 72%,
+        rgba(var(--overview-metric-rgb), 0.43) 0%,
+        rgba(var(--overview-metric-rgb), 0.22) 42%,
+        rgba(var(--overview-metric-rgb), 0.085) 72%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-metric-rgb), 0.12),
-        rgba(2, 6, 23, 0.68) 66%
+        rgba(var(--overview-metric-rgb), 0.17),
+        rgba(2, 6, 23, 0.64) 66%
       ) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.045),
@@ -169,15 +169,15 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     background-image:
       radial-gradient(
         ellipse at 15% 0%,
-        rgba(var(--overview-metric-rgb), 0.40) 0%,
-        rgba(var(--overview-metric-rgb), 0.20) 44%,
-        rgba(var(--overview-metric-rgb), 0.075) 74%,
+        rgba(var(--overview-metric-rgb), 0.52) 0%,
+        rgba(var(--overview-metric-rgb), 0.28) 44%,
+        rgba(var(--overview-metric-rgb), 0.11) 74%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-metric-rgb), 0.15),
-        rgba(2, 6, 23, 0.65) 66%
+        rgba(var(--overview-metric-rgb), 0.21),
+        rgba(2, 6, 23, 0.61) 66%
       ) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -187,14 +187,14 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     transform: translateY(-1px);
   }
 
-  .overview-guild-page .overview-metric-blue { --overview-metric-rgb: 29, 78, 216; }
-  .overview-guild-page .overview-metric-red { --overview-metric-rgb: 220, 38, 38; }
+  .overview-guild-page .overview-metric-blue { --overview-metric-rgb: 59, 130, 246; }
+  .overview-guild-page .overview-metric-red { --overview-metric-rgb: 244, 63, 94; }
   .overview-guild-page .overview-metric-emerald { --overview-metric-rgb: 34, 197, 94; }
   .overview-guild-page .overview-metric-purple { --overview-metric-rgb: 168, 85, 247; }
   .overview-guild-page .overview-metric-sky { --overview-metric-rgb: 56, 189, 248; }
   .overview-guild-page .overview-metric-orange { --overview-metric-rgb: 249, 115, 22; }
   .overview-guild-page .overview-metric-yellow { --overview-metric-rgb: 250, 204, 21; }
-  .overview-guild-page .overview-metric-brown { --overview-metric-rgb: 146, 64, 14; }
+  .overview-guild-page .overview-metric-brown { --overview-metric-rgb: 180, 83, 9; }
 
   .overview-guild-page .overview-average-rank-row,
   .overview-guild-page .overview-kill-feed-row {
@@ -265,31 +265,159 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: clamp(4px, 1.2vw, 18px) !important;
+    padding: clamp(14px, 3vw, 34px) !important;
+    background: rgba(2, 6, 23, 0.76) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    backdrop-filter: blur(10px) !important;
   }
 
   .overview-player-performance-dialog {
+    --overview-popup-rgb: 59, 130, 246;
     position: relative !important;
     inset: auto !important;
-    width: min(98.5vw, 1800px) !important;
-    max-width: 1800px !important;
-    height: min(95vh, 1120px) !important;
-    max-height: 96vh !important;
+    width: min(92vw, 1180px) !important;
+    max-width: 1180px !important;
+    height: auto !important;
+    max-height: 86vh !important;
     margin: auto !important;
     transform: none !important;
+    color: #ffffff !important;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.96) !important;
+    background-color: rgba(2, 6, 23, 0.90) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--overview-popup-rgb), 0.22) 0%,
+        rgba(var(--overview-popup-rgb), 0.10) 42%,
+        rgba(var(--overview-popup-rgb), 0.035) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-popup-rgb), 0.08),
+        rgba(2, 6, 23, 0.93) 68%
+      ) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(118%);
+    backdrop-filter: blur(16px) saturate(118%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.055),
-      0 0 34px rgba(59, 130, 246, 0.16),
-      0 42px 140px rgba(0, 0, 0, 0.78) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 rgba(var(--overview-popup-rgb), 0.18),
+      0 0 26px rgba(var(--overview-popup-rgb), 0.16),
+      0 34px 100px rgba(0, 0, 0, 0.72) !important;
+  }
+
+  .overview-player-performance-dialog [class*="text-black"],
+  .overview-player-performance-dialog [class*="text-slate-950"],
+  .overview-player-performance-dialog [class*="text-gray-950"],
+  .overview-player-performance-dialog [class*="text-zinc-950"],
+  .overview-player-performance-dialog [class*="text-neutral-950"] {
+    color: #ffffff !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-shell {
+    border-color: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card,
+  .overview-player-performance-dialog .overview-popup-section {
+    --overview-popup-card-rgb: 59, 130, 246;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--overview-popup-card-rgb), 0.24) 0%,
+        rgba(var(--overview-popup-card-rgb), 0.11) 44%,
+        rgba(var(--overview-popup-card-rgb), 0.04) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-popup-card-rgb), 0.085),
+        rgba(2, 6, 23, 0.68) 68%
+      ) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(118%);
+    backdrop-filter: blur(8px) saturate(118%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.15),
+      0 10px 24px rgba(0, 0, 0, 0.20) !important;
+    transition: background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card:hover,
+  .overview-player-performance-dialog .overview-popup-section:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--overview-popup-card-rgb), 0.33) 0%,
+        rgba(var(--overview-popup-card-rgb), 0.155) 44%,
+        rgba(var(--overview-popup-card-rgb), 0.055) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--overview-popup-card-rgb), 0.11),
+        rgba(2, 6, 23, 0.65) 68%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.21),
+      0 0 18px rgba(var(--overview-popup-card-rgb), 0.18),
+      0 12px 28px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-blue,
+  .overview-player-performance-dialog .overview-popup-accent-blue {
+    --overview-popup-card-rgb: 59, 130, 246;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-pink,
+  .overview-player-performance-dialog .overview-popup-card-rose,
+  .overview-player-performance-dialog .overview-popup-accent-rose {
+    --overview-popup-card-rgb: 244, 63, 94;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-emerald {
+    --overview-popup-card-rgb: 34, 197, 94;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-slate {
+    --overview-popup-card-rgb: 148, 163, 184;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-orange {
+    --overview-popup-card-rgb: 249, 115, 22;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-cyan,
+  .overview-player-performance-dialog .overview-popup-accent-cyan {
+    --overview-popup-card-rgb: 6, 182, 212;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-violet,
+  .overview-player-performance-dialog .overview-popup-accent-violet {
+    --overview-popup-card-rgb: 139, 92, 246;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card-amber {
+    --overview-popup-card-rgb: 245, 158, 11;
+  }
+
+  .overview-player-performance-dialog thead {
+    color: #ffffff !important;
+    background: rgba(2, 6, 23, 0.92) !important;
   }
 
   @media (max-width: 640px) {
     .overview-player-performance-dialog {
-      width: 98vw !important;
-      height: 96vh !important;
-      max-height: 96vh !important;
+      width: 95vw !important;
+      max-width: 95vw !important;
+      height: auto !important;
+      max-height: 90vh !important;
       border-radius: 22px !important;
     }
   }
@@ -2150,7 +2278,7 @@ function PlayerAverageComparisonCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border ${theme.border} bg-gradient-to-br ${theme.bg} p-3 shadow-[0_12px_30px_rgba(0,0,0,.18)]`}
+      className={`overview-popup-card overview-popup-card-${tone} relative overflow-hidden rounded-2xl border ${theme.border} bg-gradient-to-br ${theme.bg} p-3 shadow-[0_12px_30px_rgba(0,0,0,.18)]`}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
 
@@ -2205,7 +2333,7 @@ function PlayerPerformanceModal({
 }) {
   return (
     <div
-      className="overview-player-performance-overlay fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/88 p-1 backdrop-blur-md sm:p-2"
+      className="overview-player-performance-overlay fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/76 p-4 backdrop-blur-lg sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           close();
@@ -2216,7 +2344,7 @@ function PlayerPerformanceModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="overview-player-performance-dialog relative flex h-[min(95vh,1120px)] max-h-[96vh] w-[min(98.5vw,1800px)] flex-col overflow-hidden rounded-[30px] border border-transparent bg-slate-950/95 shadow-[0_38px_140px_rgba(0,0,0,.78)]"
+        className="overview-player-performance-dialog relative flex max-h-[86vh] w-[min(92vw,1180px)] flex-col overflow-hidden rounded-[28px] border border-transparent bg-slate-950/92 shadow-[0_34px_100px_rgba(0,0,0,.72)]"
       >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/45 to-transparent" />
@@ -2225,7 +2353,7 @@ function PlayerPerformanceModal({
           <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.018)_1px,transparent_1px)] bg-[size:38px_38px]" />
         </div>
 
-        <div className="relative flex items-center justify-between gap-4 border-b border-white/8 bg-slate-950/72 px-4 py-3.5 sm:px-5">
+        <div className="relative flex items-center justify-between gap-4 border-b border-white/8 bg-[linear-gradient(110deg,rgba(59,130,246,.17),rgba(15,23,42,.76)_42%,rgba(139,92,246,.10))] px-4 py-3.5 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-500/10 shadow-[0_0_24px_rgba(59,130,246,.12)]">
               <div className="h-4 w-4 rotate-45 border-2 border-blue-300/85" />
@@ -2259,7 +2387,7 @@ function PlayerPerformanceModal({
         </div>
 
         <div
-          className={`relative min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5 ${scrollCls}`}
+          className={`relative min-h-0 flex-1 overflow-y-auto p-3 text-white sm:p-4 lg:p-5 ${scrollCls}`}
         >
           {children}
         </div>
@@ -3436,7 +3564,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
             subtitle="Selected war compared with full lifetime per-war averages"
             close={() => setSelected(null)}
           >
-            <div className="relative overflow-hidden rounded-[24px] border border-slate-800/90 bg-slate-950/58 p-3 shadow-inner sm:p-4">
+            <div className="overview-popup-shell relative overflow-hidden rounded-[24px] border border-transparent bg-transparent p-1 sm:p-2">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/25 to-transparent" />
             <div className="mb-4">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
@@ -3563,7 +3691,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
             </div>
 
             <div className="mb-4 grid gap-3 md:grid-cols-2">
-              <div className="relative overflow-hidden rounded-2xl border border-blue-400/15 bg-gradient-to-br from-blue-500/8 via-slate-950/72 to-slate-950/90 p-4 shadow-[0_14px_34px_rgba(0,0,0,.18)]">
+              <div className="overview-popup-card overview-popup-card-blue relative overflow-hidden rounded-2xl border border-transparent p-4">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Favorite victim
                 </p>
@@ -3573,7 +3701,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                 </p>
               </div>
 
-              <div className="relative overflow-hidden rounded-2xl border border-rose-400/15 bg-gradient-to-br from-rose-500/8 via-slate-950/72 to-slate-950/90 p-4 shadow-[0_14px_34px_rgba(0,0,0,.18)]">
+              <div className="overview-popup-card overview-popup-card-rose relative overflow-hidden rounded-2xl border border-transparent p-4">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Nemesis
                 </p>
@@ -3584,7 +3712,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </div>
             </div>
 
-            <div className="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/45">
+            <div className="overview-popup-section overview-popup-accent-violet mb-4 overflow-hidden rounded-2xl border border-transparent">
               <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/75 px-4 py-3">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">
@@ -3657,7 +3785,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
             </div>
 
             <div
-              className={`max-h-[48vh] overflow-auto rounded-2xl border border-slate-800 ${scrollCls}`}
+              className={`overview-popup-section overview-popup-accent-cyan max-h-[38vh] overflow-auto rounded-2xl border border-transparent ${scrollCls}`}
             >
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
