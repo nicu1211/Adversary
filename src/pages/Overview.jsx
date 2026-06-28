@@ -4326,8 +4326,9 @@ function EnemyGuilds({ guilds, events }) {
 
     [...(events || [])].forEach((event) => {
       const guildName = cleanGuild(event.guild);
+      const guildKey = normalizePlayerName(guildName);
 
-      if (!guildName) return;
+      if (!guildName || !guildKey) return;
 
       const matchKey = String(
         event.matchId ||
@@ -4342,57 +4343,30 @@ function EnemyGuilds({ guilds, events }) {
           'selected-war',
       );
 
-      matchesByGuild[guildName] ||= new Map();
+      matchesByGuild[guildKey] ||= {
+        name: guildName,
+        matches: new Map(),
+      };
 
-      if (!matchesByGuild[guildName].has(matchKey)) {
-        matchesByGuild[guildName].set(matchKey, {
-          kills: 0,
-          deaths: 0,
+      const guildEntry = matchesByGuild[guildKey];
+
+      if (!guildEntry.matches.has(matchKey)) {
+        guildEntry.matches.set(matchKey, {
+          eventKills: 0,
+          eventDeaths: 0,
         });
       }
 
-      const match = matchesByGuild[guildName].get(matchKey);
+      const match = guildEntry.matches.get(matchKey);
 
-      // From our guild's perspective: a kill is a kill against this enemy
-      // guild, while a death is a death caused by this enemy guild.
-      if (event.type === 'kill') match.kills += 1;
-      if (event.type === 'death') match.deaths += 1;
+      // Keep the raw event direction here. The rows calculation below aligns
+      // it with the Enemy Guild totals, whose kills/deaths are stored from the
+      // opposite perspective by calculateStats.
+      if (event.type === 'kill') match.eventKills += 1;
+      if (event.type === 'death') match.eventDeaths += 1;
     });
 
-    return Object.fromEntries(
-      Object.entries(matchesByGuild).map(([guildName, matchMap]) => {
-        const matches = [...matchMap.values()].filter(
-          (match) => match.kills > 0 || match.deaths > 0,
-        );
-        const totalMatches = matches.length;
-        const totalKills = matches.reduce(
-          (sum, match) => sum + (Number(match.kills) || 0),
-          0,
-        );
-        const totalDeaths = matches.reduce(
-          (sum, match) => sum + (Number(match.deaths) || 0),
-          0,
-        );
-        const averageKills = totalMatches ? totalKills / totalMatches : 0;
-        const averageDeaths = totalMatches ? totalDeaths / totalMatches : 0;
-
-        return [
-          guildName,
-          {
-            totalMatches,
-            totalKills,
-            totalDeaths,
-            totalKd: calculateGuildKd(totalKills, totalDeaths),
-            averageKills,
-            averageDeaths,
-            // Use the ratio of the averaged kills and deaths. This keeps K/D
-            // weighted correctly across all selected wars and avoids a small
-            // zero-death war distorting the result.
-            averageKd: calculateGuildKd(averageKills, averageDeaths),
-          },
-        ];
-      }),
-    );
+    return matchesByGuild;
   }, [events]);
 
   function formatAverageValue(value) {
@@ -4413,35 +4387,87 @@ function EnemyGuilds({ guilds, events }) {
     () =>
       [...(guilds || [])]
         .map((guild) => {
-          const selectedMatchStats = guildMatchStats[guild.name];
+          const guildKey = normalizePlayerName(guild.name);
+          const selectedMatchEntry = guildMatchStats[guildKey];
+          const rawMatches = selectedMatchEntry
+            ? [...selectedMatchEntry.matches.values()].filter(
+                (match) =>
+                  Number(match.eventKills) > 0 ||
+                  Number(match.eventDeaths) > 0,
+              )
+            : [];
+
+          // calculateStats stores an enemy guild's kills as our deaths and its
+          // deaths as our kills. The bubble graph and popup display OUR result
+          // versus that guild, so these are intentionally reversed here.
           const fallbackKills = Number(guild.deaths) || 0;
           const fallbackDeaths = Number(guild.kills) || 0;
-          const kills = selectedMatchStats?.totalMatches
-            ? selectedMatchStats.totalKills
-            : fallbackKills;
-          const deaths = selectedMatchStats?.totalMatches
-            ? selectedMatchStats.totalDeaths
-            : fallbackDeaths;
+
+          let orientedMatches = rawMatches.map((match) => ({
+            kills: Number(match.eventKills) || 0,
+            deaths: Number(match.eventDeaths) || 0,
+          }));
+
+          if (orientedMatches.length) {
+            const directKills = orientedMatches.reduce(
+              (sum, match) => sum + match.kills,
+              0,
+            );
+            const directDeaths = orientedMatches.reduce(
+              (sum, match) => sum + match.deaths,
+              0,
+            );
+            const directError =
+              Math.abs(directKills - fallbackKills) +
+              Math.abs(directDeaths - fallbackDeaths);
+            const reversedError =
+              Math.abs(directDeaths - fallbackKills) +
+              Math.abs(directKills - fallbackDeaths);
+
+            // Align the raw event direction with the trusted aggregate totals.
+            // This prevents kills/deaths being inverted when event sources use
+            // the enemy perspective.
+            if (reversedError < directError) {
+              orientedMatches = orientedMatches.map((match) => ({
+                kills: match.deaths,
+                deaths: match.kills,
+              }));
+            }
+          }
+
+          const selectedMatches = orientedMatches.length;
+          const selectedKills = orientedMatches.reduce(
+            (sum, match) => sum + match.kills,
+            0,
+          );
+          const selectedDeaths = orientedMatches.reduce(
+            (sum, match) => sum + match.deaths,
+            0,
+          );
+          const kills = selectedMatches ? selectedKills : fallbackKills;
+          const deaths = selectedMatches ? selectedDeaths : fallbackDeaths;
           const totalInteractions = kills + deaths;
           const kdNumber = calculateGuildKd(kills, deaths);
           const totalMatches = Math.max(
             1,
-            selectedMatchStats?.totalMatches ||
+            selectedMatches ||
               Number(guild.matches) ||
               Number(guild.wars) ||
               Number(guild.totalMatches) ||
               0,
           );
-          const averageKills = selectedMatchStats?.totalMatches
-            ? selectedMatchStats.averageKills
-            : kills / totalMatches;
-          const averageDeaths = selectedMatchStats?.totalMatches
-            ? selectedMatchStats.averageDeaths
-            : deaths / totalMatches;
-          const averageKd = calculateGuildKd(
-            averageKills,
-            averageDeaths,
-          );
+          const averageKills = totalMatches ? kills / totalMatches : 0;
+          const averageDeaths = totalMatches ? deaths / totalMatches : 0;
+
+          // Average K/D means the arithmetic mean of each selected war's K/D,
+          // which is distinct from the combined total K/D shown in row one.
+          const averageKd = selectedMatches
+            ? orientedMatches.reduce(
+                (sum, match) =>
+                  sum + calculateGuildKd(match.kills, match.deaths),
+                0,
+              ) / selectedMatches
+            : kdNumber;
 
           return {
             ...guild,
