@@ -380,15 +380,24 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-site-artwork {
-    background-position: center center;
-    background-size: auto 106%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .adversary-site-artwork > img {
+    width: auto;
+    height: 106%;
+    max-width: none;
+    flex: none;
+    object-fit: contain;
   }
 
   @media (min-width: 1024px) {
-    /* The desktop layout has a 250px sidebar. Shift the artwork by half of
-       that width so it is visually centered inside the main site area. */
+    /* Center the artwork inside the content area rather than the full
+       viewport while preserving the 250px desktop sidebar. */
     .adversary-site-artwork {
-      background-position: calc(50% + 125px) center;
+      padding-left: 250px;
     }
   }
 
@@ -1545,47 +1554,58 @@ export default function App() {
       >
         <div className="absolute inset-0 bg-slate-950" />
 
+        {/* A very soft enlarged copy of the same artwork supplies the exact
+            edge colours. This replaces most of the artificial yellow smoke
+            and prevents a visible seam where the main image ends. */}
         <div
-          className="absolute inset-0 opacity-90"
-          style={{
-            backgroundImage: [
-              'radial-gradient(ellipse 46% 82% at 0% 48%, rgba(250,204,21,.17) 0%, rgba(245,158,11,.105) 24%, rgba(180,83,9,.055) 48%, transparent 76%)',
-              'radial-gradient(ellipse 46% 82% at 100% 52%, rgba(250,204,21,.17) 0%, rgba(245,158,11,.105) 24%, rgba(180,83,9,.055) 48%, transparent 76%)',
-              'radial-gradient(ellipse 32% 54% at 10% 18%, rgba(253,224,71,.075) 0%, rgba(217,119,6,.035) 52%, transparent 78%)',
-              'radial-gradient(ellipse 32% 54% at 90% 82%, rgba(253,224,71,.075) 0%, rgba(217,119,6,.035) 52%, transparent 78%)',
-            ].join(', '),
-            filter: 'blur(24px)',
-            transform: 'scale(1.04)',
-          }}
-        />
-
-        <div
-          className="adversary-site-artwork absolute inset-0 bg-no-repeat opacity-[0.30]"
+          className="absolute -inset-[6%] bg-cover bg-center bg-no-repeat opacity-[0.13]"
           style={{
             backgroundImage: `url("${adversaryEmblem}")`,
-            backgroundRepeat: 'no-repeat',
-            filter: 'saturate(1.18) contrast(1.06)',
-            WebkitMaskImage:
-              'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 7%, rgba(0,0,0,.78) 18%, #000 29%, #000 71%, rgba(0,0,0,.78) 82%, rgba(0,0,0,.28) 93%, transparent 100%)',
-            maskImage:
-              'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 7%, rgba(0,0,0,.78) 18%, #000 29%, #000 71%, rgba(0,0,0,.78) 82%, rgba(0,0,0,.28) 93%, transparent 100%)',
+            filter: 'blur(44px) saturate(.88) brightness(.52)',
+            transform: 'scale(1.08)',
           }}
         />
 
-        {/* Smoke overlaps the artwork itself so the image edges dissolve into
-            the page instead of ending in a visible vertical boundary. */}
         <div
-          className="absolute -inset-[5%] opacity-[0.72]"
+          className="absolute inset-0 opacity-[0.34]"
           style={{
             backgroundImage: [
-              'radial-gradient(ellipse 58% 96% at 8% 50%, rgba(253,224,71,.17) 0%, rgba(250,204,21,.12) 18%, rgba(245,158,11,.075) 36%, rgba(180,83,9,.035) 54%, transparent 74%)',
-              'radial-gradient(ellipse 58% 96% at 92% 50%, rgba(253,224,71,.17) 0%, rgba(250,204,21,.12) 18%, rgba(245,158,11,.075) 36%, rgba(180,83,9,.035) 54%, transparent 74%)',
-              'radial-gradient(ellipse 34% 42% at 22% 24%, rgba(250,204,21,.07) 0%, rgba(217,119,6,.03) 48%, transparent 76%)',
-              'radial-gradient(ellipse 34% 42% at 78% 76%, rgba(250,204,21,.07) 0%, rgba(217,119,6,.03) 48%, transparent 76%)',
+              'radial-gradient(ellipse 42% 78% at 0% 49%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
+              'radial-gradient(ellipse 42% 78% at 100% 51%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
+              'radial-gradient(ellipse 28% 46% at 11% 19%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
+              'radial-gradient(ellipse 28% 46% at 89% 81%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
             ].join(', '),
-            filter: 'blur(40px) saturate(1.12)',
-            mixBlendMode: 'screen',
-            transform: 'scale(1.05)',
+            filter: 'blur(30px)',
+            transform: 'scale(1.03)',
+          }}
+        />
+
+        <div className="adversary-site-artwork absolute inset-0 opacity-[0.30]">
+          <img
+            src={adversaryEmblem}
+            alt=""
+            aria-hidden="true"
+            style={{
+              filter: 'saturate(1.18) contrast(1.06)',
+              WebkitMaskImage:
+                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
+              maskImage:
+                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
+            }}
+          />
+        </div>
+
+        {/* Keep only a faint, darker amber haze over the image edges. The
+            colour now follows the artwork instead of adding bright yellow. */}
+        <div
+          className="absolute -inset-[4%] opacity-[0.28]"
+          style={{
+            backgroundImage: [
+              'radial-gradient(ellipse 46% 90% at 7% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
+              'radial-gradient(ellipse 46% 90% at 93% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
+            ].join(', '),
+            filter: 'blur(34px) saturate(.94)',
+            transform: 'scale(1.025)',
           }}
         />
 
