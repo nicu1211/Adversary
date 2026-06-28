@@ -744,11 +744,26 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     box-shadow: inset 0 0 0 1px rgba(var(--enemy-tooltip-rgb), 0.24);
   }
 
+  .overview-enemy-guild-tooltip__section-label {
+    padding: 10px 13px 0;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
   .overview-enemy-guild-tooltip__grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
-    padding: 11px 12px 8px;
+    padding: 7px 12px 10px;
+  }
+
+  .overview-enemy-guild-tooltip__grid--averages {
+    padding-top: 7px;
+    padding-bottom: 12px;
   }
 
   .overview-enemy-guild-tooltip__stat {
@@ -756,8 +771,28 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     border-radius: 11px;
     padding: 8px 7px;
     text-align: center;
-    background: rgba(var(--enemy-tooltip-rgb), 0.065);
-    box-shadow: inset 0 0 0 1px rgba(var(--enemy-tooltip-rgb), 0.09);
+    background:
+      radial-gradient(
+        ellipse at 20% 0%,
+        rgba(var(--enemy-tooltip-rgb), 0.14),
+        rgba(var(--enemy-tooltip-rgb), 0.055) 56%,
+        transparent 82%
+      ),
+      rgba(2, 6, 23, 0.42);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      inset 0 0 0 1px rgba(var(--enemy-tooltip-rgb), 0.09);
+  }
+
+  .overview-enemy-guild-tooltip__grid--averages .overview-enemy-guild-tooltip__stat {
+    background:
+      radial-gradient(
+        ellipse at 20% 0%,
+        rgba(var(--enemy-tooltip-rgb), 0.10),
+        rgba(var(--enemy-tooltip-rgb), 0.035) 58%,
+        transparent 84%
+      ),
+      rgba(2, 6, 23, 0.32);
   }
 
   .overview-enemy-guild-tooltip__label {
@@ -786,30 +821,16 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-enemy-guild-tooltip__value--deaths { color: #fda4af; }
   .overview-enemy-guild-tooltip__value--kd { color: rgb(var(--enemy-tooltip-rgb)); }
 
-  .overview-enemy-guild-tooltip__averages {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    margin: 0 12px 12px;
-    padding: 8px;
-    border-radius: 12px;
-    background: rgba(2, 6, 23, 0.44);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.045);
-  }
-
-  .overview-enemy-guild-tooltip__average {
-    min-width: 0;
-    text-align: center;
-  }
-
-  .overview-enemy-guild-tooltip__average b {
-    display: block;
-    margin-top: 3px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 11px;
+  .overview-enemy-guild-tooltip__value--average {
     color: #e2e8f0;
+  }
+
+  .overview-enemy-guild-tooltip__value--average-kills {
+    color: #a5f3fc;
+  }
+
+  .overview-enemy-guild-tooltip__value--average-deaths {
+    color: #fecdd3;
   }
 
   @media (max-width: 640px) {
@@ -4292,21 +4313,65 @@ function EnemyGuilds({ guilds, events }) {
   const [guildSearch, setGuildSearch] = useState('');
   const [chartGuildFilter, setChartGuildFilter] = useState('');
 
-  const guildMatches = useMemo(() => {
-    const matches = {};
+  const guildMatchStats = useMemo(() => {
+    const matchesByGuild = {};
 
-    [...(events || [])].forEach((event) => {
+    [...(events || [])].forEach((event, eventIndex) => {
       const guildName = cleanGuild(event.guild);
 
       if (!guildName) return;
 
-      matches[guildName] ||= new Set();
-      matches[guildName].add(
-        String(event.id || event.war || event.date || `${event.date || ''}-${event.time || ''}`),
+      const matchKey = String(
+        event.id ||
+          event.matchId ||
+          event.match_id ||
+          event.logId ||
+          event.log_id ||
+          [event.date, event.war].filter(Boolean).join('|') ||
+          `selected-war-${eventIndex}`,
       );
+
+      matchesByGuild[guildName] ||= new Map();
+
+      if (!matchesByGuild[guildName].has(matchKey)) {
+        matchesByGuild[guildName].set(matchKey, {
+          kills: 0,
+          deaths: 0,
+        });
+      }
+
+      const match = matchesByGuild[guildName].get(matchKey);
+
+      // From our guild's perspective: a kill is a kill against this enemy
+      // guild, while a death is a death caused by this enemy guild.
+      if (event.type === 'kill') match.kills += 1;
+      if (event.type === 'death') match.deaths += 1;
     });
 
-    return matches;
+    return Object.fromEntries(
+      Object.entries(matchesByGuild).map(([guildName, matchMap]) => {
+        const matches = [...matchMap.values()].filter(
+          (match) => match.kills > 0 || match.deaths > 0,
+        );
+        const averageKd = matches.length
+          ? matches.reduce((sum, match) => {
+              const kd = match.deaths
+                ? match.kills / match.deaths
+                : match.kills;
+
+              return sum + kd;
+            }, 0) / matches.length
+          : 0;
+
+        return [
+          guildName,
+          {
+            totalMatches: matches.length,
+            averageKd,
+          },
+        ];
+      }),
+    );
   }, [events]);
 
   function formatAverageValue(value) {
@@ -4331,9 +4396,10 @@ function EnemyGuilds({ guilds, events }) {
           const deaths = Number(guild.kills) || 0;
           const totalInteractions = kills + deaths;
           const kdNumber = deaths > 0 ? kills / deaths : kills > 0 ? kills : 0;
+          const selectedMatchStats = guildMatchStats[guild.name];
           const totalMatches = Math.max(
             1,
-            guildMatches[guild.name]?.size ||
+            selectedMatchStats?.totalMatches ||
               Number(guild.matches) ||
               Number(guild.wars) ||
               Number(guild.totalMatches) ||
@@ -4341,7 +4407,9 @@ function EnemyGuilds({ guilds, events }) {
           );
           const averageKills = kills / totalMatches;
           const averageDeaths = deaths / totalMatches;
-          const averageKd = averageDeaths > 0 ? averageKills / averageDeaths : averageKills > 0 ? averageKills : 0;
+          const averageKd = selectedMatchStats?.totalMatches
+            ? selectedMatchStats.averageKd
+            : kdNumber;
 
           return {
             ...guild,
@@ -4363,7 +4431,7 @@ function EnemyGuilds({ guilds, events }) {
             b.totalInteractions - a.totalInteractions ||
             a.name.localeCompare(b.name),
         ),
-    [guilds, guildMatches],
+    [guilds, guildMatchStats],
   );
 
   const guildListRows = useMemo(() => {
@@ -4501,13 +4569,11 @@ function EnemyGuilds({ guilds, events }) {
     tooltipElement.innerHTML = `
       <div class="overview-enemy-guild-tooltip__header">
         <div class="overview-enemy-guild-tooltip__name">${escapeTooltipText(guild.name || '-')}</div>
-        <div class="overview-enemy-guild-tooltip__badge">Enemy Guild</div>
+        <div class="overview-enemy-guild-tooltip__badge">${escapeTooltipText(guild.totalMatches)} ${Number(guild.totalMatches) === 1 ? 'War' : 'Wars'}</div>
       </div>
+
+      <div class="overview-enemy-guild-tooltip__section-label">Selected wars totals</div>
       <div class="overview-enemy-guild-tooltip__grid">
-        <div class="overview-enemy-guild-tooltip__stat">
-          <span class="overview-enemy-guild-tooltip__label">Matches</span>
-          <span class="overview-enemy-guild-tooltip__value">${escapeTooltipText(guild.totalMatches)}</span>
-        </div>
         <div class="overview-enemy-guild-tooltip__stat">
           <span class="overview-enemy-guild-tooltip__label">Kills</span>
           <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--kills">${escapeTooltipText(guild.kills)}</span>
@@ -4516,19 +4582,25 @@ function EnemyGuilds({ guilds, events }) {
           <span class="overview-enemy-guild-tooltip__label">Deaths</span>
           <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--deaths">${escapeTooltipText(guild.deaths)}</span>
         </div>
-      </div>
-      <div class="overview-enemy-guild-tooltip__averages">
-        <div class="overview-enemy-guild-tooltip__average">
+        <div class="overview-enemy-guild-tooltip__stat">
           <span class="overview-enemy-guild-tooltip__label">K/D</span>
-          <b class="overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(guild.kd)}</b>
+          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(guild.kd)}</span>
         </div>
-        <div class="overview-enemy-guild-tooltip__average">
+      </div>
+
+      <div class="overview-enemy-guild-tooltip__section-label">Average per selected war</div>
+      <div class="overview-enemy-guild-tooltip__grid overview-enemy-guild-tooltip__grid--averages">
+        <div class="overview-enemy-guild-tooltip__stat">
           <span class="overview-enemy-guild-tooltip__label">Avg Kills</span>
-          <b>${escapeTooltipText(formatAverageValue(guild.averageKills))}</b>
+          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average-kills">${escapeTooltipText(formatAverageValue(guild.averageKills))}</span>
         </div>
-        <div class="overview-enemy-guild-tooltip__average">
+        <div class="overview-enemy-guild-tooltip__stat">
           <span class="overview-enemy-guild-tooltip__label">Avg Deaths</span>
-          <b>${escapeTooltipText(formatAverageValue(guild.averageDeaths))}</b>
+          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average-deaths">${escapeTooltipText(formatAverageValue(guild.averageDeaths))}</span>
+        </div>
+        <div class="overview-enemy-guild-tooltip__stat">
+          <span class="overview-enemy-guild-tooltip__label">Avg K/D</span>
+          <span class="overview-enemy-guild-tooltip__value overview-enemy-guild-tooltip__value--average overview-enemy-guild-tooltip__value--kd">${escapeTooltipText(formatGuildKd(guild.averageKd))}</span>
         </div>
       </div>
     `;
