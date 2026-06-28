@@ -87,28 +87,28 @@ const PLAYER_STATS_GUILD_CSS = `
     position: relative;
     overflow: hidden;
     min-height: 118px;
-    border: 0 !important;
-    background:
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.36) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.18) 36%,
-        rgba(var(--player-stats-summary-rgb), 0.06) 67%,
+        rgba(var(--player-stats-summary-rgb), 0.18) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.09) 42%,
+        rgba(var(--player-stats-summary-rgb), 0.035) 74%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.12) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.045) 48%,
-        rgba(2, 6, 23, 0.82) 100%
+        rgba(var(--player-stats-summary-rgb), 0.075) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
       ) !important;
-    -webkit-backdrop-filter: blur(7px) saturate(124%);
-    backdrop-filter: blur(7px) saturate(124%);
+    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: blur(8px) saturate(122%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.075),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.16),
-      0 10px 24px rgba(0, 0, 0, 0.20) !important;
-    transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+      inset 0 0 42px rgba(var(--player-stats-summary-rgb), 0.075),
+      0 12px 28px rgba(0, 0, 0, 0.24) !important;
+    transition: background-color 180ms ease, background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
 
   .player-stats-guild-style .player-stats-summary-card::before {
@@ -116,37 +116,38 @@ const PLAYER_STATS_GUILD_CSS = `
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(110deg, rgba(255,255,255,.055), transparent 36%);
+    background: linear-gradient(110deg, rgba(255,255,255,.035), transparent 36%);
   }
 
   .player-stats-guild-style .player-stats-summary-card:hover {
-    background:
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.44) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.23) 38%,
-        rgba(var(--player-stats-summary-rgb), 0.08) 69%,
+        rgba(var(--player-stats-summary-rgb), 0.25) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.13) 44%,
+        rgba(var(--player-stats-summary-rgb), 0.05) 76%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.15) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.055) 48%,
-        rgba(2, 6, 23, 0.77) 100%
+        rgba(var(--player-stats-summary-rgb), 0.10) 0%,
+        rgba(7, 13, 29, 0.48) 54%,
+        rgba(2, 6, 23, 0.62) 100%
       ) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.19),
-      0 0 18px rgba(var(--player-stats-summary-rgb), 0.17),
-      0 12px 26px rgba(0, 0, 0, 0.22) !important;
+      inset 0 0 48px rgba(var(--player-stats-summary-rgb), 0.13),
+      0 0 20px rgba(var(--player-stats-summary-rgb), 0.30),
+      0 0 42px rgba(var(--player-stats-summary-rgb), 0.15),
+      0 16px 34px rgba(0, 0, 0, 0.26) !important;
     transform: translateY(-1px);
   }
 
   .player-stats-guild-style .player-stats-summary-icon {
-    background: rgba(var(--player-stats-summary-rgb), 0.14);
+    background: rgba(var(--player-stats-summary-rgb), 0.10);
     box-shadow:
-      inset 0 0 0 1px rgba(var(--player-stats-summary-rgb), 0.24),
-      0 0 16px rgba(var(--player-stats-summary-rgb), 0.14);
+      inset 0 0 0 1px rgba(var(--player-stats-summary-rgb), 0.18),
+      0 0 14px rgba(var(--player-stats-summary-rgb), 0.10);
   }
 
   .player-stats-guild-style .player-stats-summary-emerald { --player-stats-summary-rgb: 16, 185, 129; }
