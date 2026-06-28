@@ -91,22 +91,22 @@ const PLAYER_STATS_GUILD_CSS = `
     background:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.24) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.105) 36%,
-        rgba(var(--player-stats-summary-rgb), 0.032) 67%,
+        rgba(var(--player-stats-summary-rgb), 0.36) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.18) 36%,
+        rgba(var(--player-stats-summary-rgb), 0.06) 67%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.075) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.025) 48%,
+        rgba(var(--player-stats-summary-rgb), 0.12) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.045) 48%,
         rgba(2, 6, 23, 0.82) 100%
       ) !important;
     -webkit-backdrop-filter: blur(7px) saturate(124%);
     backdrop-filter: blur(7px) saturate(124%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.075),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.10),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.16),
       0 10px 24px rgba(0, 0, 0, 0.20) !important;
     transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
@@ -123,30 +123,30 @@ const PLAYER_STATS_GUILD_CSS = `
     background:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.31) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.145) 38%,
-        rgba(var(--player-stats-summary-rgb), 0.045) 69%,
+        rgba(var(--player-stats-summary-rgb), 0.44) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.23) 38%,
+        rgba(var(--player-stats-summary-rgb), 0.08) 69%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.095) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.032) 48%,
+        rgba(var(--player-stats-summary-rgb), 0.15) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.055) 48%,
         rgba(2, 6, 23, 0.77) 100%
       ) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.13),
-      0 0 16px rgba(var(--player-stats-summary-rgb), 0.11),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.19),
+      0 0 18px rgba(var(--player-stats-summary-rgb), 0.17),
       0 12px 26px rgba(0, 0, 0, 0.22) !important;
     transform: translateY(-1px);
   }
 
   .player-stats-guild-style .player-stats-summary-icon {
-    background: rgba(var(--player-stats-summary-rgb), 0.075);
+    background: rgba(var(--player-stats-summary-rgb), 0.14);
     box-shadow:
-      inset 0 0 0 1px rgba(var(--player-stats-summary-rgb), 0.15),
-      0 0 14px rgba(var(--player-stats-summary-rgb), 0.075);
+      inset 0 0 0 1px rgba(var(--player-stats-summary-rgb), 0.24),
+      0 0 16px rgba(var(--player-stats-summary-rgb), 0.14);
   }
 
   .player-stats-guild-style .player-stats-summary-emerald { --player-stats-summary-rgb: 16, 185, 129; }
