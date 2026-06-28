@@ -283,27 +283,44 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     transform: none !important;
     color: #ffffff !important;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.90) !important;
-    background-image:
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+
+  .overview-player-performance-dialog > div:first-of-type {
+    display: none !important;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) {
+    border-radius: 24px !important;
+    border: 0 !important;
+    background:
       radial-gradient(
-        ellipse at 14% 0%,
-        rgba(var(--overview-popup-rgb), 0.22) 0%,
-        rgba(var(--overview-popup-rgb), 0.10) 42%,
-        rgba(var(--overview-popup-rgb), 0.035) 74%,
-        transparent 100%
+        ellipse at 12% 0%,
+        rgba(59, 130, 246, 0.26) 0%,
+        rgba(59, 130, 246, 0.12) 42%,
+        transparent 76%
       ),
       linear-gradient(
-        145deg,
-        rgba(var(--overview-popup-rgb), 0.08),
-        rgba(2, 6, 23, 0.93) 68%
+        110deg,
+        rgba(8, 20, 45, 0.94),
+        rgba(2, 6, 23, 0.93) 54%,
+        rgba(34, 16, 60, 0.90)
       ) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(118%);
-    backdrop-filter: blur(16px) saturate(118%);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    backdrop-filter: blur(16px) saturate(120%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -1px 0 rgba(var(--overview-popup-rgb), 0.18),
-      0 0 26px rgba(var(--overview-popup-rgb), 0.16),
-      0 34px 100px rgba(0, 0, 0, 0.72) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(59, 130, 246, 0.18),
+      0 0 24px rgba(59, 130, 246, 0.14),
+      0 22px 64px rgba(0, 0, 0, 0.52) !important;
+  }
+
+  .overview-player-performance-dialog > div:last-child {
+    background: transparent !important;
   }
 
   .overview-player-performance-dialog [class*="text-black"],
@@ -325,27 +342,32 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-player-performance-dialog .overview-popup-section {
     --overview-popup-card-rgb: 59, 130, 246;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-color: rgba(2, 6, 23, 0.58) !important;
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--overview-popup-card-rgb), 0.24) 0%,
-        rgba(var(--overview-popup-card-rgb), 0.11) 44%,
-        rgba(var(--overview-popup-card-rgb), 0.04) 74%,
+        rgba(var(--overview-popup-card-rgb), 0.22) 0%,
+        rgba(var(--overview-popup-card-rgb), 0.105) 42%,
+        rgba(var(--overview-popup-card-rgb), 0.038) 74%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-popup-card-rgb), 0.085),
-        rgba(2, 6, 23, 0.68) 68%
+        rgba(var(--overview-popup-card-rgb), 0.085) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
       ) !important;
     -webkit-backdrop-filter: blur(8px) saturate(118%);
     backdrop-filter: blur(8px) saturate(118%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.15),
-      0 10px 24px rgba(0, 0, 0, 0.20) !important;
-    transition: background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.14),
+      0 14px 34px rgba(0, 0, 0, 0.24) !important;
+    transition:
+      background-image 180ms ease,
+      box-shadow 180ms ease,
+      filter 180ms ease,
+      transform 180ms ease;
   }
 
   .overview-player-performance-dialog .overview-popup-card:hover,
@@ -353,21 +375,37 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--overview-popup-card-rgb), 0.33) 0%,
-        rgba(var(--overview-popup-card-rgb), 0.155) 44%,
-        rgba(var(--overview-popup-card-rgb), 0.055) 76%,
+        rgba(var(--overview-popup-card-rgb), 0.30) 0%,
+        rgba(var(--overview-popup-card-rgb), 0.145) 44%,
+        rgba(var(--overview-popup-card-rgb), 0.052) 76%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-popup-card-rgb), 0.11),
-        rgba(2, 6, 23, 0.65) 68%
+        rgba(var(--overview-popup-card-rgb), 0.11) 0%,
+        rgba(7, 13, 29, 0.49) 54%,
+        rgba(2, 6, 23, 0.63) 100%
       ) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.21),
-      0 0 18px rgba(var(--overview-popup-card-rgb), 0.18),
-      0 12px 28px rgba(0, 0, 0, 0.22) !important;
+      inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.20),
+      0 0 22px rgba(var(--overview-popup-card-rgb), 0.20),
+      0 16px 36px rgba(0, 0, 0, 0.26) !important;
+    transform: translateY(-1px);
+  }
+
+  .overview-player-performance-dialog .overview-popup-card {
+    min-height: 118px;
+    padding: 16px !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-section {
+    margin-bottom: 20px !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-section > div:first-child {
+    padding: 14px 16px !important;
+    background: rgba(2, 6, 23, 0.34) !important;
   }
 
   .overview-player-performance-dialog .overview-popup-card-blue,
@@ -2344,7 +2382,7 @@ function PlayerPerformanceModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="overview-player-performance-dialog relative flex max-h-[86vh] w-[min(92vw,1180px)] flex-col overflow-hidden rounded-[28px] border border-transparent bg-slate-950/92 shadow-[0_34px_100px_rgba(0,0,0,.72)]"
+        className="overview-player-performance-dialog relative flex max-h-[86vh] w-[min(92vw,1180px)] flex-col overflow-hidden rounded-[28px] border border-transparent bg-transparent shadow-none"
       >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/45 to-transparent" />
@@ -2387,7 +2425,7 @@ function PlayerPerformanceModal({
         </div>
 
         <div
-          className={`relative min-h-0 flex-1 overflow-y-auto p-3 text-white sm:p-4 lg:p-5 ${scrollCls}`}
+          className={`relative min-h-0 flex-1 overflow-y-auto bg-transparent px-1 pb-1 pt-4 text-white sm:px-2 sm:pb-2 sm:pt-5 ${scrollCls}`}
         >
           {children}
         </div>
@@ -3564,9 +3602,9 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
             subtitle="Selected war compared with full lifetime per-war averages"
             close={() => setSelected(null)}
           >
-            <div className="overview-popup-shell relative overflow-hidden rounded-[24px] border border-transparent bg-transparent p-1 sm:p-2">
+            <div className="overview-popup-shell relative overflow-visible rounded-[24px] border border-transparent bg-transparent p-1 sm:p-2">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/25 to-transparent" />
-            <div className="mb-4">
+            <div className="mb-6">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-300">
@@ -3586,7 +3624,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                 </p>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <PlayerAverageComparisonCard
                   label="Kills"
                   current={kills}
@@ -3690,7 +3728,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </div>
             </div>
 
-            <div className="mb-4 grid gap-3 md:grid-cols-2">
+            <div className="mb-6 grid gap-4 md:grid-cols-2">
               <div className="overview-popup-card overview-popup-card-blue relative overflow-hidden rounded-2xl border border-transparent p-4">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Favorite victim
@@ -3712,7 +3750,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </div>
             </div>
 
-            <div className="overview-popup-section overview-popup-accent-violet mb-4 overflow-hidden rounded-2xl border border-transparent">
+            <div className="overview-popup-section overview-popup-accent-violet mb-6 overflow-hidden rounded-2xl border border-transparent">
               <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/75 px-4 py-3">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">
@@ -3737,11 +3775,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 z-10 bg-slate-950/95 text-[9px] uppercase tracking-[0.12em] text-slate-500">
                       <tr>
-                        <th className="px-4 py-2.5 text-left">Guild</th>
-                        <th className="px-3 py-2.5 text-center">Wars</th>
-                        <th className="px-3 py-2.5 text-center">Kills</th>
-                        <th className="px-3 py-2.5 text-center">Deaths</th>
-                        <th className="px-4 py-2.5 text-center">K/D</th>
+                        <th className="px-5 py-3 text-left">Guild</th>
+                        <th className="px-4 py-3 text-center">Wars</th>
+                        <th className="px-4 py-3 text-center">Kills</th>
+                        <th className="px-4 py-3 text-center">Deaths</th>
+                        <th className="px-5 py-3 text-center">K/D</th>
                       </tr>
                     </thead>
 
@@ -3751,24 +3789,24 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                           key={guild.name}
                           className="border-t border-slate-800/80 bg-slate-950/25 transition hover:bg-slate-900/55"
                         >
-                          <td className="max-w-[240px] truncate px-4 py-2.5 font-black text-slate-200">
+                          <td className="max-w-[240px] truncate px-5 py-3.5 font-black text-slate-100">
                             {guild.name}
                           </td>
 
-                          <td className="px-3 py-2.5 text-center font-black text-slate-400">
+                          <td className="px-4 py-3.5 text-center font-black text-slate-300">
                             {guild.wars}
                           </td>
 
-                          <td className="px-3 py-2.5 text-center font-black text-blue-300">
+                          <td className="px-4 py-3.5 text-center font-black text-blue-300">
                             {guild.kills}
                           </td>
 
-                          <td className="px-3 py-2.5 text-center font-black text-pink-300">
+                          <td className="px-4 py-3.5 text-center font-black text-pink-300">
                             {guild.deaths}
                           </td>
 
                           <td
-                            className={`px-4 py-2.5 text-center font-black ${
+                            className={`px-5 py-3.5 text-center font-black ${
                               guild.kd >= 1
                                 ? 'text-emerald-300'
                                 : 'text-rose-300'
@@ -3790,10 +3828,10 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
                   <tr>
-                    <th className="py-3 pl-4 text-left">Time</th>
-                    <th className="py-3 text-left">Type</th>
-                    <th className="py-3 text-left">Opponent</th>
-                    <th className="py-3 pr-4 text-left">Guild / War</th>
+                    <th className="py-3.5 pl-5 text-left">Time</th>
+                    <th className="px-3 py-3.5 text-left">Type</th>
+                    <th className="px-3 py-3.5 text-left">Opponent</th>
+                    <th className="py-3.5 pr-5 text-left">Guild / War</th>
                   </tr>
                 </thead>
 
@@ -3803,9 +3841,9 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                       key={index}
                       className="border-t border-slate-800 bg-slate-950/30"
                     >
-                      <td className="py-3 pl-4 font-black">{event.time}</td>
+                      <td className="py-4 pl-5 font-black">{event.time}</td>
 
-                      <td className="py-3">
+                      <td className="px-3 py-4">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-black ${
                             samePlayerName(event.killer, selected.name)
@@ -3817,13 +3855,13 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                         </span>
                       </td>
 
-                      <td className="py-3 font-bold">
+                      <td className="px-3 py-4 font-bold text-white">
                         {samePlayerName(event.killer, selected.name)
                           ? event.victim
                           : event.killer}
                       </td>
 
-                      <td className="py-3 pr-4 text-slate-400">
+                      <td className="py-4 pr-5 text-slate-300">
                         {event.guild} / {event.war}
                       </td>
                     </tr>
