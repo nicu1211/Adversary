@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { Metric } from '../components/UI';
 import { AveragePerformanceChart } from '../components/Charts';
 import { add, scrollCls } from '../lib/logUtils';
 
@@ -10,11 +9,21 @@ const PLAYER_STATS_GUILD_CSS = `
   }
 
   .player-stats-guild-style.player-stats-root-transparent {
-    border-color: transparent !important;
-    background: transparent !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background-color: transparent !important;
+    background-image: none !important;
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
+  }
+
+  .player-stats-guild-style.player-stats-root-transparent::before,
+  .player-stats-guild-style.player-stats-root-transparent::after {
+    content: none !important;
+    display: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .player-stats-guild-style .player-stats-guild-panel {
@@ -75,50 +84,69 @@ const PLAYER_STATS_GUILD_CSS = `
 
   .player-stats-guild-style .player-stats-summary-card {
     --player-stats-summary-rgb: 59, 130, 246;
-    border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.54) !important;
-    background-image:
+    position: relative;
+    overflow: hidden;
+    min-height: 118px;
+    border: 0 !important;
+    background:
       radial-gradient(
-        ellipse at 12% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.48) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.25) 38%,
-        rgba(var(--player-stats-summary-rgb), 0.09) 68%,
+        ellipse at 14% 0%,
+        rgba(var(--player-stats-summary-rgb), 0.62) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.38) 36%,
+        rgba(var(--player-stats-summary-rgb), 0.16) 67%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.18) 0%,
-        rgba(2, 6, 23, 0.62) 68%
+        rgba(var(--player-stats-summary-rgb), 0.28) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.11) 48%,
+        rgba(2, 6, 23, 0.60) 100%
       ) !important;
-    -webkit-backdrop-filter: blur(7px) saturate(120%);
-    backdrop-filter: blur(7px) saturate(120%);
+    -webkit-backdrop-filter: blur(7px) saturate(124%);
+    backdrop-filter: blur(7px) saturate(124%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.075),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.25),
       0 10px 24px rgba(0, 0, 0, 0.20) !important;
-    transition: background-image 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .player-stats-guild-style .player-stats-summary-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(110deg, rgba(255,255,255,.055), transparent 36%);
   }
 
   .player-stats-guild-style .player-stats-summary-card:hover {
-    background-image:
+    background:
       radial-gradient(
-        ellipse at 12% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.58) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.31) 40%,
-        rgba(var(--player-stats-summary-rgb), 0.12) 70%,
+        ellipse at 14% 0%,
+        rgba(var(--player-stats-summary-rgb), 0.72) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.44) 38%,
+        rgba(var(--player-stats-summary-rgb), 0.19) 69%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.22) 0%,
-        rgba(2, 6, 23, 0.59) 68%
+        rgba(var(--player-stats-summary-rgb), 0.33) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.14) 48%,
+        rgba(2, 6, 23, 0.57) 100%
       ) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.065),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.26),
-      0 0 20px rgba(var(--player-stats-summary-rgb), 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.31),
+      0 0 22px rgba(var(--player-stats-summary-rgb), 0.26),
       0 12px 26px rgba(0, 0, 0, 0.22) !important;
     transform: translateY(-1px);
+  }
+
+  .player-stats-guild-style .player-stats-summary-icon {
+    background: rgba(var(--player-stats-summary-rgb), 0.17);
+    box-shadow:
+      inset 0 0 0 1px rgba(var(--player-stats-summary-rgb), 0.28),
+      0 0 20px rgba(var(--player-stats-summary-rgb), 0.18);
   }
 
   .player-stats-guild-style .player-stats-summary-emerald { --player-stats-summary-rgb: 16, 185, 129; }
@@ -3609,6 +3637,41 @@ function SummaryHeaderIcon({ type, color }) {
   );
 }
 
+function PlayerStatsSummaryCard({
+  icon,
+  label,
+  value,
+  sub,
+  tone,
+  valueClass,
+}) {
+  return (
+    <div
+      className={`player-stats-summary-card player-stats-summary-${tone} rounded-[22px] p-4`}
+    >
+      <div className="relative z-10 flex h-full items-center gap-3">
+        <div className="player-stats-summary-icon grid h-12 w-12 shrink-0 place-items-center rounded-2xl">
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[11px] font-black uppercase tracking-[0.11em] text-white/80">
+            {label}
+          </p>
+          <p className={`mt-1 truncate text-3xl font-black leading-none ${valueClass}`}>
+            {value}
+          </p>
+          {sub ? (
+            <p className="mt-1.5 truncate text-xs font-bold text-slate-300/80">
+              {sub}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MatchHistoryValue({ children, color, prefix = null, icon = null }) {
   return (
     <p
@@ -4626,7 +4689,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
   }, [player, stats, averageRankTable]);
 
   return (
-    <div className="adversary-panel player-stats-page player-stats-guild-style player-stats-root-transparent rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+    <div className="player-stats-page player-stats-guild-style player-stats-root-transparent p-4">
       <style>{PLAYER_STATS_GUILD_CSS}</style>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
@@ -4656,44 +4719,49 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       {selectedStats && (
         <>
           <div className="grid gap-4 md:grid-cols-5">
-            <Metric
+            <PlayerStatsSummaryCard
               icon={<SummaryHeaderIcon type="kills" color="#6ee7b7" />}
               label="Kills"
               value={selectedStats.kills}
               sub={player}
-              className="player-stats-summary-card player-stats-summary-emerald border-emerald-400/25 from-emerald-500/20 text-emerald-300"
+              tone="emerald"
+              valueClass="text-emerald-200"
             />
 
-            <Metric
+            <PlayerStatsSummaryCard
               icon={<SummaryHeaderIcon type="deaths" color="#f9a8d4" />}
               label="Deaths"
               value={selectedStats.deaths}
               sub="Total deaths"
-              className="player-stats-summary-card player-stats-summary-pink border-pink-400/25 from-pink-500/20 text-pink-300"
+              tone="pink"
+              valueClass="text-pink-200"
             />
 
-            <Metric
+            <PlayerStatsSummaryCard
               icon={<SummaryHeaderIcon type="kd" color="#93c5fd" />}
               label="K/D"
               value={selectedStats.kd}
               sub="Overall ratio"
-              className="player-stats-summary-card player-stats-summary-blue border-blue-400/25 from-blue-500/20 text-blue-300"
+              tone="blue"
+              valueClass="text-blue-200"
             />
 
-            <Metric
+            <PlayerStatsSummaryCard
               icon={<SummaryHeaderIcon type="wars" color="#fcd34d" />}
               label="Wars"
               value={selectedStats.wars}
               sub="Wars participated"
-              className="player-stats-summary-card player-stats-summary-amber border-amber-400/25 from-amber-500/20 text-amber-300"
+              tone="amber"
+              valueClass="text-amber-200"
             />
 
-            <Metric
+            <PlayerStatsSummaryCard
               icon={<SummaryHeaderIcon type="averageRank" color="#c4b5fd" />}
               label="Average Rank"
               value={selectedStats.averageRank || '0.00'}
               sub=""
-              className="player-stats-summary-card player-stats-summary-violet border-violet-400/25 from-violet-500/20 text-violet-300"
+              tone="violet"
+              valueClass="text-violet-200"
             />
           </div>
 
