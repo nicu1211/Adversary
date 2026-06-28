@@ -812,9 +812,10 @@ const GLOBAL_PANEL_CSS = `
     height: 2px;
   }
 
-  /* Floating class orbs live behind the desktop navigation. They keep their
-     original glass sphere silhouette, drift gently on their own, and dodge
-     the cursor when it passes nearby without blocking any menu interaction. */
+  /* Floating class orbs live behind the desktop navigation. Their movement is
+     handled by a small low-gravity physics loop: they drift across the full
+     sidebar, bounce softly from its edges, nudge one another, and are pushed
+     away by the cursor without ever blocking the navigation. */
   .adversary-sidebar-class-orbs {
     position: absolute;
     inset: 0;
@@ -825,20 +826,21 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-sidebar-class-orb-shell {
     position: absolute;
+    left: 0;
+    top: 0;
     width: var(--orb-size, 76px);
     height: var(--orb-size, 76px);
     opacity: var(--orb-opacity, 0.68);
     transform: translate3d(
-        var(--orb-react-x, 0px),
-        var(--orb-react-y, 0px),
+        var(--orb-x, 0px),
+        var(--orb-y, 0px),
         0
       )
+      rotate(var(--orb-rotation, 0deg))
       scale(var(--orb-react-scale, 1));
     transform-origin: center;
     will-change: transform, opacity;
-    transition:
-      transform 240ms cubic-bezier(0.18, 0.86, 0.24, 1.16),
-      opacity 180ms ease;
+    transition: opacity 150ms ease;
   }
 
   .adversary-sidebar-class-orb-shell::before {
@@ -863,7 +865,7 @@ const GLOBAL_PANEL_CSS = `
     height: 100%;
     object-fit: contain;
     user-select: none;
-    animation: adversary-sidebar-orb-float var(--orb-duration, 8s)
+    animation: adversary-sidebar-orb-breathe var(--orb-duration, 8s)
       ease-in-out infinite;
     animation-delay: var(--orb-delay, 0s);
     filter:
@@ -881,18 +883,24 @@ const GLOBAL_PANEL_CSS = `
     --orb-glow-rgb: 217, 70, 239;
   }
 
-  @keyframes adversary-sidebar-orb-float {
+  @keyframes adversary-sidebar-orb-breathe {
     0%,
     100% {
-      transform: translate3d(-2px, -4px, 0) rotate(-3deg);
+      transform: scale(0.965);
+      filter:
+        saturate(1.08)
+        contrast(1.04)
+        drop-shadow(0 0 9px rgba(var(--orb-glow-rgb, 239, 68, 68), 0.30))
+        drop-shadow(0 8px 16px rgba(0, 0, 0, 0.32));
     }
 
-    34% {
-      transform: translate3d(4px, 3px, 0) rotate(2deg);
-    }
-
-    68% {
-      transform: translate3d(-1px, 7px, 0) rotate(5deg);
+    50% {
+      transform: scale(1.035);
+      filter:
+        saturate(1.16)
+        contrast(1.06)
+        drop-shadow(0 0 14px rgba(var(--orb-glow-rgb, 239, 68, 68), 0.42))
+        drop-shadow(0 10px 18px rgba(0, 0, 0, 0.34));
     }
   }
 
@@ -1016,32 +1024,56 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
   {
     src: classOrbRed,
     className: 'is-red',
-    left: '164px',
-    top: '24%',
-    size: '74px',
+    startX: 0.90,
+    startY: 0.22,
+    size: 74,
     opacity: 0.66,
     duration: '7.6s',
     delay: '-2.1s',
-    influence: 118,
-    movement: 31,
+    velocityX: -0.34,
+    velocityY: 0.18,
+    gravity: 0.0022,
+    drift: 0.010,
+    driftSpeed: 0.00072,
+    maxSpeed: 0.82,
+    pointerRadius: 148,
+    pointerForce: 0.19,
+    phase: 0.7,
   },
   {
     src: classOrbVioletOrange,
     className: 'is-violet-orange',
-    left: '18px',
-    top: '57%',
-    size: '84px',
+    startX: 0.10,
+    startY: 0.58,
+    size: 84,
     opacity: 0.70,
     duration: '9.2s',
     delay: '-4.8s',
-    influence: 126,
-    movement: 35,
+    velocityX: 0.30,
+    velocityY: -0.22,
+    gravity: 0.0017,
+    drift: 0.012,
+    driftSpeed: 0.00058,
+    maxSpeed: 0.78,
+    pointerRadius: 158,
+    pointerForce: 0.21,
+    phase: 3.2,
   },
 ]);
+
+const ORB_EDGE_PADDING = 7;
+const ORB_BOUNCE = 0.94;
+const ORB_AIR_DRAG = 0.9992;
+
+function clampOrb(value, minimum, maximum) {
+  return Math.min(Math.max(value, minimum), maximum);
+}
 
 function SidebarClassOrbs() {
   const layerRef = useRef(null);
   const orbRefs = useRef([]);
+  const physicsRef = useRef([]);
+  const pointerRef = useRef({ x: 0, y: 0, active: false });
 
   useEffect(() => {
     const layer = layerRef.current;
@@ -1049,82 +1081,261 @@ function SidebarClassOrbs() {
 
     if (!layer || !sidebar) return undefined;
 
-    let frameId = 0;
-    let pointerX = 0;
-    let pointerY = 0;
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    let animationFrame = 0;
+    let previousTime = performance.now();
+    let layerWidth = 0;
+    let layerHeight = 0;
 
-    const resetOrbs = () => {
-      orbRefs.current.forEach((orb, index) => {
-        if (!orb) return;
+    const measureLayer = () => {
+      const bounds = layer.getBoundingClientRect();
+      layerWidth = Math.max(1, bounds.width);
+      layerHeight = Math.max(1, bounds.height);
 
-        orb.style.setProperty('--orb-react-x', '0px');
-        orb.style.setProperty('--orb-react-y', '0px');
-        orb.style.setProperty('--orb-react-scale', '1');
+      physicsRef.current = SIDEBAR_CLASS_ORBS.map((config, index) => {
+        const previous = physicsRef.current[index];
+        const maxX = Math.max(
+          ORB_EDGE_PADDING,
+          layerWidth - config.size - ORB_EDGE_PADDING,
+        );
+        const maxY = Math.max(
+          ORB_EDGE_PADDING,
+          layerHeight - config.size - ORB_EDGE_PADDING,
+        );
+
+        if (previous) {
+          return {
+            ...previous,
+            x: clampOrb(previous.x, ORB_EDGE_PADDING, maxX),
+            y: clampOrb(previous.y, ORB_EDGE_PADDING, maxY),
+          };
+        }
+
+        return {
+          x:
+            ORB_EDGE_PADDING +
+            (maxX - ORB_EDGE_PADDING) * config.startX,
+          y:
+            ORB_EDGE_PADDING +
+            (maxY - ORB_EDGE_PADDING) * config.startY,
+          vx: config.velocityX,
+          vy: config.velocityY,
+          rotation: index ? 8 : -6,
+          rotationVelocity: index ? -0.035 : 0.042,
+        };
+      });
+    };
+
+    const writeOrbStyles = (pointerActive = false) => {
+      physicsRef.current.forEach((state, index) => {
+        const orb = orbRefs.current[index];
+        const config = SIDEBAR_CLASS_ORBS[index];
+
+        if (!orb || !state || !config) return;
+
+        let proximity = 0;
+
+        if (pointerActive) {
+          const pointer = pointerRef.current;
+          const centerX = state.x + config.size / 2;
+          const centerY = state.y + config.size / 2;
+          const distance = Math.hypot(
+            centerX - pointer.x,
+            centerY - pointer.y,
+          );
+          proximity = Math.max(
+            0,
+            1 - distance / config.pointerRadius,
+          );
+        }
+
+        const eased = proximity * proximity;
+
+        orb.style.setProperty('--orb-x', `${state.x.toFixed(2)}px`);
+        orb.style.setProperty('--orb-y', `${state.y.toFixed(2)}px`);
+        orb.style.setProperty(
+          '--orb-rotation',
+          `${state.rotation.toFixed(2)}deg`,
+        );
+        orb.style.setProperty(
+          '--orb-react-scale',
+          String((1 + eased * 0.10).toFixed(3)),
+        );
         orb.style.setProperty(
           '--orb-opacity',
-          String(SIDEBAR_CLASS_ORBS[index]?.opacity ?? 0.68),
+          String(
+            Math.min(0.98, config.opacity + eased * 0.24).toFixed(3),
+          ),
         );
       });
     };
 
-    const updateOrbs = () => {
-      frameId = 0;
+    const resolveOrbCollision = () => {
+      if (physicsRef.current.length < 2) return;
 
-      const bounds = layer.getBoundingClientRect();
-      const localX = pointerX - bounds.left;
-      const localY = pointerY - bounds.top;
+      const first = physicsRef.current[0];
+      const second = physicsRef.current[1];
+      const firstConfig = SIDEBAR_CLASS_ORBS[0];
+      const secondConfig = SIDEBAR_CLASS_ORBS[1];
+      const firstCenterX = first.x + firstConfig.size / 2;
+      const firstCenterY = first.y + firstConfig.size / 2;
+      const secondCenterX = second.x + secondConfig.size / 2;
+      const secondCenterY = second.y + secondConfig.size / 2;
+      const deltaX = secondCenterX - firstCenterX;
+      const deltaY = secondCenterY - firstCenterY;
+      const distance = Math.max(0.001, Math.hypot(deltaX, deltaY));
+      const minimumDistance =
+        (firstConfig.size + secondConfig.size) * 0.39;
 
-      orbRefs.current.forEach((orb, index) => {
+      if (distance >= minimumDistance) return;
+
+      const normalX = deltaX / distance;
+      const normalY = deltaY / distance;
+      const overlap = minimumDistance - distance;
+      const relativeVelocityX = second.vx - first.vx;
+      const relativeVelocityY = second.vy - first.vy;
+      const separatingSpeed =
+        relativeVelocityX * normalX + relativeVelocityY * normalY;
+
+      first.x -= normalX * overlap * 0.5;
+      first.y -= normalY * overlap * 0.5;
+      second.x += normalX * overlap * 0.5;
+      second.y += normalY * overlap * 0.5;
+
+      if (separatingSpeed < 0) {
+        const impulse = -(1 + 0.88) * separatingSpeed * 0.5;
+        first.vx -= impulse * normalX;
+        first.vy -= impulse * normalY;
+        second.vx += impulse * normalX;
+        second.vy += impulse * normalY;
+      }
+    };
+
+    const animate = (time) => {
+      const delta = Math.min(2.2, Math.max(0.35, (time - previousTime) / 16.667));
+      previousTime = time;
+      const pointer = pointerRef.current;
+
+      physicsRef.current.forEach((state, index) => {
         const config = SIDEBAR_CLASS_ORBS[index];
+        const centerX = state.x + config.size / 2;
+        const centerY = state.y + config.size / 2;
 
-        if (!orb || !config) return;
+        state.vx +=
+          Math.sin(time * config.driftSpeed + config.phase) *
+          config.drift *
+          delta;
+        state.vy +=
+          (config.gravity +
+            Math.cos(
+              time * config.driftSpeed * 0.83 + config.phase * 1.7,
+            ) *
+              config.drift) *
+          delta;
 
-        const centerX = orb.offsetLeft + orb.offsetWidth / 2;
-        const centerY = orb.offsetTop + orb.offsetHeight / 2;
-        const deltaX = centerX - localX;
-        const deltaY = centerY - localY;
-        const distance = Math.max(1, Math.hypot(deltaX, deltaY));
-        const proximity = Math.max(0, 1 - distance / config.influence);
-        const eased = proximity * proximity;
-        const shift = config.movement * eased;
-        const moveX = (deltaX / distance) * shift;
-        const moveY = (deltaY / distance) * shift;
+        if (pointer.active) {
+          const deltaX = centerX - pointer.x;
+          const deltaY = centerY - pointer.y;
+          const distance = Math.max(1, Math.hypot(deltaX, deltaY));
+          const proximity = Math.max(
+            0,
+            1 - distance / config.pointerRadius,
+          );
+          const force =
+            config.pointerForce * proximity * proximity * delta;
 
-        orb.style.setProperty('--orb-react-x', `${moveX.toFixed(2)}px`);
-        orb.style.setProperty('--orb-react-y', `${moveY.toFixed(2)}px`);
-        orb.style.setProperty(
-          '--orb-react-scale',
-          String((1 + eased * 0.085).toFixed(3)),
+          state.vx += (deltaX / distance) * force;
+          state.vy += (deltaY / distance) * force;
+        }
+
+        state.vx *= Math.pow(ORB_AIR_DRAG, delta);
+        state.vy *= Math.pow(ORB_AIR_DRAG, delta);
+
+        const speed = Math.hypot(state.vx, state.vy);
+
+        if (speed > config.maxSpeed) {
+          const ratio = config.maxSpeed / speed;
+          state.vx *= ratio;
+          state.vy *= ratio;
+        }
+
+        state.x += state.vx * delta;
+        state.y += state.vy * delta;
+        state.rotation += state.rotationVelocity * delta;
+
+        const minX = ORB_EDGE_PADDING;
+        const minY = ORB_EDGE_PADDING;
+        const maxX = Math.max(
+          minX,
+          layerWidth - config.size - ORB_EDGE_PADDING,
         );
-        orb.style.setProperty(
-          '--orb-opacity',
-          String(Math.min(0.98, config.opacity + eased * 0.28).toFixed(3)),
+        const maxY = Math.max(
+          minY,
+          layerHeight - config.size - ORB_EDGE_PADDING,
         );
+
+        if (state.x <= minX) {
+          state.x = minX;
+          state.vx = Math.abs(state.vx) * ORB_BOUNCE + 0.035;
+          state.rotationVelocity = Math.abs(state.rotationVelocity);
+        } else if (state.x >= maxX) {
+          state.x = maxX;
+          state.vx = -Math.abs(state.vx) * ORB_BOUNCE - 0.035;
+          state.rotationVelocity = -Math.abs(state.rotationVelocity);
+        }
+
+        if (state.y <= minY) {
+          state.y = minY;
+          state.vy = Math.abs(state.vy) * ORB_BOUNCE + 0.025;
+        } else if (state.y >= maxY) {
+          state.y = maxY;
+          state.vy = -Math.abs(state.vy) * ORB_BOUNCE - 0.055;
+        }
       });
+
+      resolveOrbCollision();
+      writeOrbStyles(pointer.active);
+      animationFrame = window.requestAnimationFrame(animate);
     };
 
     const handlePointerMove = (event) => {
-      pointerX = event.clientX;
-      pointerY = event.clientY;
-
-      if (!frameId) {
-        frameId = window.requestAnimationFrame(updateOrbs);
-      }
+      const bounds = layer.getBoundingClientRect();
+      pointerRef.current.x = event.clientX - bounds.left;
+      pointerRef.current.y = event.clientY - bounds.top;
+      pointerRef.current.active = true;
     };
+
+    const handlePointerLeave = () => {
+      pointerRef.current.active = false;
+    };
+
+    const handleResize = () => {
+      measureLayer();
+      writeOrbStyles(pointerRef.current.active);
+    };
+
+    measureLayer();
+    writeOrbStyles(false);
 
     sidebar.addEventListener('pointermove', handlePointerMove, {
       passive: true,
     });
-    sidebar.addEventListener('pointerleave', resetOrbs);
+    sidebar.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('resize', handleResize);
 
-    resetOrbs();
+    if (!reducedMotion) {
+      animationFrame = window.requestAnimationFrame(animate);
+    }
 
     return () => {
       sidebar.removeEventListener('pointermove', handlePointerMove);
-      sidebar.removeEventListener('pointerleave', resetOrbs);
+      sidebar.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('resize', handleResize);
 
-      if (frameId) {
-        window.cancelAnimationFrame(frameId);
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
       }
     };
   }, []);
@@ -1143,9 +1354,7 @@ function SidebarClassOrbs() {
           }}
           className={`adversary-sidebar-class-orb-shell ${orb.className}`}
           style={{
-            left: orb.left,
-            top: orb.top,
-            '--orb-size': orb.size,
+            '--orb-size': `${orb.size}px`,
             '--orb-opacity': orb.opacity,
             '--orb-duration': orb.duration,
             '--orb-delay': orb.delay,
