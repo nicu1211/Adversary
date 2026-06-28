@@ -4,11 +4,14 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
 import adversaryEmblem from './assets/adversary-emblem.png?url';
+import classOrbRed from './assets/class-orb-red.png?url';
+import classOrbVioletOrange from './assets/class-orb-violet-orange.png?url';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -809,6 +812,98 @@ const GLOBAL_PANEL_CSS = `
     height: 2px;
   }
 
+  /* Floating class orbs live behind the desktop navigation. They keep their
+     original glass sphere silhouette, drift gently on their own, and dodge
+     the cursor when it passes nearby without blocking any menu interaction. */
+  .adversary-sidebar-class-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .adversary-sidebar-class-orb-shell {
+    position: absolute;
+    width: var(--orb-size, 76px);
+    height: var(--orb-size, 76px);
+    opacity: var(--orb-opacity, 0.68);
+    transform: translate3d(
+        var(--orb-react-x, 0px),
+        var(--orb-react-y, 0px),
+        0
+      )
+      scale(var(--orb-react-scale, 1));
+    transform-origin: center;
+    will-change: transform, opacity;
+    transition:
+      transform 240ms cubic-bezier(0.18, 0.86, 0.24, 1.16),
+      opacity 180ms ease;
+  }
+
+  .adversary-sidebar-class-orb-shell::before {
+    content: '';
+    position: absolute;
+    inset: 15%;
+    border-radius: 999px;
+    background: radial-gradient(
+      circle,
+      rgba(var(--orb-glow-rgb, 239, 68, 68), 0.23),
+      rgba(var(--orb-glow-rgb, 239, 68, 68), 0.08) 48%,
+      transparent 74%
+    );
+    filter: blur(13px);
+    transform: scale(1.38);
+  }
+
+  .adversary-sidebar-class-orb {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    animation: adversary-sidebar-orb-float var(--orb-duration, 8s)
+      ease-in-out infinite;
+    animation-delay: var(--orb-delay, 0s);
+    filter:
+      saturate(1.12)
+      contrast(1.05)
+      drop-shadow(0 0 10px rgba(var(--orb-glow-rgb, 239, 68, 68), 0.34))
+      drop-shadow(0 8px 16px rgba(0, 0, 0, 0.32));
+  }
+
+  .adversary-sidebar-class-orb-shell.is-red {
+    --orb-glow-rgb: 239, 68, 68;
+  }
+
+  .adversary-sidebar-class-orb-shell.is-violet-orange {
+    --orb-glow-rgb: 217, 70, 239;
+  }
+
+  @keyframes adversary-sidebar-orb-float {
+    0%,
+    100% {
+      transform: translate3d(-2px, -4px, 0) rotate(-3deg);
+    }
+
+    34% {
+      transform: translate3d(4px, 3px, 0) rotate(2deg);
+    }
+
+    68% {
+      transform: translate3d(-1px, 7px, 0) rotate(5deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .adversary-sidebar-class-orb,
+    .adversary-sidebar-class-orb-shell {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
   /* Compact cards that present a statistic now use the exact quiet cyan glass
      recipe from Monthly Recap -> Players Performance. Metric text and icons
      retain their semantic colours; only the card surface is unified. */
@@ -916,6 +1011,157 @@ const PAGE_TITLES = {
   hall: 'Hall of Fame',
   raw: 'Raw Logs',
 };
+
+const SIDEBAR_CLASS_ORBS = Object.freeze([
+  {
+    src: classOrbRed,
+    className: 'is-red',
+    left: '164px',
+    top: '24%',
+    size: '74px',
+    opacity: 0.66,
+    duration: '7.6s',
+    delay: '-2.1s',
+    influence: 118,
+    movement: 31,
+  },
+  {
+    src: classOrbVioletOrange,
+    className: 'is-violet-orange',
+    left: '18px',
+    top: '57%',
+    size: '84px',
+    opacity: 0.70,
+    duration: '9.2s',
+    delay: '-4.8s',
+    influence: 126,
+    movement: 35,
+  },
+]);
+
+function SidebarClassOrbs() {
+  const layerRef = useRef(null);
+  const orbRefs = useRef([]);
+
+  useEffect(() => {
+    const layer = layerRef.current;
+    const sidebar = layer?.parentElement;
+
+    if (!layer || !sidebar) return undefined;
+
+    let frameId = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+
+    const resetOrbs = () => {
+      orbRefs.current.forEach((orb, index) => {
+        if (!orb) return;
+
+        orb.style.setProperty('--orb-react-x', '0px');
+        orb.style.setProperty('--orb-react-y', '0px');
+        orb.style.setProperty('--orb-react-scale', '1');
+        orb.style.setProperty(
+          '--orb-opacity',
+          String(SIDEBAR_CLASS_ORBS[index]?.opacity ?? 0.68),
+        );
+      });
+    };
+
+    const updateOrbs = () => {
+      frameId = 0;
+
+      const bounds = layer.getBoundingClientRect();
+      const localX = pointerX - bounds.left;
+      const localY = pointerY - bounds.top;
+
+      orbRefs.current.forEach((orb, index) => {
+        const config = SIDEBAR_CLASS_ORBS[index];
+
+        if (!orb || !config) return;
+
+        const centerX = orb.offsetLeft + orb.offsetWidth / 2;
+        const centerY = orb.offsetTop + orb.offsetHeight / 2;
+        const deltaX = centerX - localX;
+        const deltaY = centerY - localY;
+        const distance = Math.max(1, Math.hypot(deltaX, deltaY));
+        const proximity = Math.max(0, 1 - distance / config.influence);
+        const eased = proximity * proximity;
+        const shift = config.movement * eased;
+        const moveX = (deltaX / distance) * shift;
+        const moveY = (deltaY / distance) * shift;
+
+        orb.style.setProperty('--orb-react-x', `${moveX.toFixed(2)}px`);
+        orb.style.setProperty('--orb-react-y', `${moveY.toFixed(2)}px`);
+        orb.style.setProperty(
+          '--orb-react-scale',
+          String((1 + eased * 0.085).toFixed(3)),
+        );
+        orb.style.setProperty(
+          '--orb-opacity',
+          String(Math.min(0.98, config.opacity + eased * 0.28).toFixed(3)),
+        );
+      });
+    };
+
+    const handlePointerMove = (event) => {
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+
+      if (!frameId) {
+        frameId = window.requestAnimationFrame(updateOrbs);
+      }
+    };
+
+    sidebar.addEventListener('pointermove', handlePointerMove, {
+      passive: true,
+    });
+    sidebar.addEventListener('pointerleave', resetOrbs);
+
+    resetOrbs();
+
+    return () => {
+      sidebar.removeEventListener('pointermove', handlePointerMove);
+      sidebar.removeEventListener('pointerleave', resetOrbs);
+
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      ref={layerRef}
+      aria-hidden="true"
+      className="adversary-sidebar-class-orbs"
+    >
+      {SIDEBAR_CLASS_ORBS.map((orb, index) => (
+        <div
+          key={`${orb.className}-${index}`}
+          ref={(element) => {
+            orbRefs.current[index] = element;
+          }}
+          className={`adversary-sidebar-class-orb-shell ${orb.className}`}
+          style={{
+            left: orb.left,
+            top: orb.top,
+            '--orb-size': orb.size,
+            '--orb-opacity': orb.opacity,
+            '--orb-duration': orb.duration,
+            '--orb-delay': orb.delay,
+          }}
+        >
+          <img
+            src={orb.src}
+            alt=""
+            className="adversary-sidebar-class-orb"
+            draggable="false"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function ActivePageBrand({ page }) {
   const title = PAGE_TITLES[page] || 'Adversary';
@@ -1889,12 +2135,14 @@ export default function App() {
       </div>
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="hidden min-h-screen flex-col border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
-          <h1 className="mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
+        <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
+          <SidebarClassOrbs />
+
+          <h1 className="relative z-10 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
             Adversary
           </h1>
 
-          <nav className="flex-1">
+          <nav className="relative z-10 flex-1">
             {menu
               .filter(([id]) => id !== 'raw')
               .map(([id, title]) => {
@@ -1958,7 +2206,7 @@ export default function App() {
               })}
           </nav>
 
-          <div className="pt-4">
+          <div className="relative z-10 pt-4">
             <button
               type="button"
               onClick={() => openPage('raw')}
