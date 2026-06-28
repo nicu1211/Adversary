@@ -4383,9 +4383,28 @@ function EnemyGuilds({ guilds, events }) {
     return (Number(value) || 0).toFixed(2);
   }
 
-  const rows = useMemo(
-    () =>
-      [...(guilds || [])]
+  const allGuildRows = useMemo(
+    () => {
+      const guildsByKey = new Map();
+
+      [...(guilds || [])].forEach((guild) => {
+        const key = normalizePlayerName(guild?.name);
+
+        if (key) guildsByKey.set(key, guild);
+      });
+
+      Object.entries(guildMatchStats).forEach(([key, entry]) => {
+        if (!key || guildsByKey.has(key)) return;
+
+        guildsByKey.set(key, {
+          name: entry.name,
+          kills: 0,
+          deaths: 0,
+          matches: entry.matches?.size || 0,
+        });
+      });
+
+      return [...guildsByKey.values()]
         .map((guild) => {
           const guildKey = normalizePlayerName(guild.name);
           const selectedMatchEntry = guildMatchStats[guildKey];
@@ -4480,25 +4499,33 @@ function EnemyGuilds({ guilds, events }) {
             averageKd,
             kdNumber,
             kd: kdNumber.toFixed(2),
+            chartEligible: totalInteractions > 30,
           };
         })
-        .filter((guild) => guild.totalInteractions > 30)
         .sort(
           (a, b) =>
             b.kdNumber - a.kdNumber ||
             b.totalInteractions - a.totalInteractions ||
             a.name.localeCompare(b.name),
-        ),
+        );
+    },
     [guilds, guildMatchStats],
+  );
+
+  // Keep the bubble chart's existing interaction threshold, while the
+  // top-right guild list shows every guild present in the selected war(s).
+  const rows = useMemo(
+    () => allGuildRows.filter((guild) => guild.chartEligible),
+    [allGuildRows],
   );
 
   const guildListRows = useMemo(() => {
     const query = guildSearch.trim().toLowerCase();
 
-    return [...rows]
+    return [...allGuildRows]
       .sort((a, b) => a.name.localeCompare(b.name))
       .filter((guild) => !query || guild.name.toLowerCase().includes(query));
-  }, [rows, guildSearch]);
+  }, [allGuildRows, guildSearch]);
 
   const chartRows = useMemo(() => {
     const firstRows = rows.slice(0, 32);
@@ -4863,7 +4890,7 @@ function EnemyGuilds({ guilds, events }) {
               className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300 transition hover:border-blue-400/60 hover:bg-slate-800 hover:text-blue-100"
               title="Show enemy guilds"
             >
-              {rows.length} guilds
+              {allGuildRows.length} guilds
             </button>
           </div>
         </div>
@@ -4887,7 +4914,7 @@ function EnemyGuilds({ guilds, events }) {
 
         {guildListOpen && (
           <Popup title="Enemy Guilds" close={() => setGuildListOpen(false)}>
-            {!rows.length ? (
+            {!allGuildRows.length ? (
               <p className="text-slate-500">No guild data yet.</p>
             ) : (
               <div
@@ -4907,7 +4934,7 @@ function EnemyGuilds({ guilds, events }) {
                 >
                   <span className="font-black">All guilds</span>
                   <span className="text-xs font-bold text-slate-400">
-                    {rows.length} guilds
+                    {allGuildRows.length} guilds
                   </span>
                 </button>
 
@@ -4936,7 +4963,10 @@ function EnemyGuilds({ guilds, events }) {
                     <button
                       key={guild.name}
                       type="button"
+                      disabled={!guild.chartEligible}
                       onClick={() => {
+                        if (!guild.chartEligible) return;
+
                         setChartGuildFilter(guild.name);
                         setGuildListOpen(false);
                         setSelected(null);
@@ -4944,11 +4974,25 @@ function EnemyGuilds({ guilds, events }) {
                       className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
                         chartGuildFilter === guild.name
                           ? 'border-amber-400/45 bg-amber-500/15 text-amber-100'
-                          : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-blue-400/40 hover:bg-slate-800/90 hover:text-blue-100'
+                          : guild.chartEligible
+                            ? 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-blue-400/40 hover:bg-slate-800/90 hover:text-blue-100'
+                            : 'cursor-default border-slate-800/60 bg-slate-950/45 text-slate-400'
                       }`}
+                      title={
+                        guild.chartEligible
+                          ? `Highlight ${guild.name} in the chart`
+                          : `${guild.name} is listed for this war but stays outside the chart under the current chart rule`
+                      }
                     >
-                      <span className="min-w-0 truncate font-black">
-                        {guild.name}
+                      <span className="min-w-0">
+                        <span className="block truncate font-black">
+                          {guild.name}
+                        </span>
+                        {!guild.chartEligible && (
+                          <span className="mt-0.5 block text-[9px] font-black uppercase tracking-wider text-slate-600">
+                            Listed only · below chart rule
+                          </span>
+                        )}
                       </span>
 
                       <span className="grid grid-cols-2 gap-x-3 gap-y-1 text-right text-[10px] font-black uppercase tracking-wide text-slate-400 sm:grid-cols-4">
