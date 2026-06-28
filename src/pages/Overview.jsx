@@ -258,154 +258,29 @@ const OVERVIEW_GUILD_PANEL_CSS = `
       0 8px 20px rgba(0, 0, 0, 0.16);
   }
 
-  .overview-guild-page .overview-section-header {
-    --overview-header-rgb: 59, 130, 246;
-    position: relative;
-    display: flex;
-    min-height: 56px;
-    align-items: center;
-    justify-content: space-between;
-    overflow: hidden;
-    flex-shrink: 0;
-    border-radius: 18px;
-    padding: 12px 16px;
-    color: #ffffff !important;
-    border: 1px solid rgba(var(--overview-header-rgb), 0.34) !important;
-    border-left: 4px solid rgba(var(--overview-header-rgb), 0.98) !important;
-    background-color: rgba(var(--overview-header-rgb), 0.20) !important;
-    background-image:
-      radial-gradient(
-        ellipse at 10% 0%,
-        rgba(var(--overview-header-rgb), 0.82) 0%,
-        rgba(var(--overview-header-rgb), 0.52) 34%,
-        rgba(var(--overview-header-rgb), 0.28) 62%,
-        rgba(var(--overview-header-rgb), 0.12) 84%,
-        transparent 100%
-      ),
-      linear-gradient(
-        105deg,
-        rgba(var(--overview-header-rgb), 0.52) 0%,
-        rgba(var(--overview-header-rgb), 0.34) 42%,
-        rgba(var(--overview-header-rgb), 0.20) 72%,
-        rgba(2, 6, 23, 0.58) 100%
-      ) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      inset 0 -1px 0 rgba(var(--overview-header-rgb), 0.34),
-      0 0 24px rgba(var(--overview-header-rgb), 0.18),
-      0 8px 22px rgba(0, 0, 0, 0.16) !important;
-  }
-
-  .overview-guild-page .overview-section-header::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(115deg, rgba(255,255,255,0.10), transparent 32%, rgba(var(--overview-header-rgb),0.08) 74%, transparent);
-  }
-
-  .overview-guild-page .overview-section-header > * {
-    position: relative;
-    z-index: 1;
-  }
-
-  .overview-guild-page .overview-section-header h2,
-  .overview-guild-page .overview-section-header h3,
-  .overview-guild-page .overview-section-header p {
-    margin: 0 !important;
-    line-height: 1.18 !important;
-  }
-
-  .overview-guild-page .overview-section-header h2,
-  .overview-guild-page .overview-section-header h3 {
-    color: #ffffff !important;
-    text-shadow: 0 0 18px rgba(var(--overview-header-rgb), 0.36);
-  }
-
-  .overview-guild-page .overview-header-amber { --overview-header-rgb: 245, 158, 11; }
-  .overview-guild-page .overview-header-blue { --overview-header-rgb: 59, 130, 246; }
-  .overview-guild-page .overview-header-violet { --overview-header-rgb: 139, 92, 246; }
-  .overview-guild-page .overview-header-cyan { --overview-header-rgb: 6, 182, 212; }
-  .overview-guild-page .overview-header-rose { --overview-header-rgb: 244, 63, 94; }
-  .overview-guild-page .overview-header-orange { --overview-header-rgb: 249, 115, 22; }
-
-  .overview-guild-page .overview-chart-shell :is(h1, h2, h3) {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-height: 52px;
-    margin: 0 0 12px !important;
-    padding: 10px 16px;
-    border-radius: 16px;
-    color: #ffffff !important;
-    border: 1px solid rgba(59, 130, 246, 0.36) !important;
-    border-left: 4px solid rgba(59, 130, 246, 0.98) !important;
-    background-color: rgba(59, 130, 246, 0.20) !important;
-    background-image:
-      radial-gradient(ellipse at 10% 0%, rgba(59, 130, 246, 0.84), rgba(59, 130, 246, 0.50) 38%, rgba(59, 130, 246, 0.24) 68%, rgba(59, 130, 246, 0.10) 88%, transparent 100%),
-      linear-gradient(105deg, rgba(59, 130, 246, 0.50), rgba(59, 130, 246, 0.31) 48%, rgba(59, 130, 246, 0.16) 76%, rgba(2, 6, 23, 0.58) 100%) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.11),
-      inset 0 -1px 0 rgba(59, 130, 246, 0.32),
-      0 0 22px rgba(59, 130, 246, 0.17) !important;
-  }
-
-  .overview-guild-page .overview-header-orange {
-    min-height: 56px !important;
-    padding-top: 12px !important;
-    padding-bottom: 12px !important;
-  }
-
-  .overview-guild-page .overview-header-orange h3 {
-    display: flex;
-    align-items: center;
-    min-height: 28px;
-    overflow: visible !important;
-    white-space: nowrap;
-    line-height: 1.2 !important;
-  }
-
-  .overview-guild-page .overview-kill-feed-panel {
-    overflow: visible !important;
-  }
-
-  .overview-guild-page .overview-kill-feed-panel > div {
-    min-height: 0;
-  }
-
-  .overview-guild-page .overview-kill-feed-list {
-    min-height: 0;
-    overflow-y: auto;
-    padding: 1px 2px 4px;
-  }
-
   .overview-player-performance-overlay {
     position: fixed !important;
     inset: 0 !important;
     z-index: 12000 !important;
     display: flex !important;
-    align-items: flex-start !important;
+    align-items: center !important;
     justify-content: center !important;
-    min-width: 100vw !important;
-    min-height: 100vh !important;
-    padding: clamp(18px, 3.2vh, 34px) clamp(8px, 1.4vw, 20px) 18px !important;
-    background: rgba(2, 6, 23, 0.42) !important;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
-    -webkit-backdrop-filter: blur(9px) saturate(106%) !important;
-    backdrop-filter: blur(9px) saturate(106%) !important;
+    padding: clamp(14px, 3vw, 34px) !important;
+    background: rgba(2, 6, 23, 0.76) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .overview-player-performance-dialog {
     --overview-popup-rgb: 59, 130, 246;
     position: relative !important;
     inset: auto !important;
-    width: min(97vw, 1320px) !important;
-    max-width: 1320px !important;
+    width: min(92vw, 1180px) !important;
+    max-width: 1180px !important;
     height: auto !important;
-    max-height: 88vh !important;
-    margin: 0 auto !important;
-    transform: translateY(-1.4vh) !important;
+    max-height: 86vh !important;
+    margin: auto !important;
+    transform: none !important;
     color: #ffffff !important;
     border-color: transparent !important;
     background-color: transparent !important;
@@ -467,23 +342,23 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-player-performance-dialog .overview-popup-section {
     --overview-popup-card-rgb: 59, 130, 246;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.24) !important;
+    background-color: rgba(2, 6, 23, 0.38) !important;
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--overview-popup-card-rgb), 0.15) 0%,
-        rgba(var(--overview-popup-card-rgb), 0.065) 42%,
-        rgba(var(--overview-popup-card-rgb), 0.020) 74%,
+        rgba(var(--overview-popup-card-rgb), 0.17) 0%,
+        rgba(var(--overview-popup-card-rgb), 0.075) 42%,
+        rgba(var(--overview-popup-card-rgb), 0.025) 74%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--overview-popup-card-rgb), 0.050) 0%,
-        rgba(7, 13, 29, 0.24) 54%,
-        rgba(2, 6, 23, 0.32) 100%
+        rgba(var(--overview-popup-card-rgb), 0.060) 0%,
+        rgba(7, 13, 29, 0.34) 54%,
+        rgba(2, 6, 23, 0.46) 100%
       ) !important;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    -webkit-backdrop-filter: blur(4px) saturate(112%);
+    backdrop-filter: blur(4px) saturate(112%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.045),
       inset 0 -1px 0 rgba(var(--overview-popup-card-rgb), 0.10),
@@ -520,47 +395,17 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   }
 
   .overview-player-performance-dialog .overview-popup-card {
-    min-height: 48px !important;
-    padding: 5px 7px !important;
-    border-radius: 11px !important;
-  }
-
-  .overview-player-performance-dialog .overview-popup-card p {
-    margin-top: 0 !important;
-    margin-bottom: 1px !important;
-    line-height: 1.05 !important;
-  }
-
-  .overview-player-performance-dialog .overview-popup-card p[class*="text-lg"] {
-    font-size: 0.80rem !important;
-  }
-
-  .overview-player-performance-dialog .overview-popup-card p[class*="text-sm"] {
-    font-size: 0.70rem !important;
-  }
-
-  .overview-player-performance-dialog .overview-popup-card span[class*="text-\[9px\]"] {
-    font-size: 0.48rem !important;
+    min-height: 86px;
+    padding: 11px 12px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section {
-    margin-bottom: 7px !important;
-    border-radius: 13px !important;
+    margin-bottom: 14px !important;
   }
 
   .overview-player-performance-dialog .overview-popup-section > div:first-child {
-    padding: 6px 8px !important;
-    background: rgba(2, 6, 23, 0.18) !important;
-  }
-
-  .overview-player-performance-dialog .overview-popup-section th {
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
-  }
-
-  .overview-player-performance-dialog .overview-popup-section td {
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
+    padding: 10px 12px !important;
+    background: rgba(2, 6, 23, 0.20) !important;
   }
 
   .overview-player-performance-dialog .overview-popup-card-blue,
@@ -610,9 +455,8 @@ const OVERVIEW_GUILD_PANEL_CSS = `
       width: 95vw !important;
       max-width: 95vw !important;
       height: auto !important;
-      max-height: 91vh !important;
-      border-radius: 20px !important;
-      transform: translateY(-0.5vh) !important;
+      max-height: 90vh !important;
+      border-radius: 22px !important;
     }
   }
 `;
@@ -2225,7 +2069,7 @@ function AverageRank({
   return (
     <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-violet h-[680px]">
       <div className="flex h-full flex-col">
-        <div className="overview-section-header overview-header-violet mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-xl font-black">♛ Average Rank</h3>
             <p className="text-xs text-slate-400">
@@ -2525,21 +2369,9 @@ function PlayerPerformanceModal({
   close,
   children,
 }) {
-  const scrollAreaRef = useRef(null);
-
-  function handleOverlayWheel(event) {
-    const scrollArea = scrollAreaRef.current;
-
-    if (!scrollArea || scrollArea.contains(event.target)) return;
-
-    scrollArea.scrollTop += event.deltaY;
-    event.preventDefault();
-  }
-
   return (
     <div
-      className="overview-player-performance-overlay fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/42 p-3 sm:p-5"
-      onWheelCapture={handleOverlayWheel}
+      className="overview-player-performance-overlay fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/76 p-4 sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           close();
@@ -2550,7 +2382,7 @@ function PlayerPerformanceModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="overview-player-performance-dialog relative flex max-h-[88vh] w-[min(97vw,1320px)] flex-col overflow-hidden rounded-[24px] border border-transparent bg-transparent shadow-none"
+        className="overview-player-performance-dialog relative flex max-h-[86vh] w-[min(92vw,1180px)] flex-col overflow-hidden rounded-[28px] border border-transparent bg-transparent shadow-none"
       >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/45 to-transparent" />
@@ -2593,8 +2425,7 @@ function PlayerPerformanceModal({
         </div>
 
         <div
-          ref={scrollAreaRef}
-          className={`relative min-h-0 flex-1 overflow-y-auto bg-transparent px-1 pb-1 pt-3 text-white sm:px-2 sm:pb-2 sm:pt-4 ${scrollCls}`}
+          className={`relative min-h-0 flex-1 overflow-y-auto bg-transparent px-1 pb-1 pt-4 text-white sm:px-2 sm:pb-2 sm:pt-5 ${scrollCls}`}
         >
           {children}
         </div>
@@ -3618,7 +3449,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
   return (
     <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-cyan h-[680px]">
       <div className="flex h-full flex-col">
-        <div className="overview-section-header overview-header-cyan mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-xl font-black">♙ Player Overview</h3>
             <p className="text-xs text-slate-400">
@@ -3773,8 +3604,8 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
           >
             <div className="overview-popup-shell relative overflow-visible rounded-[24px] border border-transparent bg-transparent p-0 sm:p-1">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/25 to-transparent" />
-            <div className="mb-2">
-              <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
+            <div className="mb-4">
+              <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-300">
                     War vs Lifetime Average
@@ -3793,7 +3624,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                 </p>
               </div>
 
-              <div className="grid gap-1 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 <PlayerAverageComparisonCard
                   label="Kills"
                   current={kills}
@@ -3897,8 +3728,8 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </div>
             </div>
 
-            <div className="mb-2 grid gap-1.5 md:grid-cols-2">
-              <div className="overview-popup-card overview-popup-card-blue relative overflow-hidden rounded-xl border border-transparent p-2">
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              <div className="overview-popup-card overview-popup-card-blue relative overflow-hidden rounded-2xl border border-transparent p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Favorite victim
                 </p>
@@ -3908,7 +3739,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                 </p>
               </div>
 
-              <div className="overview-popup-card overview-popup-card-rose relative overflow-hidden rounded-xl border border-transparent p-2">
+              <div className="overview-popup-card overview-popup-card-rose relative overflow-hidden rounded-2xl border border-transparent p-3">
                 <p className="text-xs font-bold uppercase text-slate-500">
                   Nemesis
                 </p>
@@ -3919,7 +3750,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               </div>
             </div>
 
-            <div className="overview-popup-section overview-popup-accent-violet mb-2 overflow-hidden rounded-xl border border-transparent">
+            <div className="overview-popup-section overview-popup-accent-violet mb-4 overflow-hidden rounded-2xl border border-transparent">
               <div className="flex items-center justify-between gap-3 border-b border-slate-800/60 bg-slate-950/20 px-3 py-2.5">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-300">
@@ -3940,7 +3771,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                   No guild matchup data found.
                 </p>
               ) : (
-                <div className={`max-h-[190px] overflow-y-auto ${scrollCls}`}>
+                <div className={`max-h-[240px] overflow-y-auto ${scrollCls}`}>
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 z-10 bg-slate-950/95 text-[9px] uppercase tracking-[0.12em] text-slate-500">
                       <tr>
@@ -3992,7 +3823,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
             </div>
 
             <div
-              className={`overview-popup-section overview-popup-accent-cyan max-h-[28vh] overflow-auto rounded-2xl border border-transparent ${scrollCls}`}
+              className={`overview-popup-section overview-popup-accent-cyan max-h-[34vh] overflow-auto rounded-2xl border border-transparent ${scrollCls}`}
             >
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-slate-900 text-xs uppercase text-slate-400">
@@ -4413,7 +4244,7 @@ function EnemyGuilds({ guilds, events }) {
   return (
     <Panel cls="overview-guild-panel overview-accent-rose h-[520px]">
       <div className="flex h-full flex-col">
-        <div className="overview-section-header overview-header-rose mb-4 flex items-start justify-between gap-3">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <h3 className="text-xl font-black">🛡 Enemy Guilds</h3>
 
           <div className="flex shrink-0 flex-wrap justify-end gap-2">
@@ -4671,16 +4502,14 @@ function KillFeedPanel({ killFeeds, events }) {
     .slice(0, 5);
 
   return (
-    <Panel cls="overview-kill-feed-panel overview-guild-panel overview-panel-transparent overview-accent-orange h-[520px]">
+    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-orange h-[520px]">
       <div className="flex h-full flex-col">
-        <div className="overview-section-header overview-header-orange mb-4">
-          <h3 className="text-xl font-black">🔥 Kill Feed</h3>
-        </div>
+        <h3 className="mb-4 text-xl font-black">🔥 Kill Feed</h3>
 
         {!rows.length ? (
           <p className="text-slate-500">No kill feeds yet.</p>
         ) : (
-          <div className={`overview-kill-feed-list grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1 ${scrollCls}`}>
+          <div className="grid gap-2">
             {rows.map((feed, index) => {
               const guild = majorityGuildForKillFeed(feed, events);
               const detail = `${feed.date ? `${feed.date} · ` : ''}${
@@ -4861,7 +4690,7 @@ export default function OverviewPage({
     <div className="overview-guild-page space-y-4">
       <style>{OVERVIEW_GUILD_PANEL_CSS}</style>
       <header className="overview-guild-panel overview-panel-transparent overview-accent-amber overview-summary-panel rounded-3xl border border-transparent p-5">
-        <div className="overview-section-header overview-header-amber mb-4">
+        <div className="mb-4">
           <h2 className="text-2xl font-black">Battle Analytics</h2>
           <p className="text-slate-400">{label}</p>
         </div>
