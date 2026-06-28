@@ -180,6 +180,178 @@ const PLAYER_STATS_GUILD_CSS = `
   .player-stats-guild-style .player-stats-guild-panel [class*="border-slate-800"] {
     border-color: rgba(var(--player-stats-panel-rgb), 0.10) !important;
   }
+
+
+  .player-stats-guild-style .player-stats-site-heading {
+    --player-stats-heading-rgb: 59, 130, 246;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    padding: 11px 14px;
+    border-radius: 17px;
+    border: 1px solid rgba(var(--player-stats-heading-rgb), 0.14);
+    border-left: 3px solid rgba(var(--player-stats-heading-rgb), 0.72);
+    background:
+      radial-gradient(
+        ellipse at 8% 0%,
+        rgba(var(--player-stats-heading-rgb), 0.36) 0%,
+        rgba(var(--player-stats-heading-rgb), 0.17) 40%,
+        rgba(var(--player-stats-heading-rgb), 0.055) 68%,
+        transparent 86%
+      ),
+      linear-gradient(
+        110deg,
+        rgba(var(--player-stats-heading-rgb), 0.12),
+        rgba(2, 6, 23, 0.34) 56%,
+        rgba(2, 6, 23, 0.18)
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(var(--player-stats-heading-rgb), 0.09),
+      0 8px 22px rgba(0, 0, 0, 0.14);
+  }
+
+  .player-stats-guild-style .player-stats-site-heading h3 {
+    color: #fff;
+    text-shadow: 0 0 18px rgba(var(--player-stats-heading-rgb), 0.20);
+  }
+
+  .player-stats-guild-style .player-stats-heading-blue { --player-stats-heading-rgb: 59, 130, 246; }
+  .player-stats-guild-style .player-stats-heading-cyan { --player-stats-heading-rgb: 6, 182, 212; }
+  .player-stats-guild-style .player-stats-heading-rose { --player-stats-heading-rgb: 244, 63, 94; }
+
+  .player-stats-guild-style .player-stats-table-header {
+    border-color: rgba(var(--player-stats-panel-rgb), 0.13) !important;
+    background:
+      radial-gradient(
+        ellipse at 10% 0%,
+        rgba(var(--player-stats-panel-rgb), 0.18) 0%,
+        rgba(var(--player-stats-panel-rgb), 0.07) 48%,
+        transparent 82%
+      ),
+      rgba(2, 6, 23, 0.72) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.035),
+      0 8px 18px rgba(0, 0, 0, 0.15);
+    -webkit-backdrop-filter: blur(12px) saturate(118%);
+    backdrop-filter: blur(12px) saturate(118%);
+  }
+
+  .player-stats-guild-style .player-stats-match-row,
+  .player-stats-guild-style .player-stats-enemy-row {
+    --player-row-rgb: 59, 130, 246;
+    border-color: rgba(var(--player-row-rgb), 0.09) !important;
+    background-color: rgba(2, 6, 23, 0.38) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 7% 0%,
+        rgba(var(--player-row-rgb), 0.13) 0%,
+        rgba(var(--player-row-rgb), 0.052) 44%,
+        transparent 76%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--player-row-rgb), 0.035),
+        rgba(2, 6, 23, 0.46) 68%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.028),
+      0 6px 16px rgba(0, 0, 0, 0.12) !important;
+    transition:
+      border-color 160ms ease,
+      background-image 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .player-stats-guild-style .player-stats-match-row:hover,
+  .player-stats-guild-style .player-stats-enemy-row:hover {
+    border-color: rgba(var(--player-row-rgb), 0.18) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 7% 0%,
+        rgba(var(--player-row-rgb), 0.21) 0%,
+        rgba(var(--player-row-rgb), 0.085) 46%,
+        transparent 78%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--player-row-rgb), 0.055),
+        rgba(2, 6, 23, 0.44) 68%
+      ) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 0 15px rgba(var(--player-row-rgb), 0.11),
+      0 8px 18px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px);
+  }
+
+  .player-stats-guild-style .player-stats-enemy-row > div:first-child span,
+  .player-stats-guild-style .player-stats-match-row > span:first-child {
+    border-color: rgba(var(--player-row-rgb), 0.16) !important;
+    background: rgba(var(--player-row-rgb), 0.075) !important;
+    color: rgba(226, 232, 240, 0.92) !important;
+    box-shadow: inset 0 0 0 1px rgba(var(--player-row-rgb), 0.04);
+  }
+
+  .player-stats-guild-style .player-stats-enemy-row > div:nth-child(2) > div {
+    border-color: rgba(var(--player-row-rgb), 0.13) !important;
+    background: rgba(var(--player-row-rgb), 0.065) !important;
+  }
+
+  .player-stats-guild-style .player-stats-targets-shell {
+    border-color: rgba(148, 163, 184, 0.07) !important;
+    background:
+      radial-gradient(circle at 11% 100%, rgba(59, 130, 246, 0.12), transparent 36%),
+      radial-gradient(circle at 89% 100%, rgba(244, 63, 94, 0.12), transparent 36%),
+      linear-gradient(145deg, rgba(2, 6, 23, 0.35), rgba(2, 6, 23, 0.20)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.028),
+      0 10px 26px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  .player-stats-guild-style .player-stats-targets-labels {
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 13px;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(59, 130, 246, 0.11),
+        rgba(2, 6, 23, 0.12) 48%,
+        rgba(244, 63, 94, 0.11)
+      );
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.045);
+  }
+
+  .player-stats-guild-style .player-stats-target-row {
+    border-radius: 10px;
+    background: linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.025),
+      rgba(2, 6, 23, 0.08) 50%,
+      rgba(244, 63, 94, 0.025)
+    );
+    transition: background 150ms ease, box-shadow 150ms ease;
+  }
+
+  .player-stats-guild-style .player-stats-target-row:hover {
+    background: linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.07),
+      rgba(2, 6, 23, 0.10) 50%,
+      rgba(244, 63, 94, 0.07)
+    );
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.055);
+  }
+
+  .player-stats-guild-style .player-stats-empty-state {
+    border-color: rgba(var(--player-stats-panel-rgb), 0.09) !important;
+    background: rgba(2, 6, 23, 0.30) !important;
+  }
 `;
 
 function PlayerSelect({ players, value, onChange }) {
@@ -1547,13 +1719,13 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
   const redShade = 'from-rose-500/80 via-red-500/75 to-pink-400/70';
 
   return (
-    <div className="player-stats-guild-panel player-stats-accent-rose h-full rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+    <div className="player-stats-guild-panel player-stats-accent-rose player-stats-targets-panel h-full rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
       <div className="flex h-full flex-col">
-        <div className="mb-4">
+        <div className="player-stats-site-heading player-stats-heading-rose mb-4">
           <h3 className="text-2xl font-black">Targets & Nemesis</h3>
         </div>
 
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/16 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
+        <div className="player-stats-targets-shell relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-950/16 p-4 shadow-[0_24px_80px_rgba(0,0,0,.32)]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -1562,7 +1734,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
             <div className="absolute inset-x-4 bottom-0 h-32 bg-gradient-to-t from-violet-500/8 via-sky-500/8 to-transparent blur-3xl" />
           </div>
 
-          <div className="relative mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
+          <div className="player-stats-targets-labels relative mb-4 grid grid-cols-[1fr_1px_1fr] items-center text-xs font-black uppercase tracking-[0.18em]">
             <div className="pr-4 text-right text-blue-300">
               Favourite Targets
             </div>
@@ -1573,7 +1745,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
           </div>
 
           {!hasData ? (
-            <p className="relative rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
+            <p className="player-stats-empty-state relative rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
               No target data yet.
             </p>
           ) : (
@@ -1598,7 +1770,7 @@ function TargetsAndNemesisPanel({ favouriteTargets, nemesisTargets }) {
                 return (
                   <div
                     key={`${row.favourite?.name || 'empty'}-${row.nemesis?.name || 'empty'}-${index}`}
-                    className="min-h-0"
+                    className="player-stats-target-row min-h-0"
                   >
                     <div className="grid h-[36px] grid-cols-[1fr_1px_1fr] items-center">
                       <div className="relative flex h-full items-center justify-end pr-1">
@@ -1739,8 +1911,8 @@ function EnemyGuildTable({ rows }) {
   }, [rows, sort]);
 
   return (
-    <div className="player-stats-guild-panel player-stats-accent-cyan rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
-      <div className="mb-4">
+    <div className="player-stats-guild-panel player-stats-accent-cyan player-stats-enemy-panel rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+      <div className="player-stats-site-heading player-stats-heading-cyan mb-4">
         <h3 className="text-2xl font-black">Enemy Guilds</h3>
       </div>
 
@@ -1749,7 +1921,7 @@ function EnemyGuildTable({ rows }) {
       ) : (
         <div className={`max-h-[520px] overflow-y-auto pr-2 ${scrollCls}`}>
           <div className="space-y-2">
-            <div className="sticky top-0 z-10 grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] gap-2 rounded-2xl border border-slate-800 bg-slate-950/34 px-3 py-2.5 backdrop-blur-[2px]">
+            <div className="player-stats-table-header sticky top-0 z-10 grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] gap-2 rounded-2xl border border-slate-800 bg-slate-950/34 px-3 py-2.5 backdrop-blur-[2px]">
               <SortButton
                 id="guild"
                 label="Guild"
@@ -1796,7 +1968,8 @@ function EnemyGuildTable({ rows }) {
               return (
                 <div
                   key={guild.name}
-                  className="grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] items-center gap-2 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_8px_22px_rgba(0,0,0,.20)] transition hover:border-slate-700 hover:shadow-[0_10px_26px_rgba(0,0,0,.30)]"
+                  className="player-stats-enemy-row grid grid-cols-[minmax(150px,1.45fr)_72px_54px_54px_142px] items-center gap-2 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 shadow-[0_8px_22px_rgba(0,0,0,.20)] transition hover:border-slate-700 hover:shadow-[0_10px_26px_rgba(0,0,0,.30)]"
+                  style={{ '--player-row-rgb': positive ? '16, 185, 129' : '244, 63, 94' }}
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5">
@@ -3752,19 +3925,21 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
     'grid-cols-[38px_minmax(190px,1.65fr)_minmax(82px,.72fr)_minmax(82px,.72fr)_minmax(88px,.76fr)_minmax(112px,.95fr)_minmax(104px,.9fr)_minmax(126px,1.06fr)_minmax(126px,1.06fr)_minmax(96px,.82fr)_minmax(132px,1.1fr)]';
 
   return (
-    <div className="player-stats-guild-panel player-stats-accent-blue rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
-      <div className="mb-4">
-        <h3 className="text-2xl font-black">Match History</h3>
-        <p className="mt-0.5 text-xs font-bold text-slate-500">
-          All matches for this player · {safeMatches.length} total
-        </p>
+    <div className="player-stats-guild-panel player-stats-accent-blue player-stats-match-panel rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
+      <div className="player-stats-site-heading player-stats-heading-blue mb-4">
+        <div>
+          <h3 className="text-2xl font-black">Match History</h3>
+          <p className="mt-0.5 text-xs font-bold text-slate-400">
+            All matches for this player · {safeMatches.length} total
+          </p>
+        </div>
       </div>
 
       <div className={`max-h-[420px] overflow-x-auto overflow-y-auto pr-2 ${scrollCls}`}>
         <div className="w-full min-w-[1240px] space-y-2">
           {/* Header */}
           <div
-            className={`sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/34 px-3 py-2.5 backdrop-blur-[2px]`}
+            className={`player-stats-table-header sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/34 px-3 py-2.5 backdrop-blur-[2px]`}
           >
             <div />
             <MatchHistoryHeaderCell
@@ -3871,7 +4046,8 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
                 type="button"
                 key={`${match.warId}-${match.date}-${index}`}
                 onClick={() => onOpenMatchOverview?.(match)}
-                className={`grid ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                className={`player-stats-match-row grid ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                style={{ '--player-row-rgb': positive ? '59, 130, 246' : '244, 63, 94' }}
                 title="Open this match in Overview"
               >
                 {/* Index */}
