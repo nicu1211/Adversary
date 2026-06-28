@@ -91,22 +91,22 @@ const PLAYER_STATS_GUILD_CSS = `
     background:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.62) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.38) 36%,
-        rgba(var(--player-stats-summary-rgb), 0.16) 67%,
+        rgba(var(--player-stats-summary-rgb), 0.32) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.16) 36%,
+        rgba(var(--player-stats-summary-rgb), 0.055) 67%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.28) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.11) 48%,
+        rgba(var(--player-stats-summary-rgb), 0.11) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.045) 48%,
         rgba(2, 6, 23, 0.60) 100%
       ) !important;
     -webkit-backdrop-filter: blur(7px) saturate(124%);
     backdrop-filter: blur(7px) saturate(124%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.075),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.25),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.14),
       0 10px 24px rgba(0, 0, 0, 0.20) !important;
     transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
@@ -123,30 +123,30 @@ const PLAYER_STATS_GUILD_CSS = `
     background:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(var(--player-stats-summary-rgb), 0.72) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.44) 38%,
-        rgba(var(--player-stats-summary-rgb), 0.19) 69%,
+        rgba(var(--player-stats-summary-rgb), 0.40) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.21) 38%,
+        rgba(var(--player-stats-summary-rgb), 0.075) 69%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(var(--player-stats-summary-rgb), 0.33) 0%,
-        rgba(var(--player-stats-summary-rgb), 0.14) 48%,
+        rgba(var(--player-stats-summary-rgb), 0.14) 0%,
+        rgba(var(--player-stats-summary-rgb), 0.055) 48%,
         rgba(2, 6, 23, 0.57) 100%
       ) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.31),
-      0 0 22px rgba(var(--player-stats-summary-rgb), 0.26),
+      inset 0 -1px 0 rgba(var(--player-stats-summary-rgb), 0.18),
+      0 0 18px rgba(var(--player-stats-summary-rgb), 0.14),
       0 12px 26px rgba(0, 0, 0, 0.22) !important;
     transform: translateY(-1px);
   }
 
   .player-stats-guild-style .player-stats-summary-icon {
-    background: rgba(var(--player-stats-summary-rgb), 0.17);
+    background: rgba(var(--player-stats-summary-rgb), 0.10);
     box-shadow:
-      inset 0 0 0 1px rgba(var(--player-stats-summary-rgb), 0.28),
-      0 0 20px rgba(var(--player-stats-summary-rgb), 0.18);
+      inset 0 0 0 1px rgba(var(--player-stats-summary-rgb), 0.18),
+      0 0 16px rgba(var(--player-stats-summary-rgb), 0.10);
   }
 
   .player-stats-guild-style .player-stats-summary-emerald { --player-stats-summary-rgb: 16, 185, 129; }
@@ -155,11 +155,24 @@ const PLAYER_STATS_GUILD_CSS = `
   .player-stats-guild-style .player-stats-summary-amber { --player-stats-summary-rgb: 245, 158, 11; }
   .player-stats-guild-style .player-stats-summary-violet { --player-stats-summary-rgb: 139, 92, 246; }
 
-  .player-stats-guild-style .player-stats-performance-shell > :first-child {
+  .player-stats-guild-style .player-stats-performance-shell,
+  .player-stats-guild-style .player-stats-performance-shell:hover {
+    border: 0 !important;
+    outline: 0 !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .player-stats-guild-style .player-stats-performance-shell > div {
     border-color: transparent !important;
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .player-stats-guild-style .player-stats-guild-panel [class*="border-slate-700"],
@@ -4765,7 +4778,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
             />
           </div>
 
-          <div className="player-stats-performance-no-summary player-stats-performance-shell player-stats-guild-panel player-stats-accent-blue mt-4 rounded-[28px] p-1">
+          <div className="player-stats-performance-no-summary player-stats-performance-shell mt-4 rounded-[28px] p-0">
             <style>
               {`.player-stats-performance-no-summary [class*="xl:justify-between"] > div:last-child {
                 display: none !important;
