@@ -3018,16 +3018,13 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
       );
   }, [events, selected]);
 
-  const kills = history.filter(
-    (event) => samePlayerName(event.killer, selected?.name),
-  ).length;
-
-  const deaths = history.filter(
-    (event) => samePlayerName(event.victim, selected?.name),
-  ).length;
-
-  const kdNumber = deaths ? kills / deaths : kills;
-  const kd = kdNumber.toFixed(2);
+  // Use the values already calculated for the selected player row.
+  // Recounting only timeline events makes the popup depend on log type.
+  const selectedKills = Number(selected?.kills) || 0;
+  const selectedDeaths = Number(selected?.deaths) || 0;
+  const selectedKdNumber = selectedDeaths
+    ? selectedKills / selectedDeaths
+    : selectedKills;
 
   const {
     favourite,
@@ -4055,7 +4052,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 <PlayerAverageComparisonCard
                   label="Kills"
-                  current={kills}
+                  current={selectedKills}
                   average={selectedLifetimeAverageStats?.kills}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.kills || 0
@@ -4066,7 +4063,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="Deaths"
-                  current={deaths}
+                  current={selectedDeaths}
                   average={selectedLifetimeAverageStats?.deaths}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.deaths || 0
@@ -4078,13 +4075,13 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="K/D"
-                  current={kdNumber}
+                  current={selectedKdNumber}
                   average={selectedLifetimeAverageStats?.kd}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.kd || 0
                   }
                   type="kd"
-                  tone={kdNumber < 1 ? 'red' : 'emerald'}
+                  tone={selectedKdNumber < 1 ? 'red' : 'emerald'}
                 />
 
                 <PlayerAverageComparisonCard
