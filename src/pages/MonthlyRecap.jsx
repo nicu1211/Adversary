@@ -519,6 +519,441 @@ function readStatMetric(row, aliases, fallback = 0) {
   return alias == null ? fallback : num(row[alias]);
 }
 
+function statsPresenceRaw(log) {
+  return String(
+    log?.raw ??
+      log?.rawLog ??
+      log?.raw_log ??
+      log?.log ??
+      log?.content ??
+      log?._src?.raw ??
+      log?._src?.rawLog ??
+      log?._src?.raw_log ??
+      log?._src?.log ??
+      log?._src?.content ??
+      '',
+  );
+}
+
+function normalizeStatsPresenceText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function structuredStatsPresenceText(value, depth = 0) {
+  if (value == null || depth > 3) return '';
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => structuredStatsPresenceText(item, depth + 1))
+      .join(' ');
+  }
+
+  if (typeof value === 'object') {
+    return Object.entries(value)
+      .map(
+        ([key, item]) =>
+          `${key} ${structuredStatsPresenceText(item, depth + 1)}`,
+      )
+      .join(' ');
+  }
+
+  return String(value);
+}
+
+function splitStatsPresenceColumns(line) {
+  const value = String(line || '').trim();
+
+  if (!value) return [];
+
+  const separated = [
+    value.split(/\t+/),
+    value.split(/\s*\|\s*/),
+    value.split(/\s*;\s*/),
+  ]
+    .filter((parts) => parts.length > 1)
+    .map((parts) => parts.map((part) => part.trim()).filter(Boolean))
+    .sort((a, b) => b.length - a.length)[0];
+
+  if (separated?.length > 1) return separated;
+
+  const multiSpace = value
+    .split(/\s{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (multiSpace.length > 1) return multiSpace;
+
+  return value
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function isStatsPresenceNumber(value) {
+  const raw = String(value || '').trim();
+
+  if (!raw || !/\d/.test(raw)) return false;
+
+  const withoutSuffix = raw.replace(/[kKmMbBtT]\s*$/g, '').trim();
+
+  if (/[A-Za-z]/.test(withoutSuffix)) return false;
+
+  const cleaned = raw.replace(/[^\d\s.,+\-kKmMbBtT]/g, '').trim();
+
+  return /^[-+]?\d[\d\s.,]*(?:[kKmMbBtT])?$/.test(cleaned);
+}
+
+function expandStatsPresenceNumberColumns(columns) {
+  return columns.flatMap((column) => {
+    const raw = String(column || '').trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+
+    if (parts.length > 1 && parts.every(isStatsPresenceNumber)) {
+      return parts;
+    }
+
+    return [column];
+  });
+}
+
+function parseStatsPresenceNumber(value) {
+  const raw = String(value || '')
+    .trim()
+    .replace(/[kKmMbBtT]\s*$/g, '')
+    .replace(/\s+/g, '');
+
+  if (!raw) return NaN;
+
+  const lastComma = raw.lastIndexOf(',');
+  const lastDot = raw.lastIndexOf('.');
+  let normalized = raw;
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    normalized =
+      lastComma > lastDot
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw.replace(/,/g, '');
+  } else if (lastComma >= 0) {
+    normalized = raw.replace(',', '.');
+  }
+
+  const number = Number(normalized.replace(/[^\d.+-]/g, ''));
+
+  return Number.isFinite(number) ? number : NaN;
+}
+
+function hasExplicitStatPresenceFlag(source, aliases) {
+  if (!source) return false;
+
+  return aliases.some((alias) => {
+    const compactAlias = String(alias).replace(/[^a-zA-Z0-9]/g, '');
+    const camel =
+      compactAlias.charAt(0).toLowerCase() + compactAlias.slice(1);
+    const snake = String(alias)
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+    const candidates = [
+      `has_${snake}`,
+      `${snake}_exists`,
+      `${snake}_present`,
+      `${snake}_provided`,
+      `${snake}_added`,
+      `${camel}HasValue`,
+      `${camel}Exists`,
+      `${camel}Present`,
+      `${camel}Provided`,
+      `${camel}Added`,
+    ];
+
+    return candidates.some(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(source, key) &&
+        Boolean(source[key]),
+    );
+  });
+}
+
+function hasNonZeroStatMetric(source, aliases) {
+  if (!source) return false;
+
+  return aliases.some((alias) => {
+    if (!Object.prototype.hasOwnProperty.call(source, alias)) {
+      return false;
+    }
+
+    const value = Number(source[alias]);
+
+    return Number.isFinite(value) && value !== 0;
+  });
+}
+
+function detectStatsLogColumns(log, oneStats) {
+  const presence = {
+    killFeed: false,
+    damageDealt: false,
+    damageTaken: false,
+    ccHits: false,
+    fortDamage: false,
+  };
+  const aliases = {
+    killFeed: ['killFeed', 'killfeed', 'feed', 'KillFeed', 'Killfeed'],
+    damageDealt: [
+      'damageDealt',
+      'damage_dealt',
+      'damage dealt',
+      'damageDone',
+      'damage',
+      'Damage Dealt',
+      'DamageDealt',
+    ],
+    damageTaken: [
+      'damageTaken',
+      'damage_taken',
+      'damage taken',
+      'Damage Taken',
+      'DamageTaken',
+    ],
+    ccHits: [
+      'ccHits',
+      'cc_hits',
+      'cc hits',
+      'CC Hits',
+      'CCHits',
+      'cc',
+      'CC',
+    ],
+    fortDamage: [
+      'fortDamage',
+      'damageToFort',
+      'damage_to_fort',
+      'damage to fort',
+      'Fort Damage',
+      'Damage to Fort',
+      'DamageToFort',
+    ],
+  };
+
+  const raw = statsPresenceRaw(log);
+  const startMarker = '===== ADVERSARY_SECONDARY_LOG_START =====';
+  const endMarker = '===== ADVERSARY_SECONDARY_LOG_END =====';
+  let secondaryRaw = '';
+
+  if (raw.includes(startMarker) && raw.includes(endMarker)) {
+    secondaryRaw = raw.split(startMarker)[1]?.split(endMarker)[0] || '';
+  }
+
+  const normalizedSecondary = normalizeStatsPresenceText(secondaryRaw);
+  const explicitHeader = {
+    killFeed: /\bkill feed\b|\bkillfeed\b/.test(normalizedSecondary),
+    damageDealt: /\bdamage dealt\b|\bdmg dealt\b/.test(
+      normalizedSecondary,
+    ),
+    damageTaken: /\bdamage taken\b|\bdmg taken\b/.test(
+      normalizedSecondary,
+    ),
+    ccHits: /\bcc hits?\b|\bcrowd control\b/.test(normalizedSecondary),
+    fortDamage:
+      /\bdamage (?:to|on) fort\b|\bfort damage\b|\bdmg to fort\b/.test(
+        normalizedSecondary,
+      ),
+  };
+  const hasRecognizedDetailHeader = Object.values(explicitHeader).some(
+    Boolean,
+  );
+  let foundRawStatsRow = false;
+
+  String(secondaryRaw || '')
+    .split(/\r?\n/)
+    .forEach((line) => {
+      let columns = splitStatsPresenceColumns(line);
+      columns = expandStatsPresenceNumberColumns(columns);
+
+      const firstNumberIndex = columns.findIndex(isStatsPresenceNumber);
+
+      if (firstNumberIndex < 0) return;
+
+      const numericColumns = columns
+        .slice(firstNumberIndex)
+        .filter(isStatsPresenceNumber);
+
+      if (numericColumns.length < 2) return;
+
+      foundRawStatsRow = true;
+
+      if (hasRecognizedDetailHeader) {
+        Object.entries(explicitHeader).forEach(([metric, exists]) => {
+          if (exists) presence[metric] = true;
+        });
+        return;
+      }
+
+      const thirdRaw = String(numericColumns[2] || '');
+      const thirdNumber = parseStatsPresenceNumber(thirdRaw);
+      const looksLikeFullTableWithKd =
+        numericColumns.length >= 9 &&
+        /[.,]/.test(thirdRaw) &&
+        Number.isFinite(thirdNumber) &&
+        thirdNumber >= 0 &&
+        thirdNumber <= 50;
+
+      if (looksLikeFullTableWithKd) {
+        if (numericColumns.length >= 5) presence.killFeed = true;
+        if (numericColumns.length >= 6) presence.damageDealt = true;
+        if (numericColumns.length >= 7) presence.damageTaken = true;
+        if (numericColumns.length >= 8) presence.ccHits = true;
+        if (numericColumns.length >= 9) presence.fortDamage = true;
+      } else {
+        if (numericColumns.length >= 3) presence.killFeed = true;
+        if (numericColumns.length >= 4) presence.damageDealt = true;
+        if (numericColumns.length >= 5) presence.damageTaken = true;
+        if (numericColumns.length >= 6) presence.ccHits = true;
+        if (numericColumns.length >= 9) presence.fortDamage = true;
+      }
+    });
+
+  if (foundRawStatsRow) return presence;
+
+  const sourceSummary =
+    log?.summary ||
+    log?.stats ||
+    log?.analytics ||
+    log?._src?.summary ||
+    log?._src?.stats ||
+    log?._src?.analytics ||
+    {};
+  const summarySecondary =
+    sourceSummary?.secondary || sourceSummary?.secondaryStats || {};
+  const evidenceRows = [
+    ...(Array.isArray(summarySecondary?.rows)
+      ? summarySecondary.rows
+      : []),
+    ...(Array.isArray(sourceSummary?.players) ? sourceSummary.players : []),
+    ...(oneStats?.secondary?.rows || []),
+    ...(oneStats?.players || []),
+  ];
+  const structuredText = normalizeStatsPresenceText(
+    structuredStatsPresenceText([
+      summarySecondary?.headers,
+      summarySecondary?.header,
+      summarySecondary?.columns,
+      summarySecondary?.columnNames,
+      summarySecondary?.fields,
+      summarySecondary?.availableFields,
+      summarySecondary?.schema,
+      summarySecondary?.metrics,
+      oneStats?.secondary?.headers,
+      oneStats?.secondary?.header,
+      oneStats?.secondary?.columns,
+      oneStats?.secondary?.columnNames,
+      oneStats?.secondary?.fields,
+      oneStats?.secondary?.availableFields,
+      oneStats?.secondary?.schema,
+      oneStats?.secondary?.metrics,
+    ]),
+  );
+
+  Object.entries(aliases).forEach(([metric, metricAliases]) => {
+    const structuredHasAlias = metricAliases.some((alias) => {
+      const normalizedAlias = normalizeStatsPresenceText(alias);
+
+      return Boolean(
+        normalizedAlias && structuredText.includes(normalizedAlias),
+      );
+    });
+
+    presence[metric] =
+      Boolean(presence[metric]) ||
+      Boolean(explicitHeader[metric]) ||
+      structuredHasAlias ||
+      evidenceRows.some(
+        (row) =>
+          hasExplicitStatPresenceFlag(row, metricAliases) ||
+          hasNonZeroStatMetric(row, metricAliases),
+      );
+  });
+
+  return presence;
+}
+
+function buildStatsMetricPresenceByWar(logs) {
+  const byWar = new Map();
+
+  function mergePresence(key, presence) {
+    const cleanKey = String(key || '').trim();
+
+    if (!cleanKey) return;
+
+    const current = byWar.get(cleanKey) || {
+      killFeed: false,
+      damageDealt: false,
+      damageTaken: false,
+      ccHits: false,
+      fortDamage: false,
+    };
+
+    byWar.set(cleanKey, {
+      killFeed: current.killFeed || Boolean(presence?.killFeed),
+      damageDealt:
+        current.damageDealt || Boolean(presence?.damageDealt),
+      damageTaken:
+        current.damageTaken || Boolean(presence?.damageTaken),
+      ccHits: current.ccHits || Boolean(presence?.ccHits),
+      fortDamage:
+        current.fortDamage || Boolean(presence?.fortDamage),
+    });
+  }
+
+  (logs || []).forEach((log, index) => {
+    const oneStats = calculateStats([log]);
+    const presence = detectStatsLogColumns(log, oneStats);
+    const keys = new Set([
+      log?.id,
+      log?.war,
+      dateOf(log),
+      `stats-log-${index}`,
+    ]);
+
+    (oneStats?.secondary?.rows || []).forEach((row) => {
+      keys.add(row?.id);
+      keys.add(row?.warId);
+      keys.add(row?.war_id);
+      keys.add(row?.war);
+      keys.add(row?.date);
+    });
+
+    keys.forEach((key) => mergePresence(key, presence));
+  });
+
+  return byWar;
+}
+
+function rowHasRecordedStatMetric(
+  row,
+  rowPresence,
+  metric,
+  aliases,
+) {
+  if (
+    rowPresence &&
+    Object.prototype.hasOwnProperty.call(rowPresence, metric)
+  ) {
+    return Boolean(rowPresence[metric]);
+  }
+
+  return (
+    hasExplicitStatPresenceFlag(row, aliases) ||
+    hasNonZeroStatMetric(row, aliases)
+  );
+}
+
 function chronologyTimestamp(item) {
   const candidates = [
     item?.timestamp,
@@ -639,10 +1074,11 @@ function buildPlayerChronology(stats) {
   return byPlayer;
 }
 
-function buildStatsLogPlayers(stats) {
+function buildStatsLogPlayers(stats, logs = []) {
   const sourceRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
     : [];
+  const metricPresenceByWar = buildStatsMetricPresenceByWar(logs);
 
   // One Stats Log should contain one row per player. When duplicate rows
   // exist for the same player and war, keep the row with the largest K+D
@@ -696,20 +1132,30 @@ function buildStatsLogPlayers(stats) {
         kdCount: 0,
         killFeed: 0,
         killFeedTotal: 0,
+        killFeedAverageCount: 0,
         killStreak: 0,
         hasKillStreak: false,
         damage: 0,
         damageAverageSum: 0,
         damageAverageCount: 0,
         damageTaken: 0,
+        damageTakenAverageCount: 0,
         ccHits: 0,
         ccAverageSum: 0,
         ccAverageCount: 0,
         fortDamage: 0,
+        fortDamageAverageCount: 0,
       });
     }
 
     const player = byPlayer.get(key);
+    const rowPresence =
+      metricPresenceByWar.get(String(row.__warId || '')) ||
+      metricPresenceByWar.get(String(row?.warId || '')) ||
+      metricPresenceByWar.get(String(row?.war_id || '')) ||
+      metricPresenceByWar.get(String(row?.war || '')) ||
+      metricPresenceByWar.get(String(row?.date || '')) ||
+      null;
 
     player.wars.add(String(row.__warId));
 
@@ -721,12 +1167,19 @@ function buildStatsLogPlayers(stats) {
     player.deaths += rowDeaths;
     player.kdSum += rowKd;
     player.kdCount += 1;
+    const killFeedAliases = ['killFeed', 'feed'];
     const damageAliases = [
       'damageDealt',
       'damage_dealt',
       'damage dealt',
       'damageDone',
       'damage',
+    ];
+    const damageTakenAliases = [
+      'damageTaken',
+      'damage_taken',
+      'damage taken',
+      'Damage Taken',
     ];
     const ccAliases = [
       'ccHits',
@@ -736,57 +1189,98 @@ function buildStatsLogPlayers(stats) {
       'cc',
       'CC',
     ];
+    const fortDamageAliases = [
+      'fortDamage',
+      'damageToFort',
+      'damage_to_fort',
+      'damage to fort',
+      'Fort Damage',
+    ];
 
+    const rowKillFeed = readStatMetric(row, killFeedAliases, 0);
     const rowDamage = readStatMetric(row, damageAliases, 0);
+    const rowDamageTaken = readStatMetric(
+      row,
+      damageTakenAliases,
+      0,
+    );
     const rowCcHits = readStatMetric(row, ccAliases, 0);
+    const rowFortDamage = readStatMetric(
+      row,
+      fortDamageAliases,
+      0,
+    );
 
     player.damage += rowDamage;
 
-    if (hasOwnStatMetric(row, damageAliases)) {
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'damageDealt',
+        damageAliases,
+      )
+    ) {
       player.damageAverageSum += rowDamage;
       player.damageAverageCount += 1;
     }
 
-    player.damageTaken += readStatMetric(
-      row,
-      [
+    player.damageTaken += rowDamageTaken;
+
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
         'damageTaken',
-        'damage_taken',
-        'damage taken',
-        'Damage Taken',
-      ],
-      0,
-    );
+        damageTakenAliases,
+      )
+    ) {
+      player.damageTakenAverageCount += 1;
+    }
 
     player.ccHits += rowCcHits;
 
-    if (hasOwnStatMetric(row, ccAliases)) {
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'ccHits',
+        ccAliases,
+      )
+    ) {
       player.ccAverageSum += rowCcHits;
       player.ccAverageCount += 1;
     }
-    player.fortDamage += readStatMetric(
-      row,
-      [
-        'fortDamage',
-        'damageToFort',
-        'damage_to_fort',
-        'damage to fort',
-        'Fort Damage',
-      ],
-      0,
-    );
+    player.fortDamage += rowFortDamage;
 
-    const rowKillFeed = readStatMetric(
-      row,
-      ['killFeed', 'feed'],
-      0,
-    );
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'fortDamage',
+        fortDamageAliases,
+      )
+    ) {
+      player.fortDamageAverageCount += 1;
+    }
 
     // Player Highlights uses the best saved Stats Log KillFeed.
     player.killFeed = Math.max(player.killFeed, rowKillFeed);
 
-    // Players Performance Total/Average uses the monthly sum.
+    // Players Performance Total uses the monthly sum. Average uses only
+    // wars whose Stats Log actually contained the KillFeed column.
     player.killFeedTotal += rowKillFeed;
+
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'killFeed',
+        killFeedAliases,
+      )
+    ) {
+      player.killFeedAverageCount += 1;
+    }
 
     // No Combat Log fallback. A streak is shown only when the Stats Log
     // explicitly contains a streak field.
@@ -815,12 +1309,28 @@ function buildStatsLogPlayers(stats) {
       averageKd: player.kdCount
         ? player.kdSum / player.kdCount
         : ratio(player.kills, player.deaths),
+      averageKillFeed: player.killFeedAverageCount
+        ? player.killFeedTotal / player.killFeedAverageCount
+        : 0,
       averageDamageDealt: player.damageAverageCount
         ? player.damageAverageSum / player.damageAverageCount
+        : 0,
+      averageDamageTaken: player.damageTakenAverageCount
+        ? player.damageTaken / player.damageTakenAverageCount
         : 0,
       averageCcHits: player.ccAverageCount
         ? player.ccAverageSum / player.ccAverageCount
         : 0,
+      averageFortDamage: player.fortDamageAverageCount
+        ? player.fortDamage / player.fortDamageAverageCount
+        : 0,
+      statWarCounts: {
+        killFeed: player.killFeedAverageCount,
+        damageDealt: player.damageAverageCount,
+        damageTaken: player.damageTakenAverageCount,
+        ccHits: player.ccAverageCount,
+        fortDamage: player.fortDamageAverageCount,
+      },
     }))
     .sort(
       (a, b) =>
@@ -1166,37 +1676,28 @@ function buildMonthlyPerformancePlayers(
         averageKd: secondary
           ? num(secondary.averageKd)
           : ratio(kills, deaths),
+        averageKillFeed: secondary
+          ? num(secondary.averageKillFeed)
+          : 0,
         averageDamageDealt: secondary
           ? num(secondary.averageDamageDealt)
-          : wars > 0
-            ? readStatMetric(
-                primary,
-                [
-                  'damageDealt',
-                  'damage_dealt',
-                  'damage dealt',
-                  'damageDone',
-                  'damage',
-                ],
-                0,
-              ) / wars
-            : 0,
+          : 0,
+        averageDamageTaken: secondary
+          ? num(secondary.averageDamageTaken)
+          : 0,
         averageCcHits: secondary
           ? num(secondary.averageCcHits)
-          : wars > 0
-            ? readStatMetric(
-                primary,
-                [
-                  'ccHits',
-                  'cc_hits',
-                  'cc hits',
-                  'CC Hits',
-                  'cc',
-                  'CC',
-                ],
-                0,
-              ) / wars
-            : 0,
+          : 0,
+        averageFortDamage: secondary
+          ? num(secondary.averageFortDamage)
+          : 0,
+        statWarCounts: secondary?.statWarCounts || {
+          killFeed: 0,
+          damageDealt: 0,
+          damageTaken: 0,
+          ccHits: 0,
+          fortDamage: 0,
+        },
         killStreak: num(streakMetrics?.total),
         longestKillStreak: num(streakMetrics?.maximum),
         killFeed: secondary
@@ -1501,8 +2002,18 @@ function buildRosterPerformancePlayers(activePlayers) {
       deaths: 0,
       kd: 0,
       averageKd: 0,
+      averageKillFeed: 0,
       averageDamageDealt: 0,
+      averageDamageTaken: 0,
       averageCcHits: 0,
+      averageFortDamage: 0,
+      statWarCounts: {
+        killFeed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        fortDamage: 0,
+      },
       killStreak: 0,
       longestKillStreak: 0,
       killFeed: 0,
@@ -1650,7 +2161,7 @@ function buildReview(
     previousTotals.deaths,
   );
 
-  const statLogPlayers = buildStatsLogPlayers(stats);
+  const statLogPlayers = buildStatsLogPlayers(stats, monthLogs);
   const activePlayers = buildMonthlyPerformancePlayers(
     stats,
     statLogPlayers,
@@ -2271,15 +2782,15 @@ function overallMetricValue(player, key, viewMode) {
       case 'killStreak':
         return num(player?.killStreak) / wars;
       case 'killFeed':
-        return num(player?.killFeed) / wars;
+        return num(player?.averageKillFeed);
       case 'damageDealt':
         return num(player?.averageDamageDealt);
       case 'damageTaken':
-        return num(player?.damageTaken) / wars;
+        return num(player?.averageDamageTaken);
       case 'ccHits':
         return num(player?.averageCcHits);
       case 'fortDamage':
-        return num(player?.fortDamage) / wars;
+        return num(player?.averageFortDamage);
       default:
         return 0;
     }
@@ -2404,8 +2915,25 @@ function performanceValue(player, key, viewMode) {
     return num(player?.averageKd);
   }
 
-  const wars = num(player?.wars);
-  return wars > 0 ? num(player?.[key]) / wars : 0;
+  // Advanced Stats Log columns must be averaged only across wars where
+  // that exact column was present. A recorded zero still counts as data;
+  // a missing historical column does not count toward the divisor.
+  switch (key) {
+    case 'killFeed':
+      return num(player?.averageKillFeed);
+    case 'damageDealt':
+      return num(player?.averageDamageDealt);
+    case 'damageTaken':
+      return num(player?.averageDamageTaken);
+    case 'ccHits':
+      return num(player?.averageCcHits);
+    case 'fortDamage':
+      return num(player?.averageFortDamage);
+    default: {
+      const wars = num(player?.wars);
+      return wars > 0 ? num(player?.[key]) / wars : 0;
+    }
+  }
 }
 
 function formatPerformanceValue(key, value, viewMode) {
