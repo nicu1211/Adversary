@@ -27,6 +27,7 @@ import {
 } from '../lib/logUtils';
 
 const MIN_MONTH = '2026-05';
+const ALL_HISTORY_MONTH = 'all';
 const DEFAULT_RECAP_DAYS_AGO = 0;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -400,6 +401,43 @@ function monthDateWindow(
   };
 }
 
+
+function allHistoryDateWindow(
+  logs,
+  daysAgo = DEFAULT_RECAP_DAYS_AGO,
+) {
+  const safeDays = Math.max(0, Math.floor(num(daysAgo)));
+  const now = Date.now();
+  const datedLogs = (logs || [])
+    .map((log) => dateTimestamp(dateOf(log)))
+    .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0);
+
+  let end = now;
+  let start = datedLogs.length
+    ? Math.min(...datedLogs)
+    : new Date().setHours(0, 0, 0, 0);
+
+  if (safeDays > 0) {
+    const startDate = new Date(end);
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - (safeDays - 1));
+    start = startDate.getTime();
+  } else {
+    const startDate = new Date(start);
+    startDate.setHours(0, 0, 0, 0);
+    start = startDate.getTime();
+  }
+
+  return {
+    start,
+    end,
+    days:
+      safeDays > 0
+        ? safeDays
+        : Math.max(1, Math.ceil((end - start + 1) / DAY_MS)),
+  };
+}
+
 function previousDateWindow(window) {
   if (!window?.start || !window?.days) {
     return {
@@ -431,6 +469,7 @@ function dateIsInWindow(value, window) {
 }
 
 function monthLabel(monthId) {
+  if (monthId === ALL_HISTORY_MONTH) return 'All History';
   if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return 'Unknown month';
 
   const [year, month] = monthId.split('-').map(Number);
@@ -482,6 +521,109 @@ function getGuildPlayer(event) {
     (event?.type === 'kill' ? event?.killer : event?.victim) ||
     ''
   );
+}
+
+
+function normalizePlayerName(value) {
+  const key = String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (key === 'mrsracoon' || key === 'mrsraccoon') {
+    return 'mrsraccoon';
+  }
+
+  return key;
+}
+
+function samePlayerName(left, right) {
+  const a = normalizePlayerName(left);
+  const b = normalizePlayerName(right);
+
+  return Boolean(a && b && a === b);
+}
+
+function playerStatsWarId(item, index, prefix = 'war') {
+  return String(
+    item?.id ||
+      item?.warId ||
+      item?.war_id ||
+      item?.nodeWarId ||
+      item?.war ||
+      item?.date ||
+      `${prefix}-${index}`,
+  );
+}
+
+function playerStatsEventSeconds(event) {
+  if (Number.isFinite(Number(event?.sec))) {
+    return Number(event.sec);
+  }
+
+  const raw = String(event?.time || '').trim();
+  const parts = raw.split(':').map((part) => Number(part) || 0);
+
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+
+  return Number(parts[0]) || 0;
+}
+
+function playerStatsBestKillStreak(events, playerName) {
+  const sorted = [...(events || [])].sort((a, b) => {
+    const secondsDifference =
+      playerStatsEventSeconds(a) - playerStatsEventSeconds(b);
+
+    return secondsDifference || num(a?.i) - num(b?.i);
+  });
+
+  let current = 0;
+  let best = 0;
+
+  sorted.forEach((event) => {
+    if (!samePlayerName(getGuildPlayer(event), playerName)) return;
+
+    if (event?.type === 'kill') {
+      current += 1;
+      best = Math.max(best, current);
+    } else if (event?.type === 'death') {
+      current = 0;
+    }
+  });
+
+  return best;
+}
+
+function playerStatsBestKillFeed(events, playerName, seconds = 10) {
+  const kills = (events || [])
+    .filter(
+      (event) =>
+        event?.type === 'kill' &&
+        samePlayerName(getGuildPlayer(event), playerName),
+    )
+    .map((event) => playerStatsEventSeconds(event))
+    .sort((a, b) => a - b);
+
+  let best = 0;
+  let left = 0;
+
+  kills.forEach((time, right) => {
+    while (time - kills[left] > seconds) {
+      left += 1;
+    }
+
+    best = Math.max(best, right - left + 1);
+  });
+
+  return best;
 }
 
 function cleanGuild(value) {
@@ -1072,6 +1214,390 @@ function buildPlayerChronology(stats) {
   });
 
   return byPlayer;
+}
+
+
+function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
+  const events = Array.isArray(stats?.ev) ? stats.ev : [];
+  const secondaryRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+  const metricPresenceByWar = buildStatsMetricPresenceByWar(logs);
+  const eventsByWar = new Map();
+  const matchesByPlayer = new Map();
+
+  function ensurePlayer(name) {
+    const cleanName = String(name || '').trim();
+    const key = normalizePlayerName(cleanName);
+
+    if (!key) return null;
+
+    if (!matchesByPlayer.has(key)) {
+      matchesByPlayer.set(key, {
+        name: cleanName,
+        matches: new Map(),
+      });
+    }
+
+    const player = matchesByPlayer.get(key);
+
+    if (!player.name && cleanName) {
+      player.name = cleanName;
+    }
+
+    return player;
+  }
+
+  function ensureMatch(name, warId, date = '') {
+    const player = ensurePlayer(name);
+
+    if (!player) return null;
+
+    if (!player.matches.has(warId)) {
+      player.matches.set(warId, {
+        warId,
+        date: date || warId,
+        kills: 0,
+        deaths: 0,
+        killStreak: 0,
+        killFeed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        fortDamage: 0,
+        firstAppearanceTime: Number.POSITIVE_INFINITY,
+        firstAppearanceOrder: Number.POSITIVE_INFINITY,
+        __has: {
+          kills: false,
+          deaths: false,
+          kd: false,
+          killStreak: false,
+          killFeed: false,
+          damageDealt: false,
+          damageTaken: false,
+          ccHits: false,
+          fortDamage: false,
+        },
+      });
+    }
+
+    const match = player.matches.get(warId);
+
+    if (!match.date && date) match.date = date;
+
+    return match;
+  }
+
+  events.forEach((event, index) => {
+    const warId = playerStatsWarId(event, index, 'combat');
+
+    if (!eventsByWar.has(warId)) {
+      eventsByWar.set(warId, []);
+    }
+
+    eventsByWar.get(warId).push(event);
+  });
+
+  eventsByWar.forEach((warEvents, warId) => {
+    const playersInWar = new Map();
+
+    warEvents.forEach((event, sourceOrder) => {
+      const name = String(getGuildPlayer(event) || '').trim();
+      const key = normalizePlayerName(name);
+
+      if (!key) return;
+
+      if (!playersInWar.has(key)) {
+        playersInWar.set(key, name);
+      }
+
+      const match = ensureMatch(
+        name,
+        warId,
+        event?.date || warEvents[0]?.date || warId,
+      );
+
+      if (!match) return;
+
+      const eventTime = chronologyTimestamp(event);
+
+      if (
+        eventTime < match.firstAppearanceTime ||
+        (eventTime === match.firstAppearanceTime &&
+          sourceOrder < match.firstAppearanceOrder)
+      ) {
+        match.firstAppearanceTime = eventTime;
+        match.firstAppearanceOrder = sourceOrder;
+      }
+
+      if (event?.type === 'kill') {
+        match.kills += 1;
+      } else if (event?.type === 'death') {
+        match.deaths += 1;
+      }
+
+      match.__has.kills = true;
+      match.__has.deaths = true;
+      match.__has.kd = true;
+      match.__has.killStreak = true;
+      match.__has.killFeed = true;
+    });
+
+    playersInWar.forEach((name) => {
+      const match = ensureMatch(
+        name,
+        warId,
+        warEvents[0]?.date || warId,
+      );
+
+      if (!match) return;
+
+      match.killStreak = playerStatsBestKillStreak(
+        warEvents,
+        name,
+      );
+      match.killFeed = playerStatsBestKillFeed(
+        warEvents,
+        name,
+      );
+    });
+  });
+
+  secondaryRows.forEach((row, index) => {
+    const name = String(row?.player || row?.name || '').trim();
+
+    if (!name) return;
+
+    const warId = playerStatsWarId(row, index, 'secondary');
+    const match = ensureMatch(
+      name,
+      warId,
+      row?.date || row?.war || warId,
+    );
+
+    if (!match) return;
+
+    const rowPresence =
+      metricPresenceByWar.get(warId) ||
+      metricPresenceByWar.get(String(row?.id || '')) ||
+      metricPresenceByWar.get(String(row?.warId || '')) ||
+      metricPresenceByWar.get(String(row?.war_id || '')) ||
+      metricPresenceByWar.get(String(row?.war || '')) ||
+      metricPresenceByWar.get(String(row?.date || '')) ||
+      null;
+
+    const aliases = {
+      kills: ['kills', 'Kills', 'kill'],
+      deaths: ['deaths', 'Deaths', 'death'],
+      killFeed: ['killFeed', 'killfeed', 'feed', 'KillFeed'],
+      damageDealt: [
+        'damageDealt',
+        'damage_dealt',
+        'damage dealt',
+        'damageDone',
+        'damage',
+        'Damage Dealt',
+      ],
+      damageTaken: [
+        'damageTaken',
+        'damage_taken',
+        'damage taken',
+        'Damage Taken',
+      ],
+      ccHits: [
+        'ccHits',
+        'cc_hits',
+        'cc hits',
+        'CC Hits',
+        'cc',
+        'CC',
+      ],
+      fortDamage: [
+        'fortDamage',
+        'damageToFort',
+        'damage_to_fort',
+        'damage to fort',
+        'Fort Damage',
+      ],
+    };
+
+    const hasKills = hasOwnStatMetric(row, aliases.kills);
+    const hasDeaths = hasOwnStatMetric(row, aliases.deaths);
+    const hasKillFeed = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'killFeed',
+      aliases.killFeed,
+    );
+    const hasDamageDealt = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'damageDealt',
+      aliases.damageDealt,
+    );
+    const hasDamageTaken = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'damageTaken',
+      aliases.damageTaken,
+    );
+    const hasCcHits = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'ccHits',
+      aliases.ccHits,
+    );
+    const hasFortDamage = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'fortDamage',
+      aliases.fortDamage,
+    );
+
+    if (hasKills) {
+      match.kills = readStatMetric(row, aliases.kills, 0);
+      match.__has.kills = true;
+    }
+
+    if (hasDeaths) {
+      match.deaths = readStatMetric(row, aliases.deaths, 0);
+      match.__has.deaths = true;
+    }
+
+    match.__has.kd = match.__has.kills && match.__has.deaths;
+
+    if (hasKillFeed) {
+      match.killFeed = readStatMetric(row, aliases.killFeed, 0);
+      match.__has.killFeed = true;
+    }
+
+    if (hasDamageDealt) {
+      match.damageDealt = readStatMetric(
+        row,
+        aliases.damageDealt,
+        0,
+      );
+      match.__has.damageDealt = true;
+    }
+
+    if (hasDamageTaken) {
+      match.damageTaken = readStatMetric(
+        row,
+        aliases.damageTaken,
+        0,
+      );
+      match.__has.damageTaken = true;
+    }
+
+    if (hasCcHits) {
+      match.ccHits = readStatMetric(row, aliases.ccHits, 0);
+      match.__has.ccHits = true;
+    }
+
+    if (hasFortDamage) {
+      match.fortDamage = readStatMetric(
+        row,
+        aliases.fortDamage,
+        0,
+      );
+      match.__has.fortDamage = true;
+    }
+
+    const rowTime = chronologyTimestamp(row);
+
+    if (
+      rowTime < match.firstAppearanceTime ||
+      (rowTime === match.firstAppearanceTime &&
+        index < match.firstAppearanceOrder)
+    ) {
+      match.firstAppearanceTime = rowTime;
+      match.firstAppearanceOrder = index;
+    }
+  });
+
+  function metricValues(matches, key) {
+    return matches
+      .filter((match) => Boolean(match?.__has?.[key]))
+      .map((match) => num(match?.[key]));
+  }
+
+  function sum(values) {
+    return values.reduce((total, value) => total + num(value), 0);
+  }
+
+  function average(values) {
+    return values.length ? sum(values) / values.length : 0;
+  }
+
+  return [...matchesByPlayer.values()]
+    .map((player) => {
+      const matches = [...player.matches.values()];
+      const killsValues = metricValues(matches, 'kills');
+      const deathsValues = metricValues(matches, 'deaths');
+      const kdValues = matches
+        .filter((match) => Boolean(match?.__has?.kd))
+        .map((match) => ratio(match.kills, match.deaths));
+      const streakValues = metricValues(matches, 'killStreak');
+      const feedValues = metricValues(matches, 'killFeed');
+      const damageValues = metricValues(matches, 'damageDealt');
+      const damageTakenValues = metricValues(matches, 'damageTaken');
+      const ccValues = metricValues(matches, 'ccHits');
+      const fortValues = metricValues(matches, 'fortDamage');
+      const kills = sum(killsValues);
+      const deaths = sum(deathsValues);
+      const firstMatch = [...matches].sort((a, b) =>
+        chronologicalCompare(a, b),
+      )[0];
+
+      return {
+        name: player.name,
+        wars: matches.length,
+        firstAppearanceTime:
+          firstMatch?.firstAppearanceTime ?? Number.POSITIVE_INFINITY,
+        firstAppearanceOrder:
+          firstMatch?.firstAppearanceOrder ?? Number.POSITIVE_INFINITY,
+        kills,
+        deaths,
+        kd: ratio(kills, deaths),
+        averageKills: average(killsValues),
+        averageDeaths: average(deathsValues),
+        averageKd: average(kdValues),
+        killStreak: sum(streakValues),
+        averageKillStreak: average(streakValues),
+        longestKillStreak: streakValues.length
+          ? Math.max(...streakValues)
+          : 0,
+        killFeed: sum(feedValues),
+        bestKillFeed: feedValues.length ? Math.max(...feedValues) : 0,
+        averageKillFeed: average(feedValues),
+        damageDealt: sum(damageValues),
+        damageTaken: sum(damageTakenValues),
+        ccHits: sum(ccValues),
+        fortDamage: sum(fortValues),
+        averageDamageDealt: average(damageValues),
+        averageDamageTaken: average(damageTakenValues),
+        averageCcHits: average(ccValues),
+        averageFortDamage: average(fortValues),
+        statWarCounts: {
+          kills: killsValues.length,
+          deaths: deathsValues.length,
+          kd: kdValues.length,
+          killStreak: streakValues.length,
+          killFeed: feedValues.length,
+          damageDealt: damageValues.length,
+          damageTaken: damageTakenValues.length,
+          ccHits: ccValues.length,
+          fortDamage: fortValues.length,
+        },
+      };
+    })
+    .filter((player) => player.name)
+    .sort(
+      (a, b) =>
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name),
+    );
 }
 
 function buildStatsLogPlayers(stats, logs = []) {
@@ -1992,14 +2518,14 @@ function comparisonInfo(
 function buildRosterPerformancePlayers(activePlayers) {
   const activeByName = new Map(
     (activePlayers || []).map((player) => [
-      String(player?.name || '').trim().toLowerCase(),
+      normalizePlayerName(player?.name),
       player,
     ]),
   );
 
   return GUILD_ROSTER.map((rosterName, rosterOrder) => {
     const activePlayer = activeByName.get(
-      rosterName.toLowerCase(),
+      normalizePlayerName(rosterName),
     );
 
     if (activePlayer) {
@@ -2026,6 +2552,7 @@ function buildRosterPerformancePlayers(activePlayers) {
       averageKills: 0,
       averageDeaths: 0,
       averageKd: 0,
+      averageKillStreak: 0,
       averageKillFeed: 0,
       averageDamageDealt: 0,
       averageDamageTaken: 0,
@@ -2074,18 +2601,25 @@ function buildReview(
   selectedMonth,
   daysAgo = DEFAULT_RECAP_DAYS_AGO,
 ) {
-  const selectedWindow = monthDateWindow(
-    selectedMonth,
-    daysAgo,
-  );
-  const previousCalendarMonth =
-    previousMonthId(selectedMonth);
-  const previousWindow =
-    num(daysAgo) > 0
+  const allHistorySelected = selectedMonth === ALL_HISTORY_MONTH;
+  const selectedWindow = allHistorySelected
+    ? allHistoryDateWindow(logs, daysAgo)
+    : monthDateWindow(selectedMonth, daysAgo);
+  const previousCalendarMonth = allHistorySelected
+    ? ''
+    : previousMonthId(selectedMonth);
+  const previousWindow = allHistorySelected
+    ? num(daysAgo) > 0
+      ? previousDateWindow(selectedWindow)
+      : { start: 0, end: 0, days: 0 }
+    : num(daysAgo) > 0
       ? previousDateWindow(selectedWindow)
       : monthDateWindow(previousCalendarMonth, 0);
-  const previousPeriodLabel =
-    num(daysAgo) > 0
+  const previousPeriodLabel = allHistorySelected
+    ? num(daysAgo) > 0
+      ? `previous ${selectedWindow.days} days`
+      : 'previous period'
+    : num(daysAgo) > 0
       ? `previous ${selectedWindow.days} days`
       : shortMonthLabel(previousCalendarMonth);
 
@@ -2188,11 +2722,13 @@ function buildReview(
     previousTotals.deaths,
   );
 
-  const statLogPlayers = buildStatsLogPlayers(stats, monthLogs);
-  const activePlayers = buildMonthlyPerformancePlayers(
+  // Use the exact same per-player, per-war merge model as Player Stats:
+  // Combat Log creates the base war record and a Stats Log overrides only
+  // the columns it actually contains. This keeps totals and averages aligned
+  // between both pages for the same date range.
+  const activePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
-    statLogPlayers,
-    warCounts,
+    monthLogs,
   );
   const players = buildRosterPerformancePlayers(activePlayers);
   const {
@@ -2807,7 +3343,7 @@ function overallMetricValue(player, key, viewMode) {
       case 'kd':
         return num(player?.averageKd);
       case 'killStreak':
-        return num(player?.killStreak) / wars;
+        return num(player?.averageKillStreak);
       case 'killFeed':
         return num(player?.averageKillFeed);
       case 'damageDealt':
@@ -2951,6 +3487,8 @@ function performanceValue(player, key, viewMode) {
       return num(player?.averageKills);
     case 'deaths':
       return num(player?.averageDeaths);
+    case 'killStreak':
+      return num(player?.averageKillStreak);
     case 'killFeed':
       return num(player?.averageKillFeed);
     case 'damageDealt':
@@ -3749,7 +4287,10 @@ export default function MonthlyRecap({
   );
 
   useEffect(() => {
-    if (!months.includes(selectedMonth)) {
+    if (
+      selectedMonth !== ALL_HISTORY_MONTH &&
+      !months.includes(selectedMonth)
+    ) {
       setSelectedMonth(months[0] || MIN_MONTH);
     }
   }, [months, selectedMonth]);
@@ -3765,8 +4306,11 @@ export default function MonthlyRecap({
   );
 
   const activeDateWindow = useMemo(
-    () => monthDateWindow(selectedMonth, daysAgo),
-    [selectedMonth, daysAgo],
+    () =>
+      selectedMonth === ALL_HISTORY_MONTH
+        ? allHistoryDateWindow(logs, daysAgo)
+        : monthDateWindow(selectedMonth, daysAgo),
+    [logs, selectedMonth, daysAgo],
   );
 
   const {
@@ -3807,7 +4351,9 @@ export default function MonthlyRecap({
                 ? `${formatDate(activeDateWindow.start)} – ${formatDate(
                     activeDateWindow.end,
                   )}`
-                : 'Full month'}
+                : selectedMonth === ALL_HISTORY_MONTH
+                  ? 'All available wars'
+                  : 'Full month'}
             </span>
           </p>
         </div>
@@ -3823,6 +4369,7 @@ export default function MonthlyRecap({
               onChange={(event) => setSelectedMonth(event.target.value)}
               className="h-10 rounded-[8px] border border-[#23364f] bg-slate-950/24 py-2 pl-9 pr-9 text-[12px] font-bold text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
             >
+              <option value={ALL_HISTORY_MONTH}>All History</option>
               {months.map((month) => (
                 <option key={month} value={month}>
                   {monthLabel(month)}
@@ -3855,7 +4402,9 @@ export default function MonthlyRecap({
               className="w-14 bg-transparent text-right text-[12px] font-black tabular-nums text-[#d8e5f7] outline-none"
             />
             <span className="whitespace-nowrap text-[9px] font-bold text-[#52637b]">
-              0 = full month
+              {selectedMonth === ALL_HISTORY_MONTH
+                ? '0 = all history'
+                : '0 = full month'}
             </span>
           </label>
         </div>
