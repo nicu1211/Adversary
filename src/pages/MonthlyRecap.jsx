@@ -3553,9 +3553,18 @@ function formatExactNumber(value) {
 }
 
 function formatPerformanceValue(key, value, viewMode) {
-  // Players Performance must show the full calculated value. Do not use
-  // toFixed(), Math.round(), or compact K/M/B abbreviations here.
-  return formatExactNumber(value);
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return '0';
+
+  // Keep only the first two digits after the decimal point instead of
+  // rounding the underlying result. Example: 31.089 becomes 31.08.
+  const truncated = Math.trunc(number * 100) / 100;
+
+  return truncated.toLocaleString('en-US', {
+    minimumFractionDigits: Number.isInteger(truncated) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 const performanceColumnThemes = {
