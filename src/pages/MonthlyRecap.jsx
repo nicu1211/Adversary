@@ -1551,6 +1551,9 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
 
       return {
         name: player.name,
+        // Keep the exact merged per-war records available to Player Highlights.
+        // This prevents the highlights from using a separate calculation path.
+        matches,
         wars: matches.length,
         firstAppearanceTime:
           firstMatch?.firstAppearanceTime ?? Number.POSITIVE_INFINITY,
@@ -1875,220 +1878,113 @@ function buildStatsLogPlayers(stats, logs = []) {
     );
 }
 
-function buildSingleGamePlayerHighlights(stats) {
-  const sourceRows = Array.isArray(stats?.secondary?.rows)
-    ? stats.secondary.rows
-    : [];
-
-  const uniqueRows = new Map();
-
-  sourceRows.forEach((row, sourceOrder) => {
-    const name = String(row?.player || row?.name || '').trim();
-
-    if (!name) return;
-
-    const warId = String(
-      row?.warId ||
-        row?.war_id ||
-        row?.war ||
-        row?.id ||
-        row?.date ||
-        `stats-war-${sourceOrder}`,
-    );
-
-    const key = `${warId}::${name.toLowerCase()}`;
-    const current = uniqueRows.get(key);
-    const interactions = num(row?.kills) + num(row?.deaths);
-    const currentInteractions = current
-      ? num(current?.kills) + num(current?.deaths)
-      : -1;
-
-    if (
-      !current ||
-      interactions > currentInteractions ||
-      (
-        interactions === currentInteractions &&
-        sourceOrder < current.__sourceOrder
+function buildSingleGamePlayerHighlights(players) {
+  // Player Highlights now reads the exact same merged per-war records used
+  // by Players Performance. Combat Log values create the base record and
+  // Stats Log values override only columns that were actually recorded.
+  const records = (players || []).flatMap((player, playerOrder) =>
+    (player?.matches || []).map((match, matchOrder) => {
+      const fallbackTime = dateTimestamp(match?.date);
+      const firstAppearanceTime = Number.isFinite(
+        match?.firstAppearanceTime,
       )
-    ) {
-      uniqueRows.set(key, {
-        ...row,
-        player: name,
-        __warId: warId,
-        __sourceOrder: sourceOrder,
-        __time: chronologyTimestamp(row),
-      });
-    }
-  });
+        ? match.firstAppearanceTime
+        : fallbackTime || Number.POSITIVE_INFINITY;
 
-  const statRecords = [...uniqueRows.values()].map((row) => {
-    const kills = num(row?.kills);
-    const deaths = num(row?.deaths);
+      return {
+        ...match,
+        name: String(player?.name || '').trim(),
+        kills: num(match?.kills),
+        deaths: num(match?.deaths),
+        kd: ratio(match?.kills, match?.deaths),
+        damage: num(match?.damageDealt),
+        fortDamage: num(match?.fortDamage),
+        killStreak: num(match?.killStreak),
+        killFeed: num(match?.killFeed),
+        firstAppearanceTime,
+        // Use a stable global fallback after the real chronological time.
+        firstAppearanceOrder:
+          Number.isFinite(match?.firstAppearanceOrder)
+            ? match.firstAppearanceOrder
+            : playerOrder * 100000 + matchOrder,
+        rosterOrder: playerOrder,
+      };
+    }),
+  );
 
-    return {
-      name: String(row?.player || row?.name || '').trim(),
-      warId: String(row.__warId),
-      date:
-        row?.date ||
-        row?.datetime ||
-        row?.dateTime ||
-        row?.timestamp ||
-        row?.time ||
-        '',
-      firstAppearanceTime: row.__time,
-      firstAppearanceOrder: row.__sourceOrder,
-      kills,
-      deaths,
-      kd: ratio(kills, deaths),
-      damage: readStatMetric(
-        row,
-        [
-          'damageDealt',
-          'damage_dealt',
-          'damage dealt',
-          'damageDone',
-          'damage',
-        ],
-        0,
-      ),
-      fortDamage: readStatMetric(
-        row,
-        [
-          'fortDamage',
-          'damageToFort',
-          'damage_to_fort',
-          'damage to fort',
-          'Fort Damage',
-        ],
-        0,
-      ),
-      killFeed: readStatMetric(
-        row,
-        ['killFeed', 'feed'],
-        0,
-      ),
-    };
-  });
-
-  function bestStatRecord(metricKey, isValid) {
+  function bestRecord(metricKey, isValid) {
     return (
-      statRecords
+      records
         .filter((record) =>
-          isValid ? isValid(record) : num(record?.[metricKey]) > 0,
+          isValid
+            ? isValid(record)
+            : Boolean(record?.__has?.[metricKey]) &&
+              num(record?.[metricKey]) > 0,
         )
         .sort(
           (a, b) =>
             num(b?.[metricKey]) - num(a?.[metricKey]) ||
+            // Equal values are resolved by the earliest war/appearance.
             chronologicalCompare(a, b),
         )[0] || null
     );
   }
 
-  const combatWars = new Map();
+  const topFragger = bestRecord(
+    'kills',
+    (record) => Boolean(record?.__has?.kills) && record.kills > 0,
+  );
 
-  (stats?.ev || []).forEach((event, sourceOrder) => {
-    const warId = String(
-      event?.warId ||
-        event?.war_id ||
-        event?.nodeWarId ||
-        event?.war ||
-        event?.id ||
-        event?.date ||
-        `combat-war-${sourceOrder}`,
-    );
+  const bestKd = bestRecord(
+    'kd',
+    (record) =>
+      Boolean(record?.__has?.kd) &&
+      record.kills > 0,
+  );
 
-    if (!combatWars.has(warId)) {
-      combatWars.set(warId, {
-        events: [],
-        date:
-          event?.date ||
-          event?.datetime ||
-          event?.dateTime ||
-          event?.timestamp ||
-          event?.time ||
-          '',
-        time: chronologyTimestamp(event),
-        order: sourceOrder,
-      });
-    }
+  const damageLeader = bestRecord(
+    'damage',
+    (record) =>
+      Boolean(record?.__has?.damageDealt) &&
+      record.damage > 0,
+  );
 
-    const war = combatWars.get(warId);
-    war.events.push(event);
+  const fortBreaker = bestRecord(
+    'fortDamage',
+    (record) =>
+      Boolean(record?.__has?.fortDamage) &&
+      record.fortDamage > 0,
+  );
 
-    const eventTime = chronologyTimestamp(event);
+  const longestStreak = bestRecord(
+    'killStreak',
+    (record) =>
+      Boolean(record?.__has?.killStreak) &&
+      record.killStreak > 0,
+  );
 
-    if (
-      eventTime < war.time ||
-      (eventTime === war.time && sourceOrder < war.order)
-    ) {
-      war.time = eventTime;
-      war.order = sourceOrder;
-      war.date =
-        event?.date ||
-        event?.datetime ||
-        event?.dateTime ||
-        event?.timestamp ||
-        event?.time ||
-        war.date;
-    }
-  });
-
-  const streakRecords = [];
-
-  combatWars.forEach((war, warId) => {
-    const warStreaks = calculateStreaks(war.events);
-
-    Object.entries(warStreaks || {}).forEach(([name, value]) => {
-      const cleanName = String(name || '').trim();
-      const streak = num(value);
-
-      if (!cleanName || streak <= 0) return;
-
-      streakRecords.push({
-        name: cleanName,
-        warId,
-        date: war.date,
-        value: streak,
-        firstAppearanceTime: war.time,
-        firstAppearanceOrder: war.order,
-      });
-    });
-  });
-
-  const longestStreak =
-    streakRecords.sort(
-      (a, b) =>
-        b.value - a.value ||
-        chronologicalCompare(a, b),
-    )[0] || null;
-
-  const bestFeedRecord = bestStatRecord(
+  const bestFeed = bestRecord(
     'killFeed',
-    (record) => record.killFeed > 0,
+    (record) =>
+      Boolean(record?.__has?.killFeed) &&
+      record.killFeed > 0,
   );
 
   return {
-    topFragger: bestStatRecord(
-      'kills',
-      (record) => record.kills > 0,
-    ),
-    bestKd: bestStatRecord(
-      'kd',
-      (record) => record.kills > 0,
-    ),
-    damageLeader: bestStatRecord(
-      'damage',
-      (record) => record.damage > 0,
-    ),
-    fortBreaker: bestStatRecord(
-      'fortDamage',
-      (record) => record.fortDamage > 0,
-    ),
-    longestStreak,
-    bestFeed: bestFeedRecord
+    topFragger,
+    bestKd,
+    damageLeader,
+    fortBreaker,
+    longestStreak: longestStreak
       ? {
-          ...bestFeedRecord,
-          value: bestFeedRecord.killFeed,
+          ...longestStreak,
+          value: longestStreak.killStreak,
+        }
+      : null,
+    bestFeed: bestFeed
+      ? {
+          ...bestFeed,
+          value: bestFeed.killFeed,
         }
       : null,
   };
@@ -2738,7 +2634,7 @@ function buildReview(
     fortBreaker,
     longestStreak,
     bestFeed,
-  } = buildSingleGamePlayerHighlights(stats);
+  } = buildSingleGamePlayerHighlights(activePlayers);
 
   const enemies = buildEnemyRows(monthLogs, stats, 30);
 
