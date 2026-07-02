@@ -3450,9 +3450,9 @@ function addImpactScores(
 
     return {
       ...player,
-      impact: Math.round(
-        Math.max(0, Math.min(100, impact)) * 10,
-      ) / 10,
+      // Keep the full calculated impact value. Formatting is handled only
+      // when the value is rendered, so no precision is lost here.
+      impact: Math.max(0, Math.min(100, impact)),
     };
   });
 }
@@ -3506,26 +3506,56 @@ function performanceValue(player, key, viewMode) {
   }
 }
 
+function expandScientificNumber(value) {
+  const raw = String(value);
+
+  if (!/[eE]/.test(raw)) return raw;
+
+  const match = raw.match(/^([+-]?)(\d+)(?:\.(\d*))?[eE]([+-]?\d+)$/);
+
+  if (!match) return raw;
+
+  const [, sign, integerPart, fractionPart = '', exponentText] = match;
+  const exponent = Number(exponentText);
+  const digits = `${integerPart}${fractionPart}`;
+  const decimalPosition = integerPart.length + exponent;
+
+  if (decimalPosition <= 0) {
+    return `${sign}0.${'0'.repeat(-decimalPosition)}${digits}`;
+  }
+
+  if (decimalPosition >= digits.length) {
+    return `${sign}${digits}${'0'.repeat(decimalPosition - digits.length)}`;
+  }
+
+  return `${sign}${digits.slice(0, decimalPosition)}.${digits.slice(
+    decimalPosition,
+  )}`;
+}
+
+function formatExactNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return '0';
+
+  const plain = expandScientificNumber(number);
+  const sign = plain.startsWith('-') ? '-' : '';
+  const unsigned = sign ? plain.slice(1) : plain;
+  const [integerPart = '0', fractionPart] = unsigned.split('.');
+  const groupedInteger = integerPart.replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    ',',
+  );
+
+  return fractionPart
+    ? `${sign}${groupedInteger}.${fractionPart}`
+    : `${sign}${groupedInteger}`;
+}
+
 function formatPerformanceValue(key, value, viewMode) {
-  if (key === 'kd') {
-    return num(value).toFixed(2);
-  }
-
-  if (key === 'impact') {
-    return num(value).toFixed(1);
-  }
-
-  if (viewMode === 'average' && key !== 'wars') {
-    if (
-      ['damageDealt', 'damageTaken', 'fortDamage'].includes(key)
-    ) {
-      return compact(value);
-    }
-
-    return num(value).toFixed(1);
-  }
-
-  return compact(value);
+  // Players Performance must show the full calculated value. Do not use
+  // toFixed(), Math.round(), or compact K/M/B abbreviations here.
+  return formatExactNumber(value);
 }
 
 const performanceColumnThemes = {
