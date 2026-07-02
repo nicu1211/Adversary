@@ -1306,6 +1306,12 @@ function buildStatsLogPlayers(stats, logs = []) {
       ...player,
       wars: player.wars.size,
       kd: ratio(player.kills, player.deaths),
+      averageKills: player.wars.size
+        ? player.kills / player.wars.size
+        : 0,
+      averageDeaths: player.wars.size
+        ? player.deaths / player.wars.size
+        : 0,
       averageKd: player.kdCount
         ? player.kdSum / player.kdCount
         : ratio(player.kills, player.deaths),
@@ -1325,6 +1331,9 @@ function buildStatsLogPlayers(stats, logs = []) {
         ? player.fortDamage / player.fortDamageAverageCount
         : 0,
       statWarCounts: {
+        kills: player.wars.size,
+        deaths: player.wars.size,
+        kd: player.kdCount,
         killFeed: player.killFeedAverageCount,
         damageDealt: player.damageAverageCount,
         damageTaken: player.damageTakenAverageCount,
@@ -1673,6 +1682,16 @@ function buildMonthlyPerformancePlayers(
         kills,
         deaths,
         kd: ratio(kills, deaths),
+        averageKills: secondary
+          ? num(secondary.averageKills)
+          : wars > 0
+            ? kills / wars
+            : 0,
+        averageDeaths: secondary
+          ? num(secondary.averageDeaths)
+          : wars > 0
+            ? deaths / wars
+            : 0,
         averageKd: secondary
           ? num(secondary.averageKd)
           : ratio(kills, deaths),
@@ -1692,6 +1711,9 @@ function buildMonthlyPerformancePlayers(
           ? num(secondary.averageFortDamage)
           : 0,
         statWarCounts: secondary?.statWarCounts || {
+          kills: secondary ? num(secondary.wars) : num(wars),
+          deaths: secondary ? num(secondary.wars) : num(wars),
+          kd: secondary ? num(secondary.kdCount) : num(wars),
           killFeed: 0,
           damageDealt: 0,
           damageTaken: 0,
@@ -2001,6 +2023,8 @@ function buildRosterPerformancePlayers(activePlayers) {
       kills: 0,
       deaths: 0,
       kd: 0,
+      averageKills: 0,
+      averageDeaths: 0,
       averageKd: 0,
       averageKillFeed: 0,
       averageDamageDealt: 0,
@@ -2008,6 +2032,9 @@ function buildRosterPerformancePlayers(activePlayers) {
       averageCcHits: 0,
       averageFortDamage: 0,
       statWarCounts: {
+        kills: 0,
+        deaths: 0,
+        kd: 0,
         killFeed: 0,
         damageDealt: 0,
         damageTaken: 0,
@@ -2774,9 +2801,9 @@ function overallMetricValue(player, key, viewMode) {
   if (viewMode === 'average') {
     switch (key) {
       case 'kills':
-        return num(player?.kills) / wars;
+        return num(player?.averageKills);
       case 'deaths':
-        return num(player?.deaths) / wars;
+        return num(player?.averageDeaths);
       case 'kd':
         return num(player?.averageKd);
       case 'killStreak':
@@ -2915,10 +2942,15 @@ function performanceValue(player, key, viewMode) {
     return num(player?.averageKd);
   }
 
-  // Advanced Stats Log columns must be averaged only across wars where
-  // that exact column was present. A recorded zero still counts as data;
-  // a missing historical column does not count toward the divisor.
+  // Every average uses the wars that actually supplied that column.
+  // Kills, deaths and K/D use the player's Stats Log rows; advanced metrics
+  // use their own column-presence counts. A recorded zero still counts as
+  // data, while a missing historical column does not enter the divisor.
   switch (key) {
+    case 'kills':
+      return num(player?.averageKills);
+    case 'deaths':
+      return num(player?.averageDeaths);
     case 'killFeed':
       return num(player?.averageKillFeed);
     case 'damageDealt':
