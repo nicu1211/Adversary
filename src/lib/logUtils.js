@@ -1797,9 +1797,24 @@ function calculateStatsFromRaw(items) {
     );
   });
 
+  // Store the final, separated values on every player as well. This keeps
+  // uploaded summaries and pages that read `players` consistent with the
+  // dedicated `st` (Kill Streak) and `fd` (Kill Feed) maps.
+  const playersWithCombatMetrics = players.map((player) => ({
+    ...player,
+    killStreak: Number(st[player.name]) || 0,
+    killFeed: Number(fd[player.name]) || 0,
+    has_kill_streak: Boolean(
+      secondaryByPlayer[player.name]?.has_kill_streak ??
+        secondaryByPlayer[player.name] ??
+        hasTimeline,
+    ),
+    has_kill_feed: Boolean(hasTimeline),
+  }));
+
   return {
     ev: classicEvents,
-    players,
+    players: playersWithCombatMetrics,
     guilds,
     line,
     kills,
@@ -2015,6 +2030,10 @@ function mergeStatsFromSummaries(items) {
       const normalizedRow = addSecondaryRow(
         {
           ...sourceRow,
+          // Keep the two metrics separate. The dedicated maps are the
+          // source of truth after upload: `st` is Kill Streak and `fd`
+          // is Kill Feed. Old rows can contain zero placeholder fields,
+          // so those placeholders must not override the real map values.
           killStreak: streakMetric.exists
             ? streakMetric.value
             : summaryVersion >= 3
@@ -2023,29 +2042,28 @@ function mergeStatsFromSummaries(items) {
                     sourceRow?.killstreak,
                 ) || 0
               : 0,
-          killFeed:
-            Number(
-              sourceRow?.killFeed ??
-                sourceRow?.killfeed ??
-                feedMetric.value ??
-                legacyKillFeed,
-            ) ||
-            legacyKillFeed ||
-            0,
-          has_kill_streak:
-            sourceRow?.has_kill_streak ??
-            sourceRow?.hasKillStreak ??
-            streakMetric.exists ??
-            false,
-          has_kill_feed:
-            sourceRow?.has_kill_feed ??
-            sourceRow?.hasKillFeed ??
-            feedMetric.exists ??
-            Boolean(
+          killFeed: feedMetric.exists
+            ? feedMetric.value
+            : Number(
+                sourceRow?.killFeed ??
+                  sourceRow?.killfeed ??
+                  legacyKillFeed,
+              ) ||
+              legacyKillFeed ||
+              0,
+          has_kill_streak: Boolean(
+            streakMetric.exists ||
+              sourceRow?.has_kill_streak ||
+              sourceRow?.hasKillStreak,
+          ),
+          has_kill_feed: Boolean(
+            feedMetric.exists ||
+              sourceRow?.has_kill_feed ||
+              sourceRow?.hasKillFeed ||
               sourceRow?.killFeed != null ||
-                sourceRow?.killfeed != null ||
-                legacyKillFeed,
-            ),
+              sourceRow?.killfeed != null ||
+              legacyKillFeed,
+          ),
         },
         fallback,
         index,
@@ -2165,20 +2183,19 @@ function mergeStatsFromSummaries(items) {
         streakMetric.exists || Boolean(summary.hasTimeline),
       );
 
-      const playerKillStreak =
-        matchRow && playerHasKillStreak
+      const playerKillStreak = streakMetric.exists
+        ? streakMetric.value
+        : matchRow && playerHasKillStreak
           ? Number(
               matchRow.killStreak ??
                 matchRow.killstreak,
             ) || 0
-          : streakMetric.exists
-            ? streakMetric.value
-            : summaryVersion >= 3
-              ? Number(
-                  player.killStreak ??
-                    player.killstreak,
-                ) || 0
-              : 0;
+          : summaryVersion >= 3
+            ? Number(
+                player.killStreak ??
+                  player.killstreak,
+              ) || 0
+            : 0;
 
       const playerHasKillFeed = resolveMetricPresence(
         ['has_kill_feed', 'hasKillFeed'],
@@ -2188,8 +2205,9 @@ function mergeStatsFromSummaries(items) {
           Boolean(summary.hasTimeline),
       );
 
-      const playerKillFeed =
-        matchRow && playerHasKillFeed
+      const playerKillFeed = feedMetric.exists
+        ? feedMetric.value
+        : matchRow && playerHasKillFeed
           ? Number(
               matchRow.killFeed ??
                 matchRow.killfeed ??
@@ -2199,9 +2217,7 @@ function mergeStatsFromSummaries(items) {
               player.killFeed ??
                 player.killfeed ??
                 player.feed ??
-                (feedMetric.exists
-                  ? feedMetric.value
-                  : legacyPlayerKillFeed),
+                legacyPlayerKillFeed,
             ) || 0;
 
       const playerHasDamageDealt = resolveMetricPresence(
@@ -2812,7 +2828,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 8,
+    version: 9,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
@@ -2836,14 +2852,16 @@ export function getLogSummary(log) {
   const raw = String(log?.raw || '');
 
   /*
-   * Summary version 8 uses the confirmed Stats Log layout:
+   * Summary version 9 uses the confirmed Stats Log layout:
    * Name, Kills, Deaths, Kill Streak, Damage Dealt, Damage Taken,
    * CC Hits, Heal, Ally Heal, Fort Damage.
    * Heal and Ally Heal are ignored. Kill Feed comes from the Combat Log.
-   * When raw text is available, rebuild older summaries so values saved
-   * with an incorrect column mapping are corrected.
+   * Version 9 also keeps `st`/Kill Streak and `fd`/Kill Feed separate
+   * when uploaded summaries contain old zero placeholder fields.
+   * When raw text is available, rebuild older summaries so saved values
+   * with the previous mix-up are corrected.
    */
-  if (normalized && (Number(normalized.version) >= 8 || !raw)) {
+  if (normalized && (Number(normalized.version) >= 9 || !raw)) {
     return normalized;
   }
 
