@@ -2214,7 +2214,8 @@ function buildCombatAverageRankRows(warEvents) {
         deaths: true,
         kd: true,
         killstreak: true,
-        killfeed: true,
+        // Combat Logs provide Killstreak, not KillFeed.
+        killfeed: false,
         damageDealt: false,
         damageTaken: false,
         ccHits: false,
@@ -2267,32 +2268,10 @@ function buildCombatAverageRankRows(warEvents) {
       ? Number((player.kills / player.deaths).toFixed(2))
       : Number(player.kills.toFixed(2));
 
-    const killEvents = killEventsByPlayer[player.playerKey] || [];
-    let left = 0;
-    let best = 0;
-    let bestKey = '';
-
-    for (let right = 0; right < killEvents.length; right += 1) {
-      while (killEvents[right].sec - killEvents[left].sec > 30) {
-        left += 1;
-      }
-
-      const count = right - left + 1;
-      const windowKey = killEvents[left]?.key || '';
-
-      if (
-        count > best ||
-        (count === best &&
-          windowKey &&
-          (!bestKey || windowKey < bestKey))
-      ) {
-        best = count;
-        bestKey = windowKey;
-      }
-    }
-
-    player.killfeed = best;
-    player.feedKey = bestKey;
+    // KillFeed is a Stats Log column only. Never derive it from Combat Log
+    // timestamps, otherwise wars without a KillFeed column get random values.
+    player.killfeed = 0;
+    player.feedKey = '';
   });
 
   return playersByKey;
@@ -2463,9 +2442,8 @@ function mergeAverageRankWarRows(
         : secondary?.deaths || 0,
       kd: hasCombat ? combat.kd : secondary?.kd || 0,
       killstreak: hasCombat ? combat.killstreak : 0,
-      killfeed: hasCombat
-        ? combat.killfeed
-        : secondary?.killfeed || 0,
+      // KillFeed comes only from the Stats Log row.
+      killfeed: secondary?.killfeed || 0,
       damageDealt: secondary?.damageDealt || 0,
       damageTaken: secondary?.damageTaken || 0,
       ccHits: secondary?.ccHits || 0,
@@ -2485,8 +2463,7 @@ function mergeAverageRankWarRows(
         kd:
           hasCombat || Boolean(secondary?.__has?.kd),
         killstreak: hasCombat,
-        killfeed:
-          hasCombat || Boolean(secondary?.__has?.killfeed),
+        killfeed: Boolean(secondary?.__has?.killfeed),
         damageDealt: Boolean(
           secondary?.__has?.damageDealt,
         ),
@@ -2729,7 +2706,7 @@ function getOurPlayerRowsForWar(warEvents) {
         ? Number((k / d).toFixed(2))
         : Number(k.toFixed(2)),
       streak: getBestKillstreakForWar(warEvents, name),
-      feed: getBestKillfeedForWar(warEvents, name),
+      feed: null,
     };
   });
 }
@@ -2908,12 +2885,6 @@ const SECONDARY_MATCH_METRIC_KEYS = {
     'feed',
     'KillFeed',
     'Killfeed',
-    // Legacy aliases from summaries created before the parser fix.
-    'killStreak',
-    'killstreak',
-    'streak',
-    'Killstreak',
-    'KillStreak',
   ],
   damageDealt: [
     'damageDealt',
@@ -4306,7 +4277,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       const deaths = new Map();
       const currentStreak = new Map();
       const bestStreak = new Map();
-      const killTimes = new Map();
+      // Combat Logs are used for Killstreak only; KillFeed is read from Stats Logs.
 
       sortedEvents.forEach((event) => {
         const playerName = getGuildPlayerFromEvent(event);
@@ -4330,11 +4301,6 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
             Math.max(bestStreak.get(playerKey) || 0, current),
           );
 
-          if (!killTimes.has(playerKey)) {
-            killTimes.set(playerKey, []);
-          }
-
-          killTimes.get(playerKey).push(Number(event.sec) || 0);
         }
 
         if (event.type === 'death') {
@@ -4347,21 +4313,6 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       });
 
       playerNames.forEach((playerName, playerKey) => {
-        const times = killTimes.get(playerKey) || [];
-        let left = 0;
-        let bestFeed = 0;
-
-        for (let right = 0; right < times.length; right += 1) {
-          while (times[right] - times[left] > 10) {
-            left += 1;
-          }
-
-          bestFeed = Math.max(
-            bestFeed,
-            right - left + 1,
-          );
-        }
-
         const match = ensureComparisonMatch(
           playerName,
           warId,
@@ -4373,11 +4324,11 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
         match.kills = kills.get(playerKey) || 0;
         match.deaths = deaths.get(playerKey) || 0;
         match.killstreak = bestStreak.get(playerKey) || 0;
-        match.killfeed = bestFeed;
         match.__has.kills = true;
         match.__has.deaths = true;
         match.__has.killstreak = true;
-        match.__has.killfeed = true;
+        // KillFeed remains unavailable until a Stats Log row explicitly provides it.
+        match.__has.killfeed = false;
       });
     });
 
@@ -4771,7 +4722,8 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
         kills,
         deaths,
         killstreak: getBestKillstreakForWar(events, player),
-        killfeed: getBestKillfeedForWar(events, player),
+        // Combat Logs do not contain KillFeed.
+        killfeed: 0,
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
@@ -4780,7 +4732,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
           kills: true,
           deaths: true,
           killstreak: true,
-          killfeed: true,
+          killfeed: false,
           damageDealt: false,
           damageTaken: false,
           ccHits: false,
