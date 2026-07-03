@@ -507,6 +507,8 @@ function normalizeSecondaryPlayerName(parts) {
     'fort damage',
     'cc hits',
     'cc',
+    'heal',
+    'ally heal',
   ]);
 
   if (headerWords.has(normalized)) {
@@ -545,14 +547,6 @@ function secondaryMetricFromHeader(value) {
     kills: new Set(['kills', 'kill', 'k', 'total kills']),
     deaths: new Set(['deaths', 'death', 'd', 'total deaths']),
     kd: new Set(['kd', 'k d', 'ratio', 'kill death ratio', 'kills deaths ratio']),
-    killStreak: new Set([
-      'killstreak',
-      'kill streak',
-      'streak',
-      'best streak',
-      'max streak',
-      'ks',
-    ]),
     killFeed: new Set([
       'killfeed',
       'kill feed',
@@ -605,7 +599,6 @@ function secondaryMetricFromHeader(value) {
   if (/^(total )?kills?$/.test(header)) return 'kills';
   if (/^(total )?deaths?$/.test(header)) return 'deaths';
   if (/^(k d|kd)( ratio)?$/.test(header)) return 'kd';
-  if (header.includes('kill') && header.includes('streak')) return 'killStreak';
   if (header.includes('kill') && header.includes('feed')) return 'killFeed';
   if (header.includes('cc') || header.includes('crowd control')) return 'ccHits';
 
@@ -700,7 +693,6 @@ function parseSecondaryLineWithHeader(line, index, header) {
 
   const kills = readMetric('kills');
   const deaths = readMetric('deaths');
-  const killStreak = readMetric('killStreak');
   const killFeed = readMetric('killFeed');
   const damageDealt = readMetric('damageDealt');
   const damageTaken = readMetric('damageTaken');
@@ -710,7 +702,6 @@ function parseSecondaryLineWithHeader(line, index, header) {
   const anyMetricPresent = [
     kills,
     deaths,
-    killStreak,
     killFeed,
     damageDealt,
     damageTaken,
@@ -724,7 +715,9 @@ function parseSecondaryLineWithHeader(line, index, header) {
     player,
     kills: kills.value,
     deaths: deaths.value,
-    killStreak: killStreak.value,
+    // Kill Streak is calculated from the timestamped Combat Log.
+    // It is not a column in the Stats Log.
+    killStreak: 0,
     killFeed: killFeed.value,
     damageDealt: damageDealt.value,
     damageTaken: damageTaken.value,
@@ -736,7 +729,6 @@ function parseSecondaryLineWithHeader(line, index, header) {
     availableFields: [
       kills.present && 'kills',
       deaths.present && 'deaths',
-      killStreak.present && 'killStreak',
       killFeed.present && 'killFeed',
       damageDealt.present && 'damageDealt',
       damageTaken.present && 'damageTaken',
@@ -745,7 +737,7 @@ function parseSecondaryLineWithHeader(line, index, header) {
     ].filter(Boolean),
     has_kills: kills.present,
     has_deaths: deaths.present,
-    has_kill_streak: killStreak.present,
+    has_kill_streak: false,
     has_kill_feed: killFeed.present,
     has_damage_dealt: damageDealt.present,
     has_damage_taken: damageTaken.present,
@@ -788,66 +780,30 @@ function parseSecondaryLineLegacy(line, index) {
 
   const kills = readColumn(0);
   const deaths = readColumn(1);
-  const thirdColumn = String(statColumns[2] || '').trim();
-  const thirdNumber = parseSecondaryNumber(thirdColumn);
-  const laterValuesLookLikeDamage =
-    parseSecondaryNumber(statColumns[5]) >= 1000 ||
-    parseSecondaryNumber(statColumns[6]) >= 1000;
 
   /*
-   * Headerless compatibility only. Header-based tables never use this guess.
-   * Current layout: K, D, K/D, Killstreak, Killfeed, Damage Dealt,
-   * Damage Taken, CC Hits, Fort Damage.
-   * Older layouts can omit K/D or both K/D and Killstreak.
+   * Headerless Stats Log layout after the optional player name:
+   *
+   * 0 Kills
+   * 1 Deaths
+   * 2 Kill Feed
+   * 3 Damage Dealt
+   * 4 Damage Taken
+   * 5 CC Hits
+   * 6 Heal       (ignored)
+   * 7 Ally Heal  (ignored)
+   * 8 Fort Damage
+   *
+   * Empty tab-separated cells are preserved, so Heal and Ally Heal can be
+   * skipped without shifting Fort Damage into the wrong field.
    */
-  const looksLikeKdColumn =
-    player &&
-    statColumns.length >= 9 &&
-    hasColumn(2) &&
-    thirdNumber >= 0 &&
-    thirdNumber <= 50 &&
-    (/[.,]/.test(thirdColumn) || laterValuesLookLikeDamage);
+  const killfeedIndex = 2;
+  const damageDealtIndex = 3;
+  const damageTakenIndex = 4;
+  const ccHitsIndex = 5;
+  const fortDamageIndex = 8;
 
-  const hasSeparateKillstreak =
-    looksLikeKdColumn || statColumns.length >= 8;
-
-  const killstreakIndex = looksLikeKdColumn
-    ? 3
-    : hasSeparateKillstreak
-      ? 2
-      : -1;
-
-  const killfeedIndex = looksLikeKdColumn
-    ? 4
-    : hasSeparateKillstreak
-      ? 3
-      : 2;
-
-  const damageDealtIndex = looksLikeKdColumn
-    ? 5
-    : hasSeparateKillstreak
-      ? 4
-      : 3;
-
-  const damageTakenIndex = looksLikeKdColumn
-    ? 6
-    : hasSeparateKillstreak
-      ? 5
-      : 4;
-
-  const ccHitsIndex = looksLikeKdColumn
-    ? 7
-    : hasSeparateKillstreak
-      ? 6
-      : 5;
-
-  const fortDamageIndex = looksLikeKdColumn
-    ? 8
-    : hasSeparateKillstreak
-      ? 7
-      : 6;
-
-  const killStreak = readColumn(killstreakIndex);
+  const killStreak = 0;
   const killFeed = readColumn(killfeedIndex);
   const damageDealt = readColumn(damageDealtIndex);
   const damageTaken = readColumn(damageTakenIndex);
@@ -857,7 +813,6 @@ function parseSecondaryLineLegacy(line, index) {
   const anyMetricPresent = [
     0,
     1,
-    killstreakIndex,
     killfeedIndex,
     damageDealtIndex,
     damageTakenIndex,
@@ -882,7 +837,7 @@ function parseSecondaryLineLegacy(line, index) {
     source: 'legacy-position',
     has_kills: hasColumn(0),
     has_deaths: hasColumn(1),
-    has_kill_streak: hasColumn(killstreakIndex),
+    has_kill_streak: false,
     has_kill_feed: hasColumn(killfeedIndex),
     has_damage_dealt: hasColumn(damageDealtIndex),
     has_damage_taken: hasColumn(damageTakenIndex),
@@ -2831,7 +2786,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 5,
+    version: 6,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
@@ -2855,11 +2810,13 @@ export function getLogSummary(log) {
   const raw = String(log?.raw || '');
 
   /*
-   * Summary version 5 is the first version that maps Stats Log values by
-   * their header names and preserves empty cells. When raw text is available,
-   * rebuild older summaries instead of continuing to use shifted columns.
+   * Summary version 6 uses the actual Stats Log layout:
+   * Kills, Deaths, Kill Feed, Damage Dealt, Damage Taken, CC Hits,
+   * Heal, Ally Heal, Fort Damage. Heal and Ally Heal are intentionally
+   * ignored. When raw text is available, rebuild older summaries so values
+   * saved with the previous shifted-column parser are corrected.
    */
-  if (normalized && (Number(normalized.version) >= 5 || !raw)) {
+  if (normalized && (Number(normalized.version) >= 6 || !raw)) {
     return normalized;
   }
 
