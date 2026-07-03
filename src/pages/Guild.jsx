@@ -79,51 +79,70 @@ function uniqueLogCount(logs = [], stats = {}) {
 }
 
 function hasSecondaryTotals(stats = {}) {
-  const totals = stats?.secondary?.totals || {};
-
-  return (
-    num(totals.damageDealt) > 0 ||
-    num(totals.damageTaken) > 0 ||
-    num(totals.ccHits) > 0 ||
-    num(totals.fortDamage) > 0
+  return ['damageDealt', 'damageTaken', 'ccHits', 'fortDamage'].some(
+    (metric) =>
+      explicitMetricAvailability(
+        stats?.secondary,
+        metric,
+      ) === true,
   );
 }
 
 function uniqueSecondaryLogCount(logs = [], stats = {}) {
-  const secondaryRows = Array.isArray(stats?.secondary?.rows)
-    ? stats.secondary.rows
-    : [];
-
-  const fromRows = new Set(
-    secondaryRows
-      .map((row, index) =>
-        String(row?.id || row?.date || row?.war || row?.logId || index),
+  const availableLogs = new Set(
+    (logs || [])
+      .filter((log) =>
+        ['damageDealt', 'damageTaken', 'ccHits', 'fortDamage'].some(
+          (metric) =>
+            getLogMetricRecord(log, metric).available,
+        ),
+      )
+      .map((log) =>
+        String(
+          log?.id ||
+            log?.date ||
+            log?.name ||
+            '',
+        ),
       )
       .filter(Boolean),
   );
 
-  if (fromRows.size) return fromRows.size;
+  if (availableLogs.size) {
+    return availableLogs.size;
+  }
 
-  const fromLogs = new Set(
-    (logs || [])
-      .filter((log) => {
-        const raw = String(log?.raw || '');
-        const summary = log?.summary || log?.stats || log?.analytics || {};
-        const summaryTotals = summary?.secondary?.totals || {};
+  const secondaryRows = Array.isArray(
+    stats?.secondary?.rows,
+  )
+    ? stats.secondary.rows
+    : [];
 
-        return (
-          raw.includes('ADVERSARY_SECONDARY_LOG_START') ||
-          num(summaryTotals.damageDealt) > 0 ||
-          num(summaryTotals.damageTaken) > 0 ||
-          num(summaryTotals.ccHits) > 0 ||
-          num(summaryTotals.fortDamage) > 0
-        );
-      })
-      .map((log) => String(log?.id || log?.date || log?.name || ''))
-      .filter(Boolean),
+  const availableRows = new Set(
+    secondaryRows
+      .filter((row) =>
+        ['damageDealt', 'damageTaken', 'ccHits', 'fortDamage'].some(
+          (metric) =>
+            explicitMetricAvailability(
+              row,
+              metric,
+            ) === true,
+        ),
+      )
+      .map((row, index) =>
+        String(
+          row?.id ||
+            row?.date ||
+            row?.war ||
+            row?.logId ||
+            index,
+        ),
+      ),
   );
 
-  if (fromLogs.size) return fromLogs.size;
+  if (availableRows.size) {
+    return availableRows.size;
+  }
 
   return hasSecondaryTotals(stats) ? 1 : 0;
 }
@@ -220,42 +239,523 @@ function getSimpleSummary(log) {
 }
 
 function sumPlayerMetric(players = [], key) {
-  return (players || []).reduce((sum, player) => sum + num(player?.[key]), 0);
+  return (players || []).reduce(
+    (sum, player) => sum + num(player?.[key]),
+    0,
+  );
+}
+
+const GUILD_DETAIL_METRICS = Object.freeze({
+  damageDealt: {
+    valueKeys: [
+      'damageDealt',
+      'damage_dealt',
+      'damage dealt',
+      'damageDone',
+      'damage',
+      'Damage Dealt',
+      'DamageDealt',
+    ],
+    flagKeys: [
+      'has_damage_dealt',
+      'hasDamageDealt',
+      'damage_dealt_available',
+      'damageDealtAvailable',
+    ],
+    rawPattern: /\bdamage dealt\b|\bdmg dealt\b/,
+  },
+  damageTaken: {
+    valueKeys: [
+      'damageTaken',
+      'damage_taken',
+      'damage taken',
+      'Damage Taken',
+      'DamageTaken',
+    ],
+    flagKeys: [
+      'has_damage_taken',
+      'hasDamageTaken',
+      'damage_taken_available',
+      'damageTakenAvailable',
+    ],
+    rawPattern: /\bdamage taken\b|\bdmg taken\b/,
+  },
+  ccHits: {
+    valueKeys: [
+      'ccHits',
+      'cc_hits',
+      'cc hits',
+      'CC Hits',
+      'CCHits',
+      'cc',
+      'CC',
+    ],
+    flagKeys: [
+      'has_cc_hits',
+      'hasCcHits',
+      'cc_hits_available',
+      'ccHitsAvailable',
+    ],
+    rawPattern: /\bcc hits?\b|\bcrowd control\b/,
+  },
+  fortDamage: {
+    valueKeys: [
+      'fortDamage',
+      'damageToFort',
+      'damage_to_fort',
+      'damage to fort',
+      'Fort Damage',
+      'Damage to Fort',
+      'DamageToFort',
+    ],
+    flagKeys: [
+      'has_fort_damage',
+      'hasFortDamage',
+      'fort_damage_available',
+      'fortDamageAvailable',
+    ],
+    rawPattern:
+      /\bfort damage\b|\bdamage (?:to|on) fort\b|\bdmg to fort\b/,
+  },
+});
+
+function hasOwnUsableValue(source, key) {
+  return Boolean(
+    source &&
+      Object.prototype.hasOwnProperty.call(source, key) &&
+      source[key] !== undefined &&
+      source[key] !== null &&
+      source[key] !== '',
+  );
+}
+
+function firstRecordedNumber(source, keys) {
+  if (!source) {
+    return {
+      found: false,
+      value: 0,
+    };
+  }
+
+  for (const key of keys) {
+    if (!hasOwnUsableValue(source, key)) continue;
+
+    const value = Number(source[key]);
+
+    if (Number.isFinite(value)) {
+      return {
+        found: true,
+        value,
+      };
+    }
+  }
+
+  return {
+    found: false,
+    value: 0,
+  };
+}
+
+function explicitMetricAvailability(source, key) {
+  if (!source) return null;
+
+  const definition = GUILD_DETAIL_METRICS[key];
+
+  if (!definition) return null;
+
+  const availabilityMaps = [
+    source.available,
+    source.availability,
+    source.presence,
+    source.metricAvailability,
+    source.metricsAvailable,
+  ];
+
+  for (const map of availabilityMaps) {
+    if (
+      map &&
+      Object.prototype.hasOwnProperty.call(map, key)
+    ) {
+      return Boolean(map[key]);
+    }
+  }
+
+  for (const flagKey of definition.flagKeys) {
+    if (
+      Object.prototype.hasOwnProperty.call(
+        source,
+        flagKey,
+      )
+    ) {
+      return Boolean(source[flagKey]);
+    }
+  }
+
+  /*
+   * Legacy summaries did not preserve availability flags.
+   * A non-zero value proves that the column existed. A zero without
+   * an explicit flag stays unknown, because older summaries also
+   * filled missing columns with zero.
+   */
+  for (const valueKey of definition.valueKeys) {
+    if (!hasOwnUsableValue(source, valueKey)) continue;
+
+    const value = Number(source[valueKey]);
+
+    if (Number.isFinite(value) && value !== 0) {
+      return true;
+    }
+  }
+
+  return null;
+}
+
+function combineAvailabilitySignals(signals) {
+  if (signals.some((value) => value === true)) {
+    return true;
+  }
+
+  if (signals.some((value) => value === false)) {
+    return false;
+  }
+
+  return null;
+}
+
+function rawMetricAvailability(log, key) {
+  const definition = GUILD_DETAIL_METRICS[key];
+
+  if (!definition) return null;
+
+  const raw = String(
+    log?.raw ??
+      log?.rawLog ??
+      log?.raw_log ??
+      log?.log ??
+      log?.content ??
+      log?._src?.raw ??
+      log?._src?.rawLog ??
+      log?._src?.raw_log ??
+      log?._src?.log ??
+      log?._src?.content ??
+      '',
+  );
+
+  if (!raw) return null;
+
+  const startMarker =
+    '===== ADVERSARY_SECONDARY_LOG_START =====';
+  const endMarker =
+    '===== ADVERSARY_SECONDARY_LOG_END =====';
+
+  const secondaryRaw =
+    raw.includes(startMarker) && raw.includes(endMarker)
+      ? raw.split(startMarker)[1]?.split(endMarker)[0] || ''
+      : '';
+
+  if (!secondaryRaw) return null;
+
+  const normalized = String(secondaryRaw)
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return definition.rawPattern.test(normalized)
+    ? true
+    : null;
+}
+
+function getLogMetricRecord(log, key) {
+  const summary = getSimpleSummary(log);
+  const players = Array.isArray(summary?.players)
+    ? summary.players
+    : [];
+  const secondary =
+    summary?.secondary ||
+    summary?.secondaryStats ||
+    {};
+  const secondaryRows = Array.isArray(secondary?.rows)
+    ? secondary.rows
+    : [];
+
+  if (key === 'matches') {
+    return {
+      available: Boolean(log),
+      value: log ? 1 : 0,
+    };
+  }
+
+  if (key === 'kills' || key === 'deaths') {
+    const direct = firstRecordedNumber(summary, [key]);
+
+    if (direct.found) {
+      return {
+        available: true,
+        value: direct.value,
+      };
+    }
+
+    const playerValues = players
+      .map((player) =>
+        firstRecordedNumber(player, [key]),
+      )
+      .filter((result) => result.found);
+
+    return {
+      available: playerValues.length > 0,
+      value: playerValues.reduce(
+        (sum, result) => sum + result.value,
+        0,
+      ),
+    };
+  }
+
+  if (key === 'kd') {
+    const killsRecord = getLogMetricRecord(log, 'kills');
+    const deathsRecord = getLogMetricRecord(log, 'deaths');
+    const available =
+      killsRecord.available && deathsRecord.available;
+
+    return {
+      available,
+      value: available
+        ? kd(killsRecord.value, deathsRecord.value)
+        : 0,
+    };
+  }
+
+  const definition = GUILD_DETAIL_METRICS[key];
+
+  if (!definition) {
+    return {
+      available: false,
+      value: 0,
+    };
+  }
+
+  const signals = [
+    explicitMetricAvailability(summary, key),
+    explicitMetricAvailability(secondary, key),
+    explicitMetricAvailability(
+      secondary?.totals,
+      key,
+    ),
+    rawMetricAvailability(log, key),
+    ...secondaryRows.map((row) =>
+      explicitMetricAvailability(row, key),
+    ),
+    ...players.map((player) =>
+      explicitMetricAvailability(player, key),
+    ),
+  ];
+
+  const available =
+    combineAvailabilitySignals(signals) === true;
+
+  if (!available) {
+    return {
+      available: false,
+      value: 0,
+    };
+  }
+
+  const total = firstRecordedNumber(
+    secondary?.totals,
+    definition.valueKeys,
+  );
+
+  if (total.found) {
+    return {
+      available: true,
+      value: total.value,
+    };
+  }
+
+  const rowSources = secondaryRows.length
+    ? secondaryRows
+    : players;
+
+  const value = rowSources.reduce((sum, row) => {
+    const recorded = firstRecordedNumber(
+      row,
+      definition.valueKeys,
+    );
+
+    return sum + (recorded.found ? recorded.value : 0);
+  }, 0);
+
+  return {
+    available: true,
+    value,
+  };
+}
+
+function getStatsMetricRecord(stats, logs, key) {
+  const logRecords = (logs || []).map((log) =>
+    getLogMetricRecord(log, key),
+  );
+
+  if (
+    key === 'matches' ||
+    key === 'kills' ||
+    key === 'deaths' ||
+    key === 'kd'
+  ) {
+    if (key === 'matches') {
+      const matches = uniqueLogCount(logs, stats);
+
+      return {
+        available: matches > 0,
+        value: matches,
+      };
+    }
+
+    if (key === 'kills' || key === 'deaths') {
+      const direct = firstRecordedNumber(stats, [key]);
+      const available =
+        direct.found ||
+        logRecords.some((record) => record.available);
+
+      return {
+        available,
+        value: direct.found
+          ? direct.value
+          : logRecords
+              .filter((record) => record.available)
+              .reduce(
+                (sum, record) => sum + record.value,
+                0,
+              ),
+      };
+    }
+
+    const killsRecord = getStatsMetricRecord(
+      stats,
+      logs,
+      'kills',
+    );
+    const deathsRecord = getStatsMetricRecord(
+      stats,
+      logs,
+      'deaths',
+    );
+    const available =
+      killsRecord.available && deathsRecord.available;
+
+    return {
+      available,
+      value: available
+        ? kd(killsRecord.value, deathsRecord.value)
+        : 0,
+    };
+  }
+
+  const definition = GUILD_DETAIL_METRICS[key];
+
+  if (!definition) {
+    return {
+      available: false,
+      value: 0,
+    };
+  }
+
+  const secondary =
+    stats?.secondary ||
+    stats?.secondaryStats ||
+    {};
+  const secondaryRows = Array.isArray(secondary?.rows)
+    ? secondary.rows
+    : [];
+  const players = Array.isArray(stats?.players)
+    ? stats.players
+    : [];
+
+  const signals = [
+    explicitMetricAvailability(stats, key),
+    explicitMetricAvailability(secondary, key),
+    explicitMetricAvailability(
+      secondary?.totals,
+      key,
+    ),
+    ...secondaryRows.map((row) =>
+      explicitMetricAvailability(row, key),
+    ),
+    ...players.map((player) =>
+      explicitMetricAvailability(player, key),
+    ),
+    ...logRecords.map((record) =>
+      record.available ? true : null,
+    ),
+  ];
+
+  const available =
+    combineAvailabilitySignals(signals) === true;
+
+  if (!available) {
+    return {
+      available: false,
+      value: 0,
+    };
+  }
+
+  const total = firstRecordedNumber(
+    secondary?.totals,
+    definition.valueKeys,
+  );
+
+  if (total.found) {
+    return {
+      available: true,
+      value: total.value,
+    };
+  }
+
+  const availableLogRecords = logRecords.filter(
+    (record) => record.available,
+  );
+
+  if (availableLogRecords.length) {
+    return {
+      available: true,
+      value: availableLogRecords.reduce(
+        (sum, record) => sum + record.value,
+        0,
+      ),
+    };
+  }
+
+  const rowSources = secondaryRows.length
+    ? secondaryRows
+    : players;
+
+  return {
+    available: true,
+    value: rowSources.reduce((sum, row) => {
+      const recorded = firstRecordedNumber(
+        row,
+        definition.valueKeys,
+      );
+
+      return sum + (recorded.found ? recorded.value : 0);
+    }, 0),
+  };
 }
 
 function getLogMetricValue(log, key) {
-  const summary = getSimpleSummary(log);
-  const players = Array.isArray(summary?.players) ? summary.players : [];
-  const secondaryTotals = summary?.secondary?.totals || {};
-
-  if (key === 'matches') return 1;
-  if (key === 'kills') return num(summary?.kills);
-  if (key === 'deaths') return num(summary?.deaths);
-  if (key === 'kd') return kd(summary?.kills, summary?.deaths);
-  if (key === 'damageDealt') {
-    return num(secondaryTotals.damageDealt) || sumPlayerMetric(players, 'damageDealt');
-  }
-  if (key === 'ccHits') {
-    return num(secondaryTotals.ccHits) || sumPlayerMetric(players, 'ccHits');
-  }
-  if (key === 'fortDamage') {
-    return num(secondaryTotals.fortDamage) || sumPlayerMetric(players, 'fortDamage');
-  }
-
-  return 0;
+  return getLogMetricRecord(log, key).value;
 }
 
 function buildMetricBars(logs = [], key) {
-  const rows = [...(logs || [])]
+  return [...(logs || [])]
     .filter((log) => getLogTime(log) > 0)
     .sort((a, b) => getLogTime(a) - getLogTime(b))
+    .map((log) => getLogMetricRecord(log, key))
+    .filter((record) => record.available)
     .slice(-10)
-    .map((log) => getLogMetricValue(log, key));
-
-  return [
-    ...Array.from({ length: Math.max(0, 10 - rows.length) }, () => 0),
-    ...rows.slice(-10),
-  ];
+    .map((record) => record.value);
 }
 
 function getLogLabel(log, index) {
@@ -278,26 +778,59 @@ function buildAverageTrendRows(logs = []) {
     .filter((log) => getLogTime(log) > 0)
     .sort((a, b) => getLogTime(a) - getLogTime(b));
 
-  let matches = 0;
-  let kills = 0;
-  let deaths = 0;
-  let damageDealt = 0;
+  const totals = {
+    kills: 0,
+    deaths: 0,
+    kd: 0,
+    damageDealt: 0,
+  };
+  const counts = {
+    kills: 0,
+    deaths: 0,
+    kd: 0,
+    damageDealt: 0,
+  };
 
   return sortedLogs.map((log, index) => {
-    matches += 1;
-    kills += getLogMetricValue(log, 'kills');
-    deaths += getLogMetricValue(log, 'deaths');
-    damageDealt += getLogMetricValue(log, 'damageDealt');
+    const records = {
+      kills: getLogMetricRecord(log, 'kills'),
+      deaths: getLogMetricRecord(log, 'deaths'),
+      kd: getLogMetricRecord(log, 'kd'),
+      damageDealt: getLogMetricRecord(
+        log,
+        'damageDealt',
+      ),
+    };
 
-    const avgKills = matches ? kills / matches : 0;
-    const avgDeaths = matches ? deaths / matches : 0;
+    Object.entries(records).forEach(
+      ([metric, record]) => {
+        if (!record.available) return;
+
+        totals[metric] += record.value;
+        counts[metric] += 1;
+      },
+    );
 
     return {
       label: getLogLabel(log, index),
-      avgKills,
-      avgDeaths,
-      avgKd: kd(avgKills, avgDeaths),
-      avgDamage: matches ? damageDealt / matches : 0,
+      avgKills: counts.kills
+        ? totals.kills / counts.kills
+        : null,
+      avgDeaths: counts.deaths
+        ? totals.deaths / counts.deaths
+        : null,
+      avgKd: counts.kd
+        ? totals.kd / counts.kd
+        : null,
+      avgDamage: counts.damageDealt
+        ? totals.damageDealt / counts.damageDealt
+        : null,
+      available: {
+        kills: counts.kills > 0,
+        deaths: counts.deaths > 0,
+        kd: counts.kd > 0,
+        damageDealt: counts.damageDealt > 0,
+      },
     };
   });
 }
@@ -308,14 +841,26 @@ function buildRawTrendRows(logs = []) {
     .filter((log) => getLogTime(log) > 0)
     .sort((a, b) => getLogTime(a) - getLogTime(b))
     .map((log, index) => {
-      const kills = getLogMetricValue(log, 'kills');
-      const deaths = getLogMetricValue(log, 'deaths');
+      const kills = getLogMetricRecord(log, 'kills');
+      const deaths = getLogMetricRecord(log, 'deaths');
+      const ratio = getLogMetricRecord(log, 'kd');
+      const damageDealt = getLogMetricRecord(
+        log,
+        'damageDealt',
+      );
+
       return {
         label: getLogLabel(log, index),
-        kills,
-        deaths,
-        kd: kd(kills, deaths),
-        damageDealt: getLogMetricValue(log, 'damageDealt'),
+        kills: kills.value,
+        deaths: deaths.value,
+        kd: ratio.value,
+        damageDealt: damageDealt.value,
+        available: {
+          kills: kills.available,
+          deaths: deaths.available,
+          kd: ratio.available,
+          damageDealt: damageDealt.available,
+        },
       };
     });
 }
@@ -523,27 +1068,49 @@ function topBy(rows, key, limit = 6) {
 }
 
 function buildGuildData(stats, logs) {
-  const players = Array.isArray(stats?.players) ? stats.players : [];
-  const matches = uniqueLogCount(logs, stats);
+  const players = Array.isArray(stats?.players)
+    ? stats.players
+    : [];
 
-  const kills = num(stats?.kills);
-  const deaths = num(stats?.deaths);
-  const ratio = kd(kills, deaths);
-
-  const secondaryTotals = stats?.secondary?.totals || {};
-  const playerDamageDealt = players.reduce((sum, player) => sum + num(player.damageDealt), 0);
-  const playerDamageTaken = players.reduce((sum, player) => sum + num(player.damageTaken), 0);
-  const playerCcHits = players.reduce((sum, player) => sum + num(player.ccHits), 0);
-  const playerFortDamage = players.reduce((sum, player) => sum + num(player.fortDamage), 0);
-
-  const damageDealt = num(secondaryTotals.damageDealt) || playerDamageDealt;
-  const damageTaken = num(secondaryTotals.damageTaken) || playerDamageTaken;
-  const ccHits = num(secondaryTotals.ccHits) || playerCcHits;
-  const fortDamage = num(secondaryTotals.fortDamage) || playerFortDamage;
+  const records = {
+    matches: getStatsMetricRecord(
+      stats,
+      logs,
+      'matches',
+    ),
+    kills: getStatsMetricRecord(stats, logs, 'kills'),
+    deaths: getStatsMetricRecord(
+      stats,
+      logs,
+      'deaths',
+    ),
+    kd: getStatsMetricRecord(stats, logs, 'kd'),
+    damageDealt: getStatsMetricRecord(
+      stats,
+      logs,
+      'damageDealt',
+    ),
+    damageTaken: getStatsMetricRecord(
+      stats,
+      logs,
+      'damageTaken',
+    ),
+    ccHits: getStatsMetricRecord(
+      stats,
+      logs,
+      'ccHits',
+    ),
+    fortDamage: getStatsMetricRecord(
+      stats,
+      logs,
+      'fortDamage',
+    ),
+  };
 
   const enrichedPlayers = players.map((player) => {
     const killsNumber = num(player.kills);
     const deathsNumber = num(player.deaths);
+
     return {
       ...player,
       kills: killsNumber,
@@ -557,45 +1124,103 @@ function buildGuildData(stats, logs) {
   });
 
   const rawTrendRows = buildRawTrendRows(logs);
-  const rawCount = rawTrendRows.length;
 
-  const avgKills = rawCount
-    ? rawTrendRows.reduce((s, r) => s + num(r.kills), 0) / rawCount
-    : 0;
-  const avgDeaths = rawCount
-    ? rawTrendRows.reduce((s, r) => s + num(r.deaths), 0) / rawCount
-    : 0;
-  const avgKd = rawCount
-    ? rawTrendRows.reduce((s, r) => s + num(r.kd), 0) / rawCount
-    : 0;
-  const avgDamage = rawCount
-    ? rawTrendRows.reduce((s, r) => s + num(r.damageDealt), 0) / rawCount
-    : 0;
+  function availableValues(metric) {
+    return rawTrendRows
+      .filter(
+        (row) => Boolean(row?.available?.[metric]),
+      )
+      .map((row) => num(row?.[metric]));
+  }
+
+  function average(values) {
+    return values.length
+      ? values.reduce(
+          (sum, value) => sum + value,
+          0,
+        ) / values.length
+      : 0;
+  }
+
+  const killsValues = availableValues('kills');
+  const deathsValues = availableValues('deaths');
+  const kdValues = availableValues('kd');
+  const damageValues = availableValues(
+    'damageDealt',
+  );
+
+  const availability = {
+    matches: records.matches.available,
+    kills: records.kills.available,
+    deaths: records.deaths.available,
+    kd: records.kd.available,
+    damageDealt: records.damageDealt.available,
+    damageTaken: records.damageTaken.available,
+    ccHits: records.ccHits.available,
+    fortDamage: records.fortDamage.available,
+    avgKills: killsValues.length > 0,
+    avgDeaths: deathsValues.length > 0,
+    avgKd: kdValues.length > 0,
+    avgDamage: damageValues.length > 0,
+  };
 
   return {
-    matches,
-    kills,
-    deaths,
-    kd: ratio,
-    damageDealt,
-    damageTaken,
-    ccHits,
-    fortDamage,
-    avgKills,
-    avgDeaths,
-    avgKd,
-    avgDamage,
-    avgFortDamage: matches ? fortDamage / matches : 0,
-    topKillers: topBy(enrichedPlayers, 'kills', 6),
-    topDamagePlayers: topBy(enrichedPlayers, 'damageDealt', 6),
+    matches: records.matches.value,
+    kills: records.kills.value,
+    deaths: records.deaths.value,
+    kd: records.kd.value,
+    damageDealt: records.damageDealt.value,
+    damageTaken: records.damageTaken.value,
+    ccHits: records.ccHits.value,
+    fortDamage: records.fortDamage.value,
+    avgKills: average(killsValues),
+    avgDeaths: average(deathsValues),
+    avgKd: average(kdValues),
+    avgDamage: average(damageValues),
+    avgFortDamage: records.fortDamage.available
+      ? average(
+          (logs || [])
+            .map((log) =>
+              getLogMetricRecord(
+                log,
+                'fortDamage',
+              ),
+            )
+            .filter((record) => record.available)
+            .map((record) => record.value),
+        )
+      : 0,
+    availability,
+    topKillers: topBy(
+      enrichedPlayers,
+      'kills',
+      6,
+    ),
+    topDamagePlayers: topBy(
+      enrichedPlayers.filter(
+        (player) =>
+          explicitMetricAvailability(
+            player,
+            'damageDealt',
+          ) === true,
+      ),
+      'damageDealt',
+      6,
+    ),
     metricBars: {
       matches: buildMetricBars(logs, 'matches'),
       kills: buildMetricBars(logs, 'kills'),
       deaths: buildMetricBars(logs, 'deaths'),
       kd: buildMetricBars(logs, 'kd'),
-      damageDealt: buildMetricBars(logs, 'damageDealt'),
+      damageDealt: buildMetricBars(
+        logs,
+        'damageDealt',
+      ),
       ccHits: buildMetricBars(logs, 'ccHits'),
-      fortDamage: buildMetricBars(logs, 'fortDamage'),
+      fortDamage: buildMetricBars(
+        logs,
+        'fortDamage',
+      ),
     },
     averageTrendRows: buildAverageTrendRows(logs),
     rawTrendRows,
@@ -741,6 +1366,7 @@ function MetricCard({
   showIcon = true,
   sparklineValues = null,
   sparklineUid = '',
+  available = true,
 }) {
   const tones = {
     blue:    'border-blue-400/20 bg-blue-500/10 text-blue-200 shadow-blue-500/10',
@@ -768,7 +1394,10 @@ function MetricCard({
   const maxBar = Math.max(1, ...filledBars.map((bar) => Math.abs(num(bar))));
   const chartHeight = compactCard ? 54 : 88;
 
-  const hasSparkline = Array.isArray(sparklineValues) && sparklineValues.length > 0;
+  const hasSparkline =
+    available &&
+    Array.isArray(sparklineValues) &&
+    sparklineValues.length > 0;
 
   return (
     <div
@@ -779,7 +1408,7 @@ function MetricCard({
         tones[tone],
       )}
     >
-      {accentBar && !hasSparkline && (
+      {accentBar && available && !hasSparkline && (
         <div
           className="absolute bottom-2 right-3 flex w-24 items-end justify-end gap-1"
           style={{ height: `${chartHeight}px` }}
@@ -808,7 +1437,16 @@ function MetricCard({
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-          <p className={cls('font-black text-white', compactCard ? 'mt-0.5 text-xl' : 'mt-1 text-2xl')}>{value}</p>
+          <p
+            className={cls(
+              'font-black text-white',
+              compactCard
+                ? 'mt-0.5 text-xl'
+                : 'mt-1 text-2xl',
+            )}
+          >
+            {available ? value : '—'}
+          </p>
           {sub && !centerSub && (
             <p className="mt-0.5 text-[11px] font-bold text-slate-400">
               {sub}
@@ -1250,11 +1888,18 @@ function EnemyGuildTierList({ stats, logs }) {
 function Arsenal({ data, stats, logs }) {
   const rawRows = data.rawTrendRows || [];
 
-  // Raw per-match values for each sparkline
-  const sparkKills  = rawRows.map((r) => num(r.kills));
-  const sparkDeaths = rawRows.map((r) => num(r.deaths));
-  const sparkKd     = rawRows.map((r) => num(r.kd));
-  const sparkDamage = rawRows.map((r) => num(r.damageDealt));
+  function sparkValues(metric) {
+    return rawRows
+      .filter(
+        (row) => Boolean(row?.available?.[metric]),
+      )
+      .map((row) => num(row?.[metric]));
+  }
+
+  const sparkKills = sparkValues('kills');
+  const sparkDeaths = sparkValues('deaths');
+  const sparkKd = sparkValues('kd');
+  const sparkDamage = sparkValues('damageDealt');
 
   return (
     <div className="space-y-4">
@@ -1262,6 +1907,7 @@ function Arsenal({ data, stats, logs }) {
         <MetricCard
           label="Node Wars"
           value={compact(data.matches)}
+          available={data.availability.matches}
           sub="Adversary"
           centerSub
           tone="blue"
@@ -1271,6 +1917,7 @@ function Arsenal({ data, stats, logs }) {
           icon={Swords}
           label="Kills"
           value={compact(data.kills)}
+          available={data.availability.kills}
           sub="All-time"
           tone="emerald"
           accentBar
@@ -1280,6 +1927,7 @@ function Arsenal({ data, stats, logs }) {
           icon={Skull}
           label="Deaths"
           value={compact(data.deaths)}
+          available={data.availability.deaths}
           sub="All-time"
           tone="rose"
           accentBar
@@ -1289,6 +1937,7 @@ function Arsenal({ data, stats, logs }) {
           icon={Gauge}
           label="K/D"
           value={decimal(data.kd)}
+          available={data.availability.kd}
           sub="Ratio"
           tone="blue"
           accentBar
@@ -1298,6 +1947,7 @@ function Arsenal({ data, stats, logs }) {
           icon={Zap}
           label="Damage"
           value={compact(data.damageDealt)}
+          available={data.availability.damageDealt}
           sub="Dealt"
           tone="amber"
           accentBar
@@ -1307,6 +1957,7 @@ function Arsenal({ data, stats, logs }) {
           icon={Crosshair}
           label="CC"
           value={compact(data.ccHits)}
+          available={data.availability.ccHits}
           sub="Hits"
           tone="cyan"
           accentBar
@@ -1316,6 +1967,7 @@ function Arsenal({ data, stats, logs }) {
           icon={Castle}
           label="Fort"
           value={compact(data.fortDamage)}
+          available={data.availability.fortDamage}
           sub="Damage"
           tone="violet"
           accentBar
@@ -1336,7 +1988,8 @@ function Arsenal({ data, stats, logs }) {
           <MetricCard
             label="Avg Kills"
             value={compact(data.avgKills)}
-            sub="Per match"
+            available={data.availability.avgKills}
+            sub="Per recorded match"
             tone="emerald"
             compactCard
             showIcon={false}
@@ -1346,7 +1999,8 @@ function Arsenal({ data, stats, logs }) {
           <MetricCard
             label="Avg Deaths"
             value={compact(data.avgDeaths)}
-            sub="Per match"
+            available={data.availability.avgDeaths}
+            sub="Per recorded match"
             tone="rose"
             compactCard
             showIcon={false}
@@ -1356,7 +2010,8 @@ function Arsenal({ data, stats, logs }) {
           <MetricCard
             label="Avg K/D"
             value={decimal(data.avgKd)}
-            sub="Per match"
+            available={data.availability.avgKd}
+            sub="Per recorded match"
             tone="blue"
             compactCard
             showIcon={false}
@@ -1366,7 +2021,8 @@ function Arsenal({ data, stats, logs }) {
           <MetricCard
             label="Avg Damage"
             value={compact(data.avgDamage)}
-            sub="Per match"
+            available={data.availability.avgDamage}
+            sub="Per recorded match"
             tone="amber"
             compactCard
             showIcon={false}
