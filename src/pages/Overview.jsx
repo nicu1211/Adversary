@@ -1400,7 +1400,17 @@ function AverageRank({
   }
 
   const metricAliases = {
-    feed: ['killFeed', 'killfeed', 'feed'],
+    // Stats Log column 4 is Killstreak. The killFeed aliases are kept only
+    // as a compatibility fallback for older parsed logs that stored column 4
+    // under the wrong field name.
+    streak: [
+      'killStreak',
+      'killstreak',
+      'streak',
+      'killFeed',
+      'killfeed',
+      'feed',
+    ],
     damageDealt: [
       'damageDealt',
       'damage_dealt',
@@ -1627,11 +1637,32 @@ function AverageRank({
       kd:
         hasTimeline ||
         (killsAvailable && deathsAvailable),
-      feed: metricAvailable(
-        'killFeed',
-        ['has_kill_feed', 'hasKillFeed'],
-        ['killFeed', 'killfeed', 'feed'],
-      ),
+      streak:
+        (hasOwnOverviewField(available, 'killStreak')
+          ? Boolean(available.killStreak)
+          : hasOwnOverviewField(available, 'killFeed')
+            ? Boolean(available.killFeed)
+            : metricAvailable(
+                'killStreak',
+                [
+                  'has_kill_streak',
+                  'hasKillStreak',
+                  // Compatibility with logs parsed before column 4 was corrected.
+                  'has_kill_feed',
+                  'hasKillFeed',
+                ],
+                [
+                  'killStreak',
+                  'killstreak',
+                  'streak',
+                  'killFeed',
+                  'killfeed',
+                  'feed',
+                ],
+              )),
+      // Kill Feed is a Combat Log metric. It must never read Stats Log
+      // column 4, which is Killstreak.
+      feed: hasTimeline,
       damageDealt: metricAvailable(
         'damageDealt',
         ['has_damage_dealt', 'hasDamageDealt'],
@@ -1660,6 +1691,35 @@ function AverageRank({
     const timelineStreaks = hasTimeline
       ? calculateStreaks(oneStats?.ev || [])
       : {};
+    const timelineFeedByKey = new Map();
+
+    if (hasTimeline) {
+      (oneStats?.ev || []).forEach((event) => {
+        if (event?.type !== 'kill') return;
+
+        const key = normalizePlayerName(event?.killer);
+
+        if (key && !timelineFeedByKey.has(key)) {
+          timelineFeedByKey.set(key, 0);
+        }
+      });
+
+      calculateKillFeed(
+        oneStats?.ev || [],
+        DISPLAY_KILL_FEED_WINDOW_SECONDS,
+        true,
+      ).forEach((feed) => {
+        const key = normalizePlayerName(feed?.name);
+        const count = Number(feed?.count) || 0;
+
+        if (!key) return;
+
+        timelineFeedByKey.set(
+          key,
+          Math.max(timelineFeedByKey.get(key) || 0, count),
+        );
+      });
+    }
 
     const playerByKey = new Map();
     const secondaryByKey = new Map();
@@ -1747,17 +1807,31 @@ function AverageRank({
         ? Number((kills / deaths).toFixed(2))
         : Number(kills.toFixed(2));
 
-      // Best Overall Feed is sourced only from a Stats Log column.
-      // Combat Log timestamps never create or replace this value.
-      const savedFeedSource = secondaryRow || combatPlayer;
-
-      const feed = logColumns?.feed
+      const savedStatsSource = secondaryRow || combatPlayer;
+      const savedStreak = logColumns?.streak
         ? readMetric(
-            savedFeedSource,
-            metricAliases.feed,
-            0,
+            savedStatsSource,
+            metricAliases.streak,
+            Number.NaN,
           )
-        : 0;
+        : Number.NaN;
+      const timelineStreak =
+        hasTimeline && hasCombatEvents
+          ? Number(
+              getPlayerObjectValue(
+                timelineStreaks,
+                name,
+                0,
+              ),
+            ) || 0
+          : Number.NaN;
+
+      // Kill Feed comes only from Combat Log events. Stats Log column 4 is
+      // Killstreak and is intentionally never read as Feed.
+      const feed =
+        logColumns?.feed && hasCombatEvents
+          ? Number(timelineFeedByKey.get(key)) || 0
+          : 0;
 
       const readOptionalMetric = (metric) => {
         if (!logColumns?.[metric]) return 0;
@@ -1781,9 +1855,10 @@ function AverageRank({
         kills,
         deaths,
         kdNumber,
-        streak:
-          hasTimeline && hasCombatEvents
-            ? Number(getPlayerObjectValue(timelineStreaks, name, 0)) || 0
+        streak: Number.isFinite(savedStreak)
+          ? savedStreak
+          : Number.isFinite(timelineStreak)
+            ? timelineStreak
             : null,
         feed,
         damageDealt: readOptionalMetric('damageDealt'),
@@ -1800,10 +1875,11 @@ function AverageRank({
           kd:
             Boolean(logColumns?.kd) ||
             (hasTimeline && hasCombatEvents),
-          streak: hasTimeline && hasCombatEvents,
-          // A Feed rank exists only when the Stats Log physically
-          // contains the Kill Feed column.
-          feed: Boolean(logColumns?.feed),
+          streak:
+            Boolean(logColumns?.streak) ||
+            (hasTimeline && hasCombatEvents),
+          // Feed exists only for players present in Combat Log events.
+          feed: Boolean(logColumns?.feed) && hasCombatEvents,
           damageDealt: optionalMetricExists('damageDealt'),
           damageTaken: optionalMetricExists('damageTaken'),
           ccHits: optionalMetricExists('ccHits'),
@@ -2783,31 +2859,70 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     'fortDamage',
   ]);
 
+  const combatFeedByPlayer = useMemo(() => {
+    const result = {};
+
+    (events || []).forEach((event) => {
+      if (event?.type !== 'kill') return;
+
+      const key = normalizePlayerName(event?.killer);
+
+      if (key && !Object.prototype.hasOwnProperty.call(result, key)) {
+        result[key] = 0;
+      }
+    });
+
+    calculateKillFeed(
+      events || [],
+      DISPLAY_KILL_FEED_WINDOW_SECONDS,
+      true,
+    ).forEach((feed) => {
+      const key = normalizePlayerName(feed?.name);
+      const count = Number(feed?.count) || 0;
+
+      if (!key) return;
+
+      result[key] = Math.max(result[key] || 0, count);
+    });
+
+    return result;
+  }, [events]);
+
   const rows = players
     .map((player) => {
       const streakKey = getPlayerKeyFromObject(
         streaks,
         player.name,
       );
-      const feedKey = getPlayerKeyFromObject(
-        feeds,
-        player.name,
-      );
+      const playerKey = normalizePlayerName(player.name);
+      const combatFeed = Number(
+        combatFeedByPlayer[playerKey],
+      ) || 0;
 
       const streakAvailable =
         streakKey != null ||
         overviewMetricAvailable(
           player,
-          ['has_kill_streak', 'hasKillStreak'],
-          ['killStreak', 'killstreak', 'streak'],
+          [
+            'has_kill_streak',
+            'hasKillStreak',
+            // Compatibility with the old incorrect column-4 label.
+            'has_kill_feed',
+            'hasKillFeed',
+          ],
+          [
+            'killStreak',
+            'killstreak',
+            'streak',
+            'killFeed',
+            'killfeed',
+            'feed',
+          ],
         );
-      const feedAvailable =
-        feedKey != null ||
-        overviewMetricAvailable(
-          player,
-          ['has_kill_feed', 'hasKillFeed'],
-          ['killFeed', 'killfeed', 'feed'],
-        );
+      const feedAvailable = Object.prototype.hasOwnProperty.call(
+        combatFeedByPlayer,
+        playerKey,
+      );
       const damageDealtAvailable = overviewMetricAvailable(
         player,
         ['has_damage_dealt', 'hasDamageDealt'],
@@ -2831,22 +2946,17 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
       return {
         ...player,
-        streak:
-          streakKey != null
-            ? Number(streaks?.[streakKey]) || 0
-            : Number(
-                player?.killStreak ??
-                  player?.killstreak ??
-                  player?.streak,
-              ) || 0,
-        feed:
-          feedKey != null
-            ? Number(feeds?.[feedKey]) || 0
-            : Number(
-                player?.killFeed ??
-                  player?.killfeed ??
-                  player?.feed,
-              ) || 0,
+        streak: Number(
+          player?.killStreak ??
+            player?.killstreak ??
+            // Older parser versions stored Stats Log column 4 here.
+            player?.killFeed ??
+            player?.killfeed ??
+            player?.feed ??
+            player?.streak ??
+            (streakKey != null ? streaks?.[streakKey] : 0),
+        ) || 0,
+        feed: combatFeed,
         damageDealt: Number(player.damageDealt) || 0,
         damageTaken: Number(player.damageTaken) || 0,
         ccHits: Number(player.ccHits) || 0,
@@ -3142,7 +3252,13 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     const metricAliases = {
       kills: ['kills', 'Kills'],
       deaths: ['deaths', 'Deaths'],
-      feed: [
+      streak: [
+        'killStreak',
+        'killstreak',
+        'streak',
+        'KillStreak',
+        // Compatibility with old parsed Stats Logs where column 4 was
+        // incorrectly named KillFeed.
         'killFeed',
         'killfeed',
         'feed',
@@ -3468,11 +3584,30 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
         kd:
           hasTimeline ||
           (killsAvailable && deathsAvailable),
-        feed: metricAvailable(
-          'killFeed',
-          ['has_kill_feed', 'hasKillFeed'],
-          ['killFeed', 'killfeed', 'feed'],
-        ),
+        streak:
+          (hasOwnOverviewField(available, 'killStreak')
+            ? Boolean(available.killStreak)
+            : hasOwnOverviewField(available, 'killFeed')
+              ? Boolean(available.killFeed)
+              : metricAvailable(
+                  'killStreak',
+                  [
+                    'has_kill_streak',
+                    'hasKillStreak',
+                    'has_kill_feed',
+                    'hasKillFeed',
+                  ],
+                  [
+                    'killStreak',
+                    'killstreak',
+                    'streak',
+                    'killFeed',
+                    'killfeed',
+                    'feed',
+                  ],
+                )),
+        // Kill Feed is calculated only from Combat Log timestamps.
+        feed: hasTimeline,
         damageDealt: metricAvailable(
           'damageDealt',
           ['has_damage_dealt', 'hasDamageDealt'],
@@ -3635,31 +3770,50 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
         oneStats?.st,
         selected.name,
       );
-      const streakValue = Number(
+      const timelineStreakValue = Number(
         getPlayerObjectValue(
           oneStats?.st,
           selected.name,
           0,
         ),
       );
+      const statsLogStreakValue = readMetricValue(
+        [secondaryRow, playerRow],
+        metricAliases.streak,
+        Number.NaN,
+      );
+      const streakValue = Number.isFinite(
+        statsLogStreakValue,
+      )
+        ? statsLogStreakValue
+        : timelineStreakValue;
 
       addAverageMetric(
         'streak',
         streakValue,
-        hasCombatTimeline ||
-          (streakKey != null && streakValue !== 0),
+        columns.streak ||
+          hasCombatTimeline ||
+          (streakKey != null && timelineStreakValue !== 0),
       );
 
-      const feedFromRows = readMetricValue(
-        [secondaryRow, playerRow],
-        metricAliases.feed,
-        0,
-      );
+      const combatFeedValue = calculateKillFeed(
+        oneStats?.ev || [],
+        DISPLAY_KILL_FEED_WINDOW_SECONDS,
+        true,
+      )
+        .filter((feed) =>
+          samePlayerName(feed?.name, selected.name),
+        )
+        .reduce(
+          (best, feed) =>
+            Math.max(best, Number(feed?.count) || 0),
+          0,
+        );
 
       addAverageMetric(
         'feed',
-        feedFromRows,
-        columns.feed,
+        combatFeedValue,
+        hasCombatTimeline,
       );
 
       const damageDealtValue = readMetricValue(
