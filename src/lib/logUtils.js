@@ -377,28 +377,80 @@ function isSecondaryNumber(value) {
   return /^[-+]?\d[\d\s.,]*(?:[kKmMbBtT])?$/.test(cleaned);
 }
 
-function splitSecondaryColumns(line) {
-  const text = String(line || '').trim();
+function splitSecondaryColumns(line, preferredMode = '') {
+  const raw = String(line ?? '').replace(/\r$/, '');
+  const text = raw.trim();
 
-  if (!text) return [];
+  if (!text) {
+    return {
+      columns: [],
+      mode: preferredMode || '',
+    };
+  }
 
-  const separatorCandidates = [
-    text.split(/\t+/),
-    text.split(/\s*\|\s*/),
-    text.split(/\s*;\s*/),
-  ].filter((parts) => parts.length > 1);
+  function detectMode() {
+    if (raw.includes('\t')) return 'tab';
+    if (raw.includes('|')) return 'pipe';
+    if (raw.includes(';')) return 'semicolon';
+    if (/\s{2,}/.test(text)) return 'spaces';
+    return 'whitespace';
+  }
 
-  const bestSeparated = separatorCandidates
-    .map((parts) => parts.map((part) => part.trim()).filter(Boolean))
-    .sort((a, b) => b.length - a.length)[0];
+  function splitByMode(mode) {
+    let columns;
 
-  if (bestSeparated?.length > 1) return bestSeparated;
+    if (mode === 'tab') {
+      // Split on every tab so an empty tab-separated cell stays empty.
+      columns = raw.split('\t');
+    } else if (mode === 'pipe') {
+      // Do not use `\s*\|\s*` here. Plain split preserves empty cells.
+      columns = raw.split('|');
+    } else if (mode === 'semicolon') {
+      columns = raw.split(';');
+    } else if (mode === 'spaces') {
+      columns = text.split(/\s{2,}/);
+    } else {
+      columns = text.split(/\s+/);
+    }
 
-  const multiSpace = text.split(/\s{2,}/).map((part) => part.trim()).filter(Boolean);
+    columns = columns.map((part) => String(part ?? '').trim());
 
-  if (multiSpace.length > 1) return multiSpace;
+    // Markdown/table borders often add one decorative empty cell at each end.
+    // Remove only those outside cells; internal empty cells must remain.
+    if (mode === 'pipe' || mode === 'semicolon') {
+      const separator = mode === 'pipe' ? '|' : ';';
+      const trimmedRaw = raw.trim();
 
-  return text.split(/\s+/).map((part) => part.trim()).filter(Boolean);
+      if (trimmedRaw.startsWith(separator) && columns[0] === '') {
+        columns.shift();
+      }
+
+      if (trimmedRaw.endsWith(separator) && columns.at(-1) === '') {
+        columns.pop();
+      }
+    }
+
+    return columns;
+  }
+
+  let mode = preferredMode || detectMode();
+  let columns = splitByMode(mode);
+
+  // A copied table can occasionally use a different delimiter on a later line.
+  // Fall back to automatic detection rather than treating the whole row as one cell.
+  if (preferredMode && columns.length <= 1) {
+    const detectedMode = detectMode();
+
+    if (detectedMode !== preferredMode) {
+      mode = detectedMode;
+      columns = splitByMode(mode);
+    }
+  }
+
+  return {
+    columns,
+    mode,
+  };
 }
 
 function expandPackedSecondaryNumberColumns(columns) {
@@ -410,6 +462,7 @@ function expandPackedSecondaryNumberColumns(columns) {
       return parts;
     }
 
+    // Keep empty cells. They carry positional meaning in old headerless rows.
     return [column];
   });
 }
@@ -420,15 +473,19 @@ function normalizeSecondaryPlayerName(parts) {
   if (!name || isSecondaryNumber(name)) return '';
 
   const normalized = name
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .toLowerCase()
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
   const headerWords = new Set([
     'player',
+    'player name',
     'name',
     'family',
+    'family name',
+    'character',
+    'character name',
     'kills',
     'kill',
     'deaths',
@@ -447,6 +504,7 @@ function normalizeSecondaryPlayerName(parts) {
     'total',
     'fort',
     'damage to fort',
+    'fort damage',
     'cc hits',
     'cc',
   ]);
@@ -458,9 +516,247 @@ function normalizeSecondaryPlayerName(parts) {
   return name;
 }
 
-function parseSecondaryLine(line, index) {
-  let columns = splitSecondaryColumns(line);
-  columns = expandPackedSecondaryNumberColumns(columns);
+function normalizeSecondaryHeaderCell(value) {
+  return String(value ?? '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function secondaryMetricFromHeader(value) {
+  const header = normalizeSecondaryHeaderCell(value);
+
+  if (!header) return '';
+
+  const exactAliases = {
+    player: new Set([
+      'player',
+      'player name',
+      'name',
+      'family',
+      'family name',
+      'character',
+      'character name',
+      'member',
+      'member name',
+    ]),
+    kills: new Set(['kills', 'kill', 'k', 'total kills']),
+    deaths: new Set(['deaths', 'death', 'd', 'total deaths']),
+    kd: new Set(['kd', 'k d', 'ratio', 'kill death ratio', 'kills deaths ratio']),
+    killStreak: new Set([
+      'killstreak',
+      'kill streak',
+      'streak',
+      'best streak',
+      'max streak',
+      'ks',
+    ]),
+    killFeed: new Set([
+      'killfeed',
+      'kill feed',
+      'feed',
+      'best feed',
+      'max feed',
+      'kf',
+    ]),
+    damageDealt: new Set([
+      'damage',
+      'dmg',
+      'damage dealt',
+      'dmg dealt',
+      'damage done',
+      'dmg done',
+      'total damage',
+      'damage output',
+    ]),
+    damageTaken: new Set([
+      'damage taken',
+      'dmg taken',
+      'damage received',
+      'dmg received',
+    ]),
+    ccHits: new Set([
+      'cc',
+      'cc hit',
+      'cc hits',
+      'crowd control',
+      'crowd controls',
+      'crowd control hits',
+    ]),
+    fortDamage: new Set([
+      'fort',
+      'fort damage',
+      'damage to fort',
+      'dmg to fort',
+      'fort dmg',
+      'structure damage',
+      'damage to structure',
+    ]),
+  };
+
+  for (const [metric, aliases] of Object.entries(exactAliases)) {
+    if (aliases.has(header)) return metric;
+  }
+
+  // Flexible fallbacks for slightly different exported header wording.
+  if (/^(player|family|character|member)( name)?$/.test(header)) return 'player';
+  if (/^(total )?kills?$/.test(header)) return 'kills';
+  if (/^(total )?deaths?$/.test(header)) return 'deaths';
+  if (/^(k d|kd)( ratio)?$/.test(header)) return 'kd';
+  if (header.includes('kill') && header.includes('streak')) return 'killStreak';
+  if (header.includes('kill') && header.includes('feed')) return 'killFeed';
+  if (header.includes('cc') || header.includes('crowd control')) return 'ccHits';
+
+  if (header.includes('damage') || header.includes('dmg')) {
+    if (header.includes('fort') || header.includes('structure')) {
+      return 'fortDamage';
+    }
+
+    if (header.includes('taken') || header.includes('received')) {
+      return 'damageTaken';
+    }
+
+    if (
+      header.includes('dealt') ||
+      header.includes('done') ||
+      header.includes('output') ||
+      header.includes('total')
+    ) {
+      return 'damageDealt';
+    }
+  }
+
+  return '';
+}
+
+function buildSecondaryHeader(columns, mode) {
+  const indexes = {};
+
+  columns.forEach((column, index) => {
+    const metric = secondaryMetricFromHeader(column);
+
+    if (metric && indexes[metric] === undefined) {
+      indexes[metric] = index;
+    }
+  });
+
+  const mappedMetrics = Object.keys(indexes);
+  const hasIdentityColumn = indexes.player !== undefined;
+  const hasCoreColumns =
+    indexes.kills !== undefined && indexes.deaths !== undefined;
+
+  // Require a player column and either the K/D core or at least three recognised
+  // statistics. This avoids mistaking a normal player row for a header.
+  if (
+    !hasIdentityColumn ||
+    (!hasCoreColumns && mappedMetrics.length < 4)
+  ) {
+    return null;
+  }
+
+  return {
+    indexes,
+    mode,
+    columnCount: columns.length,
+    columns: [...columns],
+  };
+}
+
+function parseSecondaryLineWithHeader(line, index, header) {
+  const split = splitSecondaryColumns(line, header.mode);
+  const columns = [...split.columns];
+
+  while (columns.length < header.columnCount) {
+    columns.push('');
+  }
+
+  function readMetric(metric) {
+    const columnIndex = header.indexes[metric];
+
+    if (columnIndex === undefined || columnIndex >= columns.length) {
+      return {
+        present: false,
+        value: 0,
+      };
+    }
+
+    const rawValue = String(columns[columnIndex] ?? '').trim();
+    const present = isSecondaryNumber(rawValue);
+
+    return {
+      present,
+      value: present
+        ? Math.round(parseSecondaryNumber(rawValue))
+        : 0,
+    };
+  }
+
+  const playerIndex = header.indexes.player;
+  const player = normalizeSecondaryPlayerName([
+    playerIndex !== undefined ? columns[playerIndex] : '',
+  ]);
+
+  const kills = readMetric('kills');
+  const deaths = readMetric('deaths');
+  const killStreak = readMetric('killStreak');
+  const killFeed = readMetric('killFeed');
+  const damageDealt = readMetric('damageDealt');
+  const damageTaken = readMetric('damageTaken');
+  const ccHits = readMetric('ccHits');
+  const fortDamage = readMetric('fortDamage');
+
+  const anyMetricPresent = [
+    kills,
+    deaths,
+    killStreak,
+    killFeed,
+    damageDealt,
+    damageTaken,
+    ccHits,
+    fortDamage,
+  ].some((metric) => metric.present);
+
+  if (!player && !anyMetricPresent) return null;
+
+  return {
+    player,
+    kills: kills.value,
+    deaths: deaths.value,
+    killStreak: killStreak.value,
+    killFeed: killFeed.value,
+    damageDealt: damageDealt.value,
+    damageTaken: damageTaken.value,
+    ccHits: ccHits.value,
+    fortDamage: fortDamage.value,
+    line: index + 1,
+    rawLine: String(line || ''),
+    source: 'header-mapped',
+    availableFields: [
+      kills.present && 'kills',
+      deaths.present && 'deaths',
+      killStreak.present && 'killStreak',
+      killFeed.present && 'killFeed',
+      damageDealt.present && 'damageDealt',
+      damageTaken.present && 'damageTaken',
+      ccHits.present && 'ccHits',
+      fortDamage.present && 'fortDamage',
+    ].filter(Boolean),
+    has_kills: kills.present,
+    has_deaths: deaths.present,
+    has_kill_streak: killStreak.present,
+    has_kill_feed: killFeed.present,
+    has_damage_dealt: damageDealt.present,
+    has_damage_taken: damageTaken.present,
+    has_cc_hits: ccHits.present,
+    has_fort_damage: fortDamage.present,
+  };
+}
+
+function parseSecondaryLineLegacy(line, index) {
+  const split = splitSecondaryColumns(line);
+  let columns = expandPackedSecondaryNumberColumns(split.columns);
 
   if (columns.length < 2) return null;
 
@@ -468,37 +764,52 @@ function parseSecondaryLine(line, index) {
 
   if (firstNumberIndex < 0) return null;
 
-  const numericColumns = columns.slice(firstNumberIndex).filter(isSecondaryNumber);
+  // Keep all cells after Kills, including empty cells. Filtering numeric values
+  // is what previously shifted Damage/CC/Fort values into the wrong fields.
+  const statColumns = columns.slice(firstNumberIndex);
 
-  if (numericColumns.length < 2) return null;
+  if (statColumns.length < 2) return null;
 
   const player = normalizeSecondaryPlayerName(columns.slice(0, firstNumberIndex));
-  const kills = Math.round(parseSecondaryNumber(numericColumns[0]));
-  const deaths = Math.round(parseSecondaryNumber(numericColumns[1]));
 
-  const thirdColumn = String(numericColumns[2] || '').trim();
+  function hasColumn(columnIndex) {
+    return (
+      columnIndex >= 0 &&
+      columnIndex < statColumns.length &&
+      isSecondaryNumber(statColumns[columnIndex])
+    );
+  }
+
+  function readColumn(columnIndex) {
+    return hasColumn(columnIndex)
+      ? Math.round(parseSecondaryNumber(statColumns[columnIndex]))
+      : 0;
+  }
+
+  const kills = readColumn(0);
+  const deaths = readColumn(1);
+  const thirdColumn = String(statColumns[2] || '').trim();
   const thirdNumber = parseSecondaryNumber(thirdColumn);
   const laterValuesLookLikeDamage =
-    parseSecondaryNumber(numericColumns[5]) >= 1000 ||
-    parseSecondaryNumber(numericColumns[6]) >= 1000;
+    parseSecondaryNumber(statColumns[5]) >= 1000 ||
+    parseSecondaryNumber(statColumns[6]) >= 1000;
 
   /*
-   * Current detailed logs normally use:
-   * Kills, Deaths, K/D, Killstreak, Killfeed,
-   * Damage Dealt, Damage Taken, CC Hits, Fort Damage.
-   *
-   * Some older logs omit K/D, and the oldest layout also omitted
-   * Killstreak. Keep support for all three layouts.
+   * Headerless compatibility only. Header-based tables never use this guess.
+   * Current layout: K, D, K/D, Killstreak, Killfeed, Damage Dealt,
+   * Damage Taken, CC Hits, Fort Damage.
+   * Older layouts can omit K/D or both K/D and Killstreak.
    */
   const looksLikeKdColumn =
     player &&
-    numericColumns.length >= 9 &&
+    statColumns.length >= 9 &&
+    hasColumn(2) &&
     thirdNumber >= 0 &&
     thirdNumber <= 50 &&
     (/[.,]/.test(thirdColumn) || laterValuesLookLikeDamage);
 
   const hasSeparateKillstreak =
-    looksLikeKdColumn || numericColumns.length >= 8;
+    looksLikeKdColumn || statColumns.length >= 8;
 
   const killstreakIndex = looksLikeKdColumn
     ? 3
@@ -536,20 +847,6 @@ function parseSecondaryLine(line, index) {
       ? 7
       : 6;
 
-  function hasColumn(columnIndex) {
-    return (
-      columnIndex >= 0 &&
-      columnIndex < numericColumns.length &&
-      String(numericColumns[columnIndex] || '').trim() !== ''
-    );
-  }
-
-  function readColumn(columnIndex) {
-    return hasColumn(columnIndex)
-      ? Math.round(parseSecondaryNumber(numericColumns[columnIndex]))
-      : 0;
-  }
-
   const killStreak = readColumn(killstreakIndex);
   const killFeed = readColumn(killfeedIndex);
   const damageDealt = readColumn(damageDealtIndex);
@@ -557,19 +854,18 @@ function parseSecondaryLine(line, index) {
   const ccHits = readColumn(ccHitsIndex);
   const fortDamage = readColumn(fortDamageIndex);
 
-  if (
-    !player &&
-    kills === 0 &&
-    deaths === 0 &&
-    killStreak === 0 &&
-    killFeed === 0 &&
-    damageDealt === 0 &&
-    damageTaken === 0 &&
-    ccHits === 0 &&
-    fortDamage === 0
-  ) {
-    return null;
-  }
+  const anyMetricPresent = [
+    0,
+    1,
+    killstreakIndex,
+    killfeedIndex,
+    damageDealtIndex,
+    damageTakenIndex,
+    ccHitsIndex,
+    fortDamageIndex,
+  ].some(hasColumn);
+
+  if (!player && !anyMetricPresent) return null;
 
   return {
     player,
@@ -583,11 +879,7 @@ function parseSecondaryLine(line, index) {
     fortDamage,
     line: index + 1,
     rawLine: String(line || ''),
-
-    /*
-     * These flags let Player Stats distinguish a real zero from a
-     * column that did not exist in older wars.
-     */
+    source: 'legacy-position',
     has_kills: hasColumn(0),
     has_deaths: hasColumn(1),
     has_kill_streak: hasColumn(killstreakIndex),
@@ -602,11 +894,42 @@ function parseSecondaryLine(line, index) {
 export function parseSecondaryRows(raw) {
   const { secondaryRaw } = splitRawLogSections(raw);
   const source = secondaryRaw || String(raw || '');
-
-  return cleanLog(source)
+  const lines = String(source)
+    .replace(/\r\n?/g, NL)
     .split(NL)
-    .map(parseSecondaryLine)
-    .filter(Boolean);
+    .map((line, index) => ({
+      line,
+      index,
+    }))
+    .filter((entry) => entry.line.trim());
+
+  const rows = [];
+  let activeHeader = null;
+
+  lines.forEach(({ line, index }) => {
+    const split = splitSecondaryColumns(line);
+    const detectedHeader = buildSecondaryHeader(
+      split.columns,
+      split.mode,
+    );
+
+    if (detectedHeader) {
+      activeHeader = detectedHeader;
+      return;
+    }
+
+    const row = activeHeader
+      ? parseSecondaryLineWithHeader(
+          line,
+          index,
+          activeHeader,
+        )
+      : parseSecondaryLineLegacy(line, index);
+
+    if (row) rows.push(row);
+  });
+
+  return rows;
 }
 
 function secondaryRowsTotals(rows) {
@@ -2508,7 +2831,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 4,
+    version: 5,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
@@ -2529,10 +2852,18 @@ export function buildLogSummary(log) {
 
 export function getLogSummary(log) {
   const normalized = normalizeSummary(log?.summary || log?.stats || log?.analytics);
+  const raw = String(log?.raw || '');
 
-  if (normalized) return normalized;
+  /*
+   * Summary version 5 is the first version that maps Stats Log values by
+   * their header names and preserves empty cells. When raw text is available,
+   * rebuild older summaries instead of continuing to use shifted columns.
+   */
+  if (normalized && (Number(normalized.version) >= 5 || !raw)) {
+    return normalized;
+  }
 
-  if (!log?.raw) {
+  if (!raw) {
     return normalizeSummary({
       kills: 0,
       deaths: 0,
