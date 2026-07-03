@@ -2826,7 +2826,7 @@ export default function App() {
 
   useEffect(() => {
     /*
-     * Raw Logs and Player Stats both require the complete saved text.
+     * Raw Logs, Player Stats, and Overview require the complete saved text.
      *
      * The lightweight /api/logs?range=all response only contains summaries.
      * Those summaries can preserve totals, but they cannot reliably preserve
@@ -2838,7 +2838,7 @@ export default function App() {
      * Player Stats then counts the union of both sources without counting the
      * same war twice.
      */
-    if (page === 'raw' || page === 'players') {
+    if (page === 'raw' || page === 'players' || page === 'overview') {
       loadEditableRawLogs();
     }
   }, [page, loadEditableRawLogs]);
