@@ -769,36 +769,59 @@ function parseSecondaryLineLegacy(line, index) {
    */
   const STATS_COLUMN_COUNT = 9;
 
-  if (columns.length < STATS_COLUMN_COUNT + 1) return null;
-
   let statsStart = -1;
 
-  for (
-    let start = columns.length - STATS_COLUMN_COUNT;
-    start >= 0;
-    start -= 1
-  ) {
-    const candidate = columns.slice(
-      start,
-      start + STATS_COLUMN_COUNT,
-    );
-
-    if (candidate.length !== STATS_COLUMN_COUNT) continue;
-
-    const killsPresent = isSecondaryNumber(candidate[0]);
-    const deathsPresent = isSecondaryNumber(candidate[1]);
-
-    const remainingCellsValid = candidate
-      .slice(2)
-      .every(
-        (value) =>
-          String(value ?? '').trim() === '' ||
-          isSecondaryNumber(value),
+  if (columns.length >= STATS_COLUMN_COUNT + 1) {
+    for (
+      let start = columns.length - STATS_COLUMN_COUNT;
+      start >= 0;
+      start -= 1
+    ) {
+      const candidate = columns.slice(
+        start,
+        start + STATS_COLUMN_COUNT,
       );
 
-    if (killsPresent && deathsPresent && remainingCellsValid) {
-      statsStart = start;
-      break;
+      if (candidate.length !== STATS_COLUMN_COUNT) continue;
+
+      const killsPresent = isSecondaryNumber(candidate[0]);
+      const deathsPresent = isSecondaryNumber(candidate[1]);
+
+      const remainingCellsValid = candidate
+        .slice(2)
+        .every(
+          (value) =>
+            String(value ?? '').trim() === '' ||
+            isSecondaryNumber(value),
+        );
+
+      if (killsPresent && deathsPresent && remainingCellsValid) {
+        statsStart = start;
+        break;
+      }
+    }
+  }
+
+  /*
+   * Fallback for short Stats Log exports such as "Name Kills Deaths" or
+   * "Name Kills Deaths KillStreak". These rows have fewer than the full
+   * 9 statistic columns. Read the trailing run of numeric columns from the
+   * RIGHT side of the row and map them onto the canonical column order.
+   * Requiring at least Kills + Deaths (2 numbers) avoids treating dates,
+   * headers, or plain text lines as player rows.
+   */
+  if (statsStart < 0) {
+    let trailingNumbers = 0;
+
+    while (
+      trailingNumbers < columns.length &&
+      isSecondaryNumber(columns[columns.length - 1 - trailingNumbers])
+    ) {
+      trailingNumbers += 1;
+    }
+
+    if (trailingNumbers >= 2 && trailingNumbers < columns.length) {
+      statsStart = columns.length - trailingNumbers;
     }
   }
 
