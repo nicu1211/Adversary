@@ -2638,10 +2638,11 @@ export default function App() {
   const loadEditableRawLogs = useCallback(async () => {
     try {
       setLoadingAllLogs(true);
+      setAllLogs(null);
 
       // The normal all-history request intentionally returns lightweight
-      // summaries. Raw Log editing needs the original saved text, so request
-      // it explicitly only when the Raw Logs page is opened.
+      // summaries. Raw Logs and Player Stats need the original saved text so
+      // calculateStats can read both the Combat Log and the Stats Log.
       const data = await apiGet(
         logsPath({ range: 'all', includeRaw: 1 }),
         { timeoutMs: 60000 },
