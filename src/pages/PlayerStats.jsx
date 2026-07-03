@@ -3085,10 +3085,10 @@ function getSecondaryWarMetricPresence(rows) {
     });
   });
 
-  // When one of the extra columns exists in a detailed secondary log, a 0 in
-  // another extra column is still a real cell from that same log table. This is
-  // what makes values like Kawoy -> 2026-05-01 -> Damage to Fort = 0 count in
-  // the average, instead of being treated as an auto-generated missing value.
+  // Legacy saved rows may not contain per-column availability flags. For those
+  // rows only, infer that an explicit numeric 0 belongs to the detailed table.
+  // Current parser rows include has_* flags, and an explicit false must remain
+  // missing rather than being converted into a real zero.
   (rows || []).forEach((row, index) => {
     const warId = secondaryWarId(row, index);
     const presence = output[warId];
@@ -3098,8 +3098,17 @@ function getSecondaryWarMetricPresence(rows) {
     SECONDARY_DETAIL_METRICS.forEach((metric) => {
       const keys = SECONDARY_MATCH_METRIC_KEYS[metric] || [metric];
       const number = getRowMetricNumber(row, metric, NaN);
+      const presenceFlag = getPresenceFlag(row, keys);
 
-      if (rowHasOwnMetricKey(row, keys) && Number.isFinite(number)) {
+      // The parser always includes numeric properties with a 0 fallback, even
+      // when that column did not exist in the original Stats Log. An explicit
+      // false availability flag must therefore win over the generated 0.
+      if (presenceFlag === false) return;
+
+      if (
+        Number.isFinite(number) &&
+        (presenceFlag === true || rowHasOwnMetricKey(row, keys))
+      ) {
         presence[metric] = true;
       }
     });
@@ -3110,6 +3119,16 @@ function getSecondaryWarMetricPresence(rows) {
 
 function getSecondaryMetricExists(row, metric, warPresence = {}) {
   const keys = SECONDARY_MATCH_METRIC_KEYS[metric] || [metric];
+  const presenceFlag = getPresenceFlag(row, keys);
+
+  // Trust the parser's per-column availability flags. In particular, false
+  // means the property is only a generated 0 placeholder and must display as
+  // an em dash instead of a real zero in Match History.
+  if (presenceFlag !== undefined) {
+    if (!presenceFlag) return false;
+
+    return Number.isFinite(getRowMetricNumber(row, metric, NaN));
+  }
 
   if (hasRawValue(row, keys)) return true;
 
