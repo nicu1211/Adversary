@@ -2604,19 +2604,18 @@ export default function App() {
   }, []);
 
   const loadAllLogs = useCallback(async () => {
-    const allLogsAlreadyLoadedWithRaw =
+    const allLogsAlreadyLoaded =
       Array.isArray(allLogs) &&
-      allLogs.length > 0 &&
-      allLogs.every((log) => Boolean(log.raw));
+      allLogs.length > 0;
 
-    if (allLogsAlreadyLoadedWithRaw) {
+    if (allLogsAlreadyLoaded) {
       return allLogs;
     }
 
     try {
       setLoadingAllLogs(true);
 
-      const data = await apiGet(logsPath({ range: 'all', includeRaw: 1 }));
+      const data = await apiGet(logsPath({ range: 'all' }));
       const normalized = normalizeLogs(data);
 
       setAllLogs(normalized);
