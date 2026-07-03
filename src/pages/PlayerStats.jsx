@@ -4523,10 +4523,27 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
               ),
             };
 
+      const ccHitsMatches = matches.filter((match) =>
+        getMatchMetricExists(match, 'ccHits'),
+      );
+      const ccHitsTotal = ccHitsMatches.reduce(
+        (sum, match) =>
+          sum + Number(getMatchMetricValue(match, 'ccHits') || 0),
+        0,
+      );
+
       return {
         name: playerRow.name,
         wars: matches.length,
         ...values,
+        // Keep the raw valid CC samples so the guild benchmark can be
+        // calculated from the same per-war rows shown in Match History.
+        // Averaging player averages gives the wrong guild result whenever
+        // players have different numbers of wars with CC data.
+        __ccHitsBenchmark: {
+          total: ccHitsTotal,
+          matches: ccHitsMatches.length,
+        },
       };
     });
   }, [
@@ -4570,10 +4587,32 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
         const values = activePlayers
           .map((player) => Number(player[metric]) || 0)
           .filter((value) => Number.isFinite(value) && value >= 0);
-        const average = values.length
+        let average = values.length
           ? values.reduce((sum, value) => sum + value, 0) /
             values.length
           : 0;
+        let playersWithMetric = values.length;
+
+        if (metric === 'ccHits' && compareMode === 'average') {
+          const ccSamples = activePlayers.filter(
+            (player) =>
+              Number(player.__ccHitsBenchmark?.matches) > 0,
+          );
+          const ccMatchCount = ccSamples.reduce(
+            (sum, player) =>
+              sum + Number(player.__ccHitsBenchmark.matches || 0),
+            0,
+          );
+          const ccTotal = ccSamples.reduce(
+            (sum, player) =>
+              sum + Number(player.__ccHitsBenchmark.total || 0),
+            0,
+          );
+
+          average = ccMatchCount ? ccTotal / ccMatchCount : 0;
+          playersWithMetric = ccSamples.length;
+        }
+
         const maximum = values.length
           ? Math.max(...values)
           : 0;
@@ -4583,12 +4622,12 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
           {
             average,
             maximum: maximum > 0 ? maximum : 1,
-            players: values.length,
+            players: playersWithMetric,
           },
         ];
       }),
     );
-  }, [comparisonPopulation]);
+  }, [compareMode, comparisonPopulation]);
 
   const selectedStats = useMemo(() => {
     if (!player) return null;
