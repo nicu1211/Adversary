@@ -87,27 +87,125 @@ function getSavedLogStats(log) {
   };
 }
 
+function hasRecordedSecondaryMetric(row, flagKeys, valueKeys) {
+  if (!row) return false;
+
+  for (const key of flagKeys) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      return Boolean(row[key]);
+    }
+  }
+
+  /*
+   * Older stored rows may not have explicit availability flags. A non-zero
+   * value is safe evidence that the column existed. A bare zero is not,
+   * because older parsers inserted zero when a column was missing.
+   */
+  return valueKeys.some((key) => {
+    if (!Object.prototype.hasOwnProperty.call(row, key)) return false;
+
+    const value = Number(row[key]);
+    return Number.isFinite(value) && value !== 0;
+  });
+}
+
 function getSecondaryTotals(rows) {
-  return rows.reduce(
-    (totals, row) => ({
-      kills: totals.kills + (Number(row.kills) || 0),
-      deaths: totals.deaths + (Number(row.deaths) || 0),
-      killFeed: Math.max(totals.killFeed, Number(row.killFeed) || 0),
-      damageDealt: totals.damageDealt + (Number(row.damageDealt) || 0),
-      damageTaken: totals.damageTaken + (Number(row.damageTaken) || 0),
-      ccHits: totals.ccHits + (Number(row.ccHits) || 0),
-      fortDamage: totals.fortDamage + (Number(row.fortDamage) || 0),
-    }),
-    {
-      kills: 0,
-      deaths: 0,
-      killFeed: 0,
-      damageDealt: 0,
-      damageTaken: 0,
-      ccHits: 0,
-      fortDamage: 0,
+  const totals = {
+    kills: 0,
+    deaths: 0,
+    killStreak: 0,
+    killFeed: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    ccHits: 0,
+    fortDamage: 0,
+    available: {
+      kills: false,
+      deaths: false,
+      killStreak: false,
+      killFeed: false,
+      damageDealt: false,
+      damageTaken: false,
+      ccHits: false,
+      fortDamage: false,
     },
-  );
+  };
+
+  const definitions = {
+    kills: {
+      flags: ["has_kills", "hasKills"],
+      values: ["kills"],
+      mode: "sum",
+    },
+    deaths: {
+      flags: ["has_deaths", "hasDeaths"],
+      values: ["deaths"],
+      mode: "sum",
+    },
+    killStreak: {
+      flags: ["has_kill_streak", "hasKillStreak"],
+      values: ["killStreak", "killstreak", "streak"],
+      mode: "max",
+    },
+    killFeed: {
+      flags: ["has_kill_feed", "hasKillFeed"],
+      values: ["killFeed", "killfeed", "feed"],
+      mode: "max",
+    },
+    damageDealt: {
+      flags: ["has_damage_dealt", "hasDamageDealt"],
+      values: ["damageDealt", "damage_dealt", "damage"],
+      mode: "sum",
+    },
+    damageTaken: {
+      flags: ["has_damage_taken", "hasDamageTaken"],
+      values: ["damageTaken", "damage_taken"],
+      mode: "sum",
+    },
+    ccHits: {
+      flags: ["has_cc_hits", "hasCcHits"],
+      values: ["ccHits", "cc_hits", "cc"],
+      mode: "sum",
+    },
+    fortDamage: {
+      flags: ["has_fort_damage", "hasFortDamage"],
+      values: ["fortDamage", "damageToFort", "damage_to_fort"],
+      mode: "sum",
+    },
+  };
+
+  (rows || []).forEach((row) => {
+    Object.entries(definitions).forEach(([metric, definition]) => {
+      if (
+        !hasRecordedSecondaryMetric(
+          row,
+          definition.flags,
+          definition.values,
+        )
+      ) {
+        return;
+      }
+
+      totals.available[metric] = true;
+
+      const valueKey = definition.values.find(
+        (key) =>
+          Object.prototype.hasOwnProperty.call(row, key) &&
+          row[key] !== undefined &&
+          row[key] !== null &&
+          row[key] !== "",
+      );
+      const value = Number(valueKey == null ? 0 : row[valueKey]) || 0;
+
+      if (definition.mode === "max") {
+        totals[metric] = Math.max(totals[metric], value);
+      } else {
+        totals[metric] += value;
+      }
+    });
+  });
+
+  return totals;
 }
 
 function compactNumber(value) {
@@ -118,6 +216,14 @@ function compactNumber(value) {
     return `${Math.round(number).toLocaleString("en-US")}`;
 
   return String(Math.round(number));
+}
+
+function formatSecondaryTotal(value, available, compact = false) {
+  if (!available) return "—";
+
+  return compact
+    ? compactNumber(value)
+    : String(Math.round(Number(value) || 0));
 }
 
 export default function RawLog({
@@ -385,13 +491,50 @@ export default function RawLog({
 
                 {secondaryRows.length > 0 && (
                   <p className="mt-2 text-xs text-emerald-200/80">
-                    Secondary totals: {secondaryTotals.kills} kills ·{" "}
-                    {secondaryTotals.deaths} deaths ·{" "}
-                    {secondaryTotals.killFeed} max kill feed ·{" "}
-                    {compactNumber(secondaryTotals.damageDealt)} damage dealt ·{" "}
-                    {compactNumber(secondaryTotals.damageTaken)} damage taken ·{" "}
-                    {secondaryTotals.ccHits} CC hits ·{" "}
-                    {compactNumber(secondaryTotals.fortDamage)} fort damage
+                    Secondary totals:{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.kills,
+                      secondaryTotals.available.kills,
+                    )}{" "}
+                    kills ·{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.deaths,
+                      secondaryTotals.available.deaths,
+                    )}{" "}
+                    deaths ·{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.killStreak,
+                      secondaryTotals.available.killStreak,
+                    )}{" "}
+                    max kill streak ·{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.killFeed,
+                      secondaryTotals.available.killFeed,
+                    )}{" "}
+                    max kill feed ·{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.damageDealt,
+                      secondaryTotals.available.damageDealt,
+                      true,
+                    )}{" "}
+                    damage dealt ·{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.damageTaken,
+                      secondaryTotals.available.damageTaken,
+                      true,
+                    )}{" "}
+                    damage taken ·{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.ccHits,
+                      secondaryTotals.available.ccHits,
+                    )}{" "}
+                    CC hits ·{" "}
+                    {formatSecondaryTotal(
+                      secondaryTotals.fortDamage,
+                      secondaryTotals.available.fortDamage,
+                      true,
+                    )}{" "}
+                    fort damage
                   </p>
                 )}
               </div>
