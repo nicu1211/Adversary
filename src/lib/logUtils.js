@@ -2084,39 +2084,23 @@ function mergeStatsFromSummaries(items) {
 
       /*
        * Before summary version 10, the Stats Log's third numeric column was
-       * saved under the old `killStreak`/`streak` property name. That column
-       * was always Kill Feed; Combat Log Killstreak lived separately in the
-       * summary `st` map. Recover that per-war Stats Log value so older wars
-       * are not lost from Player Stats when the backend returns summary-only
-       * history for them.
+       * saved on secondary rows under the old `killStreak` key. That column is
+       * confirmed to be Kill Feed. Restore it here so summary-only historical
+       * wars keep the exact per-player value instead of disappearing.
+       *
+       * Combat Killstreak remains separate and is read only from `summary.st`
+       * when the saved summary confirms that a Combat Log timeline existed.
        */
-      const legacyKillFeedKey =
+      const legacyKillFeed =
         summaryVersion < 10
-          ? [
-              'killFeed',
-              'killfeed',
-              'feed',
-              'killStreak',
-              'killstreak',
-              'streak',
-            ].find(
-              (key) =>
-                Object.prototype.hasOwnProperty.call(
-                  sourceRow || {},
-                  key,
-                ) &&
-                sourceRow?.[key] !== undefined &&
-                sourceRow?.[key] !== null &&
-                sourceRow?.[key] !== '',
-            )
-          : null;
-
-      const legacyKillFeedExists =
-        summaryVersion < 10 && legacyKillFeedKey != null;
-
-      const legacyKillFeed = legacyKillFeedExists
-        ? Number(sourceRow?.[legacyKillFeedKey]) || 0
-        : 0;
+          ? Number(
+              sourceRow?.killFeed ??
+                sourceRow?.killfeed ??
+                sourceRow?.feed ??
+                sourceRow?.killStreak ??
+                sourceRow?.killstreak,
+            ) || 0
+          : 0;
 
       const normalizedRow = addSecondaryRow(
         {
@@ -2131,7 +2115,9 @@ function mergeStatsFromSummaries(items) {
                     sourceRow?.killStreak ??
                       sourceRow?.killstreak,
                   ) || 0
-              : 0,
+              : summary.hasTimeline && streakMetric.exists
+                ? streakMetric.value
+                : 0,
           killFeed:
             summaryVersion >= 10
               ? feedMetric.exists
@@ -2142,12 +2128,11 @@ function mergeStatsFromSummaries(items) {
                   ) || 0
               : legacyKillFeed,
           has_kill_streak: Boolean(
-            summaryVersion >= 10 &&
-              (
-                streakMetric.exists ||
-                sourceRow?.has_kill_streak ||
-                sourceRow?.hasKillStreak
-              )
+            summaryVersion >= 10
+              ? streakMetric.exists ||
+                  sourceRow?.has_kill_streak ||
+                  sourceRow?.hasKillStreak
+              : summary.hasTimeline && streakMetric.exists
           ),
           has_kill_feed: Boolean(
             summaryVersion >= 10
@@ -2156,7 +2141,11 @@ function mergeStatsFromSummaries(items) {
                   sourceRow?.hasKillFeed
               : sourceRow?.has_kill_feed ||
                   sourceRow?.hasKillFeed ||
-                  legacyKillFeedExists
+                  sourceRow?.killFeed != null ||
+                  sourceRow?.killfeed != null ||
+                  sourceRow?.feed != null ||
+                  sourceRow?.killStreak != null ||
+                  sourceRow?.killstreak != null
           ),
         },
         fallback,
@@ -2270,19 +2259,24 @@ function mergeStatsFromSummaries(items) {
               matchRow?.killFeed ??
                 matchRow?.killfeed ??
                 matchRow?.feed ??
+                matchRow?.killStreak ??
+                matchRow?.killstreak ??
                 player.killFeed ??
                 player.killfeed ??
-                player.feed,
+                player.feed ??
+                player.killStreak ??
+                player.killstreak,
             ) || 0
           : 0;
 
       const playerHasKillStreak =
-        summaryVersion >= 10 &&
-        resolveMetricPresence(
-          ['has_kill_streak', 'hasKillStreak'],
-          ['killStreak', 'killstreak'],
-          streakMetric.exists || Boolean(summary.hasTimeline),
-        );
+        summaryVersion >= 10
+          ? resolveMetricPresence(
+              ['has_kill_streak', 'hasKillStreak'],
+              ['killStreak', 'killstreak'],
+              streakMetric.exists || Boolean(summary.hasTimeline),
+            )
+          : Boolean(summary.hasTimeline && streakMetric.exists);
 
       const playerKillStreak =
         summaryVersion >= 10
@@ -2297,7 +2291,9 @@ function mergeStatsFromSummaries(items) {
                   player.killStreak ??
                     player.killstreak,
                 ) || 0
-          : 0;
+          : playerHasKillStreak
+            ? streakMetric.value
+            : 0;
 
       const legacyPlayerHasKillFeed = Boolean(
         summaryVersion < 10 &&
@@ -2306,20 +2302,16 @@ function mergeStatsFromSummaries(items) {
             matchRow?.hasKillFeed ||
             player?.has_kill_feed ||
             player?.hasKillFeed ||
-            // Only explicit legacy KillFeed aliases on a player object are
-            // trusted here. `matchRow.killFeed` is always normalized to a
-            // numeric fallback, so property existence alone would turn a
-            // missing column into a fake 0.
-            ['killFeed', 'killfeed', 'feed'].some(
-              (key) =>
-                Object.prototype.hasOwnProperty.call(
-                  player || {},
-                  key,
-                ) &&
-                player?.[key] !== undefined &&
-                player?.[key] !== null &&
-                player?.[key] !== '',
-            )
+            matchRow?.killFeed != null ||
+            matchRow?.killfeed != null ||
+            matchRow?.feed != null ||
+            player?.killFeed != null ||
+            player?.killfeed != null ||
+            player?.feed != null ||
+            matchRow?.killStreak != null ||
+            matchRow?.killstreak != null ||
+            player?.killStreak != null ||
+            player?.killstreak != null
           )
       );
 
@@ -2641,7 +2633,7 @@ function mergeStatsFromSummaries(items) {
       });
     }
 
-    if (summaryVersion >= 10) {
+    if (summaryVersion >= 10 || summary.hasTimeline) {
       Object.entries(summary.st || {}).forEach(
         ([name, value]) => {
           st[name] = Math.max(
@@ -2650,7 +2642,9 @@ function mergeStatsFromSummaries(items) {
           );
         },
       );
+    }
 
+    if (summaryVersion >= 10) {
       Object.entries(summary.fd || {}).forEach(
         ([name, value]) => {
           fd[name] = Math.max(
