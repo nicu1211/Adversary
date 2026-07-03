@@ -2880,17 +2880,39 @@ export default function App() {
     [logs],
   );
 
-  async function saveLog(rawOverride) {
+  async function saveLog(rawOverride, editId = null) {
     const rawToSave = rawOverride == null ? raw : rawOverride;
+    const mainRawToSave = getMainLogOnly(rawToSave);
+    const secondaryPart = String(rawToSave).includes(SECONDARY_LOG_START)
+      ? String(rawToSave).split(SECONDARY_LOG_START)[1] || ''
+      : '';
 
-    if (!parseLog(rawToSave, date, date, 'x').length) {
+    const hasCombatEntries =
+      parseLog(mainRawToSave, date, date, 'x').length > 0;
+    const hasSecondaryEntries = Boolean(secondaryPart.trim());
+
+    if (!hasCombatEntries && !hasSecondaryEntries) {
       setMessage('Invalid log');
-      return;
+      return null;
+    }
+
+    const editingLog =
+      editId == null
+        ? null
+        : logs.find((log) => String(log.id) === String(editId)) || null;
+
+    if (editId != null && !editingLog) {
+      setMessage('The log being edited was not found. Load it again from History.');
+      return null;
     }
 
     const localHash = hashLog(rawToSave);
 
     const duplicate = logs.find((log) => {
+      if (editId != null && String(log.id) === String(editId)) {
+        return false;
+      }
+
       if (log.hash && log.hash === localHash) return true;
       if (log.raw) return hashLog(log.raw) === localHash;
       return false;
@@ -2900,7 +2922,7 @@ export default function App() {
       setSelectedDays([dateOf(duplicate)]);
       setSelectedWars([String(duplicate.id)]);
       setMessage('Duplicate log detected locally');
-      return;
+      return null;
     }
 
     const draftLog = {
@@ -2919,9 +2941,20 @@ export default function App() {
       summary,
     };
 
-    setMessage('Saving log to database...\nattempt 1/5');
+    const isEditing = Boolean(editingLog);
+
+    setMessage(
+      isEditing
+        ? 'Saving edited log to database...\nattempt 1/5'
+        : 'Saving log to database...\nattempt 1/5',
+    );
 
     try {
+      /*
+       * The current backend has POST and DELETE routes, but no PUT route.
+       * For an edit, save the replacement first, then remove the old row.
+       * This order avoids losing the original log if the new save fails.
+       */
       const response = await apiWriteWithRetry('/api/logs', 'POST', payload, {
         maxAttempts: 5,
         baseDelayMs: 700,
@@ -2933,29 +2966,79 @@ export default function App() {
         summary: response?.summary || payload.summary,
       });
 
-      setNodeLogs((currentLogs) => [savedLog, ...currentLogs]);
+      if (isEditing) {
+        try {
+          await deleteApiLog(editingLog);
+        } catch (deleteError) {
+          let rollbackError = null;
 
-      setAllLogs((currentLogs) =>
-        Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
-      );
+          try {
+            await deleteApiLog(savedLog);
+          } catch (error) {
+            rollbackError = error;
+          }
 
-      setOverviewLogs((currentLogs) =>
-        Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
-      );
+          if (rollbackError) {
+            throw new Error(
+              `The edited log was saved, but the old log could not be removed. ` +
+                `The rollback also failed, so both entries may be present. ` +
+                `Delete one of them from History. Original delete error: ${
+                  deleteError?.message || deleteError
+                }`,
+            );
+          }
+
+          throw new Error(
+            `The old log could not be removed, so the new edited copy was rolled back. ` +
+              `Your original log is still safe. ${
+                deleteError?.message || deleteError
+              }`,
+          );
+        }
+      }
+
+      const mergeSavedLog = (currentLogs) => {
+        if (!Array.isArray(currentLogs)) return currentLogs;
+
+        const withoutOld = isEditing
+          ? currentLogs.filter(
+              (log) => String(log.id) !== String(editingLog.id),
+            )
+          : currentLogs;
+
+        const withoutSavedDuplicate = withoutOld.filter(
+          (log) => String(log.id) !== String(savedLog.id),
+        );
+
+        return [savedLog, ...withoutSavedDuplicate];
+      };
+
+      setNodeLogs(mergeSavedLog);
+      setAllLogs(mergeSavedLog);
+      setOverviewLogs(mergeSavedLog);
 
       setSelectedDays([savedLog.date]);
       setSelectedWars([String(savedLog.id)]);
-      setMessage('Log saved to database.\nSummary calculated and saved.');
+      setMessage(
+        isEditing
+          ? 'Log updated in database.\nThe old database row was replaced.'
+          : 'Log saved to database.\nSummary calculated and saved.',
+      );
+
+      return savedLog;
     } catch (error) {
       const text = String(error?.message || error || 'Unknown error');
 
-      console.error('Database save failed:', error);
+      console.error(
+        isEditing ? 'Database update failed:' : 'Database save failed:',
+        error,
+      );
 
       if (text.includes('Duplicate log')) {
         setMessage(
           `Database refused save: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
-        return;
+        return null;
       }
 
       if (
@@ -2966,12 +3049,14 @@ export default function App() {
         setMessage(
           `API save endpoint is not available: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
-        return;
+        return null;
       }
 
       setMessage(
-        `Database save failed after 5 attempts: ${text}.\nLogul NU a fost salvat local în browser.`,
+        `${isEditing ? 'Database update failed' : 'Database save failed'}: ${text}.\n` +
+          'Logul NU a fost salvat local în browser.',
       );
+      return null;
     }
   }
 
