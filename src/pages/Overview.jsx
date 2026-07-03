@@ -864,6 +864,37 @@ function compactNumber(value, digits = 1) {
   return number.toLocaleString('en-US');
 }
 
+function hasOwnOverviewField(source, key) {
+  return Boolean(
+    source &&
+      Object.prototype.hasOwnProperty.call(source, key),
+  );
+}
+
+function overviewMetricAvailable(
+  source,
+  flagKeys = [],
+  valueKeys = [],
+) {
+  if (!source) return false;
+
+  for (const key of flagKeys) {
+    if (hasOwnOverviewField(source, key)) {
+      return Boolean(source[key]);
+    }
+  }
+
+  // For legacy summaries, a non-zero value proves the column existed.
+  // A zero without an explicit availability flag remains unknown.
+  return valueKeys.some((key) => {
+    if (!hasOwnOverviewField(source, key)) return false;
+
+    const value = Number(source[key]);
+
+    return Number.isFinite(value) && value !== 0;
+  });
+}
+
 function MetricGlyph({ type, color }) {
   const commonProps = {
     width: '1em',
@@ -2476,7 +2507,7 @@ function AverageRank({
     );
 
   function formatAverageRank(value) {
-    return value == null ? '-' : Number(value).toFixed(2);
+    return value == null ? '—' : Number(value).toFixed(2);
   }
 
   return (
@@ -2535,7 +2566,7 @@ function AverageRank({
                     </small>
 
                     {player.average === 9999
-                      ? '-'
+                      ? '—'
                       : player.average.toFixed(2)}
                   </span>
                 </div>
@@ -2600,8 +2631,8 @@ function AverageRank({
                     >
                       <p className="text-slate-500">{item[0]}</p>
                       <b className={item[2]}>
-                        {item[1] === '-'
-                          ? '-'
+                        {item[1] === '—'
+                          ? '—'
                           : `#${item[1]}`}
                       </b>
                     </div>
@@ -2643,8 +2674,16 @@ function PlayerAverageComparisonCard({
 }) {
   const currentNumber = Number(current);
   const averageNumber = Number(average);
-  const hasCurrent = Number.isFinite(currentNumber);
-  const hasAverage = Number.isFinite(averageNumber);
+  const hasCurrent =
+    current !== undefined &&
+    current !== null &&
+    current !== '' &&
+    Number.isFinite(currentNumber);
+  const hasAverage =
+    average !== undefined &&
+    average !== null &&
+    average !== '' &&
+    Number.isFinite(averageNumber);
   const difference =
     hasCurrent && hasAverage
       ? currentNumber - averageNumber
@@ -2909,36 +2948,148 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     return new Intl.NumberFormat('en-US').format(number);
   }
 
+  const optionalPlayerMetricKeys = new Set([
+    'streak',
+    'feed',
+    'damageDealt',
+    'damageTaken',
+    'ccHits',
+    'fortDamage',
+  ]);
+
   const rows = players
-    .map((player) => ({
-      ...player,
-      streak: streaks[player.name] || 0,
-      feed: feeds[player.name] || 0,
-      damageDealt: Number(player.damageDealt) || 0,
-      damageTaken: Number(player.damageTaken) || 0,
-      ccHits: Number(player.ccHits) || 0,
-      fortDamage: Number(player.fortDamage) || 0,
-    }))
-    .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
+    .map((player) => {
+      const streakKey = getPlayerKeyFromObject(
+        streaks,
+        player.name,
+      );
+      const feedKey = getPlayerKeyFromObject(
+        feeds,
+        player.name,
+      );
+
+      const streakAvailable =
+        streakKey != null ||
+        overviewMetricAvailable(
+          player,
+          ['has_kill_streak', 'hasKillStreak'],
+          ['killStreak', 'killstreak', 'streak'],
+        );
+      const feedAvailable =
+        feedKey != null ||
+        overviewMetricAvailable(
+          player,
+          ['has_kill_feed', 'hasKillFeed'],
+          ['killFeed', 'killfeed', 'feed'],
+        );
+      const damageDealtAvailable = overviewMetricAvailable(
+        player,
+        ['has_damage_dealt', 'hasDamageDealt'],
+        ['damageDealt', 'damage_dealt', 'damage'],
+      );
+      const damageTakenAvailable = overviewMetricAvailable(
+        player,
+        ['has_damage_taken', 'hasDamageTaken'],
+        ['damageTaken', 'damage_taken'],
+      );
+      const ccHitsAvailable = overviewMetricAvailable(
+        player,
+        ['has_cc_hits', 'hasCcHits'],
+        ['ccHits', 'cc_hits', 'cc'],
+      );
+      const fortDamageAvailable = overviewMetricAvailable(
+        player,
+        ['has_fort_damage', 'hasFortDamage'],
+        ['fortDamage', 'damageToFort', 'damage_to_fort'],
+      );
+
+      return {
+        ...player,
+        streak:
+          streakKey != null
+            ? Number(streaks?.[streakKey]) || 0
+            : Number(
+                player?.killStreak ??
+                  player?.killstreak ??
+                  player?.streak,
+              ) || 0,
+        feed:
+          feedKey != null
+            ? Number(feeds?.[feedKey]) || 0
+            : Number(
+                player?.killFeed ??
+                  player?.killfeed ??
+                  player?.feed,
+              ) || 0,
+        damageDealt: Number(player.damageDealt) || 0,
+        damageTaken: Number(player.damageTaken) || 0,
+        ccHits: Number(player.ccHits) || 0,
+        fortDamage: Number(
+          player.fortDamage ?? player.damageToFort,
+        ) || 0,
+        __available: {
+          streak: streakAvailable,
+          feed: feedAvailable,
+          damageDealt: damageDealtAvailable,
+          damageTaken: damageTakenAvailable,
+          ccHits: ccHitsAvailable,
+          fortDamage: fortDamageAvailable,
+        },
+      };
+    })
+    .filter((player) =>
+      normalizePlayerName(player.name).includes(
+        normalizePlayerName(query),
+      ),
+    )
     .sort((a, b) => {
-      const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
-      const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
+      if (key !== 'name' && optionalPlayerMetricKeys.has(key)) {
+        const aAvailable = Boolean(a?.__available?.[key]);
+        const bAvailable = Boolean(b?.__available?.[key]);
+
+        // Missing statistics always stay at the bottom instead of being
+        // treated as numeric zero.
+        if (aAvailable !== bAvailable) {
+          return aAvailable ? -1 : 1;
+        }
+      }
+
+      const av =
+        key === 'name'
+          ? a.name.toLowerCase()
+          : Number(a[key]) || 0;
+      const bv =
+        key === 'name'
+          ? b.name.toLowerCase()
+          : Number(b[key]) || 0;
 
       if (av < bv) return direction === 'asc' ? -1 : 1;
       if (av > bv) return direction === 'asc' ? 1 : -1;
-      return 0;
+      return a.name.localeCompare(b.name);
     });
 
+  function progressMaximum(metric) {
+    const values = rows
+      .filter(
+        (player) =>
+          !optionalPlayerMetricKeys.has(metric) ||
+          Boolean(player?.__available?.[metric]),
+      )
+      .map((player) => Number(player?.[metric]) || 0);
+
+    return Math.max(1, ...values);
+  }
+
   const progressMax = {
-    kills: Math.max(1, ...rows.map((player) => Number(player.kills) || 0)),
-    deaths: Math.max(1, ...rows.map((player) => Number(player.deaths) || 0)),
-    kd: Math.max(1, ...rows.map((player) => Number(player.kd) || 0)),
-    streak: Math.max(1, ...rows.map((player) => Number(player.streak) || 0)),
-    feed: Math.max(1, ...rows.map((player) => Number(player.feed) || 0)),
-    damageDealt: Math.max(1, ...rows.map((player) => Number(player.damageDealt) || 0)),
-    damageTaken: Math.max(1, ...rows.map((player) => Number(player.damageTaken) || 0)),
-    ccHits: Math.max(1, ...rows.map((player) => Number(player.ccHits) || 0)),
-    fortDamage: Math.max(1, ...rows.map((player) => Number(player.fortDamage) || 0)),
+    kills: progressMaximum('kills'),
+    deaths: progressMaximum('deaths'),
+    kd: progressMaximum('kd'),
+    streak: progressMaximum('streak'),
+    feed: progressMaximum('feed'),
+    damageDealt: progressMaximum('damageDealt'),
+    damageTaken: progressMaximum('damageTaken'),
+    ccHits: progressMaximum('ccHits'),
+    fortDamage: progressMaximum('fortDamage'),
   };
 
   const progressThemes = {
@@ -2953,11 +3104,35 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     fortDamage: 'from-amber-500 to-yellow-300',
   };
 
-  function ProgressValue({ id, value, children, className = '' }) {
+  function ProgressValue({
+    id,
+    value,
+    available = true,
+    children,
+    className = '',
+  }) {
     const numeric = Number(value) || 0;
     const width = numeric <= 0
       ? 0
-      : Math.max(3, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
+      : Math.max(
+          3,
+          Math.min(
+            100,
+            Math.round(
+              (numeric / (progressMax[id] || 1)) * 100,
+            ),
+          ),
+        );
+
+    if (!available) {
+      return (
+        <div className={`mx-auto flex w-full min-w-0 flex-col items-center ${className}`}>
+          <span className="whitespace-nowrap text-center leading-none text-slate-500">
+            —
+          </span>
+        </div>
+      );
+    }
 
     return (
       <div className={`mx-auto flex w-full min-w-0 flex-col items-center ${className}`}>
@@ -3978,37 +4153,61 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                     </td>
 
                     <td className="py-2 text-center font-black">
-                      <ProgressValue id="streak" value={player.streak}>
+                      <ProgressValue
+                        id="streak"
+                        value={player.streak}
+                        available={player.__available.streak}
+                      >
                         {formatNumber(player.streak)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-orange-300">
-                      <ProgressValue id="feed" value={player.feed}>
+                      <ProgressValue
+                        id="feed"
+                        value={player.feed}
+                        available={player.__available.feed}
+                      >
                         🔥 {formatNumber(player.feed)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-cyan-300">
-                      <ProgressValue id="damageDealt" value={player.damageDealt}>
+                      <ProgressValue
+                        id="damageDealt"
+                        value={player.damageDealt}
+                        available={player.__available.damageDealt}
+                      >
                         {formatNumber(player.damageDealt)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-rose-300">
-                      <ProgressValue id="damageTaken" value={player.damageTaken}>
+                      <ProgressValue
+                        id="damageTaken"
+                        value={player.damageTaken}
+                        available={player.__available.damageTaken}
+                      >
                         {formatNumber(player.damageTaken)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-violet-300">
-                      <ProgressValue id="ccHits" value={player.ccHits}>
+                      <ProgressValue
+                        id="ccHits"
+                        value={player.ccHits}
+                        available={player.__available.ccHits}
+                      >
                         {formatNumber(player.ccHits)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-amber-300">
-                      <ProgressValue id="fortDamage" value={player.fortDamage}>
+                      <ProgressValue
+                        id="fortDamage"
+                        value={player.fortDamage}
+                        available={player.__available.fortDamage}
+                      >
                         {formatNumber(player.fortDamage)}
                       </ProgressValue>
                     </td>
@@ -4086,7 +4285,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="Killstreak"
-                  current={streaks[selected.name] || 0}
+                  current={
+                    selected.__available?.streak
+                      ? selected.streak
+                      : undefined
+                  }
                   average={selectedLifetimeAverageStats?.streak}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.streak || 0
@@ -4097,7 +4300,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="Killfeed"
-                  current={feeds[selected.name] || 0}
+                  current={
+                    selected.__available?.feed
+                      ? selected.feed
+                      : undefined
+                  }
                   average={selectedLifetimeAverageStats?.feed}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.feed || 0
@@ -4108,7 +4315,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="DMG Dealt"
-                  current={selected.damageDealt}
+                  current={
+                    selected.__available?.damageDealt
+                      ? selected.damageDealt
+                      : undefined
+                  }
                   average={selectedLifetimeAverageStats?.damageDealt}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.damageDealt || 0
@@ -4119,7 +4330,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="DMG Taken"
-                  current={selected.damageTaken}
+                  current={
+                    selected.__available?.damageTaken
+                      ? selected.damageTaken
+                      : undefined
+                  }
                   average={selectedLifetimeAverageStats?.damageTaken}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.damageTaken || 0
@@ -4131,7 +4346,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="CC Hits"
-                  current={selected.ccHits}
+                  current={
+                    selected.__available?.ccHits
+                      ? selected.ccHits
+                      : undefined
+                  }
                   average={selectedLifetimeAverageStats?.ccHits}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.ccHits || 0
@@ -4142,7 +4361,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="DMG to Fort"
-                  current={selected.fortDamage}
+                  current={
+                    selected.__available?.fortDamage
+                      ? selected.fortDamage
+                      : undefined
+                  }
                   average={selectedLifetimeAverageStats?.fortDamage}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.fortDamage || 0
@@ -5302,26 +5525,93 @@ export default function OverviewPage({
     ? buildConsecutiveFlowMarkers(stats.ev || [])
     : [];
 
-  const playerSecondaryTotals = (stats.players || []).reduce(
+  const players = Array.isArray(stats?.players)
+    ? stats.players
+    : [];
+  const secondaryRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+  const secondaryTotals = stats?.secondary?.totals || {};
+  const secondaryAvailable = stats?.secondary?.available || {};
+
+  const playerSecondaryTotals = players.reduce(
     (totals, player) => ({
       damageDealt:
         totals.damageDealt + (Number(player.damageDealt) || 0),
       damageTaken:
         totals.damageTaken + (Number(player.damageTaken) || 0),
       ccHits: totals.ccHits + (Number(player.ccHits) || 0),
-      fortDamage: totals.fortDamage + (Number(player.fortDamage) || 0),
+      fortDamage:
+        totals.fortDamage +
+        (Number(player.fortDamage ?? player.damageToFort) || 0),
     }),
-    { damageDealt: 0, damageTaken: 0, ccHits: 0, fortDamage: 0 },
+    {
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+    },
   );
 
-  const secondaryTotals = stats.secondary?.totals || {};
+  function aggregateMetricAvailable(
+    metric,
+    flagKeys,
+    valueKeys,
+  ) {
+    if (hasOwnOverviewField(secondaryAvailable, metric)) {
+      return Boolean(secondaryAvailable[metric]);
+    }
+
+    return [secondaryTotals, ...secondaryRows, ...players].some(
+      (source) =>
+        overviewMetricAvailable(
+          source,
+          flagKeys,
+          valueKeys,
+        ),
+    );
+  }
+
+  const damageDealtAvailable = aggregateMetricAvailable(
+    'damageDealt',
+    ['has_damage_dealt', 'hasDamageDealt'],
+    ['damageDealt', 'damage_dealt', 'damage'],
+  );
+  const damageTakenAvailable = aggregateMetricAvailable(
+    'damageTaken',
+    ['has_damage_taken', 'hasDamageTaken'],
+    ['damageTaken', 'damage_taken'],
+  );
+  const ccHitsAvailable = aggregateMetricAvailable(
+    'ccHits',
+    ['has_cc_hits', 'hasCcHits'],
+    ['ccHits', 'cc_hits', 'cc'],
+  );
+  const fortDamageAvailable = aggregateMetricAvailable(
+    'fortDamage',
+    ['has_fort_damage', 'hasFortDamage'],
+    ['fortDamage', 'damageToFort', 'damage_to_fort'],
+  );
+
   const damageDealt =
-    Number(secondaryTotals.damageDealt) || playerSecondaryTotals.damageDealt || 0;
+    Number(secondaryTotals.damageDealt) ||
+    playerSecondaryTotals.damageDealt ||
+    0;
   const damageTaken =
-    Number(secondaryTotals.damageTaken) || playerSecondaryTotals.damageTaken || 0;
-  const ccHits = Number(secondaryTotals.ccHits) || playerSecondaryTotals.ccHits || 0;
+    Number(secondaryTotals.damageTaken) ||
+    playerSecondaryTotals.damageTaken ||
+    0;
+  const ccHits =
+    Number(secondaryTotals.ccHits) ||
+    playerSecondaryTotals.ccHits ||
+    0;
   const fortDamage =
-    Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0;
+    Number(
+      secondaryTotals.fortDamage ??
+        secondaryTotals.damageToFort,
+    ) ||
+    playerSecondaryTotals.fortDamage ||
+    0;
 
   return (
     <div className="overview-guild-page space-y-4">
@@ -5372,7 +5662,11 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="damageDealt" color="#38bdf8" />}
             label="Damage"
-            value={compactNumber(damageDealt)}
+            value={
+              damageDealtAvailable
+                ? compactNumber(damageDealt)
+                : '—'
+            }
             sub="Dealt"
             tone="cyan"
             valueClass="text-cyan-300"
@@ -5381,7 +5675,11 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="damageTaken" color="#fb7185" />}
             label="Damage Taken"
-            value={compactNumber(damageTaken)}
+            value={
+              damageTakenAvailable
+                ? compactNumber(damageTaken)
+                : '—'
+            }
             sub="Taken"
             tone="rose"
             valueClass="text-rose-300"
@@ -5390,7 +5688,11 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="ccHits" color="#a855f7" />}
             label="CC Hits"
-            value={compactNumber(ccHits)}
+            value={
+              ccHitsAvailable
+                ? compactNumber(ccHits)
+                : '—'
+            }
             sub="Control"
             tone="violet"
             valueClass="text-violet-300"
@@ -5399,7 +5701,11 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="damageToFort" color="#f59e0b" />}
             label="Fort Damage"
-            value={compactNumber(fortDamage)}
+            value={
+              fortDamageAvailable
+                ? compactNumber(fortDamage)
+                : '—'
+            }
             sub="Structure"
             tone="amber"
             valueClass="text-amber-300"
