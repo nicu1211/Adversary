@@ -2604,18 +2604,19 @@ export default function App() {
   }, []);
 
   const loadAllLogs = useCallback(async () => {
-    const allLogsAlreadyLoaded =
+    const allLogsAlreadyLoadedWithRaw =
       Array.isArray(allLogs) &&
-      allLogs.length > 0;
+      allLogs.length > 0 &&
+      allLogs.every((log) => Boolean(log.raw));
 
-    if (allLogsAlreadyLoaded) {
+    if (allLogsAlreadyLoadedWithRaw) {
       return allLogs;
     }
 
     try {
       setLoadingAllLogs(true);
 
-      const data = await apiGet(logsPath({ range: 'all' }));
+      const data = await apiGet(logsPath({ range: 'all', includeRaw: 1 }));
       const normalized = normalizeLogs(data);
 
       setAllLogs(normalized);
@@ -2635,94 +2636,6 @@ export default function App() {
     }
   }, [allLogs]);
 
-  const loadEditableRawLogs = useCallback(async () => {
-    try {
-      setLoadingAllLogs(true);
-      setAllLogs(null);
-
-      /*
-       * Keep the complete lightweight history and enrich it with every raw log
-       * the backend returns. The includeRaw response can be smaller because of
-       * response-size/backend limits; replacing the lightweight history with
-       * that response made Player Stats see only a few Node Wars.
-       */
-      const [historyResult, rawResult] = await Promise.allSettled([
-        apiGet(logsPath({ range: 'all' }), { timeoutMs: 60000 }),
-        apiGet(
-          logsPath({ range: 'all', includeRaw: 1 }),
-          { timeoutMs: 60000 },
-        ),
-      ]);
-
-      const historyLogs =
-        historyResult.status === 'fulfilled'
-          ? normalizeLogs(historyResult.value)
-          : [];
-      const rawLogs =
-        rawResult.status === 'fulfilled'
-          ? normalizeLogs(rawResult.value)
-          : [];
-
-      if (!historyLogs.length && !rawLogs.length) {
-        const historyError =
-          historyResult.status === 'rejected'
-            ? historyResult.reason
-            : null;
-        const rawError =
-          rawResult.status === 'rejected'
-            ? rawResult.reason
-            : null;
-
-        throw historyError || rawError || new Error('No logs returned');
-      }
-
-      function logMergeKey(log) {
-        return String(
-          log?.apiId ??
-            log?.id ??
-            log?.hash ??
-            `${dateOf(log)}::${log?.name || ''}`,
-        );
-      }
-
-      const mergedById = new Map();
-
-      historyLogs.forEach((log) => {
-        mergedById.set(logMergeKey(log), log);
-      });
-
-      rawLogs.forEach((rawLog) => {
-        const key = logMergeKey(rawLog);
-        const historyLog = mergedById.get(key);
-
-        mergedById.set(key, {
-          ...(historyLog || {}),
-          ...rawLog,
-          raw: rawLog.raw || historyLog?.raw || '',
-          summary: historyLog?.summary || rawLog.summary || null,
-        });
-      });
-
-      const mergedLogs = [...mergedById.values()];
-
-      setAllLogs(mergedLogs);
-      setMessage('');
-
-      return mergedLogs;
-    } catch (error) {
-      console.error('Failed to load editable raw logs:', error);
-      setMessage(
-        `Raw log load failed: ${
-          error?.message || error || 'unknown error'
-        }.`,
-      );
-
-      return [];
-    } finally {
-      setLoadingAllLogs(false);
-    }
-  }, []);
-
   const loadOverviewLogs = useCallback(async () => {
     if (page !== 'overview') return;
 
@@ -2732,7 +2645,6 @@ export default function App() {
       const availableLogs = Array.isArray(nodeLogs) ? nodeLogs : [];
       const needsAllLogs =
         selectedDays.includes('all') || selectedWars.includes('all');
-
       const allAvailableLogs = needsAllLogs
         ? await loadAllLogs()
         : Array.isArray(allLogs)
@@ -2743,74 +2655,89 @@ export default function App() {
         ...new Map(
           [...availableLogs, ...allAvailableLogs]
             .filter(Boolean)
-            .map((log) => [
-              String(log.id),
-              {
-                ...log,
-                date: dateOf(log),
-              },
-            ]),
+            .map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
         ).values(),
       ];
 
       const selectedRealWars = selectedWars.includes('all')
         ? sourceLogs
             .map((log) => String(log.id))
-            .filter(
-              (id) =>
-                id &&
-                id !== 'current' &&
-                id !== 'all',
-            )
-        : selectedWars.filter(
-            (id) =>
-              id !== 'all' &&
-              id !== 'current',
-          );
+            .filter((id) => id && id !== 'current' && id !== 'all')
+        : selectedWars.filter((id) => id !== 'all' && id !== 'current');
 
-      const uniqueSelectedWars = [
-        ...new Set(selectedRealWars),
-      ];
+      const uniqueSelectedWars = [...new Set(selectedRealWars)];
 
       if (!uniqueSelectedWars.length) {
         setOverviewLogs([]);
         return;
       }
 
-      const logsById = new Map(
-        sourceLogs.map((log) => [
-          String(log.id),
-          {
-            ...log,
-            date: dateOf(log),
-          },
-        ]),
+      const fallbackById = new Map(
+        sourceLogs.map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
       );
 
-      setOverviewLogs(
-        uniqueSelectedWars
-          .map((id) => logsById.get(String(id)))
-          .filter(Boolean),
+      const rawById = new Map();
+
+      sourceLogs.forEach((log) => {
+        const id = String(log.id);
+
+        if (!id || !log.raw) return;
+
+        rawById.set(id, {
+          ...log,
+          date: dateOf(log),
+        });
+      });
+
+      const idsToLoad = uniqueSelectedWars.filter((id) => !rawById.has(String(id)));
+
+      const loaded = await Promise.allSettled(
+        idsToLoad.map(async (id) => {
+          const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
+          return normalizeLog(data);
+        }),
       );
+
+      loaded.forEach((result) => {
+        if (result.status !== 'fulfilled') return;
+
+        const log = result.value;
+        const id = String(log.id);
+
+        if (!id || !log.raw) return;
+
+        rawById.set(id, {
+          ...log,
+          date: dateOf(log),
+        });
+      });
+
+      const selectedLogsWithFallback = uniqueSelectedWars
+        .map((id) => rawById.get(String(id)) || fallbackById.get(String(id)))
+        .filter(Boolean);
+
+      setOverviewLogs(selectedLogsWithFallback);
+
+      const loadedCount = uniqueSelectedWars.filter((id) => rawById.has(String(id))).length;
+      const failedCount = uniqueSelectedWars.length - loadedCount;
+
+      if (failedCount > 0) {
+        console.warn(
+          `Overview loaded ${loadedCount}/${uniqueSelectedWars.length} raw log(s). Falling back to saved summaries for ${failedCount} log(s).`,
+        );
+      }
     } catch (error) {
-      console.error('Failed to load overview logs:', error);
+      console.error('Failed to load overview raw logs:', error);
       setOverviewLogs([]);
       setMessage(
-        `Failed to load selected logs: ${
+        `Failed to load selected raw logs: ${
           error?.message || error || 'unknown error'
         }`,
       );
     } finally {
       setLoadingOverviewLogs(false);
     }
-  }, [
-    page,
-    selectedDays,
-    selectedWars,
-    nodeLogs,
-    allLogs,
-    loadAllLogs,
-  ]);
+  }, [page, selectedDays, selectedWars, nodeLogs, allLogs, loadAllLogs]);
 
   useEffect(() => {
     loadNodeLogs(30);
@@ -2825,27 +2752,10 @@ export default function App() {
   }, [loadNodeLogs]);
 
   useEffect(() => {
-    /*
-     * Raw Logs, Player Stats, and Overview require the complete saved text.
-     *
-     * The lightweight /api/logs?range=all response only contains summaries.
-     * Those summaries can preserve totals, but they cannot reliably preserve
-     * every player's per-war participation. Loading includeRaw=1 here lets
-     * calculateStats read and merge both:
-     *   1. the timestamped Combat Log
-     *   2. the Stats Log stored after ADVERSARY_SECONDARY_LOG_START
-     *
-     * Player Stats then counts the union of both sources without counting the
-     * same war twice.
-     */
-    if (page === 'raw' || page === 'players' || page === 'overview') {
-      loadEditableRawLogs();
-    }
-  }, [page, loadEditableRawLogs]);
-
-  useEffect(() => {
     if (
+      page === 'players' ||
       page === 'hall' ||
+      page === 'raw' ||
       page === 'guild' ||
       page === 'monthly'
     ) {
@@ -2909,39 +2819,42 @@ export default function App() {
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
   const allTimeStats = useMemo(() => {
-    if (
-      page !== 'players' &&
-      page !== 'hall' &&
-      page !== 'guild'
-    ) {
+    if (page !== 'players' && page !== 'hall' && page !== 'guild') {
       return calculateStats([]);
     }
 
-    const sourceLogs = Array.isArray(allLogs)
-      ? allLogs
-      : [];
+    const sourceLogs = Array.isArray(allLogs) ? allLogs : [];
 
     return calculateStats(
-      sourceLogs.map((log) => ({
-        ...log,
-        date: dateOf(log),
-      })),
+      sourceLogs
+        .filter((log) => Boolean(log.raw))
+        .map((log) => ({
+          ...log,
+          date: dateOf(log),
+        })),
     );
   }, [page, allLogs]);
 
-  const allLogsReady = Array.isArray(allLogs);
-
   const playerStatsReady =
-    page !== 'players' || allLogsReady;
+    page !== 'players' ||
+    (Array.isArray(allLogs) &&
+      allLogs.length > 0 &&
+      allLogs.some((log) => Boolean(log.raw)));
 
   const hallOfFameReady =
-    page !== 'hall' || allLogsReady;
+    page !== 'hall' ||
+    (Array.isArray(allLogs) &&
+      allLogs.length > 0 &&
+      allLogs.some((log) => Boolean(log.raw)));
 
   const guildReady =
-    page !== 'guild' || allLogsReady;
+    page !== 'guild' ||
+    (Array.isArray(allLogs) &&
+      allLogs.length > 0 &&
+      allLogs.some((log) => Boolean(log.raw)));
 
   const monthlyRecapReady =
-    page !== 'monthly' || allLogsReady;
+    page !== 'monthly' || Array.isArray(allLogs);
 
   const label = current ? 'Current log' : all ? 'All saved days' : selectedDays[0] || 'No day';
 
@@ -2950,39 +2863,17 @@ export default function App() {
     [logs],
   );
 
-  async function saveLog(rawOverride, editId = null) {
+  async function saveLog(rawOverride) {
     const rawToSave = rawOverride == null ? raw : rawOverride;
-    const mainRawToSave = getMainLogOnly(rawToSave);
-    const secondaryPart = String(rawToSave).includes(SECONDARY_LOG_START)
-      ? String(rawToSave).split(SECONDARY_LOG_START)[1] || ''
-      : '';
 
-    const hasCombatEntries =
-      parseLog(mainRawToSave, date, date, 'x').length > 0;
-    const hasSecondaryEntries = Boolean(secondaryPart.trim());
-
-    if (!hasCombatEntries && !hasSecondaryEntries) {
+    if (!parseLog(rawToSave, date, date, 'x').length) {
       setMessage('Invalid log');
-      return null;
-    }
-
-    const editingLog =
-      editId == null
-        ? null
-        : logs.find((log) => String(log.id) === String(editId)) || null;
-
-    if (editId != null && !editingLog) {
-      setMessage('The log being edited was not found. Load it again from History.');
-      return null;
+      return;
     }
 
     const localHash = hashLog(rawToSave);
 
     const duplicate = logs.find((log) => {
-      if (editId != null && String(log.id) === String(editId)) {
-        return false;
-      }
-
       if (log.hash && log.hash === localHash) return true;
       if (log.raw) return hashLog(log.raw) === localHash;
       return false;
@@ -2992,7 +2883,7 @@ export default function App() {
       setSelectedDays([dateOf(duplicate)]);
       setSelectedWars([String(duplicate.id)]);
       setMessage('Duplicate log detected locally');
-      return null;
+      return;
     }
 
     const draftLog = {
@@ -3011,20 +2902,9 @@ export default function App() {
       summary,
     };
 
-    const isEditing = Boolean(editingLog);
-
-    setMessage(
-      isEditing
-        ? 'Saving edited log to database...\nattempt 1/5'
-        : 'Saving log to database...\nattempt 1/5',
-    );
+    setMessage('Saving log to database...\nattempt 1/5');
 
     try {
-      /*
-       * The current backend has POST and DELETE routes, but no PUT route.
-       * For an edit, save the replacement first, then remove the old row.
-       * This order avoids losing the original log if the new save fails.
-       */
       const response = await apiWriteWithRetry('/api/logs', 'POST', payload, {
         maxAttempts: 5,
         baseDelayMs: 700,
@@ -3036,79 +2916,29 @@ export default function App() {
         summary: response?.summary || payload.summary,
       });
 
-      if (isEditing) {
-        try {
-          await deleteApiLog(editingLog);
-        } catch (deleteError) {
-          let rollbackError = null;
+      setNodeLogs((currentLogs) => [savedLog, ...currentLogs]);
 
-          try {
-            await deleteApiLog(savedLog);
-          } catch (error) {
-            rollbackError = error;
-          }
+      setAllLogs((currentLogs) =>
+        Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
+      );
 
-          if (rollbackError) {
-            throw new Error(
-              `The edited log was saved, but the old log could not be removed. ` +
-                `The rollback also failed, so both entries may be present. ` +
-                `Delete one of them from History. Original delete error: ${
-                  deleteError?.message || deleteError
-                }`,
-            );
-          }
-
-          throw new Error(
-            `The old log could not be removed, so the new edited copy was rolled back. ` +
-              `Your original log is still safe. ${
-                deleteError?.message || deleteError
-              }`,
-          );
-        }
-      }
-
-      const mergeSavedLog = (currentLogs) => {
-        if (!Array.isArray(currentLogs)) return currentLogs;
-
-        const withoutOld = isEditing
-          ? currentLogs.filter(
-              (log) => String(log.id) !== String(editingLog.id),
-            )
-          : currentLogs;
-
-        const withoutSavedDuplicate = withoutOld.filter(
-          (log) => String(log.id) !== String(savedLog.id),
-        );
-
-        return [savedLog, ...withoutSavedDuplicate];
-      };
-
-      setNodeLogs(mergeSavedLog);
-      setAllLogs(mergeSavedLog);
-      setOverviewLogs(mergeSavedLog);
+      setOverviewLogs((currentLogs) =>
+        Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
+      );
 
       setSelectedDays([savedLog.date]);
       setSelectedWars([String(savedLog.id)]);
-      setMessage(
-        isEditing
-          ? 'Log updated in database.\nThe old database row was replaced.'
-          : 'Log saved to database.\nSummary calculated and saved.',
-      );
-
-      return savedLog;
+      setMessage('Log saved to database.\nSummary calculated and saved.');
     } catch (error) {
       const text = String(error?.message || error || 'Unknown error');
 
-      console.error(
-        isEditing ? 'Database update failed:' : 'Database save failed:',
-        error,
-      );
+      console.error('Database save failed:', error);
 
       if (text.includes('Duplicate log')) {
         setMessage(
           `Database refused save: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
-        return null;
+        return;
       }
 
       if (
@@ -3119,14 +2949,12 @@ export default function App() {
         setMessage(
           `API save endpoint is not available: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
-        return null;
+        return;
       }
 
       setMessage(
-        `${isEditing ? 'Database update failed' : 'Database save failed'}: ${text}.\n` +
-          'Logul NU a fost salvat local în browser.',
+        `Database save failed after 5 attempts: ${text}.\nLogul NU a fost salvat local în browser.`,
       );
-      return null;
     }
   }
 
@@ -3516,7 +3344,6 @@ export default function App() {
               ) : (
                 <PlayerStats
                   stats={allTimeStats}
-                  logs={Array.isArray(allLogs) ? allLogs : []}
                   onOpenMatchOverview={openMatchOverviewFromPlayerStats}
                 />
               )}
