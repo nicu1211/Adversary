@@ -2315,6 +2315,7 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
         kills: 0,
         deaths: 0,
         kd: 0,
+        killstreak: 0,
         killfeed: 0,
         damageDealt: 0,
         damageTaken: 0,
@@ -2343,6 +2344,11 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
     const hasDeaths = getSecondaryMetricExists(
       row,
       'deaths',
+      warPresence,
+    );
+    const hasKillstreak = getSecondaryMetricExists(
+      row,
+      'killstreak',
       warPresence,
     );
     const hasKillfeed = getSecondaryMetricExists(
@@ -2388,6 +2394,11 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
       player.kd = player.deaths
         ? Number((player.kills / player.deaths).toFixed(2))
         : Number(player.kills.toFixed(2));
+    }
+
+    if (hasKillstreak) {
+      player.killstreak = Number(metrics.killstreak) || 0;
+      player.__has.killstreak = true;
     }
 
     if (hasKillfeed) {
@@ -2884,7 +2895,13 @@ const MATCH_HISTORY_COLORS = {
 const SECONDARY_MATCH_METRIC_KEYS = {
   kills: ['kills', 'Kills'],
   deaths: ['deaths', 'Deaths'],
-  killstreak: [],
+  killstreak: [
+    'killStreak',
+    'killstreak',
+    'streak',
+    'Killstreak',
+    'KillStreak',
+  ],
   killfeed: [
     'killFeed',
     'killfeed',
@@ -3426,7 +3443,7 @@ function getSecondaryMatchStats(row) {
   return {
     kills: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.kills),
     deaths: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.deaths),
-    killstreak: 0,
+    killstreak: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killstreak),
     killfeed: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killfeed),
     damageDealt: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageDealt),
     damageTaken: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageTaken),
@@ -4373,6 +4390,11 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
         'deaths',
         warPresence,
       );
+      const hasKillstreak = getSecondaryMetricExists(
+        row,
+        'killstreak',
+        warPresence,
+      );
       const hasKillfeed = getSecondaryMetricExists(
         row,
         'killfeed',
@@ -4407,6 +4429,11 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       if (hasDeaths) {
         match.deaths = Number(rowStats.deaths) || 0;
         match.__has.deaths = true;
+      }
+
+      if (hasKillstreak) {
+        match.killstreak = Number(rowStats.killstreak) || 0;
+        match.__has.killstreak = true;
       }
 
       if (hasKillfeed) {
@@ -4753,6 +4780,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       const warPresence = secondaryWarPresence[warId] || {};
       const hasKills = getSecondaryMetricExists(row, 'kills', warPresence);
       const hasDeaths = getSecondaryMetricExists(row, 'deaths', warPresence);
+      const hasKillstreak = getSecondaryMetricExists(row, 'killstreak', warPresence);
       const hasKillfeed = getSecondaryMetricExists(row, 'killfeed', warPresence);
       const hasDamageDealt = getSecondaryMetricExists(row, 'damageDealt', warPresence);
       const hasDamageTaken = getSecondaryMetricExists(row, 'damageTaken', warPresence);
@@ -4764,7 +4792,9 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
         date,
         kills: hasKills ? statsFromRow.kills : existing?.kills || 0,
         deaths: hasDeaths ? statsFromRow.deaths : existing?.deaths || 0,
-        killstreak: existing?.killstreak || 0,
+        killstreak: hasKillstreak
+          ? statsFromRow.killstreak
+          : existing?.killstreak || 0,
         killfeed: hasKillfeed ? statsFromRow.killfeed : existing?.killfeed || 0,
         damageDealt: hasDamageDealt
           ? statsFromRow.damageDealt
@@ -4779,7 +4809,8 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
         __has: {
           kills: hasKills || Boolean(existingHas.kills),
           deaths: hasDeaths || Boolean(existingHas.deaths),
-          killstreak: Boolean(existingHas.killstreak),
+          killstreak:
+            hasKillstreak || Boolean(existingHas.killstreak),
           killfeed: hasKillfeed || Boolean(existingHas.killfeed),
           damageDealt: hasDamageDealt || Boolean(existingHas.damageDealt),
           damageTaken: hasDamageTaken || Boolean(existingHas.damageTaken),
