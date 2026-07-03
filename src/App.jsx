@@ -2644,6 +2644,7 @@ export default function App() {
       const availableLogs = Array.isArray(nodeLogs) ? nodeLogs : [];
       const needsAllLogs =
         selectedDays.includes('all') || selectedWars.includes('all');
+
       const allAvailableLogs = needsAllLogs
         ? await loadAllLogs()
         : Array.isArray(allLogs)
@@ -2654,89 +2655,74 @@ export default function App() {
         ...new Map(
           [...availableLogs, ...allAvailableLogs]
             .filter(Boolean)
-            .map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
+            .map((log) => [
+              String(log.id),
+              {
+                ...log,
+                date: dateOf(log),
+              },
+            ]),
         ).values(),
       ];
 
       const selectedRealWars = selectedWars.includes('all')
         ? sourceLogs
             .map((log) => String(log.id))
-            .filter((id) => id && id !== 'current' && id !== 'all')
-        : selectedWars.filter((id) => id !== 'all' && id !== 'current');
+            .filter(
+              (id) =>
+                id &&
+                id !== 'current' &&
+                id !== 'all',
+            )
+        : selectedWars.filter(
+            (id) =>
+              id !== 'all' &&
+              id !== 'current',
+          );
 
-      const uniqueSelectedWars = [...new Set(selectedRealWars)];
+      const uniqueSelectedWars = [
+        ...new Set(selectedRealWars),
+      ];
 
       if (!uniqueSelectedWars.length) {
         setOverviewLogs([]);
         return;
       }
 
-      const fallbackById = new Map(
-        sourceLogs.map((log) => [String(log.id), { ...log, date: dateOf(log) }]),
+      const logsById = new Map(
+        sourceLogs.map((log) => [
+          String(log.id),
+          {
+            ...log,
+            date: dateOf(log),
+          },
+        ]),
       );
 
-      const rawById = new Map();
-
-      sourceLogs.forEach((log) => {
-        const id = String(log.id);
-
-        if (!id || !log.raw) return;
-
-        rawById.set(id, {
-          ...log,
-          date: dateOf(log),
-        });
-      });
-
-      const idsToLoad = uniqueSelectedWars.filter((id) => !rawById.has(String(id)));
-
-      const loaded = await Promise.allSettled(
-        idsToLoad.map(async (id) => {
-          const data = await apiGet(`/api/logs/${encodeURIComponent(id)}/raw`);
-          return normalizeLog(data);
-        }),
+      setOverviewLogs(
+        uniqueSelectedWars
+          .map((id) => logsById.get(String(id)))
+          .filter(Boolean),
       );
-
-      loaded.forEach((result) => {
-        if (result.status !== 'fulfilled') return;
-
-        const log = result.value;
-        const id = String(log.id);
-
-        if (!id || !log.raw) return;
-
-        rawById.set(id, {
-          ...log,
-          date: dateOf(log),
-        });
-      });
-
-      const selectedLogsWithFallback = uniqueSelectedWars
-        .map((id) => rawById.get(String(id)) || fallbackById.get(String(id)))
-        .filter(Boolean);
-
-      setOverviewLogs(selectedLogsWithFallback);
-
-      const loadedCount = uniqueSelectedWars.filter((id) => rawById.has(String(id))).length;
-      const failedCount = uniqueSelectedWars.length - loadedCount;
-
-      if (failedCount > 0) {
-        console.warn(
-          `Overview loaded ${loadedCount}/${uniqueSelectedWars.length} raw log(s). Falling back to saved summaries for ${failedCount} log(s).`,
-        );
-      }
     } catch (error) {
-      console.error('Failed to load overview raw logs:', error);
+      console.error('Failed to load overview logs:', error);
       setOverviewLogs([]);
       setMessage(
-        `Failed to load selected raw logs: ${
+        `Failed to load selected logs: ${
           error?.message || error || 'unknown error'
         }`,
       );
     } finally {
       setLoadingOverviewLogs(false);
     }
-  }, [page, selectedDays, selectedWars, nodeLogs, allLogs, loadAllLogs]);
+  }, [
+    page,
+    selectedDays,
+    selectedWars,
+    nodeLogs,
+    allLogs,
+    loadAllLogs,
+  ]);
 
   useEffect(() => {
     loadNodeLogs(30);
@@ -2818,42 +2804,39 @@ export default function App() {
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
   const allTimeStats = useMemo(() => {
-    if (page !== 'players' && page !== 'hall' && page !== 'guild') {
+    if (
+      page !== 'players' &&
+      page !== 'hall' &&
+      page !== 'guild'
+    ) {
       return calculateStats([]);
     }
 
-    const sourceLogs = Array.isArray(allLogs) ? allLogs : [];
+    const sourceLogs = Array.isArray(allLogs)
+      ? allLogs
+      : [];
 
     return calculateStats(
-      sourceLogs
-        .filter((log) => Boolean(log.raw))
-        .map((log) => ({
-          ...log,
-          date: dateOf(log),
-        })),
+      sourceLogs.map((log) => ({
+        ...log,
+        date: dateOf(log),
+      })),
     );
   }, [page, allLogs]);
 
+  const allLogsReady = Array.isArray(allLogs);
+
   const playerStatsReady =
-    page !== 'players' ||
-    (Array.isArray(allLogs) &&
-      allLogs.length > 0 &&
-      allLogs.some((log) => Boolean(log.raw)));
+    page !== 'players' || allLogsReady;
 
   const hallOfFameReady =
-    page !== 'hall' ||
-    (Array.isArray(allLogs) &&
-      allLogs.length > 0 &&
-      allLogs.some((log) => Boolean(log.raw)));
+    page !== 'hall' || allLogsReady;
 
   const guildReady =
-    page !== 'guild' ||
-    (Array.isArray(allLogs) &&
-      allLogs.length > 0 &&
-      allLogs.some((log) => Boolean(log.raw)));
+    page !== 'guild' || allLogsReady;
 
   const monthlyRecapReady =
-    page !== 'monthly' || Array.isArray(allLogs);
+    page !== 'monthly' || allLogsReady;
 
   const label = current ? 'Current log' : all ? 'All saved days' : selectedDays[0] || 'No day';
 
