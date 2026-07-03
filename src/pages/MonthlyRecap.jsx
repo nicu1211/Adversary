@@ -27,6 +27,7 @@ import {
 } from '../lib/logUtils';
 
 const MIN_MONTH = '2026-05';
+const ALL_HISTORY_MONTH = 'all';
 const DEFAULT_RECAP_DAYS_AGO = 0;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -174,6 +175,7 @@ const MONTHLY_GUILD_PANEL_CSS = `
 `;
 
 const GUILD_ROSTER = Object.freeze([
+  'Melifluous',
   'GojuSaki',
   'Aspeen',
   'MrOutlAw',
@@ -186,7 +188,6 @@ const GUILD_ROSTER = Object.freeze([
   'GMW',
   'ARC',
   'URIZEN',
-  'Animal_Dylan',
   'MokrySpren',
   'Emotionz',
   'Emphonia',
@@ -224,7 +225,6 @@ const GUILD_ROSTER = Object.freeze([
   'Flamingfred',
   'Ya_Ya',
   'Ellevest',
-  'Vollkornbeet',
   'Wolfscream',
   'PmP',
   'Kawoy',
@@ -401,6 +401,43 @@ function monthDateWindow(
   };
 }
 
+
+function allHistoryDateWindow(
+  logs,
+  daysAgo = DEFAULT_RECAP_DAYS_AGO,
+) {
+  const safeDays = Math.max(0, Math.floor(num(daysAgo)));
+  const now = Date.now();
+  const datedLogs = (logs || [])
+    .map((log) => dateTimestamp(dateOf(log)))
+    .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0);
+
+  let end = now;
+  let start = datedLogs.length
+    ? Math.min(...datedLogs)
+    : new Date().setHours(0, 0, 0, 0);
+
+  if (safeDays > 0) {
+    const startDate = new Date(end);
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - (safeDays - 1));
+    start = startDate.getTime();
+  } else {
+    const startDate = new Date(start);
+    startDate.setHours(0, 0, 0, 0);
+    start = startDate.getTime();
+  }
+
+  return {
+    start,
+    end,
+    days:
+      safeDays > 0
+        ? safeDays
+        : Math.max(1, Math.ceil((end - start + 1) / DAY_MS)),
+  };
+}
+
 function previousDateWindow(window) {
   if (!window?.start || !window?.days) {
     return {
@@ -432,6 +469,7 @@ function dateIsInWindow(value, window) {
 }
 
 function monthLabel(monthId) {
+  if (monthId === ALL_HISTORY_MONTH) return 'All History';
   if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return 'Unknown month';
 
   const [year, month] = monthId.split('-').map(Number);
@@ -485,6 +523,109 @@ function getGuildPlayer(event) {
   );
 }
 
+
+function normalizePlayerName(value) {
+  const key = String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (key === 'mrsracoon' || key === 'mrsraccoon') {
+    return 'mrsraccoon';
+  }
+
+  return key;
+}
+
+function samePlayerName(left, right) {
+  const a = normalizePlayerName(left);
+  const b = normalizePlayerName(right);
+
+  return Boolean(a && b && a === b);
+}
+
+function playerStatsWarId(item, index, prefix = 'war') {
+  return String(
+    item?.id ||
+      item?.warId ||
+      item?.war_id ||
+      item?.nodeWarId ||
+      item?.war ||
+      item?.date ||
+      `${prefix}-${index}`,
+  );
+}
+
+function playerStatsEventSeconds(event) {
+  if (Number.isFinite(Number(event?.sec))) {
+    return Number(event.sec);
+  }
+
+  const raw = String(event?.time || '').trim();
+  const parts = raw.split(':').map((part) => Number(part) || 0);
+
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+
+  return Number(parts[0]) || 0;
+}
+
+function playerStatsBestKillStreak(events, playerName) {
+  const sorted = [...(events || [])].sort((a, b) => {
+    const secondsDifference =
+      playerStatsEventSeconds(a) - playerStatsEventSeconds(b);
+
+    return secondsDifference || num(a?.i) - num(b?.i);
+  });
+
+  let current = 0;
+  let best = 0;
+
+  sorted.forEach((event) => {
+    if (!samePlayerName(getGuildPlayer(event), playerName)) return;
+
+    if (event?.type === 'kill') {
+      current += 1;
+      best = Math.max(best, current);
+    } else if (event?.type === 'death') {
+      current = 0;
+    }
+  });
+
+  return best;
+}
+
+function playerStatsBestKillFeed(events, playerName, seconds = 10) {
+  const kills = (events || [])
+    .filter(
+      (event) =>
+        event?.type === 'kill' &&
+        samePlayerName(getGuildPlayer(event), playerName),
+    )
+    .map((event) => playerStatsEventSeconds(event))
+    .sort((a, b) => a - b);
+
+  let best = 0;
+  let left = 0;
+
+  kills.forEach((time, right) => {
+    while (time - kills[left] > seconds) {
+      left += 1;
+    }
+
+    best = Math.max(best, right - left + 1);
+  });
+
+  return best;
+}
+
 function cleanGuild(value) {
   const text = String(value || '').trim();
 
@@ -518,6 +659,441 @@ function readStatMetric(row, aliases, fallback = 0) {
   );
 
   return alias == null ? fallback : num(row[alias]);
+}
+
+function statsPresenceRaw(log) {
+  return String(
+    log?.raw ??
+      log?.rawLog ??
+      log?.raw_log ??
+      log?.log ??
+      log?.content ??
+      log?._src?.raw ??
+      log?._src?.rawLog ??
+      log?._src?.raw_log ??
+      log?._src?.log ??
+      log?._src?.content ??
+      '',
+  );
+}
+
+function normalizeStatsPresenceText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function structuredStatsPresenceText(value, depth = 0) {
+  if (value == null || depth > 3) return '';
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => structuredStatsPresenceText(item, depth + 1))
+      .join(' ');
+  }
+
+  if (typeof value === 'object') {
+    return Object.entries(value)
+      .map(
+        ([key, item]) =>
+          `${key} ${structuredStatsPresenceText(item, depth + 1)}`,
+      )
+      .join(' ');
+  }
+
+  return String(value);
+}
+
+function splitStatsPresenceColumns(line) {
+  const value = String(line || '').trim();
+
+  if (!value) return [];
+
+  const separated = [
+    value.split(/\t+/),
+    value.split(/\s*\|\s*/),
+    value.split(/\s*;\s*/),
+  ]
+    .filter((parts) => parts.length > 1)
+    .map((parts) => parts.map((part) => part.trim()).filter(Boolean))
+    .sort((a, b) => b.length - a.length)[0];
+
+  if (separated?.length > 1) return separated;
+
+  const multiSpace = value
+    .split(/\s{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (multiSpace.length > 1) return multiSpace;
+
+  return value
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function isStatsPresenceNumber(value) {
+  const raw = String(value || '').trim();
+
+  if (!raw || !/\d/.test(raw)) return false;
+
+  const withoutSuffix = raw.replace(/[kKmMbBtT]\s*$/g, '').trim();
+
+  if (/[A-Za-z]/.test(withoutSuffix)) return false;
+
+  const cleaned = raw.replace(/[^\d\s.,+\-kKmMbBtT]/g, '').trim();
+
+  return /^[-+]?\d[\d\s.,]*(?:[kKmMbBtT])?$/.test(cleaned);
+}
+
+function expandStatsPresenceNumberColumns(columns) {
+  return columns.flatMap((column) => {
+    const raw = String(column || '').trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+
+    if (parts.length > 1 && parts.every(isStatsPresenceNumber)) {
+      return parts;
+    }
+
+    return [column];
+  });
+}
+
+function parseStatsPresenceNumber(value) {
+  const raw = String(value || '')
+    .trim()
+    .replace(/[kKmMbBtT]\s*$/g, '')
+    .replace(/\s+/g, '');
+
+  if (!raw) return NaN;
+
+  const lastComma = raw.lastIndexOf(',');
+  const lastDot = raw.lastIndexOf('.');
+  let normalized = raw;
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    normalized =
+      lastComma > lastDot
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw.replace(/,/g, '');
+  } else if (lastComma >= 0) {
+    normalized = raw.replace(',', '.');
+  }
+
+  const number = Number(normalized.replace(/[^\d.+-]/g, ''));
+
+  return Number.isFinite(number) ? number : NaN;
+}
+
+function hasExplicitStatPresenceFlag(source, aliases) {
+  if (!source) return false;
+
+  return aliases.some((alias) => {
+    const compactAlias = String(alias).replace(/[^a-zA-Z0-9]/g, '');
+    const camel =
+      compactAlias.charAt(0).toLowerCase() + compactAlias.slice(1);
+    const snake = String(alias)
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+    const candidates = [
+      `has_${snake}`,
+      `${snake}_exists`,
+      `${snake}_present`,
+      `${snake}_provided`,
+      `${snake}_added`,
+      `${camel}HasValue`,
+      `${camel}Exists`,
+      `${camel}Present`,
+      `${camel}Provided`,
+      `${camel}Added`,
+    ];
+
+    return candidates.some(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(source, key) &&
+        Boolean(source[key]),
+    );
+  });
+}
+
+function hasNonZeroStatMetric(source, aliases) {
+  if (!source) return false;
+
+  return aliases.some((alias) => {
+    if (!Object.prototype.hasOwnProperty.call(source, alias)) {
+      return false;
+    }
+
+    const value = Number(source[alias]);
+
+    return Number.isFinite(value) && value !== 0;
+  });
+}
+
+function detectStatsLogColumns(log, oneStats) {
+  const presence = {
+    killFeed: false,
+    damageDealt: false,
+    damageTaken: false,
+    ccHits: false,
+    fortDamage: false,
+  };
+  const aliases = {
+    killFeed: ['killFeed', 'killfeed', 'feed', 'KillFeed', 'Killfeed'],
+    damageDealt: [
+      'damageDealt',
+      'damage_dealt',
+      'damage dealt',
+      'damageDone',
+      'damage',
+      'Damage Dealt',
+      'DamageDealt',
+    ],
+    damageTaken: [
+      'damageTaken',
+      'damage_taken',
+      'damage taken',
+      'Damage Taken',
+      'DamageTaken',
+    ],
+    ccHits: [
+      'ccHits',
+      'cc_hits',
+      'cc hits',
+      'CC Hits',
+      'CCHits',
+      'cc',
+      'CC',
+    ],
+    fortDamage: [
+      'fortDamage',
+      'damageToFort',
+      'damage_to_fort',
+      'damage to fort',
+      'Fort Damage',
+      'Damage to Fort',
+      'DamageToFort',
+    ],
+  };
+
+  const raw = statsPresenceRaw(log);
+  const startMarker = '===== ADVERSARY_SECONDARY_LOG_START =====';
+  const endMarker = '===== ADVERSARY_SECONDARY_LOG_END =====';
+  let secondaryRaw = '';
+
+  if (raw.includes(startMarker) && raw.includes(endMarker)) {
+    secondaryRaw = raw.split(startMarker)[1]?.split(endMarker)[0] || '';
+  }
+
+  const normalizedSecondary = normalizeStatsPresenceText(secondaryRaw);
+  const explicitHeader = {
+    killFeed: /\bkill feed\b|\bkillfeed\b/.test(normalizedSecondary),
+    damageDealt: /\bdamage dealt\b|\bdmg dealt\b/.test(
+      normalizedSecondary,
+    ),
+    damageTaken: /\bdamage taken\b|\bdmg taken\b/.test(
+      normalizedSecondary,
+    ),
+    ccHits: /\bcc hits?\b|\bcrowd control\b/.test(normalizedSecondary),
+    fortDamage:
+      /\bdamage (?:to|on) fort\b|\bfort damage\b|\bdmg to fort\b/.test(
+        normalizedSecondary,
+      ),
+  };
+  const hasRecognizedDetailHeader = Object.values(explicitHeader).some(
+    Boolean,
+  );
+  let foundRawStatsRow = false;
+
+  String(secondaryRaw || '')
+    .split(/\r?\n/)
+    .forEach((line) => {
+      let columns = splitStatsPresenceColumns(line);
+      columns = expandStatsPresenceNumberColumns(columns);
+
+      const firstNumberIndex = columns.findIndex(isStatsPresenceNumber);
+
+      if (firstNumberIndex < 0) return;
+
+      const numericColumns = columns
+        .slice(firstNumberIndex)
+        .filter(isStatsPresenceNumber);
+
+      if (numericColumns.length < 2) return;
+
+      foundRawStatsRow = true;
+
+      if (hasRecognizedDetailHeader) {
+        Object.entries(explicitHeader).forEach(([metric, exists]) => {
+          if (exists) presence[metric] = true;
+        });
+        return;
+      }
+
+      const thirdRaw = String(numericColumns[2] || '');
+      const thirdNumber = parseStatsPresenceNumber(thirdRaw);
+      const looksLikeFullTableWithKd =
+        numericColumns.length >= 9 &&
+        /[.,]/.test(thirdRaw) &&
+        Number.isFinite(thirdNumber) &&
+        thirdNumber >= 0 &&
+        thirdNumber <= 50;
+
+      if (looksLikeFullTableWithKd) {
+        if (numericColumns.length >= 5) presence.killFeed = true;
+        if (numericColumns.length >= 6) presence.damageDealt = true;
+        if (numericColumns.length >= 7) presence.damageTaken = true;
+        if (numericColumns.length >= 8) presence.ccHits = true;
+        if (numericColumns.length >= 9) presence.fortDamage = true;
+      } else {
+        if (numericColumns.length >= 3) presence.killFeed = true;
+        if (numericColumns.length >= 4) presence.damageDealt = true;
+        if (numericColumns.length >= 5) presence.damageTaken = true;
+        if (numericColumns.length >= 6) presence.ccHits = true;
+        if (numericColumns.length >= 9) presence.fortDamage = true;
+      }
+    });
+
+  if (foundRawStatsRow) return presence;
+
+  const sourceSummary =
+    log?.summary ||
+    log?.stats ||
+    log?.analytics ||
+    log?._src?.summary ||
+    log?._src?.stats ||
+    log?._src?.analytics ||
+    {};
+  const summarySecondary =
+    sourceSummary?.secondary || sourceSummary?.secondaryStats || {};
+  const evidenceRows = [
+    ...(Array.isArray(summarySecondary?.rows)
+      ? summarySecondary.rows
+      : []),
+    ...(Array.isArray(sourceSummary?.players) ? sourceSummary.players : []),
+    ...(oneStats?.secondary?.rows || []),
+    ...(oneStats?.players || []),
+  ];
+  const structuredText = normalizeStatsPresenceText(
+    structuredStatsPresenceText([
+      summarySecondary?.headers,
+      summarySecondary?.header,
+      summarySecondary?.columns,
+      summarySecondary?.columnNames,
+      summarySecondary?.fields,
+      summarySecondary?.availableFields,
+      summarySecondary?.schema,
+      summarySecondary?.metrics,
+      oneStats?.secondary?.headers,
+      oneStats?.secondary?.header,
+      oneStats?.secondary?.columns,
+      oneStats?.secondary?.columnNames,
+      oneStats?.secondary?.fields,
+      oneStats?.secondary?.availableFields,
+      oneStats?.secondary?.schema,
+      oneStats?.secondary?.metrics,
+    ]),
+  );
+
+  Object.entries(aliases).forEach(([metric, metricAliases]) => {
+    const structuredHasAlias = metricAliases.some((alias) => {
+      const normalizedAlias = normalizeStatsPresenceText(alias);
+
+      return Boolean(
+        normalizedAlias && structuredText.includes(normalizedAlias),
+      );
+    });
+
+    presence[metric] =
+      Boolean(presence[metric]) ||
+      Boolean(explicitHeader[metric]) ||
+      structuredHasAlias ||
+      evidenceRows.some(
+        (row) =>
+          hasExplicitStatPresenceFlag(row, metricAliases) ||
+          hasNonZeroStatMetric(row, metricAliases),
+      );
+  });
+
+  return presence;
+}
+
+function buildStatsMetricPresenceByWar(logs) {
+  const byWar = new Map();
+
+  function mergePresence(key, presence) {
+    const cleanKey = String(key || '').trim();
+
+    if (!cleanKey) return;
+
+    const current = byWar.get(cleanKey) || {
+      killFeed: false,
+      damageDealt: false,
+      damageTaken: false,
+      ccHits: false,
+      fortDamage: false,
+    };
+
+    byWar.set(cleanKey, {
+      killFeed: current.killFeed || Boolean(presence?.killFeed),
+      damageDealt:
+        current.damageDealt || Boolean(presence?.damageDealt),
+      damageTaken:
+        current.damageTaken || Boolean(presence?.damageTaken),
+      ccHits: current.ccHits || Boolean(presence?.ccHits),
+      fortDamage:
+        current.fortDamage || Boolean(presence?.fortDamage),
+    });
+  }
+
+  (logs || []).forEach((log, index) => {
+    const oneStats = calculateStats([log]);
+    const presence = detectStatsLogColumns(log, oneStats);
+    const keys = new Set([
+      log?.id,
+      log?.war,
+      dateOf(log),
+      `stats-log-${index}`,
+    ]);
+
+    (oneStats?.secondary?.rows || []).forEach((row) => {
+      keys.add(row?.id);
+      keys.add(row?.warId);
+      keys.add(row?.war_id);
+      keys.add(row?.war);
+      keys.add(row?.date);
+    });
+
+    keys.forEach((key) => mergePresence(key, presence));
+  });
+
+  return byWar;
+}
+
+function rowHasRecordedStatMetric(
+  row,
+  rowPresence,
+  metric,
+  aliases,
+) {
+  if (
+    rowPresence &&
+    Object.prototype.hasOwnProperty.call(rowPresence, metric)
+  ) {
+    return Boolean(rowPresence[metric]);
+  }
+
+  return (
+    hasExplicitStatPresenceFlag(row, aliases) ||
+    hasNonZeroStatMetric(row, aliases)
+  );
 }
 
 function chronologyTimestamp(item) {
@@ -640,10 +1216,395 @@ function buildPlayerChronology(stats) {
   return byPlayer;
 }
 
-function buildStatsLogPlayers(stats) {
+
+function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
+  const events = Array.isArray(stats?.ev) ? stats.ev : [];
+  const secondaryRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+  const metricPresenceByWar = buildStatsMetricPresenceByWar(logs);
+  const eventsByWar = new Map();
+  const matchesByPlayer = new Map();
+
+  function ensurePlayer(name) {
+    const cleanName = String(name || '').trim();
+    const key = normalizePlayerName(cleanName);
+
+    if (!key) return null;
+
+    if (!matchesByPlayer.has(key)) {
+      matchesByPlayer.set(key, {
+        name: cleanName,
+        matches: new Map(),
+      });
+    }
+
+    const player = matchesByPlayer.get(key);
+
+    if (!player.name && cleanName) {
+      player.name = cleanName;
+    }
+
+    return player;
+  }
+
+  function ensureMatch(name, warId, date = '') {
+    const player = ensurePlayer(name);
+
+    if (!player) return null;
+
+    if (!player.matches.has(warId)) {
+      player.matches.set(warId, {
+        warId,
+        date: date || warId,
+        kills: 0,
+        deaths: 0,
+        killStreak: 0,
+        killFeed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        fortDamage: 0,
+        firstAppearanceTime: Number.POSITIVE_INFINITY,
+        firstAppearanceOrder: Number.POSITIVE_INFINITY,
+        __has: {
+          kills: false,
+          deaths: false,
+          kd: false,
+          killStreak: false,
+          killFeed: false,
+          damageDealt: false,
+          damageTaken: false,
+          ccHits: false,
+          fortDamage: false,
+        },
+      });
+    }
+
+    const match = player.matches.get(warId);
+
+    if (!match.date && date) match.date = date;
+
+    return match;
+  }
+
+  events.forEach((event, index) => {
+    const warId = playerStatsWarId(event, index, 'combat');
+
+    if (!eventsByWar.has(warId)) {
+      eventsByWar.set(warId, []);
+    }
+
+    eventsByWar.get(warId).push(event);
+  });
+
+  eventsByWar.forEach((warEvents, warId) => {
+    const playersInWar = new Map();
+
+    warEvents.forEach((event, sourceOrder) => {
+      const name = String(getGuildPlayer(event) || '').trim();
+      const key = normalizePlayerName(name);
+
+      if (!key) return;
+
+      if (!playersInWar.has(key)) {
+        playersInWar.set(key, name);
+      }
+
+      const match = ensureMatch(
+        name,
+        warId,
+        event?.date || warEvents[0]?.date || warId,
+      );
+
+      if (!match) return;
+
+      const eventTime = chronologyTimestamp(event);
+
+      if (
+        eventTime < match.firstAppearanceTime ||
+        (eventTime === match.firstAppearanceTime &&
+          sourceOrder < match.firstAppearanceOrder)
+      ) {
+        match.firstAppearanceTime = eventTime;
+        match.firstAppearanceOrder = sourceOrder;
+      }
+
+      if (event?.type === 'kill') {
+        match.kills += 1;
+      } else if (event?.type === 'death') {
+        match.deaths += 1;
+      }
+
+      match.__has.kills = true;
+      match.__has.deaths = true;
+      match.__has.kd = true;
+      match.__has.killStreak = true;
+      match.__has.killFeed = true;
+    });
+
+    playersInWar.forEach((name) => {
+      const match = ensureMatch(
+        name,
+        warId,
+        warEvents[0]?.date || warId,
+      );
+
+      if (!match) return;
+
+      match.killStreak = playerStatsBestKillStreak(
+        warEvents,
+        name,
+      );
+      match.killFeed = playerStatsBestKillFeed(
+        warEvents,
+        name,
+      );
+    });
+  });
+
+  secondaryRows.forEach((row, index) => {
+    const name = String(row?.player || row?.name || '').trim();
+
+    if (!name) return;
+
+    const warId = playerStatsWarId(row, index, 'secondary');
+    const match = ensureMatch(
+      name,
+      warId,
+      row?.date || row?.war || warId,
+    );
+
+    if (!match) return;
+
+    const rowPresence =
+      metricPresenceByWar.get(warId) ||
+      metricPresenceByWar.get(String(row?.id || '')) ||
+      metricPresenceByWar.get(String(row?.warId || '')) ||
+      metricPresenceByWar.get(String(row?.war_id || '')) ||
+      metricPresenceByWar.get(String(row?.war || '')) ||
+      metricPresenceByWar.get(String(row?.date || '')) ||
+      null;
+
+    const aliases = {
+      kills: ['kills', 'Kills', 'kill'],
+      deaths: ['deaths', 'Deaths', 'death'],
+      killFeed: ['killFeed', 'killfeed', 'feed', 'KillFeed'],
+      damageDealt: [
+        'damageDealt',
+        'damage_dealt',
+        'damage dealt',
+        'damageDone',
+        'damage',
+        'Damage Dealt',
+      ],
+      damageTaken: [
+        'damageTaken',
+        'damage_taken',
+        'damage taken',
+        'Damage Taken',
+      ],
+      ccHits: [
+        'ccHits',
+        'cc_hits',
+        'cc hits',
+        'CC Hits',
+        'cc',
+        'CC',
+      ],
+      fortDamage: [
+        'fortDamage',
+        'damageToFort',
+        'damage_to_fort',
+        'damage to fort',
+        'Fort Damage',
+      ],
+    };
+
+    const hasKills = hasOwnStatMetric(row, aliases.kills);
+    const hasDeaths = hasOwnStatMetric(row, aliases.deaths);
+    const hasKillFeed = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'killFeed',
+      aliases.killFeed,
+    );
+    const hasDamageDealt = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'damageDealt',
+      aliases.damageDealt,
+    );
+    const hasDamageTaken = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'damageTaken',
+      aliases.damageTaken,
+    );
+    const hasCcHits = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'ccHits',
+      aliases.ccHits,
+    );
+    const hasFortDamage = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'fortDamage',
+      aliases.fortDamage,
+    );
+
+    if (hasKills) {
+      match.kills = readStatMetric(row, aliases.kills, 0);
+      match.__has.kills = true;
+    }
+
+    if (hasDeaths) {
+      match.deaths = readStatMetric(row, aliases.deaths, 0);
+      match.__has.deaths = true;
+    }
+
+    match.__has.kd = match.__has.kills && match.__has.deaths;
+
+    if (hasKillFeed) {
+      match.killFeed = readStatMetric(row, aliases.killFeed, 0);
+      match.__has.killFeed = true;
+    }
+
+    if (hasDamageDealt) {
+      match.damageDealt = readStatMetric(
+        row,
+        aliases.damageDealt,
+        0,
+      );
+      match.__has.damageDealt = true;
+    }
+
+    if (hasDamageTaken) {
+      match.damageTaken = readStatMetric(
+        row,
+        aliases.damageTaken,
+        0,
+      );
+      match.__has.damageTaken = true;
+    }
+
+    if (hasCcHits) {
+      match.ccHits = readStatMetric(row, aliases.ccHits, 0);
+      match.__has.ccHits = true;
+    }
+
+    if (hasFortDamage) {
+      match.fortDamage = readStatMetric(
+        row,
+        aliases.fortDamage,
+        0,
+      );
+      match.__has.fortDamage = true;
+    }
+
+    const rowTime = chronologyTimestamp(row);
+
+    if (
+      rowTime < match.firstAppearanceTime ||
+      (rowTime === match.firstAppearanceTime &&
+        index < match.firstAppearanceOrder)
+    ) {
+      match.firstAppearanceTime = rowTime;
+      match.firstAppearanceOrder = index;
+    }
+  });
+
+  function metricValues(matches, key) {
+    return matches
+      .filter((match) => Boolean(match?.__has?.[key]))
+      .map((match) => num(match?.[key]));
+  }
+
+  function sum(values) {
+    return values.reduce((total, value) => total + num(value), 0);
+  }
+
+  function average(values) {
+    return values.length ? sum(values) / values.length : 0;
+  }
+
+  return [...matchesByPlayer.values()]
+    .map((player) => {
+      const matches = [...player.matches.values()];
+      const killsValues = metricValues(matches, 'kills');
+      const deathsValues = metricValues(matches, 'deaths');
+      const kdValues = matches
+        .filter((match) => Boolean(match?.__has?.kd))
+        .map((match) => ratio(match.kills, match.deaths));
+      const streakValues = metricValues(matches, 'killStreak');
+      const feedValues = metricValues(matches, 'killFeed');
+      const damageValues = metricValues(matches, 'damageDealt');
+      const damageTakenValues = metricValues(matches, 'damageTaken');
+      const ccValues = metricValues(matches, 'ccHits');
+      const fortValues = metricValues(matches, 'fortDamage');
+      const kills = sum(killsValues);
+      const deaths = sum(deathsValues);
+      const firstMatch = [...matches].sort((a, b) =>
+        chronologicalCompare(a, b),
+      )[0];
+
+      return {
+        name: player.name,
+        wars: matches.length,
+        firstAppearanceTime:
+          firstMatch?.firstAppearanceTime ?? Number.POSITIVE_INFINITY,
+        firstAppearanceOrder:
+          firstMatch?.firstAppearanceOrder ?? Number.POSITIVE_INFINITY,
+        kills,
+        deaths,
+        kd: ratio(kills, deaths),
+        averageKills: average(killsValues),
+        averageDeaths: average(deathsValues),
+        averageKd: average(kdValues),
+        killStreak: sum(streakValues),
+        averageKillStreak: average(streakValues),
+        longestKillStreak: streakValues.length
+          ? Math.max(...streakValues)
+          : 0,
+        killFeed: sum(feedValues),
+        bestKillFeed: feedValues.length ? Math.max(...feedValues) : 0,
+        averageKillFeed: average(feedValues),
+        damageDealt: sum(damageValues),
+        damageTaken: sum(damageTakenValues),
+        ccHits: sum(ccValues),
+        fortDamage: sum(fortValues),
+        averageDamageDealt: average(damageValues),
+        averageDamageTaken: average(damageTakenValues),
+        averageCcHits: average(ccValues),
+        averageFortDamage: average(fortValues),
+        statWarCounts: {
+          kills: killsValues.length,
+          deaths: deathsValues.length,
+          kd: kdValues.length,
+          killStreak: streakValues.length,
+          killFeed: feedValues.length,
+          damageDealt: damageValues.length,
+          damageTaken: damageTakenValues.length,
+          ccHits: ccValues.length,
+          fortDamage: fortValues.length,
+        },
+      };
+    })
+    .filter((player) => player.name)
+    .sort(
+      (a, b) =>
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name),
+    );
+}
+
+function buildStatsLogPlayers(stats, logs = []) {
   const sourceRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
     : [];
+  const metricPresenceByWar = buildStatsMetricPresenceByWar(logs);
 
   // One Stats Log should contain one row per player. When duplicate rows
   // exist for the same player and war, keep the row with the largest K+D
@@ -697,20 +1658,30 @@ function buildStatsLogPlayers(stats) {
         kdCount: 0,
         killFeed: 0,
         killFeedTotal: 0,
+        killFeedAverageCount: 0,
         killStreak: 0,
         hasKillStreak: false,
         damage: 0,
         damageAverageSum: 0,
         damageAverageCount: 0,
         damageTaken: 0,
+        damageTakenAverageCount: 0,
         ccHits: 0,
         ccAverageSum: 0,
         ccAverageCount: 0,
         fortDamage: 0,
+        fortDamageAverageCount: 0,
       });
     }
 
     const player = byPlayer.get(key);
+    const rowPresence =
+      metricPresenceByWar.get(String(row.__warId || '')) ||
+      metricPresenceByWar.get(String(row?.warId || '')) ||
+      metricPresenceByWar.get(String(row?.war_id || '')) ||
+      metricPresenceByWar.get(String(row?.war || '')) ||
+      metricPresenceByWar.get(String(row?.date || '')) ||
+      null;
 
     player.wars.add(String(row.__warId));
 
@@ -722,12 +1693,19 @@ function buildStatsLogPlayers(stats) {
     player.deaths += rowDeaths;
     player.kdSum += rowKd;
     player.kdCount += 1;
+    const killFeedAliases = ['killFeed', 'feed'];
     const damageAliases = [
       'damageDealt',
       'damage_dealt',
       'damage dealt',
       'damageDone',
       'damage',
+    ];
+    const damageTakenAliases = [
+      'damageTaken',
+      'damage_taken',
+      'damage taken',
+      'Damage Taken',
     ];
     const ccAliases = [
       'ccHits',
@@ -737,57 +1715,98 @@ function buildStatsLogPlayers(stats) {
       'cc',
       'CC',
     ];
+    const fortDamageAliases = [
+      'fortDamage',
+      'damageToFort',
+      'damage_to_fort',
+      'damage to fort',
+      'Fort Damage',
+    ];
 
+    const rowKillFeed = readStatMetric(row, killFeedAliases, 0);
     const rowDamage = readStatMetric(row, damageAliases, 0);
+    const rowDamageTaken = readStatMetric(
+      row,
+      damageTakenAliases,
+      0,
+    );
     const rowCcHits = readStatMetric(row, ccAliases, 0);
+    const rowFortDamage = readStatMetric(
+      row,
+      fortDamageAliases,
+      0,
+    );
 
     player.damage += rowDamage;
 
-    if (hasOwnStatMetric(row, damageAliases)) {
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'damageDealt',
+        damageAliases,
+      )
+    ) {
       player.damageAverageSum += rowDamage;
       player.damageAverageCount += 1;
     }
 
-    player.damageTaken += readStatMetric(
-      row,
-      [
+    player.damageTaken += rowDamageTaken;
+
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
         'damageTaken',
-        'damage_taken',
-        'damage taken',
-        'Damage Taken',
-      ],
-      0,
-    );
+        damageTakenAliases,
+      )
+    ) {
+      player.damageTakenAverageCount += 1;
+    }
 
     player.ccHits += rowCcHits;
 
-    if (hasOwnStatMetric(row, ccAliases)) {
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'ccHits',
+        ccAliases,
+      )
+    ) {
       player.ccAverageSum += rowCcHits;
       player.ccAverageCount += 1;
     }
-    player.fortDamage += readStatMetric(
-      row,
-      [
-        'fortDamage',
-        'damageToFort',
-        'damage_to_fort',
-        'damage to fort',
-        'Fort Damage',
-      ],
-      0,
-    );
+    player.fortDamage += rowFortDamage;
 
-    const rowKillFeed = readStatMetric(
-      row,
-      ['killFeed', 'feed'],
-      0,
-    );
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'fortDamage',
+        fortDamageAliases,
+      )
+    ) {
+      player.fortDamageAverageCount += 1;
+    }
 
     // Player Highlights uses the best saved Stats Log KillFeed.
     player.killFeed = Math.max(player.killFeed, rowKillFeed);
 
-    // Players Performance Total/Average uses the monthly sum.
+    // Players Performance Total uses the monthly sum. Average uses only
+    // wars whose Stats Log actually contained the KillFeed column.
     player.killFeedTotal += rowKillFeed;
+
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'killFeed',
+        killFeedAliases,
+      )
+    ) {
+      player.killFeedAverageCount += 1;
+    }
 
     // No Combat Log fallback. A streak is shown only when the Stats Log
     // explicitly contains a streak field.
@@ -813,15 +1832,40 @@ function buildStatsLogPlayers(stats) {
       ...player,
       wars: player.wars.size,
       kd: ratio(player.kills, player.deaths),
+      averageKills: player.wars.size
+        ? player.kills / player.wars.size
+        : 0,
+      averageDeaths: player.wars.size
+        ? player.deaths / player.wars.size
+        : 0,
       averageKd: player.kdCount
         ? player.kdSum / player.kdCount
         : ratio(player.kills, player.deaths),
+      averageKillFeed: player.killFeedAverageCount
+        ? player.killFeedTotal / player.killFeedAverageCount
+        : 0,
       averageDamageDealt: player.damageAverageCount
         ? player.damageAverageSum / player.damageAverageCount
+        : 0,
+      averageDamageTaken: player.damageTakenAverageCount
+        ? player.damageTaken / player.damageTakenAverageCount
         : 0,
       averageCcHits: player.ccAverageCount
         ? player.ccAverageSum / player.ccAverageCount
         : 0,
+      averageFortDamage: player.fortDamageAverageCount
+        ? player.fortDamage / player.fortDamageAverageCount
+        : 0,
+      statWarCounts: {
+        kills: player.wars.size,
+        deaths: player.wars.size,
+        kd: player.kdCount,
+        killFeed: player.killFeedAverageCount,
+        damageDealt: player.damageAverageCount,
+        damageTaken: player.damageTakenAverageCount,
+        ccHits: player.ccAverageCount,
+        fortDamage: player.fortDamageAverageCount,
+      },
     }))
     .sort(
       (a, b) =>
@@ -1164,40 +2208,44 @@ function buildMonthlyPerformancePlayers(
         kills,
         deaths,
         kd: ratio(kills, deaths),
+        averageKills: secondary
+          ? num(secondary.averageKills)
+          : wars > 0
+            ? kills / wars
+            : 0,
+        averageDeaths: secondary
+          ? num(secondary.averageDeaths)
+          : wars > 0
+            ? deaths / wars
+            : 0,
         averageKd: secondary
           ? num(secondary.averageKd)
           : ratio(kills, deaths),
+        averageKillFeed: secondary
+          ? num(secondary.averageKillFeed)
+          : 0,
         averageDamageDealt: secondary
           ? num(secondary.averageDamageDealt)
-          : wars > 0
-            ? readStatMetric(
-                primary,
-                [
-                  'damageDealt',
-                  'damage_dealt',
-                  'damage dealt',
-                  'damageDone',
-                  'damage',
-                ],
-                0,
-              ) / wars
-            : 0,
+          : 0,
+        averageDamageTaken: secondary
+          ? num(secondary.averageDamageTaken)
+          : 0,
         averageCcHits: secondary
           ? num(secondary.averageCcHits)
-          : wars > 0
-            ? readStatMetric(
-                primary,
-                [
-                  'ccHits',
-                  'cc_hits',
-                  'cc hits',
-                  'CC Hits',
-                  'cc',
-                  'CC',
-                ],
-                0,
-              ) / wars
-            : 0,
+          : 0,
+        averageFortDamage: secondary
+          ? num(secondary.averageFortDamage)
+          : 0,
+        statWarCounts: secondary?.statWarCounts || {
+          kills: secondary ? num(secondary.wars) : num(wars),
+          deaths: secondary ? num(secondary.wars) : num(wars),
+          kd: secondary ? num(secondary.kdCount) : num(wars),
+          killFeed: 0,
+          damageDealt: 0,
+          damageTaken: 0,
+          ccHits: 0,
+          fortDamage: 0,
+        },
         killStreak: num(streakMetrics?.total),
         longestKillStreak: num(streakMetrics?.maximum),
         killFeed: secondary
@@ -1470,14 +2518,14 @@ function comparisonInfo(
 function buildRosterPerformancePlayers(activePlayers) {
   const activeByName = new Map(
     (activePlayers || []).map((player) => [
-      String(player?.name || '').trim().toLowerCase(),
+      normalizePlayerName(player?.name),
       player,
     ]),
   );
 
   return GUILD_ROSTER.map((rosterName, rosterOrder) => {
     const activePlayer = activeByName.get(
-      rosterName.toLowerCase(),
+      normalizePlayerName(rosterName),
     );
 
     if (activePlayer) {
@@ -1501,9 +2549,25 @@ function buildRosterPerformancePlayers(activePlayers) {
       kills: 0,
       deaths: 0,
       kd: 0,
+      averageKills: 0,
+      averageDeaths: 0,
       averageKd: 0,
+      averageKillStreak: 0,
+      averageKillFeed: 0,
       averageDamageDealt: 0,
+      averageDamageTaken: 0,
       averageCcHits: 0,
+      averageFortDamage: 0,
+      statWarCounts: {
+        kills: 0,
+        deaths: 0,
+        kd: 0,
+        killFeed: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        fortDamage: 0,
+      },
       killStreak: 0,
       longestKillStreak: 0,
       killFeed: 0,
@@ -1537,18 +2601,25 @@ function buildReview(
   selectedMonth,
   daysAgo = DEFAULT_RECAP_DAYS_AGO,
 ) {
-  const selectedWindow = monthDateWindow(
-    selectedMonth,
-    daysAgo,
-  );
-  const previousCalendarMonth =
-    previousMonthId(selectedMonth);
-  const previousWindow =
-    num(daysAgo) > 0
+  const allHistorySelected = selectedMonth === ALL_HISTORY_MONTH;
+  const selectedWindow = allHistorySelected
+    ? allHistoryDateWindow(logs, daysAgo)
+    : monthDateWindow(selectedMonth, daysAgo);
+  const previousCalendarMonth = allHistorySelected
+    ? ''
+    : previousMonthId(selectedMonth);
+  const previousWindow = allHistorySelected
+    ? num(daysAgo) > 0
+      ? previousDateWindow(selectedWindow)
+      : { start: 0, end: 0, days: 0 }
+    : num(daysAgo) > 0
       ? previousDateWindow(selectedWindow)
       : monthDateWindow(previousCalendarMonth, 0);
-  const previousPeriodLabel =
-    num(daysAgo) > 0
+  const previousPeriodLabel = allHistorySelected
+    ? num(daysAgo) > 0
+      ? `previous ${selectedWindow.days} days`
+      : 'previous period'
+    : num(daysAgo) > 0
       ? `previous ${selectedWindow.days} days`
       : shortMonthLabel(previousCalendarMonth);
 
@@ -1651,11 +2722,13 @@ function buildReview(
     previousTotals.deaths,
   );
 
-  const statLogPlayers = buildStatsLogPlayers(stats);
-  const activePlayers = buildMonthlyPerformancePlayers(
+  // Use the exact same per-player, per-war merge model as Player Stats:
+  // Combat Log creates the base war record and a Stats Log overrides only
+  // the columns it actually contains. This keeps totals and averages aligned
+  // between both pages for the same date range.
+  const activePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
-    statLogPlayers,
-    warCounts,
+    monthLogs,
   );
   const players = buildRosterPerformancePlayers(activePlayers);
   const {
@@ -2264,23 +3337,23 @@ function overallMetricValue(player, key, viewMode) {
   if (viewMode === 'average') {
     switch (key) {
       case 'kills':
-        return num(player?.kills) / wars;
+        return num(player?.averageKills);
       case 'deaths':
-        return num(player?.deaths) / wars;
+        return num(player?.averageDeaths);
       case 'kd':
         return num(player?.averageKd);
       case 'killStreak':
-        return num(player?.killStreak) / wars;
+        return num(player?.averageKillStreak);
       case 'killFeed':
-        return num(player?.killFeed) / wars;
+        return num(player?.averageKillFeed);
       case 'damageDealt':
         return num(player?.averageDamageDealt);
       case 'damageTaken':
-        return num(player?.damageTaken) / wars;
+        return num(player?.averageDamageTaken);
       case 'ccHits':
         return num(player?.averageCcHits);
       case 'fortDamage':
-        return num(player?.fortDamage) / wars;
+        return num(player?.averageFortDamage);
       default:
         return 0;
     }
@@ -2377,9 +3450,9 @@ function addImpactScores(
 
     return {
       ...player,
-      impact: Math.round(
-        Math.max(0, Math.min(100, impact)) * 10,
-      ) / 10,
+      // Keep the full calculated impact value. Formatting is handled only
+      // when the value is rendered, so no precision is lost here.
+      impact: Math.max(0, Math.min(100, impact)),
     };
   });
 }
@@ -2405,30 +3478,93 @@ function performanceValue(player, key, viewMode) {
     return num(player?.averageKd);
   }
 
-  const wars = num(player?.wars);
-  return wars > 0 ? num(player?.[key]) / wars : 0;
+  // Every average uses the wars that actually supplied that column.
+  // Kills, deaths and K/D use the player's Stats Log rows; advanced metrics
+  // use their own column-presence counts. A recorded zero still counts as
+  // data, while a missing historical column does not enter the divisor.
+  switch (key) {
+    case 'kills':
+      return num(player?.averageKills);
+    case 'deaths':
+      return num(player?.averageDeaths);
+    case 'killStreak':
+      return num(player?.averageKillStreak);
+    case 'killFeed':
+      return num(player?.averageKillFeed);
+    case 'damageDealt':
+      return num(player?.averageDamageDealt);
+    case 'damageTaken':
+      return num(player?.averageDamageTaken);
+    case 'ccHits':
+      return num(player?.averageCcHits);
+    case 'fortDamage':
+      return num(player?.averageFortDamage);
+    default: {
+      const wars = num(player?.wars);
+      return wars > 0 ? num(player?.[key]) / wars : 0;
+    }
+  }
+}
+
+function expandScientificNumber(value) {
+  const raw = String(value);
+
+  if (!/[eE]/.test(raw)) return raw;
+
+  const match = raw.match(/^([+-]?)(\d+)(?:\.(\d*))?[eE]([+-]?\d+)$/);
+
+  if (!match) return raw;
+
+  const [, sign, integerPart, fractionPart = '', exponentText] = match;
+  const exponent = Number(exponentText);
+  const digits = `${integerPart}${fractionPart}`;
+  const decimalPosition = integerPart.length + exponent;
+
+  if (decimalPosition <= 0) {
+    return `${sign}0.${'0'.repeat(-decimalPosition)}${digits}`;
+  }
+
+  if (decimalPosition >= digits.length) {
+    return `${sign}${digits}${'0'.repeat(decimalPosition - digits.length)}`;
+  }
+
+  return `${sign}${digits.slice(0, decimalPosition)}.${digits.slice(
+    decimalPosition,
+  )}`;
+}
+
+function formatExactNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return '0';
+
+  const plain = expandScientificNumber(number);
+  const sign = plain.startsWith('-') ? '-' : '';
+  const unsigned = sign ? plain.slice(1) : plain;
+  const [integerPart = '0', fractionPart] = unsigned.split('.');
+  const groupedInteger = integerPart.replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    ',',
+  );
+
+  return fractionPart
+    ? `${sign}${groupedInteger}.${fractionPart}`
+    : `${sign}${groupedInteger}`;
 }
 
 function formatPerformanceValue(key, value, viewMode) {
-  if (key === 'kd') {
-    return num(value).toFixed(2);
-  }
+  const number = Number(value);
 
-  if (key === 'impact') {
-    return num(value).toFixed(1);
-  }
+  if (!Number.isFinite(number)) return '0';
 
-  if (viewMode === 'average' && key !== 'wars') {
-    if (
-      ['damageDealt', 'damageTaken', 'fortDamage'].includes(key)
-    ) {
-      return compact(value);
-    }
+  // Keep only the first two digits after the decimal point instead of
+  // rounding the underlying result. Example: 31.089 becomes 31.08.
+  const truncated = Math.trunc(number * 100) / 100;
 
-    return num(value).toFixed(1);
-  }
-
-  return compact(value);
+  return truncated.toLocaleString('en-US', {
+    minimumFractionDigits: Number.isInteger(truncated) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 const performanceColumnThemes = {
@@ -3190,7 +4326,10 @@ export default function MonthlyRecap({
   );
 
   useEffect(() => {
-    if (!months.includes(selectedMonth)) {
+    if (
+      selectedMonth !== ALL_HISTORY_MONTH &&
+      !months.includes(selectedMonth)
+    ) {
       setSelectedMonth(months[0] || MIN_MONTH);
     }
   }, [months, selectedMonth]);
@@ -3206,8 +4345,11 @@ export default function MonthlyRecap({
   );
 
   const activeDateWindow = useMemo(
-    () => monthDateWindow(selectedMonth, daysAgo),
-    [selectedMonth, daysAgo],
+    () =>
+      selectedMonth === ALL_HISTORY_MONTH
+        ? allHistoryDateWindow(logs, daysAgo)
+        : monthDateWindow(selectedMonth, daysAgo),
+    [logs, selectedMonth, daysAgo],
   );
 
   const {
@@ -3248,7 +4390,9 @@ export default function MonthlyRecap({
                 ? `${formatDate(activeDateWindow.start)} – ${formatDate(
                     activeDateWindow.end,
                   )}`
-                : 'Full month'}
+                : selectedMonth === ALL_HISTORY_MONTH
+                  ? 'All available wars'
+                  : 'Full month'}
             </span>
           </p>
         </div>
@@ -3264,6 +4408,7 @@ export default function MonthlyRecap({
               onChange={(event) => setSelectedMonth(event.target.value)}
               className="h-10 rounded-[8px] border border-[#23364f] bg-slate-950/24 py-2 pl-9 pr-9 text-[12px] font-bold text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
             >
+              <option value={ALL_HISTORY_MONTH}>All History</option>
               {months.map((month) => (
                 <option key={month} value={month}>
                   {monthLabel(month)}
@@ -3296,7 +4441,9 @@ export default function MonthlyRecap({
               className="w-14 bg-transparent text-right text-[12px] font-black tabular-nums text-[#d8e5f7] outline-none"
             />
             <span className="whitespace-nowrap text-[9px] font-bold text-[#52637b]">
-              0 = full month
+              {selectedMonth === ALL_HISTORY_MONTH
+                ? '0 = all history'
+                : '0 = full month'}
             </span>
           </label>
         </div>
