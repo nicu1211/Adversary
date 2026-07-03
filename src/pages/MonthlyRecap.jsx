@@ -677,11 +677,10 @@ function statsPresenceRaw(log) {
   );
 }
 
-
 function normalizeStatsPresenceText(value) {
   return String(value || '')
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -791,13 +790,10 @@ function parseStatsPresenceNumber(value) {
   return Number.isFinite(number) ? number : NaN;
 }
 
+function hasExplicitStatPresenceFlag(source, aliases) {
+  if (!source) return false;
 
-function explicitStatPresenceValue(source, aliases) {
-  if (!source) return null;
-
-  let foundFalse = false;
-
-  for (const alias of aliases) {
+  return aliases.some((alias) => {
     const compactAlias = String(alias).replace(/[^a-zA-Z0-9]/g, '');
     const camel =
       compactAlias.charAt(0).toLowerCase() + compactAlias.slice(1);
@@ -819,21 +815,12 @@ function explicitStatPresenceValue(source, aliases) {
       `${camel}Added`,
     ];
 
-    for (const key of candidates) {
-      if (!Object.prototype.hasOwnProperty.call(source, key)) {
-        continue;
-      }
-
-      if (Boolean(source[key])) return true;
-      foundFalse = true;
-    }
-  }
-
-  return foundFalse ? false : null;
-}
-
-function hasExplicitStatPresenceFlag(source, aliases) {
-  return explicitStatPresenceValue(source, aliases) === true;
+    return candidates.some(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(source, key) &&
+        Boolean(source[key]),
+    );
+  });
 }
 
 function hasNonZeroStatMetric(source, aliases) {
@@ -850,19 +837,8 @@ function hasNonZeroStatMetric(source, aliases) {
   });
 }
 
-function statsPresenceTextHasAlias(text, alias) {
-  const normalizedText = normalizeStatsPresenceText(text);
-  const normalizedAlias = normalizeStatsPresenceText(alias);
-
-  if (!normalizedText || !normalizedAlias) return false;
-
-  return (` ${normalizedText} `).includes(` ${normalizedAlias} `);
-}
-
-
 function detectStatsLogColumns(log, oneStats) {
   const presence = {
-    killStreak: false,
     killFeed: false,
     damageDealt: false,
     damageTaken: false,
@@ -870,29 +846,13 @@ function detectStatsLogColumns(log, oneStats) {
     fortDamage: false,
   };
   const aliases = {
-    killStreak: [
-      'killStreak',
-      'killstreak',
-      'kill_streak',
-      'kill streak',
-      'streak',
-      'Kill Streak',
-      'Killstreak',
-    ],
-    killFeed: [
-      'killFeed',
-      'killfeed',
-      'kill_feed',
-      'kill feed',
-      'feed',
-      'KillFeed',
-      'Killfeed',
-    ],
+    killFeed: ['killFeed', 'killfeed', 'feed', 'KillFeed', 'Killfeed'],
     damageDealt: [
       'damageDealt',
       'damage_dealt',
       'damage dealt',
       'damageDone',
+      'damage',
       'Damage Dealt',
       'DamageDealt',
     ],
@@ -934,10 +894,6 @@ function detectStatsLogColumns(log, oneStats) {
 
   const normalizedSecondary = normalizeStatsPresenceText(secondaryRaw);
   const explicitHeader = {
-    killStreak:
-      /\bkill streak\b|\bkillstreak\b|\bstreak\b/.test(
-        normalizedSecondary,
-      ),
     killFeed: /\bkill feed\b|\bkillfeed\b/.test(normalizedSecondary),
     damageDealt: /\bdamage dealt\b|\bdmg dealt\b/.test(
       normalizedSecondary,
@@ -981,63 +937,28 @@ function detectStatsLogColumns(log, oneStats) {
         return;
       }
 
-      const thirdRaw = String(numericColumns[2] || '').trim();
+      const thirdRaw = String(numericColumns[2] || '');
       const thirdNumber = parseStatsPresenceNumber(thirdRaw);
-      const sixthNumber = parseStatsPresenceNumber(
-        numericColumns[5],
-      );
-      const seventhNumber = parseStatsPresenceNumber(
-        numericColumns[6],
-      );
-      const laterValuesLookLikeDamage =
-        sixthNumber >= 1000 || seventhNumber >= 1000;
-      const looksLikeKdColumn =
+      const looksLikeFullTableWithKd =
         numericColumns.length >= 9 &&
+        /[.,]/.test(thirdRaw) &&
         Number.isFinite(thirdNumber) &&
         thirdNumber >= 0 &&
-        thirdNumber <= 50 &&
-        (/[.,]/.test(thirdRaw) || laterValuesLookLikeDamage);
-      const hasSeparateKillStreak =
-        looksLikeKdColumn || numericColumns.length >= 8;
+        thirdNumber <= 50;
 
-      const indexes = {
-        killStreak: looksLikeKdColumn
-          ? 3
-          : hasSeparateKillStreak
-            ? 2
-            : -1,
-        killFeed: looksLikeKdColumn
-          ? 4
-          : hasSeparateKillStreak
-            ? 3
-            : 2,
-        damageDealt: looksLikeKdColumn
-          ? 5
-          : hasSeparateKillStreak
-            ? 4
-            : 3,
-        damageTaken: looksLikeKdColumn
-          ? 6
-          : hasSeparateKillStreak
-            ? 5
-            : 4,
-        ccHits: looksLikeKdColumn
-          ? 7
-          : hasSeparateKillStreak
-            ? 6
-            : 5,
-        fortDamage: looksLikeKdColumn
-          ? 8
-          : hasSeparateKillStreak
-            ? 7
-            : 6,
-      };
-
-      Object.entries(indexes).forEach(([metric, index]) => {
-        if (index >= 0 && index < numericColumns.length) {
-          presence[metric] = true;
-        }
-      });
+      if (looksLikeFullTableWithKd) {
+        if (numericColumns.length >= 5) presence.killFeed = true;
+        if (numericColumns.length >= 6) presence.damageDealt = true;
+        if (numericColumns.length >= 7) presence.damageTaken = true;
+        if (numericColumns.length >= 8) presence.ccHits = true;
+        if (numericColumns.length >= 9) presence.fortDamage = true;
+      } else {
+        if (numericColumns.length >= 3) presence.killFeed = true;
+        if (numericColumns.length >= 4) presence.damageDealt = true;
+        if (numericColumns.length >= 5) presence.damageTaken = true;
+        if (numericColumns.length >= 6) presence.ccHits = true;
+        if (numericColumns.length >= 9) presence.fortDamage = true;
+      }
     });
 
   if (foundRawStatsRow) return presence;
@@ -1082,9 +1003,13 @@ function detectStatsLogColumns(log, oneStats) {
   );
 
   Object.entries(aliases).forEach(([metric, metricAliases]) => {
-    const structuredHasAlias = metricAliases.some((alias) =>
-      statsPresenceTextHasAlias(structuredText, alias),
-    );
+    const structuredHasAlias = metricAliases.some((alias) => {
+      const normalizedAlias = normalizeStatsPresenceText(alias);
+
+      return Boolean(
+        normalizedAlias && structuredText.includes(normalizedAlias),
+      );
+    });
 
     presence[metric] =
       Boolean(presence[metric]) ||
@@ -1100,41 +1025,23 @@ function detectStatsLogColumns(log, oneStats) {
   return presence;
 }
 
-
 function buildStatsMetricPresenceByWar(logs) {
   const byWar = new Map();
-  const safeLogs = Array.isArray(logs) ? logs : [];
-  const dateCounts = new Map();
-
-  safeLogs.forEach((log) => {
-    const dateKey = String(dateOf(log) || '').trim();
-
-    if (dateKey) {
-      dateCounts.set(dateKey, (dateCounts.get(dateKey) || 0) + 1);
-    }
-  });
-
-  function emptyPresence() {
-    return {
-      killStreak: false,
-      killFeed: false,
-      damageDealt: false,
-      damageTaken: false,
-      ccHits: false,
-      fortDamage: false,
-    };
-  }
 
   function mergePresence(key, presence) {
     const cleanKey = String(key || '').trim();
 
     if (!cleanKey) return;
 
-    const current = byWar.get(cleanKey) || emptyPresence();
+    const current = byWar.get(cleanKey) || {
+      killFeed: false,
+      damageDealt: false,
+      damageTaken: false,
+      ccHits: false,
+      fortDamage: false,
+    };
 
     byWar.set(cleanKey, {
-      killStreak:
-        current.killStreak || Boolean(presence?.killStreak),
       killFeed: current.killFeed || Boolean(presence?.killFeed),
       damageDealt:
         current.damageDealt || Boolean(presence?.damageDealt),
@@ -1146,53 +1053,22 @@ function buildStatsMetricPresenceByWar(logs) {
     });
   }
 
-  function addExactKeys(keys, item) {
-    [
-      item?.id,
-      item?.apiId,
-      item?._id,
-      item?.log_id,
-      item?.warId,
-      item?.war_id,
-      item?.nodeWarId,
-      item?.war,
-      item?.name,
-      item?._src?.id,
-      item?._src?._id,
-      item?._src?.log_id,
-      item?._src?.warId,
-      item?._src?.war_id,
-      item?._src?.war,
-      item?._src?.name,
-    ].forEach((key) => {
-      const cleanKey = String(key || '').trim();
-      if (cleanKey) keys.add(cleanKey);
-    });
-  }
-
-  safeLogs.forEach((log, index) => {
+  (logs || []).forEach((log, index) => {
     const oneStats = calculateStats([log]);
     const presence = detectStatsLogColumns(log, oneStats);
-    const keys = new Set();
-
-    addExactKeys(keys, log);
-    keys.add(`stats-log-${index}`);
-
-    const logDate = String(dateOf(log) || '').trim();
-
-    // A date is a safe fallback only when exactly one log exists that day.
-    // This prevents one war's columns from being applied to another war.
-    if (logDate && dateCounts.get(logDate) === 1) {
-      keys.add(logDate);
-    }
+    const keys = new Set([
+      log?.id,
+      log?.war,
+      dateOf(log),
+      `stats-log-${index}`,
+    ]);
 
     (oneStats?.secondary?.rows || []).forEach((row) => {
-      addExactKeys(keys, row);
-
-      const rowDate = String(row?.date || '').trim();
-      if (rowDate && dateCounts.get(rowDate) === 1) {
-        keys.add(rowDate);
-      }
+      keys.add(row?.id);
+      keys.add(row?.warId);
+      keys.add(row?.war_id);
+      keys.add(row?.war);
+      keys.add(row?.date);
     });
 
     keys.forEach((key) => mergePresence(key, presence));
@@ -1201,73 +1077,23 @@ function buildStatsMetricPresenceByWar(logs) {
   return byWar;
 }
 
-function statsPresenceForWar(
-  metricPresenceByWar,
-  item,
-  index = 0,
-  prefix = 'stats-log',
-) {
-  const candidates = [
-    item?.id,
-    item?.warId,
-    item?.war_id,
-    item?.nodeWarId,
-    item?.war,
-    item?.date,
-    `${prefix}-${index}`,
-  ];
-
-  for (const candidate of candidates) {
-    const key = String(candidate || '').trim();
-
-    if (key && metricPresenceByWar.has(key)) {
-      return metricPresenceByWar.get(key);
-    }
-  }
-
-  return null;
-}
-
-function warHasRecordedMetric(
-  metricPresenceByWar,
-  item,
-  index,
-  metric,
-  prefix = 'stats-log',
-) {
-  return Boolean(
-    statsPresenceForWar(
-      metricPresenceByWar,
-      item,
-      index,
-      prefix,
-    )?.[metric],
-  );
-}
-
-
 function rowHasRecordedStatMetric(
   row,
   rowPresence,
   metric,
   aliases,
 ) {
-  const explicit = explicitStatPresenceValue(row, aliases);
-
-  if (explicit !== null) {
-    return explicit;
+  if (
+    rowPresence &&
+    Object.prototype.hasOwnProperty.call(rowPresence, metric)
+  ) {
+    return Boolean(rowPresence[metric]);
   }
 
-  if (Boolean(rowPresence?.[metric])) {
-    return true;
-  }
-
-  /*
-   * A non-zero saved value is definitive evidence for legacy summaries.
-   * A zero without a presence flag is not: older summaries often filled
-   * missing columns with zero.
-   */
-  return hasNonZeroStatMetric(row, aliases);
+  return (
+    hasExplicitStatPresenceFlag(row, aliases) ||
+    hasNonZeroStatMetric(row, aliases)
+  );
 }
 
 function chronologyTimestamp(item) {
@@ -1391,17 +1217,12 @@ function buildPlayerChronology(stats) {
 }
 
 
-function buildPlayerStatsCompatiblePlayers(
-  stats,
-  logs = [],
-  suppliedMetricPresenceByWar = null,
-) {
+function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
   const events = Array.isArray(stats?.ev) ? stats.ev : [];
   const secondaryRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
     : [];
-  const metricPresenceByWar =
-    suppliedMetricPresenceByWar || buildStatsMetricPresenceByWar(logs);
+  const metricPresenceByWar = buildStatsMetricPresenceByWar(logs);
   const eventsByWar = new Map();
   const matchesByPlayer = new Map();
 
@@ -1556,34 +1377,19 @@ function buildPlayerStatsCompatiblePlayers(
 
     if (!match) return;
 
-    const rowPresence = statsPresenceForWar(
-      metricPresenceByWar,
-      row,
-      index,
-      'secondary',
-    );
+    const rowPresence =
+      metricPresenceByWar.get(warId) ||
+      metricPresenceByWar.get(String(row?.id || '')) ||
+      metricPresenceByWar.get(String(row?.warId || '')) ||
+      metricPresenceByWar.get(String(row?.war_id || '')) ||
+      metricPresenceByWar.get(String(row?.war || '')) ||
+      metricPresenceByWar.get(String(row?.date || '')) ||
+      null;
 
     const aliases = {
       kills: ['kills', 'Kills', 'kill'],
       deaths: ['deaths', 'Deaths', 'death'],
-      killStreak: [
-        'killStreak',
-        'killstreak',
-        'kill_streak',
-        'kill streak',
-        'streak',
-        'Kill Streak',
-        'Killstreak',
-      ],
-      killFeed: [
-        'killFeed',
-        'killfeed',
-        'kill_feed',
-        'kill feed',
-        'feed',
-        'KillFeed',
-        'Killfeed',
-      ],
+      killFeed: ['killFeed', 'killfeed', 'feed', 'KillFeed'],
       damageDealt: [
         'damageDealt',
         'damage_dealt',
@@ -1617,12 +1423,6 @@ function buildPlayerStatsCompatiblePlayers(
 
     const hasKills = hasOwnStatMetric(row, aliases.kills);
     const hasDeaths = hasOwnStatMetric(row, aliases.deaths);
-    const hasKillStreak = rowHasRecordedStatMetric(
-      row,
-      rowPresence,
-      'killStreak',
-      aliases.killStreak,
-    );
     const hasKillFeed = rowHasRecordedStatMetric(
       row,
       rowPresence,
@@ -1665,15 +1465,6 @@ function buildPlayerStatsCompatiblePlayers(
     }
 
     match.__has.kd = match.__has.kills && match.__has.deaths;
-
-    if (hasKillStreak) {
-      match.killStreak = readStatMetric(
-        row,
-        aliases.killStreak,
-        0,
-      );
-      match.__has.killStreak = true;
-    }
 
     if (hasKillFeed) {
       match.killFeed = readStatMetric(row, aliases.killFeed, 0);
@@ -1949,6 +1740,8 @@ function buildStatsLogPlayers(stats, logs = []) {
       0,
     );
 
+    player.damage += rowDamage;
+
     if (
       rowHasRecordedStatMetric(
         row,
@@ -1957,10 +1750,11 @@ function buildStatsLogPlayers(stats, logs = []) {
         damageAliases,
       )
     ) {
-      player.damage += rowDamage;
       player.damageAverageSum += rowDamage;
       player.damageAverageCount += 1;
     }
+
+    player.damageTaken += rowDamageTaken;
 
     if (
       rowHasRecordedStatMetric(
@@ -1970,9 +1764,10 @@ function buildStatsLogPlayers(stats, logs = []) {
         damageTakenAliases,
       )
     ) {
-      player.damageTaken += rowDamageTaken;
       player.damageTakenAverageCount += 1;
     }
+
+    player.ccHits += rowCcHits;
 
     if (
       rowHasRecordedStatMetric(
@@ -1982,10 +1777,10 @@ function buildStatsLogPlayers(stats, logs = []) {
         ccAliases,
       )
     ) {
-      player.ccHits += rowCcHits;
       player.ccAverageSum += rowCcHits;
       player.ccAverageCount += 1;
     }
+    player.fortDamage += rowFortDamage;
 
     if (
       rowHasRecordedStatMetric(
@@ -1995,9 +1790,15 @@ function buildStatsLogPlayers(stats, logs = []) {
         fortDamageAliases,
       )
     ) {
-      player.fortDamage += rowFortDamage;
       player.fortDamageAverageCount += 1;
     }
+
+    // Player Highlights uses the best saved Stats Log KillFeed.
+    player.killFeed = Math.max(player.killFeed, rowKillFeed);
+
+    // Players Performance Total uses the monthly sum. Average uses only
+    // wars whose Stats Log actually contained the KillFeed column.
+    player.killFeedTotal += rowKillFeed;
 
     if (
       rowHasRecordedStatMetric(
@@ -2007,9 +1808,6 @@ function buildStatsLogPlayers(stats, logs = []) {
         killFeedAliases,
       )
     ) {
-      // A real zero is included because the column is confirmed present.
-      player.killFeed = Math.max(player.killFeed, rowKillFeed);
-      player.killFeedTotal += rowKillFeed;
       player.killFeedAverageCount += 1;
     }
 
@@ -2023,14 +1821,7 @@ function buildStatsLogPlayers(stats, logs = []) {
       'streak',
     ];
 
-    if (
-      rowHasRecordedStatMetric(
-        row,
-        rowPresence,
-        'killStreak',
-        streakAliases,
-      )
-    ) {
+    if (hasOwnStatMetric(row, streakAliases)) {
       player.hasKillStreak = true;
       player.killStreak = Math.max(
         player.killStreak,
@@ -2345,7 +2136,6 @@ function buildMonthlyPerformancePlayers(
           kills: secondary ? num(secondary.wars) : num(wars),
           deaths: secondary ? num(secondary.wars) : num(wars),
           kd: secondary ? num(secondary.kdCount) : num(wars),
-          killStreak: 0,
           killFeed: 0,
           damageDealt: 0,
           damageTaken: 0,
@@ -2621,37 +2411,6 @@ function comparisonInfo(
   };
 }
 
-function recordedComparisonInfo(
-  current,
-  currentRecordedWars,
-  previous,
-  previousRecordedWars,
-  previousPeriodLabel,
-  lowerIsBetter = false,
-) {
-  if (!num(currentRecordedWars)) {
-    return {
-      text: 'No recorded data',
-      tone: 'neutral',
-    };
-  }
-
-  if (!num(previousRecordedWars)) {
-    return {
-      text: `No ${previousPeriodLabel || 'previous period'} baseline`,
-      tone: 'neutral',
-    };
-  }
-
-  return comparisonInfo(
-    current,
-    previous,
-    previousPeriodLabel,
-    lowerIsBetter,
-  );
-}
-
-
 function buildRosterPerformancePlayers(activePlayers) {
   const activeByName = new Map(
     (activePlayers || []).map((player) => [
@@ -2699,7 +2458,6 @@ function buildRosterPerformancePlayers(activePlayers) {
         kills: 0,
         deaths: 0,
         kd: 0,
-        killStreak: 0,
         killFeed: 0,
         damageDealt: 0,
         damageTaken: 0,
@@ -2815,72 +2573,22 @@ function buildReview(
   }
 
   const stats = calculateStats(monthLogs);
-  const metricPresenceByWar =
-    buildStatsMetricPresenceByWar(monthLogs);
-  const previousMetricPresenceByWar =
-    buildStatsMetricPresenceByWar(previousLogs);
-
-  const damageRows = rows.filter((row, index) =>
-    warHasRecordedMetric(
-      metricPresenceByWar,
-      monthLogs[index] || row,
-      index,
-      'damageDealt',
-      'stats-log',
-    ),
-  );
-  const fortDamageRows = rows.filter((row, index) =>
-    warHasRecordedMetric(
-      metricPresenceByWar,
-      monthLogs[index] || row,
-      index,
-      'fortDamage',
-      'stats-log',
-    ),
-  );
-  const previousDamageRows = previousRows.filter((row, index) =>
-    warHasRecordedMetric(
-      previousMetricPresenceByWar,
-      previousLogs[index] || row,
-      index,
-      'damageDealt',
-      'stats-log',
-    ),
-  );
-  const previousFortDamageRows = previousRows.filter((row, index) =>
-    warHasRecordedMetric(
-      previousMetricPresenceByWar,
-      previousLogs[index] || row,
-      index,
-      'fortDamage',
-      'stats-log',
-    ),
-  );
+  const warCounts = buildPlayerWarCounts(stats);
 
   const totals = {
     wars: rows.length,
     kills: rows.reduce((sum, row) => sum + num(row.kills), 0),
     deaths: rows.reduce((sum, row) => sum + num(row.deaths), 0),
-    damage: damageRows.reduce(
-      (sum, row) => sum + num(row.damageDealt),
-      0,
-    ),
-    fortDamage: fortDamageRows.reduce(
-      (sum, row) => sum + num(row.fortDamage),
-      0,
-    ),
-    damageWarCount: damageRows.length,
-    fortDamageWarCount: fortDamageRows.length,
+    damage: rows.reduce((sum, row) => sum + num(row.damageDealt), 0),
+    fortDamage: rows.reduce((sum, row) => sum + num(row.fortDamage), 0),
   };
 
   totals.kd = ratio(totals.kills, totals.deaths);
   totals.avgKills = totals.wars ? totals.kills / totals.wars : 0;
   totals.avgDeaths = totals.wars ? totals.deaths / totals.wars : 0;
-  totals.avgDamage = totals.damageWarCount
-    ? totals.damage / totals.damageWarCount
-    : 0;
-  totals.avgFortDamage = totals.fortDamageWarCount
-    ? totals.fortDamage / totals.fortDamageWarCount
+  totals.avgDamage = totals.wars ? totals.damage / totals.wars : 0;
+  totals.avgFortDamage = totals.wars
+    ? totals.fortDamage / totals.wars
     : 0;
   totals.avgWarKd = rows.length
     ? rows.reduce(
@@ -2898,16 +2606,11 @@ function buildReview(
     wars: previousRows.length,
     kills: previousRows.reduce((sum, row) => sum + num(row.kills), 0),
     deaths: previousRows.reduce((sum, row) => sum + num(row.deaths), 0),
-    damage: previousDamageRows.reduce(
-      (sum, row) => sum + num(row.damageDealt),
-      0,
-    ),
-    fortDamage: previousFortDamageRows.reduce(
+    damage: previousRows.reduce((sum, row) => sum + num(row.damageDealt), 0),
+    fortDamage: previousRows.reduce(
       (sum, row) => sum + num(row.fortDamage),
       0,
     ),
-    damageWarCount: previousDamageRows.length,
-    fortDamageWarCount: previousFortDamageRows.length,
   };
 
   previousTotals.kd = ratio(
@@ -2915,13 +2618,13 @@ function buildReview(
     previousTotals.deaths,
   );
 
-  // Use the exact same per-player, per-war merge model as Player Stats.
-  // Every metric average uses only wars where that exact column existed.
-  // A recorded zero is included; a missing historical column is excluded.
+  // Use the exact same per-player, per-war merge model as Player Stats:
+  // Combat Log creates the base war record and a Stats Log overrides only
+  // the columns it actually contains. This keeps totals and averages aligned
+  // between both pages for the same date range.
   const activePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
     monthLogs,
-    metricPresenceByWar,
   );
   const players = buildRosterPerformancePlayers(activePlayers);
   const {
@@ -3524,33 +3227,6 @@ function weightedImpactPart(parts) {
   );
 }
 
-
-function playerHasRecordedPerformanceMetric(player, key) {
-  if (!player || player.inactive) return false;
-
-  if (key === 'name' || key === 'wars' || key === 'impact') {
-    return num(player?.wars) > 0;
-  }
-
-  const countKey = {
-    kills: 'kills',
-    deaths: 'deaths',
-    kd: 'kd',
-    killStreak: 'killStreak',
-    killFeed: 'killFeed',
-    damageDealt: 'damageDealt',
-    damageTaken: 'damageTaken',
-    ccHits: 'ccHits',
-    fortDamage: 'fortDamage',
-  }[key];
-
-  if (!countKey) {
-    return num(player?.wars) > 0;
-  }
-
-  return num(player?.statWarCounts?.[countKey]) > 0;
-}
-
 function overallMetricValue(player, key, viewMode) {
   const wars = Math.max(1, num(player?.wars));
 
@@ -3603,7 +3279,6 @@ function overallMetricValue(player, key, viewMode) {
   }
 }
 
-
 function addImpactScores(
   players,
   weights,
@@ -3639,18 +3314,14 @@ function addImpactScores(
   const metricEntries = Object.fromEntries(
     activeControls.map(({ key }) => [
       key,
-      activePlayers
-        .filter((player) =>
-          playerHasRecordedPerformanceMetric(player, key),
-        )
-        .map((player) => ({
+      activePlayers.map((player) => ({
+        player,
+        value: overallMetricValue(
           player,
-          value: overallMetricValue(
-            player,
-            key,
-            viewMode,
-          ),
-        })),
+          key,
+          viewMode,
+        ),
+      })),
     ]),
   );
 
@@ -3662,35 +3333,21 @@ function addImpactScores(
       };
     }
 
-    const parts = activeControls.flatMap(({ key }) => {
-      if (!playerHasRecordedPerformanceMetric(player, key)) {
-        return [];
-      }
-
-      const entries = metricEntries[key] || [];
-
-      if (!entries.length) return [];
-
-      return [
-        {
-          score: percentileScore(
-            player,
-            entries,
-            key === 'deaths' || key === 'damageTaken',
-          ),
-          weight: num(weights?.[key]),
-        },
-      ];
-    });
+    const parts = activeControls.map(({ key }) => ({
+      score: percentileScore(
+        player,
+        metricEntries[key],
+        key === 'deaths' || key === 'damageTaken',
+      ),
+      weight: num(weights?.[key]),
+    }));
 
     const impact = weightedImpactPart(parts);
 
     return {
       ...player,
-      /*
-       * Missing historical columns are excluded from this player's
-       * weighted score instead of being treated as zero.
-       */
+      // Keep the full calculated impact value. Formatting is handled only
+      // when the value is rendered, so no precision is lost here.
       impact: Math.max(0, Math.min(100, impact)),
     };
   });
@@ -3859,10 +3516,7 @@ function PerformanceMetricCell({
   max,
   viewMode,
 }) {
-  if (
-    player.inactive ||
-    !playerHasRecordedPerformanceMetric(player, metricKey)
-  ) {
+  if (player.inactive) {
     return (
       <span className="text-center font-black text-slate-700">
         —
@@ -3973,17 +3627,6 @@ function PlayersTable({ players }) {
         return a.name.localeCompare(b.name);
       }
 
-      if (sort.key !== 'name') {
-        const aHasMetric =
-          playerHasRecordedPerformanceMetric(a, sort.key);
-        const bHasMetric =
-          playerHasRecordedPerformanceMetric(b, sort.key);
-
-        if (aHasMetric !== bHasMetric) {
-          return aHasMetric ? -1 : 1;
-        }
-      }
-
       if (sort.key === 'name') {
         const result = a.name.localeCompare(b.name);
         return sort.direction === 'asc' ? result : -result;
@@ -4026,13 +3669,9 @@ function PlayersTable({ players }) {
           ? 100
           : Math.max(
               1,
-              ...activeRows
-                .filter((player) =>
-                  playerHasRecordedPerformanceMetric(player, key),
-                )
-                .map((player) =>
-                  performanceValue(player, key, viewMode),
-                ),
+              ...activeRows.map((player) =>
+                performanceValue(player, key, viewMode),
+              ),
             ),
       ]),
     );
@@ -4761,22 +4400,12 @@ export default function MonthlyRecap({
         <KpiCard
           icon={Zap}
           label="Damage"
-          value={
-            totals.damageWarCount
-              ? compact(totals.damage)
-              : '—'
-          }
-          averageLabel="Avg / Recorded War"
-          averageValue={
-            totals.damageWarCount
-              ? compact(totals.avgDamage)
-              : '—'
-          }
-          comparison={recordedComparisonInfo(
+          value={compact(totals.damage)}
+          averageLabel="Avg / War"
+          averageValue={compact(totals.avgDamage)}
+          comparison={comparisonInfo(
             totals.damage,
-            totals.damageWarCount,
             previousTotals.damage,
-            previousTotals.damageWarCount,
             previousMonth,
           )}
           accent="green"
@@ -4784,22 +4413,12 @@ export default function MonthlyRecap({
         <KpiCard
           icon={Castle}
           label="Fort Damage"
-          value={
-            totals.fortDamageWarCount
-              ? compact(totals.fortDamage)
-              : '—'
-          }
-          averageLabel="Avg / Recorded War"
-          averageValue={
-            totals.fortDamageWarCount
-              ? compact(totals.avgFortDamage)
-              : '—'
-          }
-          comparison={recordedComparisonInfo(
+          value={compact(totals.fortDamage)}
+          averageLabel="Avg / War"
+          averageValue={compact(totals.avgFortDamage)}
+          comparison={comparisonInfo(
             totals.fortDamage,
-            totals.fortDamageWarCount,
             previousTotals.fortDamage,
-            previousTotals.fortDamageWarCount,
             previousMonth,
           )}
           accent="amber"
