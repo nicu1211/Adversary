@@ -748,41 +748,10 @@ function parseSecondaryLineWithHeader(line, index, header) {
 
 function parseSecondaryLineLegacy(line, index) {
   const split = splitSecondaryColumns(line);
-  let columns = expandPackedSecondaryNumberColumns(split.columns);
-
-  if (columns.length < 2) return null;
-
-  const firstNumberIndex = columns.findIndex(isSecondaryNumber);
-
-  if (firstNumberIndex < 0) return null;
-
-  // Keep all cells after Kills, including empty cells. Filtering numeric values
-  // is what previously shifted Damage/CC/Fort values into the wrong fields.
-  const statColumns = columns.slice(firstNumberIndex);
-
-  if (statColumns.length < 2) return null;
-
-  const player = normalizeSecondaryPlayerName(columns.slice(0, firstNumberIndex));
-
-  function hasColumn(columnIndex) {
-    return (
-      columnIndex >= 0 &&
-      columnIndex < statColumns.length &&
-      isSecondaryNumber(statColumns[columnIndex])
-    );
-  }
-
-  function readColumn(columnIndex) {
-    return hasColumn(columnIndex)
-      ? Math.round(parseSecondaryNumber(statColumns[columnIndex]))
-      : 0;
-  }
-
-  const kills = readColumn(0);
-  const deaths = readColumn(1);
+  const columns = expandPackedSecondaryNumberColumns(split.columns);
 
   /*
-   * Headerless Stats Log layout after the optional player name:
+   * The Stats Log always ends with exactly these 9 statistic columns:
    *
    * 0 Kills
    * 1 Deaths
@@ -794,39 +763,96 @@ function parseSecondaryLineLegacy(line, index) {
    * 7 Ally Heal  (ignored)
    * 8 Fort Damage
    *
-   * Empty tab-separated cells are preserved, so Heal and Ally Heal can be
-   * skipped without shifting Fort Damage into the wrong field.
+   * Read the statistics from the RIGHT side of the row. This is important
+   * because copied rows can begin with a numeric rank before the player name.
+   * Treating the first number as Kills shifts every statistic one column.
    */
-  const killfeedIndex = 2;
+  const STATS_COLUMN_COUNT = 9;
+
+  if (columns.length < STATS_COLUMN_COUNT + 1) return null;
+
+  let statsStart = -1;
+
+  for (
+    let start = columns.length - STATS_COLUMN_COUNT;
+    start >= 0;
+    start -= 1
+  ) {
+    const candidate = columns.slice(
+      start,
+      start + STATS_COLUMN_COUNT,
+    );
+
+    if (candidate.length !== STATS_COLUMN_COUNT) continue;
+
+    const killsPresent = isSecondaryNumber(candidate[0]);
+    const deathsPresent = isSecondaryNumber(candidate[1]);
+
+    const remainingCellsValid = candidate
+      .slice(2)
+      .every(
+        (value) =>
+          String(value ?? '').trim() === '' ||
+          isSecondaryNumber(value),
+      );
+
+    if (killsPresent && deathsPresent && remainingCellsValid) {
+      statsStart = start;
+      break;
+    }
+  }
+
+  if (statsStart < 0) return null;
+
+  const player = normalizeSecondaryPlayerName(
+    columns.slice(0, statsStart),
+  );
+
+  if (!player) return null;
+
+  const statColumns = columns.slice(
+    statsStart,
+    statsStart + STATS_COLUMN_COUNT,
+  );
+
+  function hasColumn(columnIndex) {
+    return (
+      columnIndex >= 0 &&
+      columnIndex < statColumns.length &&
+      isSecondaryNumber(statColumns[columnIndex])
+    );
+  }
+
+  function readColumn(columnIndex) {
+    return hasColumn(columnIndex)
+      ? Math.round(
+          parseSecondaryNumber(statColumns[columnIndex]),
+        )
+      : 0;
+  }
+
+  const killsIndex = 0;
+  const deathsIndex = 1;
+  const killFeedIndex = 2;
   const damageDealtIndex = 3;
   const damageTakenIndex = 4;
   const ccHitsIndex = 5;
   const fortDamageIndex = 8;
 
-  const killStreak = 0;
-  const killFeed = readColumn(killfeedIndex);
+  const kills = readColumn(killsIndex);
+  const deaths = readColumn(deathsIndex);
+  const killFeed = readColumn(killFeedIndex);
   const damageDealt = readColumn(damageDealtIndex);
   const damageTaken = readColumn(damageTakenIndex);
   const ccHits = readColumn(ccHitsIndex);
   const fortDamage = readColumn(fortDamageIndex);
 
-  const anyMetricPresent = [
-    0,
-    1,
-    killfeedIndex,
-    damageDealtIndex,
-    damageTakenIndex,
-    ccHitsIndex,
-    fortDamageIndex,
-  ].some(hasColumn);
-
-  if (!player && !anyMetricPresent) return null;
-
   return {
     player,
     kills,
     deaths,
-    killStreak,
+    // Kill Streak is calculated only from the timestamped Combat Log.
+    killStreak: 0,
     killFeed,
     damageDealt,
     damageTaken,
@@ -834,11 +860,11 @@ function parseSecondaryLineLegacy(line, index) {
     fortDamage,
     line: index + 1,
     rawLine: String(line || ''),
-    source: 'legacy-position',
-    has_kills: hasColumn(0),
-    has_deaths: hasColumn(1),
+    source: 'legacy-position-right-aligned',
+    has_kills: hasColumn(killsIndex),
+    has_deaths: hasColumn(deathsIndex),
     has_kill_streak: false,
-    has_kill_feed: hasColumn(killfeedIndex),
+    has_kill_feed: hasColumn(killFeedIndex),
     has_damage_dealt: hasColumn(damageDealtIndex),
     has_damage_taken: hasColumn(damageTakenIndex),
     has_cc_hits: hasColumn(ccHitsIndex),
@@ -2786,7 +2812,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 6,
+    version: 7,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
@@ -2810,13 +2836,13 @@ export function getLogSummary(log) {
   const raw = String(log?.raw || '');
 
   /*
-   * Summary version 6 uses the actual Stats Log layout:
+   * Summary version 7 uses right-aligned Stats Log column parsing:
    * Kills, Deaths, Kill Feed, Damage Dealt, Damage Taken, CC Hits,
    * Heal, Ally Heal, Fort Damage. Heal and Ally Heal are intentionally
    * ignored. When raw text is available, rebuild older summaries so values
    * saved with the previous shifted-column parser are corrected.
    */
-  if (normalized && (Number(normalized.version) >= 6 || !raw)) {
+  if (normalized && (Number(normalized.version) >= 7 || !raw)) {
     return normalized;
   }
 
