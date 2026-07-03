@@ -2560,44 +2560,161 @@ export function getLogSummary(log) {
 
 export function buildNodeWarRow(log) {
   const summary = getLogSummary(log);
-  const secondaryTotals = summary.secondary?.totals || {};
-  const playerSecondaryTotals = (summary.players || []).reduce(
-    (totals, player) => ({
-      damageDealt:
-        totals.damageDealt + (Number(player.damageDealt) || 0),
-      damageTaken:
-        totals.damageTaken + (Number(player.damageTaken) || 0),
-      ccHits: totals.ccHits + (Number(player.ccHits) || 0),
-      fortDamage: totals.fortDamage + (Number(player.fortDamage) || 0),
-    }),
-    {
-      damageDealt: 0,
-      damageTaken: 0,
-      ccHits: 0,
-      fortDamage: 0,
+  const secondary = summary.secondary || {};
+  const secondaryTotals = secondary.totals || {};
+  const secondaryAvailable = secondary.available || {};
+  const secondaryRows = Array.isArray(secondary.rows)
+    ? secondary.rows
+    : [];
+  const players = Array.isArray(summary.players)
+    ? summary.players
+    : [];
+
+  function hasOwn(source, key) {
+    return Boolean(
+      source &&
+        Object.prototype.hasOwnProperty.call(source, key),
+    );
+  }
+
+  function explicitAvailability(source, flagKeys, valueKeys) {
+    if (!source) return null;
+
+    for (const key of flagKeys) {
+      if (hasOwn(source, key)) {
+        return Boolean(source[key]);
+      }
+    }
+
+    for (const key of valueKeys) {
+      if (!hasOwn(source, key)) continue;
+
+      const value = Number(source[key]);
+
+      // A non-zero legacy value proves that the metric existed. A zero
+      // without an availability flag remains unknown and must display as —.
+      if (Number.isFinite(value) && value !== 0) {
+        return true;
+      }
+    }
+
+    return null;
+  }
+
+  const metricDefinitions = {
+    damageDealt: {
+      flags: ['has_damage_dealt', 'hasDamageDealt'],
+      values: ['damageDealt', 'damage_dealt', 'damage'],
     },
-  );
+    damageTaken: {
+      flags: ['has_damage_taken', 'hasDamageTaken'],
+      values: ['damageTaken', 'damage_taken'],
+    },
+    ccHits: {
+      flags: ['has_cc_hits', 'hasCcHits'],
+      values: ['ccHits', 'cc_hits', 'cc'],
+    },
+    fortDamage: {
+      flags: ['has_fort_damage', 'hasFortDamage'],
+      values: ['fortDamage', 'damageToFort', 'damage_to_fort'],
+    },
+  };
+
+  function metricIsAvailable(metric) {
+    if (hasOwn(secondaryAvailable, metric)) {
+      return Boolean(secondaryAvailable[metric]);
+    }
+
+    const definition = metricDefinitions[metric];
+
+    if (!definition) return false;
+
+    const sources = [...secondaryRows, ...players];
+
+    return sources.some(
+      (source) =>
+        explicitAvailability(
+          source,
+          definition.flags,
+          definition.values,
+        ) === true,
+    );
+  }
+
+  function sumPlayerMetric(metric, aliases = []) {
+    return players.reduce((total, player) => {
+      const key = [metric, ...aliases].find((candidate) =>
+        hasOwn(player, candidate),
+      );
+
+      return total + (key ? Number(player[key]) || 0 : 0);
+    }, 0);
+  }
+
+  function metricValue(metric, aliases = []) {
+    const totalCandidates = [metric, ...aliases];
+    const totalKey = totalCandidates.find((candidate) =>
+      hasOwn(secondaryTotals, candidate),
+    );
+    const totalValue = totalKey
+      ? Number(secondaryTotals[totalKey]) || 0
+      : 0;
+    const playerValue = sumPlayerMetric(metric, aliases);
+
+    // Legacy summaries sometimes omitted totals but kept player values.
+    return totalValue !== 0 ? totalValue : playerValue;
+  }
+
+  const hasDamageDealt = metricIsAvailable('damageDealt');
+  const hasDamageTaken = metricIsAvailable('damageTaken');
+  const hasCcHits = metricIsAvailable('ccHits');
+  const hasFortDamage = metricIsAvailable('fortDamage');
+
+  const damageDealt = metricValue('damageDealt', [
+    'damage_dealt',
+    'damage',
+  ]);
+  const damageTaken = metricValue('damageTaken', [
+    'damage_taken',
+  ]);
+  const ccHits = metricValue('ccHits', ['cc_hits', 'cc']);
+  const fortDamage = metricValue('fortDamage', [
+    'damageToFort',
+    'damage_to_fort',
+  ]);
 
   return {
     ...log,
     date: dateOf(log),
-    players: Number(summary.playersCount) || Number(summary.players?.length) || 0,
+    players:
+      Number(summary.playersCount) ||
+      Number(summary.players?.length) ||
+      0,
     kills: Number(summary.kills) || 0,
     deaths: Number(summary.deaths) || 0,
     kd: summary.kd || '0.00',
     kdNumber: Number(summary.kd) || 0,
-    damageDealt:
-      Number(secondaryTotals.damageDealt) || playerSecondaryTotals.damageDealt || 0,
-    damageTaken:
-      Number(secondaryTotals.damageTaken) || playerSecondaryTotals.damageTaken || 0,
-    ccHits: Number(secondaryTotals.ccHits) || playerSecondaryTotals.ccHits || 0,
-    fortDamage:
-      Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0,
+    damageDealt,
+    damageTaken,
+    ccHits,
+    fortDamage,
+    hasDamageDealt,
+    hasDamageTaken,
+    hasCcHits,
+    hasFortDamage,
+    statAvailability: {
+      damageDealt: hasDamageDealt,
+      damageTaken: hasDamageTaken,
+      ccHits: hasCcHits,
+      fortDamage: hasFortDamage,
+    },
     topEnemies: summary.topEnemies || [],
     allEnemyNames:
       summary.enemyNames?.length > 0
         ? summary.enemyNames
-        : (summary.guilds || []).map((guild) => guild.name).filter(Boolean),
+        : (summary.guilds || [])
+            .map((guild) => guild.name)
+            .filter(Boolean),
     hasTimeline: Boolean(summary.hasTimeline),
     summaryOnly: Boolean(summary.summaryOnly),
   };
