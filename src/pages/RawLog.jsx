@@ -548,11 +548,6 @@ export default function RawLog({
                     )}{" "}
                     deaths ·{" "}
                     {formatSecondaryTotal(
-                      secondaryTotals.killStreak,
-                      secondaryTotals.available.killStreak,
-                    )}{" "}
-                    max kill streak ·{" "}
-                    {formatSecondaryTotal(
                       secondaryTotals.killFeed,
                       secondaryTotals.available.killFeed,
                     )}{" "}
