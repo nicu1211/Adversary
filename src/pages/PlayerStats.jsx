@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AveragePerformanceChart } from '../components/Charts';
-import { add, calculateStats, dateOf, scrollCls } from '../lib/logUtils';
+import { add, scrollCls } from '../lib/logUtils';
 
 
 const PLAYER_STATS_GUILD_CSS = `
@@ -2214,8 +2214,7 @@ function buildCombatAverageRankRows(warEvents) {
         deaths: true,
         kd: true,
         killstreak: true,
-        // Combat Logs provide Killstreak, not KillFeed.
-        killfeed: false,
+        killfeed: true,
         damageDealt: false,
         damageTaken: false,
         ccHits: false,
@@ -2268,10 +2267,32 @@ function buildCombatAverageRankRows(warEvents) {
       ? Number((player.kills / player.deaths).toFixed(2))
       : Number(player.kills.toFixed(2));
 
-    // KillFeed is a Stats Log column only. Never derive it from Combat Log
-    // timestamps, otherwise wars without a KillFeed column get random values.
-    player.killfeed = 0;
-    player.feedKey = '';
+    const killEvents = killEventsByPlayer[player.playerKey] || [];
+    let left = 0;
+    let best = 0;
+    let bestKey = '';
+
+    for (let right = 0; right < killEvents.length; right += 1) {
+      while (killEvents[right].sec - killEvents[left].sec > 30) {
+        left += 1;
+      }
+
+      const count = right - left + 1;
+      const windowKey = killEvents[left]?.key || '';
+
+      if (
+        count > best ||
+        (count === best &&
+          windowKey &&
+          (!bestKey || windowKey < bestKey))
+      ) {
+        best = count;
+        bestKey = windowKey;
+      }
+    }
+
+    player.killfeed = best;
+    player.feedKey = bestKey;
   });
 
   return playersByKey;
@@ -2294,7 +2315,6 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
         kills: 0,
         deaths: 0,
         kd: 0,
-        killstreak: 0,
         killfeed: 0,
         damageDealt: 0,
         damageTaken: 0,
@@ -2323,11 +2343,6 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
     const hasDeaths = getSecondaryMetricExists(
       row,
       'deaths',
-      warPresence,
-    );
-    const hasKillstreak = getSecondaryMetricExists(
-      row,
-      'killstreak',
       warPresence,
     );
     const hasKillfeed = getSecondaryMetricExists(
@@ -2373,11 +2388,6 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
       player.kd = player.deaths
         ? Number((player.kills / player.deaths).toFixed(2))
         : Number(player.kills.toFixed(2));
-    }
-
-    if (hasKillstreak) {
-      player.killstreak = Number(metrics.killstreak) || 0;
-      player.__has.killstreak = true;
     }
 
     if (hasKillfeed) {
@@ -2442,8 +2452,9 @@ function mergeAverageRankWarRows(
         : secondary?.deaths || 0,
       kd: hasCombat ? combat.kd : secondary?.kd || 0,
       killstreak: hasCombat ? combat.killstreak : 0,
-      // KillFeed comes only from the Stats Log row.
-      killfeed: secondary?.killfeed || 0,
+      killfeed: hasCombat
+        ? combat.killfeed
+        : secondary?.killfeed || 0,
       damageDealt: secondary?.damageDealt || 0,
       damageTaken: secondary?.damageTaken || 0,
       ccHits: secondary?.ccHits || 0,
@@ -2463,7 +2474,8 @@ function mergeAverageRankWarRows(
         kd:
           hasCombat || Boolean(secondary?.__has?.kd),
         killstreak: hasCombat,
-        killfeed: Boolean(secondary?.__has?.killfeed),
+        killfeed:
+          hasCombat || Boolean(secondary?.__has?.killfeed),
         damageDealt: Boolean(
           secondary?.__has?.damageDealt,
         ),
@@ -2706,7 +2718,7 @@ function getOurPlayerRowsForWar(warEvents) {
         ? Number((k / d).toFixed(2))
         : Number(k.toFixed(2)),
       streak: getBestKillstreakForWar(warEvents, name),
-      feed: null,
+      feed: getBestKillfeedForWar(warEvents, name),
     };
   });
 }
@@ -2872,19 +2884,19 @@ const MATCH_HISTORY_COLORS = {
 const SECONDARY_MATCH_METRIC_KEYS = {
   kills: ['kills', 'Kills'],
   deaths: ['deaths', 'Deaths'],
-  killstreak: [
-    'killStreak',
-    'killstreak',
-    'streak',
-    'Killstreak',
-    'KillStreak',
-  ],
+  killstreak: [],
   killfeed: [
     'killFeed',
     'killfeed',
     'feed',
     'KillFeed',
     'Killfeed',
+    // Legacy aliases from summaries created before the parser fix.
+    'killStreak',
+    'killstreak',
+    'streak',
+    'Killstreak',
+    'KillStreak',
   ],
   damageDealt: [
     'damageDealt',
@@ -3056,10 +3068,10 @@ function getSecondaryWarMetricPresence(rows) {
     });
   });
 
-  // Legacy saved rows may not contain per-column availability flags. For those
-  // rows only, infer that an explicit numeric 0 belongs to the detailed table.
-  // Current parser rows include has_* flags, and an explicit false must remain
-  // missing rather than being converted into a real zero.
+  // When one of the extra columns exists in a detailed secondary log, a 0 in
+  // another extra column is still a real cell from that same log table. This is
+  // what makes values like Kawoy -> 2026-05-01 -> Damage to Fort = 0 count in
+  // the average, instead of being treated as an auto-generated missing value.
   (rows || []).forEach((row, index) => {
     const warId = secondaryWarId(row, index);
     const presence = output[warId];
@@ -3069,17 +3081,8 @@ function getSecondaryWarMetricPresence(rows) {
     SECONDARY_DETAIL_METRICS.forEach((metric) => {
       const keys = SECONDARY_MATCH_METRIC_KEYS[metric] || [metric];
       const number = getRowMetricNumber(row, metric, NaN);
-      const presenceFlag = getPresenceFlag(row, keys);
 
-      // The parser always includes numeric properties with a 0 fallback, even
-      // when that column did not exist in the original Stats Log. An explicit
-      // false availability flag must therefore win over the generated 0.
-      if (presenceFlag === false) return;
-
-      if (
-        Number.isFinite(number) &&
-        (presenceFlag === true || rowHasOwnMetricKey(row, keys))
-      ) {
+      if (rowHasOwnMetricKey(row, keys) && Number.isFinite(number)) {
         presence[metric] = true;
       }
     });
@@ -3090,16 +3093,6 @@ function getSecondaryWarMetricPresence(rows) {
 
 function getSecondaryMetricExists(row, metric, warPresence = {}) {
   const keys = SECONDARY_MATCH_METRIC_KEYS[metric] || [metric];
-  const presenceFlag = getPresenceFlag(row, keys);
-
-  // Trust the parser's per-column availability flags. In particular, false
-  // means the property is only a generated 0 placeholder and must display as
-  // an em dash instead of a real zero in Match History.
-  if (presenceFlag !== undefined) {
-    if (!presenceFlag) return false;
-
-    return Number.isFinite(getRowMetricNumber(row, metric, NaN));
-  }
 
   if (hasRawValue(row, keys)) return true;
 
@@ -3433,7 +3426,7 @@ function getSecondaryMatchStats(row) {
   return {
     kills: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.kills),
     deaths: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.deaths),
-    killstreak: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killstreak),
+    killstreak: 0,
     killfeed: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.killfeed),
     damageDealt: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageDealt),
     damageTaken: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageTaken),
@@ -4129,321 +4122,19 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-
-function buildCompletePlayerMatchIndex(logs = []) {
-  const matchesByPlayer = new Map();
-
-  function findNamedMetric(source, playerName) {
-    if (!source || typeof source !== 'object') {
-      return { exists: false, value: 0 };
-    }
-
-    if (Object.prototype.hasOwnProperty.call(source, playerName)) {
-      return {
-        exists: true,
-        value: Number(source[playerName]) || 0,
-      };
-    }
-
-    const target = normalizePlayerName(playerName);
-    const key = Object.keys(source).find(
-      (candidate) => normalizePlayerName(candidate) === target,
-    );
-
-    return key == null
-      ? { exists: false, value: 0 }
-      : { exists: true, value: Number(source[key]) || 0 };
-  }
-
-  function ensureMatch(
-    playerName,
-    storageKey,
-    warId,
-    date,
-  ) {
-    const playerKey = normalizePlayerName(playerName);
-
-    if (!playerKey) return null;
-
-    if (!matchesByPlayer.has(playerKey)) {
-      matchesByPlayer.set(playerKey, new Map());
-    }
-
-    const playerMatches = matchesByPlayer.get(playerKey);
-
-    if (!playerMatches.has(storageKey)) {
-      playerMatches.set(storageKey, {
-        playerName: String(playerName || '').trim(),
-        warId: String(warId || storageKey),
-        date: date || String(warId || storageKey),
-        kills: 0,
-        deaths: 0,
-        killstreak: 0,
-        killfeed: 0,
-        damageDealt: 0,
-        damageTaken: 0,
-        ccHits: 0,
-        damageToFort: 0,
-        __has: {
-          kills: false,
-          deaths: false,
-          killstreak: false,
-          killfeed: false,
-          damageDealt: false,
-          damageTaken: false,
-          ccHits: false,
-          damageToFort: false,
-        },
-      });
-    }
-
-    const match = playerMatches.get(storageKey);
-
-    if (!match.playerName && playerName) {
-      match.playerName = String(playerName).trim();
-    }
-
-    if (!match.date && date) {
-      match.date = date;
-    }
-
-    return match;
-  }
-
-  (Array.isArray(logs) ? logs : []).forEach((log, logIndex) => {
-    const logId = String(
-      log?.id ??
-        log?.apiId ??
-        `${dateOf(log)}::${log?.name || 'Battle log'}`,
-    );
-    const logDate = dateOf(log);
-    const logInstanceKey = `${logId}::${logIndex}`;
-    const oneStats = calculateStats([
-      {
-        ...log,
-        id: logId,
-        date: logDate,
-      },
-    ]);
-    const eventsByWar = new Map();
-
-    (oneStats?.ev || []).forEach((event, eventIndex) => {
-      const warId = String(
-        event?.id ||
-          event?.war ||
-          event?.date ||
-          logId ||
-          `combat-${eventIndex}`,
-      );
-
-      if (!eventsByWar.has(warId)) {
-        eventsByWar.set(warId, []);
-      }
-
-      eventsByWar.get(warId).push(event);
-    });
-
-    eventsByWar.forEach((warEvents, warId) => {
-      const sortedEvents = getWarEventsSorted(warEvents);
-      const playerNames = new Map();
-      const kills = new Map();
-      const deaths = new Map();
-      const currentStreak = new Map();
-      const bestStreak = new Map();
-
-      sortedEvents.forEach((event) => {
-        const playerName = getGuildPlayerFromEvent(event);
-        const playerKey = normalizePlayerName(playerName);
-
-        if (!playerKey) return;
-
-        if (!playerNames.has(playerKey)) {
-          playerNames.set(playerKey, playerName);
-        }
-
-        if (event.type === 'kill') {
-          kills.set(playerKey, (kills.get(playerKey) || 0) + 1);
-          const current = (currentStreak.get(playerKey) || 0) + 1;
-          currentStreak.set(playerKey, current);
-          bestStreak.set(
-            playerKey,
-            Math.max(bestStreak.get(playerKey) || 0, current),
-          );
-        }
-
-        if (event.type === 'death') {
-          deaths.set(playerKey, (deaths.get(playerKey) || 0) + 1);
-          currentStreak.set(playerKey, 0);
-        }
-      });
-
-      playerNames.forEach((playerName, playerKey) => {
-        const storageKey = `${logInstanceKey}::${warId}`;
-        const match = ensureMatch(
-          playerName,
-          storageKey,
-          warId,
-          warEvents[0]?.date || logDate || warId,
-        );
-
-        if (!match) return;
-
-        match.kills = kills.get(playerKey) || 0;
-        match.deaths = deaths.get(playerKey) || 0;
-        match.killstreak = bestStreak.get(playerKey) || 0;
-        match.__has.kills = true;
-        match.__has.deaths = true;
-        match.__has.killstreak = true;
-      });
-    });
-
-    const secondaryRows = oneStats?.secondary?.rows || [];
-    const secondaryPresence =
-      getSecondaryWarMetricPresence(secondaryRows);
-
-    secondaryRows.forEach((row, rowIndex) => {
-      const playerName = row?.player || row?.name;
-
-      if (!playerName) return;
-
-      const warId = secondaryWarId(row, rowIndex) || logId;
-      const storageKey = `${logInstanceKey}::${warId}`;
-      const match = ensureMatch(
-        playerName,
-        storageKey,
-        warId,
-        row?.date || row?.war || logDate || warId,
-      );
-
-      if (!match) return;
-
-      const rowStats = getSecondaryMatchStats(row);
-      const warPresence = secondaryPresence[warId] || {};
-      const mappings = [
-        ['kills', 'kills'],
-        ['deaths', 'deaths'],
-        ['killstreak', 'killstreak'],
-        ['killfeed', 'killfeed'],
-        ['damageDealt', 'damageDealt'],
-        ['damageTaken', 'damageTaken'],
-        ['ccHits', 'ccHits'],
-        ['damageToFort', 'damageToFort'],
-      ];
-
-      mappings.forEach(([metric, target]) => {
-        if (!getSecondaryMetricExists(row, metric, warPresence)) {
-          return;
-        }
-
-        match[target] = Number(rowStats[metric]) || 0;
-        match.__has[target] = true;
-      });
-    });
-
-    /*
-     * Some historical summaries contain a player row but no detailed
-     * secondary row. Keep that Node War visible and preserve every explicitly
-     * available player metric instead of dropping the whole match.
-     */
-    (oneStats?.players || []).forEach((playerRow, playerIndex) => {
-      const playerName = playerRow?.name;
-
-      if (!playerName) return;
-
-      const warId = logId || `summary-${logIndex}-${playerIndex}`;
-      const storageKey = `${logInstanceKey}::${warId}`;
-      const match = ensureMatch(
-        playerName,
-        storageKey,
-        warId,
-        logDate || warId,
-      );
-
-      if (!match) return;
-
-      if (!match.__has.kills) {
-        match.kills = Number(playerRow.kills) || 0;
-        match.__has.kills = true;
-      }
-
-      if (!match.__has.deaths) {
-        match.deaths = Number(playerRow.deaths) || 0;
-        match.__has.deaths = true;
-      }
-
-      if (!match.__has.killstreak && oneStats?.hasTimeline) {
-        const streakMetric = findNamedMetric(
-          oneStats?.st,
-          playerName,
-        );
-
-        if (streakMetric.exists) {
-          match.killstreak = streakMetric.value;
-          match.__has.killstreak = true;
-        }
-      }
-
-      const playerMetrics = [
-        ['killfeed', 'killfeed'],
-        ['damageDealt', 'damageDealt'],
-        ['damageTaken', 'damageTaken'],
-        ['ccHits', 'ccHits'],
-        ['damageToFort', 'damageToFort'],
-      ];
-
-      playerMetrics.forEach(([metric, target]) => {
-        if (match.__has[target]) return;
-        if (!getSecondaryMetricExists(playerRow, metric, {})) return;
-
-        match[target] = Number(
-          getSecondaryMatchStats(playerRow)[metric],
-        ) || 0;
-        match.__has[target] = true;
-      });
-    });
-  });
-
-  return matchesByPlayer;
-}
-
-export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
+export default function PlayerStats({ stats, onOpenMatchOverview }) {
   const [player, setPlayer] = useState('');
   const [comparedPlayerNames, setComparedPlayerNames] = useState([]);
   const [compareDaysAgo, setCompareDaysAgo] = useState(30);
   const [compareMode, setCompareMode] = useState('average');
 
-  const completeMatchIndex = useMemo(
-    () => buildCompletePlayerMatchIndex(logs),
-    [logs],
+  const sortedPlayers = useMemo(
+    () =>
+      [...(stats?.players || [])].sort((a, b) =>
+        String(a.name || '').localeCompare(String(b.name || '')),
+      ),
+    [stats?.players],
   );
-
-  const sortedPlayers = useMemo(() => {
-    const playersByKey = new Map();
-
-    (stats?.players || []).forEach((playerRow) => {
-      const key = normalizePlayerName(playerRow?.name);
-
-      if (key) playersByKey.set(key, playerRow);
-    });
-
-    completeMatchIndex.forEach((matches, playerKey) => {
-      if (playersByKey.has(playerKey)) return;
-
-      const firstMatch = matches.values().next().value;
-      const name = firstMatch?.playerName || playerKey;
-
-      playersByKey.set(playerKey, {
-        name,
-        kills: 0,
-        deaths: 0,
-        kd: '0.00',
-      });
-    });
-
-    return [...playersByKey.values()].sort((a, b) =>
-      String(a.name || '').localeCompare(String(b.name || '')),
-    );
-  }, [stats?.players, completeMatchIndex]);
 
   const averageRankTable = useMemo(
     () => (player ? buildBestOverallAverageRankTable(stats) : {}),
@@ -4484,95 +4175,6 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
         timestamp >= rangeStart &&
         timestamp <= rangeEnd
       );
-    }
-
-    if (completeMatchIndex.size > 0) {
-      return sortedPlayers.map((playerRow) => {
-        const playerKey = normalizePlayerName(playerRow.name);
-        const matches = [
-          ...(completeMatchIndex.get(playerKey)?.values() || []),
-        ].filter((match) => isInComparisonRange(match?.date));
-        const totalKills = comparisonMetricSum(matches, 'kills');
-        const totalDeaths = comparisonMetricSum(matches, 'deaths');
-        const totalKd = totalDeaths
-          ? totalKills / totalDeaths
-          : totalKills;
-
-        const values =
-          compareMode === 'average'
-            ? {
-                kills: comparisonMetricAverage(matches, 'kills'),
-                deaths: comparisonMetricAverage(matches, 'deaths'),
-                kd: comparisonMetricAverage(
-                  matches,
-                  'kd',
-                  getMatchKdValue,
-                ),
-                killstreak: comparisonMetricAverage(
-                  matches,
-                  'killstreak',
-                ),
-                killfeed: comparisonMetricAverage(
-                  matches,
-                  'killfeed',
-                ),
-                damageDealt: comparisonMetricAverage(
-                  matches,
-                  'damageDealt',
-                ),
-                damageTaken: comparisonMetricAverage(
-                  matches,
-                  'damageTaken',
-                ),
-                ccHits: comparisonMetricAverage(matches, 'ccHits'),
-                damageToFort: comparisonMetricAverage(
-                  matches,
-                  'damageToFort',
-                ),
-              }
-            : {
-                kills: totalKills,
-                deaths: totalDeaths,
-                kd: totalKd,
-                killstreak: comparisonMetricMax(
-                  matches,
-                  'killstreak',
-                ),
-                killfeed: comparisonMetricMax(matches, 'killfeed'),
-                damageDealt: comparisonMetricSum(
-                  matches,
-                  'damageDealt',
-                ),
-                damageTaken: comparisonMetricSum(
-                  matches,
-                  'damageTaken',
-                ),
-                ccHits: comparisonMetricSum(matches, 'ccHits'),
-                damageToFort: comparisonMetricSum(
-                  matches,
-                  'damageToFort',
-                ),
-              };
-
-        const ccHitsMatches = matches.filter((match) =>
-          getMatchMetricExists(match, 'ccHits'),
-        );
-        const ccHitsTotal = ccHitsMatches.reduce(
-          (sum, match) =>
-            sum + Number(getMatchMetricValue(match, 'ccHits') || 0),
-          0,
-        );
-
-        return {
-          name: playerRow.name,
-          wars: matches.length,
-          ...values,
-          __ccHitsBenchmark: {
-            total: ccHitsTotal,
-            matches: ccHitsMatches.length,
-          },
-        };
-      });
     }
 
     const events = (stats?.ev || []).filter((event) =>
@@ -4668,7 +4270,7 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
       const deaths = new Map();
       const currentStreak = new Map();
       const bestStreak = new Map();
-      // Combat Logs are used for Killstreak only; KillFeed is read from Stats Logs.
+      const killTimes = new Map();
 
       sortedEvents.forEach((event) => {
         const playerName = getGuildPlayerFromEvent(event);
@@ -4692,6 +4294,11 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
             Math.max(bestStreak.get(playerKey) || 0, current),
           );
 
+          if (!killTimes.has(playerKey)) {
+            killTimes.set(playerKey, []);
+          }
+
+          killTimes.get(playerKey).push(Number(event.sec) || 0);
         }
 
         if (event.type === 'death') {
@@ -4704,6 +4311,21 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
       });
 
       playerNames.forEach((playerName, playerKey) => {
+        const times = killTimes.get(playerKey) || [];
+        let left = 0;
+        let bestFeed = 0;
+
+        for (let right = 0; right < times.length; right += 1) {
+          while (times[right] - times[left] > 10) {
+            left += 1;
+          }
+
+          bestFeed = Math.max(
+            bestFeed,
+            right - left + 1,
+          );
+        }
+
         const match = ensureComparisonMatch(
           playerName,
           warId,
@@ -4715,11 +4337,11 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
         match.kills = kills.get(playerKey) || 0;
         match.deaths = deaths.get(playerKey) || 0;
         match.killstreak = bestStreak.get(playerKey) || 0;
+        match.killfeed = bestFeed;
         match.__has.kills = true;
         match.__has.deaths = true;
         match.__has.killstreak = true;
-        // KillFeed remains unavailable until a Stats Log row explicitly provides it.
-        match.__has.killfeed = false;
+        match.__has.killfeed = true;
       });
     });
 
@@ -4749,11 +4371,6 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
       const hasDeaths = getSecondaryMetricExists(
         row,
         'deaths',
-        warPresence,
-      );
-      const hasKillstreak = getSecondaryMetricExists(
-        row,
-        'killstreak',
         warPresence,
       );
       const hasKillfeed = getSecondaryMetricExists(
@@ -4790,11 +4407,6 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
       if (hasDeaths) {
         match.deaths = Number(rowStats.deaths) || 0;
         match.__has.deaths = true;
-      }
-
-      if (hasKillstreak) {
-        match.killstreak = Number(rowStats.killstreak) || 0;
-        match.__has.killstreak = true;
       }
 
       if (hasKillfeed) {
@@ -4914,27 +4526,10 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
               ),
             };
 
-      const ccHitsMatches = matches.filter((match) =>
-        getMatchMetricExists(match, 'ccHits'),
-      );
-      const ccHitsTotal = ccHitsMatches.reduce(
-        (sum, match) =>
-          sum + Number(getMatchMetricValue(match, 'ccHits') || 0),
-        0,
-      );
-
       return {
         name: playerRow.name,
         wars: matches.length,
         ...values,
-        // Keep the raw valid CC samples so the guild benchmark can be
-        // calculated from the same per-war rows shown in Match History.
-        // Averaging player averages gives the wrong guild result whenever
-        // players have different numbers of wars with CC data.
-        __ccHitsBenchmark: {
-          total: ccHitsTotal,
-          matches: ccHitsMatches.length,
-        },
       };
     });
   }, [
@@ -4944,7 +4539,6 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
     stats?.ev,
     stats?.secondary?.rows,
     sortedPlayers,
-    completeMatchIndex,
   ]);
 
   const comparedPlayers = useMemo(
@@ -4979,32 +4573,10 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
         const values = activePlayers
           .map((player) => Number(player[metric]) || 0)
           .filter((value) => Number.isFinite(value) && value >= 0);
-        let average = values.length
+        const average = values.length
           ? values.reduce((sum, value) => sum + value, 0) /
             values.length
           : 0;
-        let playersWithMetric = values.length;
-
-        if (metric === 'ccHits' && compareMode === 'average') {
-          const ccSamples = activePlayers.filter(
-            (player) =>
-              Number(player.__ccHitsBenchmark?.matches) > 0,
-          );
-          const ccMatchCount = ccSamples.reduce(
-            (sum, player) =>
-              sum + Number(player.__ccHitsBenchmark.matches || 0),
-            0,
-          );
-          const ccTotal = ccSamples.reduce(
-            (sum, player) =>
-              sum + Number(player.__ccHitsBenchmark.total || 0),
-            0,
-          );
-
-          average = ccMatchCount ? ccTotal / ccMatchCount : 0;
-          playersWithMetric = ccSamples.length;
-        }
-
         const maximum = values.length
           ? Math.max(...values)
           : 0;
@@ -5014,12 +4586,12 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
           {
             average,
             maximum: maximum > 0 ? maximum : 1,
-            players: playersWithMetric,
+            players: values.length,
           },
         ];
       }),
     );
-  }, [compareMode, comparisonPopulation]);
+  }, [comparisonPopulation]);
 
   const selectedStats = useMemo(() => {
     if (!player) return null;
@@ -5153,8 +4725,7 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
         kills,
         deaths,
         killstreak: getBestKillstreakForWar(events, player),
-        // Combat Logs do not contain KillFeed.
-        killfeed: 0,
+        killfeed: getBestKillfeedForWar(events, player),
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
@@ -5163,7 +4734,7 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
           kills: true,
           deaths: true,
           killstreak: true,
-          killfeed: false,
+          killfeed: true,
           damageDealt: false,
           damageTaken: false,
           ccHits: false,
@@ -5182,7 +4753,6 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
       const warPresence = secondaryWarPresence[warId] || {};
       const hasKills = getSecondaryMetricExists(row, 'kills', warPresence);
       const hasDeaths = getSecondaryMetricExists(row, 'deaths', warPresence);
-      const hasKillstreak = getSecondaryMetricExists(row, 'killstreak', warPresence);
       const hasKillfeed = getSecondaryMetricExists(row, 'killfeed', warPresence);
       const hasDamageDealt = getSecondaryMetricExists(row, 'damageDealt', warPresence);
       const hasDamageTaken = getSecondaryMetricExists(row, 'damageTaken', warPresence);
@@ -5194,9 +4764,7 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
         date,
         kills: hasKills ? statsFromRow.kills : existing?.kills || 0,
         deaths: hasDeaths ? statsFromRow.deaths : existing?.deaths || 0,
-        killstreak: hasKillstreak
-          ? statsFromRow.killstreak
-          : existing?.killstreak || 0,
+        killstreak: existing?.killstreak || 0,
         killfeed: hasKillfeed ? statsFromRow.killfeed : existing?.killfeed || 0,
         damageDealt: hasDamageDealt
           ? statsFromRow.damageDealt
@@ -5211,8 +4779,7 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
         __has: {
           kills: hasKills || Boolean(existingHas.kills),
           deaths: hasDeaths || Boolean(existingHas.deaths),
-          killstreak:
-            hasKillstreak || Boolean(existingHas.killstreak),
+          killstreak: Boolean(existingHas.killstreak),
           killfeed: hasKillfeed || Boolean(existingHas.killfeed),
           damageDealt: hasDamageDealt || Boolean(existingHas.damageDealt),
           damageTaken: hasDamageTaken || Boolean(existingHas.damageTaken),
@@ -5222,87 +4789,9 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
       };
     });
 
-    const completeMatches = [
-      ...(completeMatchIndex.get(normalizePlayerName(player))?.values() || []),
-    ];
-
-    const matchList = (
-      completeMatches.length
-        ? completeMatches
-        : Object.values(matchMap)
-    ).sort((a, b) =>
-      String(b.date).localeCompare(String(a.date)) ||
-      String(b.warId).localeCompare(String(a.warId)),
+    const matchList = Object.values(matchMap).sort((a, b) =>
+      String(b.date).localeCompare(String(a.date)),
     );
-
-    const completeDays = {};
-
-    matchList.forEach((match) => {
-      const dayKey = match.date || match.warId || 'Unknown date';
-
-      completeDays[dayKey] ||= {
-        time: dayKey,
-        kills: 0,
-        deaths: 0,
-        wars: 0,
-      };
-
-      completeDays[dayKey].wars += 1;
-
-      if (getMatchMetricExists(match, 'kills')) {
-        completeDays[dayKey].kills +=
-          getMatchMetricValue(match, 'kills');
-      }
-
-      if (getMatchMetricExists(match, 'deaths')) {
-        completeDays[dayKey].deaths +=
-          getMatchMetricValue(match, 'deaths');
-      }
-    });
-
-    const completeAverageLine = Object.values(completeDays)
-      .sort((a, b) => String(a.time).localeCompare(String(b.time)))
-      .map((day) => {
-        const fights = Math.max(1, Number(day.wars) || 0);
-        const avgKills = Number((day.kills / fights).toFixed(2));
-        const avgDeaths = Number((day.deaths / fights).toFixed(2));
-
-        return {
-          time: day.time,
-          kills: day.kills,
-          deaths: day.deaths,
-          avgKills,
-          avgDeaths,
-          avgKd: Number(
-            (avgDeaths ? avgKills / avgDeaths : avgKills).toFixed(2),
-          ),
-        };
-      });
-
-    const completeKills = matchList.reduce(
-      (sum, match) =>
-        sum +
-        (getMatchMetricExists(match, 'kills')
-          ? getMatchMetricValue(match, 'kills')
-          : 0),
-      0,
-    );
-    const completeDeaths = matchList.reduce(
-      (sum, match) =>
-        sum +
-        (getMatchMetricExists(match, 'deaths')
-          ? getMatchMetricValue(match, 'deaths')
-          : 0),
-      0,
-    );
-    const completePlayerRow = {
-      ...playerRow,
-      kills: completeKills,
-      deaths: completeDeaths,
-      kd: completeDeaths
-        ? (completeKills / completeDeaths).toFixed(2)
-        : completeKills.toFixed(2),
-    };
 
     const enemyGuildRows = Object.values(enemyGuilds)
       .map((guild) => {
@@ -5374,23 +4863,20 @@ export default function PlayerStats({ stats, logs = [], onOpenMatchOverview }) {
       .slice(0, 10);
 
     return {
-      ...completePlayerRow,
+      ...playerRow,
       victims,
       killedBy,
-      averageLine:
-        completeAverageLine.length
-          ? completeAverageLine
-          : averageLine,
+      averageLine,
       matchList,
       enemyGuildRows,
-      wars: matchList.length,
+      wars: involvedWarIds.size,
       averageRank:
         averageRankTable[normalizePlayerName(player)]?.formatted ||
         '0.00',
       streakItems,
       feedItems,
     };
-  }, [player, stats, averageRankTable, completeMatchIndex]);
+  }, [player, stats, averageRankTable]);
 
   return (
     <div className="player-stats-page player-stats-guild-style player-stats-root-transparent p-4">
