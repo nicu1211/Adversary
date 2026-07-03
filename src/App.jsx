@@ -115,6 +115,137 @@ function logsPath(params = {}) {
   return `/api/logs${queryString(params)}`;
 }
 
+function getLogPageRows(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.logs)) return data.logs;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
+function getNextLogCursor(data) {
+  return (
+    data?.nextCursor ??
+    data?.next_cursor ??
+    data?.nextPageToken ??
+    data?.next_page_token ??
+    data?.continuationToken ??
+    data?.continuation_token ??
+    data?.pagination?.nextCursor ??
+    data?.pagination?.next_cursor ??
+    data?.pagination?.nextPageToken ??
+    data?.pagination?.next_page_token ??
+    null
+  );
+}
+
+function logIdentity(log, index) {
+  return String(
+    log?.id ??
+      log?._id ??
+      log?.log_id ??
+      log?.key ??
+      log?.objectKey ??
+      log?.filename ??
+      log?.fileName ??
+      log?.path ??
+      log?.slug ??
+      log?.hash ??
+      `${log?.date || log?.warDate || ''}:${log?.name || ''}:${index}`,
+  );
+}
+
+async function apiGetAllLogs(params = {}, options = {}) {
+  const pageLimit = 1000;
+  const collected = [];
+  const seen = new Set();
+  const seenCursors = new Set();
+  let cursor = null;
+  let offset = 0;
+  let page = 1;
+
+  for (let requestIndex = 0; requestIndex < 100; requestIndex += 1) {
+    const requestParams = {
+      ...params,
+      limit: pageLimit,
+    };
+
+    if (cursor != null && cursor !== '') {
+      requestParams.cursor = cursor;
+      requestParams.pageToken = cursor;
+    } else if (requestIndex > 0) {
+      requestParams.offset = offset;
+      requestParams.page = page;
+    }
+
+    const data = await apiGet(logsPath(requestParams), options);
+    const rows = getLogPageRows(data);
+
+    let addedThisPage = 0;
+
+    rows.forEach((log, index) => {
+      const identity = logIdentity(log, offset + index);
+
+      if (seen.has(identity)) return;
+
+      seen.add(identity);
+      collected.push(log);
+      addedThisPage += 1;
+    });
+
+    if (requestIndex > 0 && addedThisPage === 0) {
+      break;
+    }
+
+    const nextCursor = getNextLogCursor(data);
+    const hasMore = Boolean(
+      data?.hasMore ??
+        data?.has_more ??
+        data?.pagination?.hasMore ??
+        data?.pagination?.has_more,
+    );
+    const currentPage = Number(
+      data?.page ?? data?.pagination?.page ?? page,
+    );
+    const totalPages = Number(
+      data?.totalPages ??
+        data?.total_pages ??
+        data?.pagination?.totalPages ??
+        data?.pagination?.total_pages ??
+        0,
+    );
+
+    if (nextCursor != null && nextCursor !== '') {
+      const cursorKey = String(nextCursor);
+
+      if (seenCursors.has(cursorKey)) break;
+
+      seenCursors.add(cursorKey);
+      cursor = nextCursor;
+      offset += rows.length;
+      page += 1;
+      continue;
+    }
+
+    if (totalPages > 0 && currentPage < totalPages) {
+      offset += rows.length;
+      page = currentPage + 1;
+      continue;
+    }
+
+    if (hasMore && rows.length > 0) {
+      offset += rows.length;
+      page += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return collected;
+}
+
 function isRetryableError(error) {
   const text = String(error?.message || error || '').toLowerCase();
 
@@ -2615,7 +2746,7 @@ export default function App() {
     try {
       setLoadingAllLogs(true);
 
-      const data = await apiGet(logsPath({ range: 'all' }));
+      const data = await apiGetAllLogs({ range: 'all' });
       const normalized = normalizeLogs(data);
 
       setAllLogs(normalized);
@@ -2643,8 +2774,8 @@ export default function App() {
       // The normal all-history request intentionally returns lightweight
       // summaries. Raw Logs and Player Stats need the original saved text so
       // calculateStats can read both the Combat Log and the Stats Log.
-      const data = await apiGet(
-        logsPath({ range: 'all', includeRaw: 1 }),
+      const data = await apiGetAllLogs(
+        { range: 'all', includeRaw: 1 },
         { timeoutMs: 60000 },
       );
       const normalized = normalizeLogs(data);
