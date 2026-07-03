@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Calendar, DeletePopup, Panel } from "../components/UI";
 import {
   dateOf,
@@ -246,6 +246,20 @@ export default function RawLog({
 }) {
   const [secondaryRaw, setSecondaryRaw] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingLogId, setEditingLogId] = useState(null);
+
+
+  useEffect(() => {
+    if (editingLogId == null) return;
+
+    const stillExists = (logs || []).some(
+      (log) => String(log.id) === String(editingLogId),
+    );
+
+    if (!stillExists) {
+      setEditingLogId(null);
+    }
+  }, [editingLogId, logs]);
 
   const mainRawOnly = useMemo(() => getMainLogOnly(raw), [raw]);
 
@@ -294,7 +308,12 @@ export default function RawLog({
 
     try {
       setSaving(true);
-      await saveLog(rawToSave);
+
+      const savedLog = await saveLog(rawToSave, editingLogId);
+
+      if (savedLog?.id != null) {
+        setEditingLogId(savedLog.id);
+      }
     } finally {
       setSaving(false);
     }
@@ -315,6 +334,7 @@ export default function RawLog({
     setDate(dateOf(log));
     setRaw(savedMain);
     setSecondaryRaw(savedSecondary);
+    setEditingLogId(log.id);
 
     window.scrollTo({
       top: 0,
@@ -378,15 +398,40 @@ export default function RawLog({
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={!canSave}
-                className="rounded-xl bg-blue-600 px-5 py-3 font-black hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save"}
-              </button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {editingLogId != null && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingLogId(null)}
+                    disabled={saving}
+                    className="rounded-xl border border-slate-700 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Save as new
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  className="rounded-xl bg-blue-600 px-5 py-3 font-black hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving
+                    ? editingLogId != null
+                      ? "Updating..."
+                      : "Saving..."
+                    : editingLogId != null
+                      ? "Update log"
+                      : "Save"}
+                </button>
+              </div>
             </div>
+
+            {editingLogId != null && (
+              <p className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-bold text-amber-100">
+                Editing a saved log. Update log will replace the loaded History entry.
+              </p>
+            )}
 
             {message && (
               <p className="mb-4 whitespace-pre-line rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
