@@ -2083,23 +2083,18 @@ function mergeStatsFromSummaries(items) {
       );
 
       /*
-       * Summary versions before 10 parsed Stats Log column 3 as
-       * `killStreak`. That value is actually Kill Feed. Their `st` map was
-       * also contaminated by this value, so it cannot be trusted without raw
-       * Combat Log text. Preserve the Stats Log value as Kill Feed and mark
-       * Killstreak unavailable for those summary-only records.
+       * Old summaries may have mixed Combat Killstreak and Stats KillFeed in
+       * the same legacy field. That value is ambiguous, so never use a
+       * `killStreak` field as KillFeed. Only an explicit KillFeed field/flag is
+       * trusted; otherwise the page must show an em dash.
        */
       const legacyKillFeed =
         summaryVersion < 10
           ? Number(
               sourceRow?.killFeed ??
-                sourceRow?.killfeed,
-            ) ||
-            Number(
-              sourceRow?.killStreak ??
-                sourceRow?.killstreak,
-            ) ||
-            0
+                sourceRow?.killfeed ??
+                sourceRow?.feed,
+            ) || 0
           : 0;
 
       const normalizedRow = addSecondaryRow(
@@ -2138,11 +2133,11 @@ function mergeStatsFromSummaries(items) {
               ? feedMetric.exists ||
                   sourceRow?.has_kill_feed ||
                   sourceRow?.hasKillFeed
-              : sourceRow?.has_kill_streak ||
-                  sourceRow?.hasKillStreak ||
-                  sourceRow?.killStreak != null ||
-                  sourceRow?.killstreak != null ||
-                  legacyKillFeed
+              : sourceRow?.has_kill_feed ||
+                  sourceRow?.hasKillFeed ||
+                  sourceRow?.killFeed != null ||
+                  sourceRow?.killfeed != null ||
+                  sourceRow?.feed != null
           ),
         },
         fallback,
@@ -2253,17 +2248,13 @@ function mergeStatsFromSummaries(items) {
       const legacyPlayerKillFeed =
         summaryVersion < 10
           ? Number(
-              player.killFeed ??
+              matchRow?.killFeed ??
+                matchRow?.killfeed ??
+                matchRow?.feed ??
+                player.killFeed ??
                 player.killfeed ??
                 player.feed,
-            ) ||
-            Number(
-              player.killStreak ??
-                player.killstreak,
-            ) ||
-            Number(matchRow?.killFeed) ||
-            Number(matchRow?.killStreak) ||
-            0
+            ) || 0
           : 0;
 
       const playerHasKillStreak =
@@ -2292,13 +2283,16 @@ function mergeStatsFromSummaries(items) {
       const legacyPlayerHasKillFeed = Boolean(
         summaryVersion < 10 &&
           (
-            matchRow?.has_kill_streak ||
-            matchRow?.hasKillStreak ||
-            player?.has_kill_streak ||
-            player?.hasKillStreak ||
-            matchRow?.killStreak != null ||
-            player?.killStreak != null ||
-            legacyPlayerKillFeed
+            matchRow?.has_kill_feed ||
+            matchRow?.hasKillFeed ||
+            player?.has_kill_feed ||
+            player?.hasKillFeed ||
+            matchRow?.killFeed != null ||
+            matchRow?.killfeed != null ||
+            matchRow?.feed != null ||
+            player?.killFeed != null ||
+            player?.killfeed != null ||
+            player?.feed != null
           )
       );
 
@@ -2939,7 +2933,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 10,
+    version: 11,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
