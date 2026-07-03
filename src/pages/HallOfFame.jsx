@@ -1,14 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Award,
-  BarChart3,
+  Activity,
   CalendarDays,
+  Castle,
   ChevronRight,
-  Crown,
+  Crosshair,
+  Flag,
   Flame,
+  Gauge,
+  Medal,
   Shield,
   Skull,
-  Sparkles,
   Swords,
   Target,
   Trophy,
@@ -16,3410 +18,3562 @@ import {
   Zap,
 } from 'lucide-react';
 
-const nf = new Intl.NumberFormat('en-US');
-const MIN_HALL_WARS = 50;
+import {
+  buildNodeWarRow,
+  calculateStats,
+  calculateStreaks,
+  dateOf,
+  scrollCls,
+} from '../lib/logUtils';
+
+const MIN_MONTH = '2026-05';
+const DEFAULT_RECAP_DAYS_AGO = 0;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const MONTHLY_PANEL_ACCENTS = Object.freeze({
+  blue: '59, 130, 246',
+  violet: '139, 92, 246',
+  rose: '244, 63, 94',
+  cyan: '6, 182, 212',
+  green: '16, 185, 129',
+  emerald: '16, 185, 129',
+  amber: '245, 158, 11',
+  pink: '217, 70, 239',
+  slate: '100, 116, 139',
+});
+
+function monthlyPanelStyle(accent = 'blue') {
+  return {
+    '--monthly-panel-accent-rgb':
+      MONTHLY_PANEL_ACCENTS[accent] || MONTHLY_PANEL_ACCENTS.blue,
+  };
+}
+
+const MONTHLY_GUILD_PANEL_CSS = `
+  .monthly-recap-guild-style .monthly-guild-panel {
+    --monthly-panel-accent-rgb: 59, 130, 246;
+    position: relative;
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.62) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.18) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.09) 42%,
+        rgba(var(--monthly-panel-accent-rgb), 0.035) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.075) 0%,
+        rgba(7, 13, 29, 0.52) 54%,
+        rgba(2, 6, 23, 0.66) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 42px rgba(var(--monthly-panel-accent-rgb), 0.075),
+      0 12px 28px rgba(0, 0, 0, 0.24) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(122%);
+    backdrop-filter: blur(8px) saturate(122%);
+    transition:
+      box-shadow 180ms ease,
+      background-color 180ms ease,
+      background-image 180ms ease,
+      filter 180ms ease;
+  }
+
+  .monthly-recap-guild-style .monthly-guild-panel:hover {
+    border-color: transparent !important;
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.25) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.13) 44%,
+        rgba(var(--monthly-panel-accent-rgb), 0.05) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.10) 0%,
+        rgba(7, 13, 29, 0.48) 54%,
+        rgba(2, 6, 23, 0.62) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 48px rgba(var(--monthly-panel-accent-rgb), 0.13),
+      0 0 20px rgba(var(--monthly-panel-accent-rgb), 0.30),
+      0 0 42px rgba(var(--monthly-panel-accent-rgb), 0.15),
+      0 16px 34px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  .monthly-recap-guild-style .monthly-section-header {
+    background: transparent !important;
+    border-color: rgba(var(--monthly-panel-accent-rgb), 0.12) !important;
+  }
+
+
+  .monthly-recap-guild-style .monthly-formula-panel,
+  .monthly-recap-guild-style .monthly-guild-ranking-header {
+    background-color: rgba(2, 6, 23, 0.14) !important;
+    background-image: none !important;
+  }
+
+  /* These three section shells intentionally expose the page artwork.
+     Their individual cards keep the Guild-style coloured glass treatment. */
+  .monthly-recap-guild-style .monthly-panel-transparent,
+  .monthly-recap-guild-style .monthly-panel-transparent:hover {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Players Performance keeps a glass surface, but with a quieter cyan tint. */
+  .monthly-recap-guild-style .monthly-panel-subtle {
+    background-color: rgba(2, 6, 23, 0.46) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.10) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.05) 42%,
+        rgba(var(--monthly-panel-accent-rgb), 0.018) 74%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.035) 0%,
+        rgba(7, 13, 29, 0.38) 54%,
+        rgba(2, 6, 23, 0.50) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 36px rgba(var(--monthly-panel-accent-rgb), 0.04),
+      0 10px 24px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .monthly-recap-guild-style .monthly-panel-subtle:hover {
+    background-color: rgba(2, 6, 23, 0.44) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 14% 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.15) 0%,
+        rgba(var(--monthly-panel-accent-rgb), 0.075) 44%,
+        rgba(var(--monthly-panel-accent-rgb), 0.028) 76%,
+        transparent 100%
+      ),
+      linear-gradient(
+        145deg,
+        rgba(var(--monthly-panel-accent-rgb), 0.05) 0%,
+        rgba(7, 13, 29, 0.36) 54%,
+        rgba(2, 6, 23, 0.48) 100%
+      ) !important;
+    box-shadow:
+      inset 0 0 40px rgba(var(--monthly-panel-accent-rgb), 0.065),
+      0 0 16px rgba(var(--monthly-panel-accent-rgb), 0.16),
+      0 12px 28px rgba(0, 0, 0, 0.20) !important;
+  }
+`;
+
+const GUILD_ROSTER = Object.freeze([
+  'GojuSaki',
+  'Aspeen',
+  'MrOutlAw',
+  'SpeedDrawFenix',
+  'Dante_Senpai',
+  'Jaxce',
+  'Spilborghs',
+  'Raizel',
+  'AesirKing',
+  'GMW',
+  'ARC',
+  'URIZEN',
+  'Animal_Dylan',
+  'MokrySpren',
+  'Emotionz',
+  'Emphonia',
+  'EHASZz',
+  'MrDethsTV',
+  'MrsRaccoon',
+  'Joeshot',
+  'SexyCupquake',
+  'DGN',
+  'FarewelI',
+  'MadOzan',
+  'CelestialElixir',
+  'TaeHeeBaek',
+  'Kiriva',
+  'Baskona',
+  'Sarres',
+  'Gorz',
+  'Working',
+  'Bertoweed',
+  'Mahikkii',
+  'Facetasm',
+  'Wallmann',
+  'Askild',
+  'Bazu19',
+  'Reader',
+  'TEKSONXV',
+  'Honors',
+  'JustSkel',
+  'Staier',
+  'Eviria',
+  'Craifall',
+  'Fweeky',
+  'OAP',
+  'Pandanotfound',
+  'Flamingfred',
+  'Ya_Ya',
+  'Ellevest',
+  'Vollkornbeet',
+  'Wolfscream',
+  'PmP',
+  'Kawoy',
+  'Hexanity',
+  'TheWuffs',
+  'TheFluffs',
+  'Astin',
+  'Eriofrien',
+  'Rinslet',
+  'Passler',
+  'UberAlles',
+  'Wirouz',
+  'Effulgence',
+  'OQuimBarreiros',
+  'DeadToNeafink',
+  'GoldFireNOR',
+  'Jonah',
+  'BogSmrti',
+  'Hamsti',
+  'Kaede_Lucifer',
+  'Jostrel',
+  'DevilKittenSins',
+  'Dojopet',
+  'OG_Hege',
+  'Asrothx',
+  'Dovah',
+  'Potetmos',
+  'Jeung',
+]);
 
 function num(value) {
-  return Number(value) || 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function shortNum(value) {
-  const valueNumber = num(value);
-  const abs = Math.abs(valueNumber);
+function compact(value, digits = 1) {
+  const number = num(value);
+  const absolute = Math.abs(number);
 
-  if (abs >= 1_000_000_000_000) {
-    return `${(valueNumber / 1_000_000_000_000).toFixed(1).replace(/\.0$/, '')}T`;
+  if (absolute >= 1_000_000_000_000) {
+    return `${(number / 1_000_000_000_000)
+      .toFixed(digits)
+      .replace(/\.0$/, '')}T`;
   }
 
-  if (abs >= 1_000_000_000) {
-    return `${(valueNumber / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+  if (absolute >= 1_000_000_000) {
+    return `${(number / 1_000_000_000)
+      .toFixed(digits)
+      .replace(/\.0$/, '')}B`;
   }
 
-  if (abs >= 1_000_000) {
-    return `${(valueNumber / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (absolute >= 1_000_000) {
+    return `${(number / 1_000_000)
+      .toFixed(digits)
+      .replace(/\.0$/, '')}M`;
   }
 
-  if (abs >= 1_000) {
-    return `${(valueNumber / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  if (absolute >= 1_000) {
+    return `${(number / 1_000)
+      .toFixed(digits)
+      .replace(/\.0$/, '')}K`;
   }
 
-  return nf.format(Math.round(valueNumber));
+  return Math.round(number).toLocaleString('en-US');
 }
 
-function cls(...items) {
-  return items.filter(Boolean).join(' ');
+function ratio(kills, deaths) {
+  const safeKills = num(kills);
+  const safeDeaths = num(deaths);
+
+  return safeDeaths > 0
+    ? safeKills / safeDeaths
+    : safeKills > 0
+      ? safeKills
+      : 0;
 }
 
-function compareChronology(a, b) {
-  return (
-    String(a?.chronologyKey || '9999-99-99 99999999 99999999').localeCompare(
-      String(b?.chronologyKey || '9999-99-99 99999999 99999999'),
-    ) ||
-    String(a?.name || '').localeCompare(String(b?.name || ''))
-  );
+function monthFromDate(value) {
+  const text = String(value || '');
+  return /^\d{4}-\d{2}/.test(text) ? text.slice(0, 7) : '';
 }
 
-function initials(name) {
-  return String(name || '?')
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+function localMonthId(timestamp = Date.now()) {
+  const date = new Date(timestamp);
+
+  return `${date.getFullYear()}-${String(
+    date.getMonth() + 1,
+  ).padStart(2, '0')}`;
 }
 
-function kd(kills, deaths) {
-  const deathsNumber = num(deaths);
-  if (!deathsNumber) return num(kills);
-  return num(kills) / deathsNumber;
+function dateTimestamp(value) {
+  const text = String(value || '');
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+
+  if (dateOnly) {
+    return new Date(
+      Number(dateOnly[1]),
+      Number(dateOnly[2]) - 1,
+      Number(dateOnly[3]),
+      12,
+      0,
+      0,
+      0,
+    ).getTime();
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-const demoStats = {
-  kills: 5384,
-  deaths: 2416,
-  kd: 2.23,
-  players: [
-    { name: 'Aethon', family: 'Adversary', kills: 1284, deaths: 421, guild: 'Adversary' },
-    { name: 'Ravienne', family: 'Adversary', kills: 1128, deaths: 384, guild: 'Adversary' },
-    { name: 'Nyxara', family: 'Adversary', kills: 973, deaths: 311, guild: 'Adversary' },
-    { name: 'Silvren', family: 'Adversary', kills: 812, deaths: 190, guild: 'Adversary' },
-    { name: 'Zerathos', family: 'Adversary', kills: 745, deaths: 276, guild: 'Adversary' },
-    { name: 'Kaelthar', family: 'Adversary', kills: 622, deaths: 232, guild: 'Adversary' },
-    { name: 'Lunara', family: 'Adversary', kills: 528, deaths: 198, guild: 'Adversary' },
-    { name: 'Oldregard', family: 'Adversary', kills: 421, deaths: 255, guild: 'Adversary' },
-    { name: 'Elysia', family: 'Adversary', kills: 319, deaths: 128, guild: 'Adversary' },
-    { name: 'Valgrim', family: 'Adversary', kills: 286, deaths: 153, guild: 'Adversary' },
-  ],
-  st: {
-    Aethon: 17,
-    Ravienne: 14,
-    Nyxara: 12,
-    Silvren: 22,
-    Zerathos: 10,
-    Kaelthar: 9,
-    Lunara: 7,
-    Oldregard: 5,
-    Elysia: 6,
-    Valgrim: 4,
-  },
-  fd: {
-    Aethon: 8,
-    Ravienne: 6,
-    Nyxara: 5,
-    Silvren: 7,
-    Zerathos: 4,
-    Kaelthar: 4,
-    Lunara: 3,
-    Oldregard: 2,
-    Elysia: 3,
-    Valgrim: 2,
-  },
-  ev: [
-    ...Array.from({ length: 24 }, (_, index) => ({ id: 'war-1', date: '2026-05-04', type: index % 5 === 0 ? 'death' : 'kill', killer: ['Aethon', 'Ravienne', 'Nyxara', 'Silvren'][index % 4], victim: `Enemy${index % 8}` })),
-    ...Array.from({ length: 19 }, (_, index) => ({ id: 'war-2', date: '2026-05-01', type: index % 4 === 0 ? 'death' : 'kill', killer: ['Zerathos', 'Aethon', 'Kaelthar'][index % 3], victim: `Enemy${index % 7}` })),
-    ...Array.from({ length: 21 }, (_, index) => ({ id: 'war-3', date: '2026-04-28', type: index % 6 === 0 ? 'death' : 'kill', killer: ['Lunara', 'Silvren', 'Ravienne', 'Nyxara'][index % 4], victim: `Rival${index % 9}` })),
-    ...Array.from({ length: 17 }, (_, index) => ({ id: 'war-4', date: '2026-04-18', type: index % 3 === 0 ? 'death' : 'kill', killer: ['Oldregard', 'Elysia', 'Valgrim'][index % 3], victim: `Rival${index % 6}` })),
-  ],
-};
-
-
-const HALL_DATA_CACHE_LIMIT = 4;
-const hallDataObjectCache = new WeakMap();
-const hallDataSignatureCache = new Map();
-
-function hallHashText(hash, value) {
-  const text = String(value ?? '');
-
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
+function monthDateWindow(
+  monthId,
+  daysAgo = DEFAULT_RECAP_DAYS_AGO,
+) {
+  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) {
+    return {
+      start: 0,
+      end: 0,
+      days: 0,
+    };
   }
 
-  return hash >>> 0;
-}
+  const [year, month] = monthId.split('-').map(Number);
+  const monthStart = new Date(
+    year,
+    month - 1,
+    1,
+    0,
+    0,
+    0,
+    0,
+  ).getTime();
+  const monthEnd = new Date(
+    year,
+    month,
+    0,
+    23,
+    59,
+    59,
+    999,
+  ).getTime();
 
-function hallHashArraySample(items, readItem) {
-  const rows = Array.isArray(items) ? items : [];
+  // The selected month defines where the rolling range ends.
+  // Current month ends at the current moment; historical months
+  // end on their final calendar day.
+  const end =
+    monthId === localMonthId()
+      ? Math.min(Date.now(), monthEnd)
+      : monthEnd;
 
-  if (!rows.length) return '0';
+  const safeDays = Math.max(0, Math.floor(num(daysAgo)));
 
-  let hash = 2166136261;
-  const sampleCount = Math.min(32, rows.length);
-  const step = Math.max(1, Math.floor(rows.length / sampleCount));
+  let start = monthStart;
 
-  for (let index = 0; index < rows.length; index += step) {
-    hash = hallHashText(hash, readItem(rows[index], index));
-  }
-
-  const lastIndex = rows.length - 1;
-  hash = hallHashText(
-    hash,
-    readItem(rows[lastIndex], lastIndex),
-  );
-
-  return `${rows.length}:${hash >>> 0}`;
-}
-
-function hallStatsSignature(stats, minimumWars) {
-  const safe = stats?.players?.length ? stats : demoStats;
-  const players = Array.isArray(safe?.players)
-    ? safe.players
-    : [];
-  const events = Array.isArray(safe?.ev) ? safe.ev : [];
-  const secondaryCandidate =
-    safe?.secondary?.rows ||
-    safe?.secondaryRows ||
-    safe?.manualRows ||
-    safe?.secondary ||
-    [];
-  const secondaryRows = Array.isArray(secondaryCandidate)
-    ? secondaryCandidate
-    : [];
-
-  const playerHash = hallHashArraySample(
-    players,
-    (player) =>
-      [
-        player?.name,
-        player?.kills,
-        player?.deaths,
-        player?.wars,
-        player?.warCount,
-        player?.matches,
-        player?.damageDealt,
-        player?.damageTaken,
-        player?.ccHits,
-        player?.fortDamage,
-      ].join('|'),
-  );
-
-  const eventHash = hallHashArraySample(
-    events,
-    (event) =>
-      [
-        event?.id,
-        event?.war,
-        event?.date,
-        event?.sec,
-        event?.i,
-        event?.type,
-        event?.guildPlayer,
-        event?.killer,
-        event?.victim,
-        event?.source,
-      ].join('|'),
-  );
-
-  const secondaryHash = hallHashArraySample(
-    secondaryRows,
-    (row) =>
-      [
-        row?.id,
-        row?.war,
-        row?.date,
-        row?.player,
-        row?.name,
-        row?.kills,
-        row?.deaths,
-        row?.killFeed,
-        row?.feed,
-        row?.damageDealt,
-        row?.damageTaken,
-        row?.ccHits,
-        row?.fortDamage,
-        row?.damageToFort,
-      ].join('|'),
-  );
-
-  const streakHash = hallHashArraySample(
-    Object.entries(safe?.st || {}),
-    ([name, value]) => `${name}:${value}`,
-  );
-  const feedHash = hallHashArraySample(
-    Object.entries(safe?.fd || {}),
-    ([name, value]) => `${name}:${value}`,
-  );
-
-  return [
-    minimumWars,
-    safe?.version,
-    safe?.updatedAt,
-    safe?.kills,
-    safe?.deaths,
-    safe?.kd,
-    playerHash,
-    eventHash,
-    secondaryHash,
-    streakHash,
-    feedHash,
-  ].join('::');
-}
-
-function rememberHallData(signature, data) {
-  if (hallDataSignatureCache.has(signature)) {
-    hallDataSignatureCache.delete(signature);
-  }
-
-  hallDataSignatureCache.set(signature, data);
-
-  while (hallDataSignatureCache.size > HALL_DATA_CACHE_LIMIT) {
-    const oldestKey =
-      hallDataSignatureCache.keys().next().value;
-
-    hallDataSignatureCache.delete(oldestKey);
-  }
-}
-
-function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
-  const safe = stats?.players?.length ? stats : demoStats;
-  const events = safe.ev || [];
-  const secondaryRows =
-    safe.secondary?.rows ||
-    safe.secondaryRows ||
-    safe.manualRows ||
-    safe.secondary ||
-    [];
-  const playerNames = new Set((safe.players || []).map((player) => player.name));
-  const warMap = {};
-  const playerMatchMap = {};
-  const thresholds = [1000, 3000, 5000];
-
-  function eventWarId(event) {
-    return String(event.id || event.war || event.date || 'war');
-  }
-
-  function secondaryWarId(row, index = 0) {
-    return String(row?.id || row?.date || row?.war || `secondary-${index}`);
-  }
-
-  function eventSortKey(event) {
-    return [
-      String(event.date || '9999-99-99'),
-      String(event.sec ?? 0).padStart(8, '0'),
-      String(event.i ?? 0).padStart(8, '0'),
-      eventWarId(event),
-    ].join(' ');
-  }
-
-  function warSortKey(id, date = '') {
-    const matchingEvents = warMap[id]?.events || [];
-    const firstEvent = [...matchingEvents].sort((a, b) =>
-      eventSortKey(a).localeCompare(eventSortKey(b)),
-    )[0];
-
-    return firstEvent
-      ? eventSortKey(firstEvent)
-      : [String(date || '9999-99-99'), '00000000', '00000000', String(id)].join(' ');
-  }
-
-  function parseHallNumber(value, fallback = NaN) {
-    if (value === undefined || value === null || value === '') return fallback;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
-
-    let text = String(value).trim().toLowerCase();
-    if (!text) return fallback;
-
-    const multiplier = text.endsWith('b')
-      ? 1_000_000_000
-      : text.endsWith('m')
-        ? 1_000_000
-        : text.endsWith('k')
-          ? 1_000
-          : 1;
-
-    if (multiplier !== 1) {
-      text = text.slice(0, -1);
-    }
-
-    text = text
-      .replace(/\s+/g, '')
-      .replace(/[^\d,.\-]/g, '');
-
-    const commaCount = (text.match(/,/g) || []).length;
-    const dotCount = (text.match(/\./g) || []).length;
-
-    if (commaCount && dotCount) {
-      const lastComma = text.lastIndexOf(',');
-      const lastDot = text.lastIndexOf('.');
-
-      if (lastComma > lastDot) {
-        text = text.replace(/\./g, '').replace(',', '.');
-      } else {
-        text = text.replace(/,/g, '');
-      }
-    } else if (commaCount > 1) {
-      text = text.replace(/,/g, '');
-    } else if (commaCount === 1) {
-      const [left, right = ''] = text.split(',');
-      text = right.length === 3 && left.replace('-', '').length <= 3
-        ? `${left}${right}`
-        : `${left}.${right}`;
-    } else if (dotCount > 1) {
-      text = text.replace(/\./g, '');
-    } else if (dotCount === 1) {
-      const [left, right = ''] = text.split('.');
-      text = right.length === 3 && left.replace('-', '').length <= 3
-        ? `${left}${right}`
-        : text;
-    }
-
-    const number = Number(text);
-
-    return Number.isFinite(number) ? number * multiplier : fallback;
-  }
-
-  function findRowKey(row, keys) {
-    return keys.find(
-      (key) => row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '',
+  if (safeDays > 0) {
+    const startDate = new Date(end);
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(
+      startDate.getDate() - (safeDays - 1),
     );
+    start = startDate.getTime();
   }
 
-  const secondaryPlayerKeys = [
-    'player',
-    'name',
-    'family',
-    'playerName',
-    'Player',
-    'Name',
-    'Family',
-  ];
-
-  const secondaryKillKeys = ['kills', 'Kills', 'kill', 'Kill', 'k', 'K'];
-  const secondaryDeathKeys = ['deaths', 'Deaths', 'death', 'Death', 'd', 'D'];
-  const secondaryFeedKeys = [
-    'killFeed',
-    'killfeed',
-    'feed',
-    'KillFeed',
-    'Killfeed',
-    // Legacy aliases from summaries created before the parser fix.
-    'killStreak',
-    'killstreak',
-    'streak',
-    'Killstreak',
-    'KillStreak',
-  ];
-  const secondaryDamageDealtKeys = [
-    'damageDealt',
-    'damage_dealt',
-    'damage dealt',
-    'damageDone',
-    'damage',
-    'Damage Dealt',
-    'DamageDealt',
-    'DMG Dealt',
-    'dmgDealt',
-    'dmg dealt',
-  ];
-  const secondaryDamageTakenKeys = [
-    'damageTaken',
-    'damage_taken',
-    'damage taken',
-    'Damage Taken',
-    'DamageTaken',
-    'DMG Taken',
-    'dmgTaken',
-    'dmg taken',
-  ];
-  const secondaryFortDamageKeys = [
-    'fortDamage',
-    'damageToFort',
-    'damage_to_fort',
-    'damage to fort',
-    'damageFort',
-    'Damage to Fort',
-    'DamageToFort',
-    'fort damage',
-    'Fort Damage',
-    'dmgToFort',
-    'DMG to Fort',
-  ];
-  const secondaryCcHitsKeys = [
-    'ccHits',
-    'cc_hits',
-    'cc hits',
-    'CC Hits',
-    'CCHits',
-    'cc',
-    'CC',
-    'crowdControl',
-    'crowd control',
-    'Crowd Control',
-  ];
-
-  const secondaryMetricKeys = {
-    kills: secondaryKillKeys,
-    deaths: secondaryDeathKeys,
-    feed: secondaryFeedKeys,
-    damageDealt: secondaryDamageDealtKeys,
-    damageTaken: secondaryDamageTakenKeys,
-    fortDamage: secondaryFortDamageKeys,
-    ccHits: secondaryCcHitsKeys,
+  return {
+    start,
+    end,
+    days:
+      safeDays > 0
+        ? safeDays
+        : Math.max(
+            1,
+            Math.ceil((end - start + 1) / DAY_MS),
+          ),
   };
+}
 
-  const secondaryCoreMetrics = new Set(['kills', 'deaths']);
-  const secondaryDetailMetrics = [
-    'feed',
-    'damageDealt',
-    'damageTaken',
-    'fortDamage',
-    'ccHits',
+function previousDateWindow(window) {
+  if (!window?.start || !window?.days) {
+    return {
+      start: 0,
+      end: 0,
+      days: 0,
+    };
+  }
+
+  const end = window.start - 1;
+  const start = window.start - window.days * DAY_MS;
+
+  return {
+    start,
+    end,
+    days: window.days,
+  };
+}
+
+function dateIsInWindow(value, window) {
+  const timestamp = dateTimestamp(value);
+
+  return Boolean(
+    timestamp &&
+      window?.start &&
+      timestamp >= window.start &&
+      timestamp <= window.end,
+  );
+}
+
+function monthLabel(monthId) {
+  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return 'Unknown month';
+
+  const [year, month] = monthId.split('-').map(Number);
+
+  return new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function previousMonthId(monthId) {
+  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return '';
+
+  const [year, month] = monthId.split('-').map(Number);
+  const previous = new Date(year, month - 2, 1);
+
+  return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}`;
+}
+
+function shortMonthLabel(monthId) {
+  if (!/^\d{4}-\d{2}$/.test(String(monthId || ''))) return 'previous month';
+
+  const [year, month] = monthId.split('-').map(Number);
+
+  return new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatDate(value) {
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return String(value || '-');
+
+  return parsed.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function getGuildPlayer(event) {
+  return (
+    event?.guildPlayer ||
+    (event?.type === 'kill' ? event?.killer : event?.victim) ||
+    ''
+  );
+}
+
+function cleanGuild(value) {
+  const text = String(value || '').trim();
+
+  if (!text || /^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+
+  return text;
+}
+
+function hasOwnStatMetric(row, aliases) {
+  return Boolean(
+    row &&
+      aliases.some(
+        (alias) =>
+          Object.prototype.hasOwnProperty.call(row, alias) &&
+          row[alias] !== undefined &&
+          row[alias] !== null &&
+          row[alias] !== '',
+      ),
+  );
+}
+
+function readStatMetric(row, aliases, fallback = 0) {
+  if (!row) return fallback;
+
+  const alias = aliases.find(
+    (key) =>
+      Object.prototype.hasOwnProperty.call(row, key) &&
+      row[key] !== undefined &&
+      row[key] !== null &&
+      row[key] !== '',
+  );
+
+  return alias == null ? fallback : num(row[alias]);
+}
+
+function chronologyTimestamp(item) {
+  const candidates = [
+    item?.timestamp,
+    item?.time,
+    item?.datetime,
+    item?.dateTime,
+    item?.date,
+    item?.createdAt,
+    item?.startTime,
   ];
 
-  function normalizeHallMetricText(value) {
-    return String(value || '')
-      .toLowerCase()
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim();
-  }
-
-  function getRowRawText(row) {
-    if (!row) return '';
-
-    return [
-      row.raw,
-      row.rawLine,
-      row.original,
-      row.originalLine,
-      row.source,
-      row.sourceLine,
-      row.text,
-      row.line,
-      row.input,
-      row.entry,
-      row.content,
-      row.note,
-    ]
-      .filter((value) => value !== undefined && value !== null && value !== '')
-      .join(' ');
-  }
-
-  function getStructuredPresenceText(value, depth = 0) {
-    if (value === undefined || value === null || depth > 3) return '';
-
-    if (Array.isArray(value)) {
-      return value.map((item) => getStructuredPresenceText(item, depth + 1)).join(' ');
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null || candidate === '') {
+      continue;
     }
 
-    if (typeof value === 'object') {
-      return Object.entries(value)
-        .map(([key, item]) => `${key} ${getStructuredPresenceText(item, depth + 1)}`)
-        .join(' ');
+    if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+      return candidate < 100000000000
+        ? candidate * 1000
+        : candidate;
     }
 
-    return String(value);
-  }
-
-  function hasMetricNameInStructuredFields(row, keys) {
-    if (!row) return false;
-
-    const containers = [
-      row.headers,
-      row.header,
-      row.columns,
-      row.columnNames,
-      row.fieldNames,
-      row.fields,
-      row.providedFields,
-      row.availableFields,
-      row.schema,
-      row.metrics,
-    ];
-
-    const structuredText = normalizeHallMetricText(
-      containers
-        .map((value) => getStructuredPresenceText(value))
-        .filter(Boolean)
-        .join(' '),
-    );
-
-    if (!structuredText) return false;
-
-    return keys.some((key) => {
-      const alias = normalizeHallMetricText(key);
-      const spacedAlias = normalizeHallMetricText(
-        String(key)
-          .replace(/([a-z])([A-Z])/g, '$1 $2')
-          .replace(/[_-]/g, ' '),
-      );
-
-      return Boolean(
-        (alias && structuredText.includes(alias)) ||
-          (spacedAlias && structuredText.includes(spacedAlias)),
-      );
-    });
-  }
-
-  function rowHasOwnMetricKey(row, keys) {
-    return Boolean(row && keys.some((key) => Object.prototype.hasOwnProperty.call(row, key)));
-  }
-
-  function getPresenceFlag(row, keys) {
-    if (!row) return undefined;
-
-    const suffixes = [
-      'HasValue',
-      'hasValue',
-      'Exists',
-      'exists',
-      'Present',
-      'present',
-      'Provided',
-      'provided',
-      'Added',
-      'added',
-    ];
-
-    for (const key of keys) {
-      const keyText = String(key);
-      const compact = keyText.replace(/[^a-zA-Z0-9]/g, '');
-      const camel = compact.charAt(0).toLowerCase() + compact.slice(1);
-      const pascal = compact.charAt(0).toUpperCase() + compact.slice(1);
-      const snake = keyText
-        .replace(/([a-z])([A-Z])/g, '$1_$2')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .toLowerCase();
-
-      const candidates = [
-        `has_${snake}`,
-        `${snake}_exists`,
-        `${snake}_present`,
-        `${snake}_provided`,
-        `${snake}_added`,
-        ...suffixes.flatMap((suffix) => [`${camel}${suffix}`, `${pascal}${suffix}`]),
-      ];
-
-      const found = candidates.find((candidate) =>
-        Object.prototype.hasOwnProperty.call(row, candidate),
-      );
-
-      if (found) return Boolean(row[found]);
-    }
-
-    return undefined;
-  }
-
-  function hasMetricNameInRawText(row, keys) {
-    const rawText = normalizeHallMetricText(getRowRawText(row));
-
-    if (!rawText) return false;
-
-    return keys.some((key) => {
-      const alias = normalizeHallMetricText(key);
-      const spacedAlias = normalizeHallMetricText(
-        String(key)
-          .replace(/([a-z])([A-Z])/g, '$1 $2')
-          .replace(/[_-]/g, ' '),
-      );
-
-      return Boolean(
-        (alias && rawText.includes(alias)) ||
-          (spacedAlias && rawText.includes(spacedAlias)),
-      );
-    });
-  }
-
-  function getSecondaryMetricNumber(row, metric, fallback = NaN) {
-    const keys = secondaryMetricKeys[metric] || [metric];
-    const key = findRowKey(row, keys);
-
-    if (!key) return fallback;
-
-    return parseHallNumber(row[key], fallback);
-  }
-
-  function hasRawMetricValue(row, keys) {
-    const key = findRowKey(row, keys);
-
-    if (!key) return false;
-
-    const number = parseHallNumber(row[key], NaN);
-
-    if (!Number.isFinite(number)) return false;
-
-    const presenceFlag = getPresenceFlag(row, keys);
-
-    if (presenceFlag !== undefined) return presenceFlag;
-
-    if (number !== 0) return true;
-
-    return hasMetricNameInRawText(row, keys);
-  }
-
-  function getSecondaryWarMetricPresence(rows) {
-    const output = {};
-
-    (rows || []).forEach((row, index) => {
-      const warId = secondaryWarId(row, index);
-
-      output[warId] ||= {
-        __detailed: false,
-      };
-
-      Object.entries(secondaryMetricKeys).forEach(([metric, keys]) => {
-        const key = findRowKey(row, keys);
-        const number = key ? parseHallNumber(row[key], NaN) : NaN;
-        const presenceFlag = getPresenceFlag(row, keys);
-        const explicitPresence =
-          presenceFlag === true ||
-          hasMetricNameInRawText(row, keys) ||
-          hasMetricNameInStructuredFields(row, keys);
-        const nonZeroValue = Number.isFinite(number) && number !== 0;
-
-        if (explicitPresence || nonZeroValue) {
-          output[warId][metric] = true;
-        }
-
-        if (secondaryDetailMetrics.includes(metric) && (explicitPresence || nonZeroValue)) {
-          output[warId].__detailed = true;
-        }
-      });
-    });
-
-    (rows || []).forEach((row, index) => {
-      const warId = secondaryWarId(row, index);
-      const presence = output[warId];
-
-      if (!presence?.__detailed) return;
-
-      secondaryDetailMetrics.forEach((metric) => {
-        const keys = secondaryMetricKeys[metric] || [metric];
-        const number = getSecondaryMetricNumber(row, metric, NaN);
-
-        if (rowHasOwnMetricKey(row, keys) && Number.isFinite(number)) {
-          presence[metric] = true;
-        }
-      });
-    });
-
-    return output;
-  }
-
-  function getSecondaryMetricExists(row, metric, warPresence = {}) {
-    const keys = secondaryMetricKeys[metric] || [metric];
-
-    if (hasRawMetricValue(row, keys)) return true;
-
-    const number = getSecondaryMetricNumber(row, metric, NaN);
-
-    if (!Number.isFinite(number)) return false;
-
-    if (secondaryCoreMetrics.has(metric) && rowHasOwnMetricKey(row, keys)) {
-      return true;
-    }
-
-    if (number !== 0) return true;
-
-    if (warPresence?.[metric]) return true;
+    const numeric = Number(candidate);
 
     if (
-      secondaryDetailMetrics.includes(metric) &&
-      warPresence?.__detailed &&
-      rowHasOwnMetricKey(row, keys)
+      String(candidate).trim() !== '' &&
+      Number.isFinite(numeric) &&
+      numeric > 0
     ) {
-      return true;
+      return numeric < 100000000000
+        ? numeric * 1000
+        : numeric;
     }
 
-    return false;
-  }
+    const parsed = Date.parse(String(candidate));
 
-  function getSecondaryPlayerName(row) {
-    const key = findRowKey(row, secondaryPlayerKeys);
-    return key ? String(row[key] || '').trim() : '';
-  }
-
-  function hasSecondaryKills(row, warPresence = {}) {
-    return getSecondaryMetricExists(row, 'kills', warPresence);
-  }
-
-  function getSecondaryKills(row) {
-    return getSecondaryMetricNumber(row, 'kills', 0);
-  }
-
-  function hasSecondaryDeaths(row, warPresence = {}) {
-    return getSecondaryMetricExists(row, 'deaths', warPresence);
-  }
-
-  function getSecondaryDeaths(row) {
-    return getSecondaryMetricNumber(row, 'deaths', 0);
-  }
-
-  function hasSecondaryDamageDealt(row, warPresence = {}) {
-    return getSecondaryMetricExists(row, 'damageDealt', warPresence);
-  }
-
-  function getSecondaryDamageDealt(row) {
-    return getSecondaryMetricNumber(row, 'damageDealt', 0);
-  }
-
-  function hasSecondaryFortDamage(row, warPresence = {}) {
-    return getSecondaryMetricExists(row, 'fortDamage', warPresence);
-  }
-
-  function getSecondaryFortDamage(row) {
-    return getSecondaryMetricNumber(row, 'fortDamage', 0);
-  }
-
-  function hasSecondaryCcHits(row, warPresence = {}) {
-    return getSecondaryMetricExists(row, 'ccHits', warPresence);
-  }
-
-  function getSecondaryCcHits(row) {
-    return getSecondaryMetricNumber(row, 'ccHits', 0);
-  }
-
-  function getGuildKillPlayer(event) {
-    if (event.guildPlayer && event.type === 'kill') return event.guildPlayer;
-    if (event.type === 'kill' && playerNames.has(event.killer)) return event.killer;
-    if (event.type !== 'death' && playerNames.has(event.killer)) return event.killer;
-
-    return '';
-  }
-
-  function getGuildInvolvedPlayer(event) {
-    if (event.guildPlayer) return event.guildPlayer;
-    if (event.type === 'kill' && playerNames.has(event.killer)) return event.killer;
-    if (event.type === 'death' && playerNames.has(event.victim)) return event.victim;
-    if (playerNames.has(event.killer)) return event.killer;
-    if (playerNames.has(event.victim)) return event.victim;
-
-    return '';
-  }
-
-  function ensureWar(id, date = '') {
-    warMap[id] ||= {
-      id,
-      date: String(date || ''),
-      events: [],
-    };
-
-    if (!warMap[id].date && date) {
-      warMap[id].date = String(date);
+    if (Number.isFinite(parsed)) {
+      return parsed;
     }
-
-    return warMap[id];
   }
 
-  function ensurePlayerMatch(name, warId, date = '') {
-    if (!name) return null;
+  return Number.POSITIVE_INFINITY;
+}
 
-    playerMatchMap[name] ||= {};
-    playerMatchMap[name][warId] ||= {
-      warId,
-      date,
-      kills: 0,
-      deaths: 0,
-      damageDealt: 0,
-      fortDamage: 0,
-      ccHits: 0,
-      hasKills: false,
-      hasDeaths: false,
-      hasDamageDealt: false,
-      hasFortDamage: false,
-      hasCcHits: false,
-    };
+function chronologicalCompare(a, b) {
+  const aTime = Number.isFinite(a?.firstAppearanceTime)
+    ? a.firstAppearanceTime
+    : Number.POSITIVE_INFINITY;
+  const bTime = Number.isFinite(b?.firstAppearanceTime)
+    ? b.firstAppearanceTime
+    : Number.POSITIVE_INFINITY;
 
-    if (!playerMatchMap[name][warId].date && date) {
-      playerMatchMap[name][warId].date = date;
-    }
-
-    return playerMatchMap[name][warId];
+  if (aTime !== bTime) {
+    return aTime < bTime ? -1 : 1;
   }
 
-  events.forEach((event) => {
-    const id = eventWarId(event);
-    const war = ensureWar(id, event.date);
-    war.events.push(event);
+  const aOrder = Number.isFinite(a?.firstAppearanceOrder)
+    ? a.firstAppearanceOrder
+    : Number.POSITIVE_INFINITY;
+  const bOrder = Number.isFinite(b?.firstAppearanceOrder)
+    ? b.firstAppearanceOrder
+    : Number.POSITIVE_INFINITY;
 
-    const involvedPlayer = getGuildInvolvedPlayer(event);
-    const killPlayer = getGuildKillPlayer(event);
+  if (aOrder !== bOrder) {
+    return aOrder < bOrder ? -1 : 1;
+  }
 
-    if (involvedPlayer) {
-      const match = ensurePlayerMatch(involvedPlayer, id, event.date);
-      match.hasKills = true;
-      match.hasDeaths = true;
+  const aRosterOrder = Number.isFinite(a?.rosterOrder)
+    ? a.rosterOrder
+    : Number.POSITIVE_INFINITY;
+  const bRosterOrder = Number.isFinite(b?.rosterOrder)
+    ? b.rosterOrder
+    : Number.POSITIVE_INFINITY;
 
-      if (event.type === 'death') {
-        match.deaths += 1;
-      }
+  if (aRosterOrder !== bRosterOrder) {
+    return aRosterOrder < bRosterOrder ? -1 : 1;
+  }
+
+  return String(a?.name || '').localeCompare(
+    String(b?.name || ''),
+  );
+}
+
+function buildPlayerChronology(stats) {
+  const byPlayer = new Map();
+  let sourceOrder = 0;
+
+  function consider(name, item) {
+    const cleanName = String(name || '').trim();
+    const order = sourceOrder++;
+
+    if (!cleanName) return;
+
+    const key = cleanName.toLowerCase();
+    const time = chronologyTimestamp(item);
+    const current = byPlayer.get(key);
+
+    if (
+      !current ||
+      time < current.time ||
+      (time === current.time && order < current.order)
+    ) {
+      byPlayer.set(key, {
+        time,
+        order,
+      });
     }
+  }
 
-    if (killPlayer) {
-      const match = ensurePlayerMatch(killPlayer, id, event.date);
-      match.kills += 1;
-      match.hasKills = true;
-    }
+  (stats?.secondary?.rows || []).forEach((row) => {
+    consider(row?.player || row?.name, row);
   });
 
-  const secondaryWarPresence = getSecondaryWarMetricPresence(
-    Array.isArray(secondaryRows) ? secondaryRows : [],
-  );
+  (stats?.ev || []).forEach((event) => {
+    consider(getGuildPlayer(event), event);
+  });
 
-  (Array.isArray(secondaryRows) ? secondaryRows : []).forEach((row, index) => {
-    const name = getSecondaryPlayerName(row);
+  return byPlayer;
+}
+
+function buildStatsLogPlayers(stats) {
+  const sourceRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+
+  // One Stats Log should contain one row per player. When duplicate rows
+  // exist for the same player and war, keep the row with the largest K+D
+  // total rather than double-counting it.
+  const uniqueRows = new Map();
+
+  sourceRows.forEach((row, index) => {
+    const name = String(row?.player || row?.name || '').trim();
 
     if (!name) return;
 
-    const id = secondaryWarId(row, index);
-    const date = row.date || row.war || id;
-    ensureWar(id, date);
+    const warId = String(
+      row?.id ||
+        row?.war ||
+        row?.date ||
+        `stats-log-${index}`,
+    );
 
-    const match = ensurePlayerMatch(name, id, date);
-    const warPresence = secondaryWarPresence[id] || {};
+    const key = `${warId}::${name.toLowerCase()}`;
+    const current = uniqueRows.get(key);
+    const rowInteractions = num(row?.kills) + num(row?.deaths);
+    const currentInteractions = current
+      ? num(current?.kills) + num(current?.deaths)
+      : -1;
 
-    // Same behavior as Player Stats Match History:
-    // averages use only values that actually exist in the match-history row.
-    if (hasSecondaryKills(row, warPresence)) {
-      match.kills = getSecondaryKills(row);
-      match.hasKills = true;
-    }
-
-    if (hasSecondaryDeaths(row, warPresence)) {
-      match.deaths = getSecondaryDeaths(row);
-      match.hasDeaths = true;
-    }
-
-    if (hasSecondaryDamageDealt(row, warPresence)) {
-      match.damageDealt = getSecondaryDamageDealt(row);
-      match.hasDamageDealt = true;
-    }
-
-    if (hasSecondaryFortDamage(row, warPresence)) {
-      match.fortDamage = getSecondaryFortDamage(row);
-      match.hasFortDamage = true;
-    }
-
-    if (hasSecondaryCcHits(row, warPresence)) {
-      match.ccHits = getSecondaryCcHits(row);
-      match.hasCcHits = true;
+    if (!current || rowInteractions > currentInteractions) {
+      uniqueRows.set(key, {
+        ...row,
+        player: name,
+        __warId: warId,
+      });
     }
   });
 
-  const warList = Object.values(warMap).sort((a, b) =>
-    warSortKey(a.id, a.date).localeCompare(warSortKey(b.id, b.date)),
-  );
+  const byPlayer = new Map();
 
-  const warIndexById = Object.fromEntries(
-    warList.map((war, index) => [war.id, index]),
-  );
+  uniqueRows.forEach((row) => {
+    const name = String(row?.player || row?.name || '').trim();
 
-  // Build chronology once. This avoids repeatedly scanning and sorting the
-  // complete Combat Log inside every player and leaderboard calculation.
-  const firstCombatKeyByPlayer = {};
-  const firstCombatKeyByWarPlayer = {};
+    if (!name) return;
 
-  [...events]
-    .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))
-    .forEach((event) => {
-      const playerName = getGuildInvolvedPlayer(event);
+    const key = name.toLowerCase();
 
-      if (!playerName) return;
-
-      const eventKey = eventSortKey(event);
-      const warPlayerKey = `${eventWarId(event)}::${playerName}`;
-
-      firstCombatKeyByPlayer[playerName] ||= eventKey;
-      firstCombatKeyByWarPlayer[warPlayerKey] ||= eventKey;
-    });
-
-  const totalWars = warList.length || new Set(events.map((event) => String(event.id || event.date))).size;
-
-  const firstSeenWarIndex = {};
-  const thresholdReached = Object.fromEntries(
-    thresholds.map((threshold) => [threshold, []]),
-  );
-
-  Object.entries(playerMatchMap).forEach(([name, matchesByWar]) => {
-    const orderedMatches = Object.values(matchesByWar).sort((a, b) => {
-      const ai = warIndexById[a.warId] ?? 999999;
-      const bi = warIndexById[b.warId] ?? 999999;
-
-      if (ai !== bi) return ai - bi;
-
-      return String(a.warId).localeCompare(String(b.warId));
-    });
-
-    if (orderedMatches.length) {
-      firstSeenWarIndex[name] = warIndexById[orderedMatches[0].warId] ?? 0;
+    if (!byPlayer.has(key)) {
+      byPlayer.set(key, {
+        name,
+        wars: new Set(),
+        kills: 0,
+        deaths: 0,
+        kdSum: 0,
+        kdCount: 0,
+        killFeed: 0,
+        killFeedTotal: 0,
+        killStreak: 0,
+        hasKillStreak: false,
+        damage: 0,
+        damageAverageSum: 0,
+        damageAverageCount: 0,
+        damageTaken: 0,
+        ccHits: 0,
+        ccAverageSum: 0,
+        ccAverageCount: 0,
+        fortDamage: 0,
+      });
     }
 
-    let cumulativeKills = 0;
-    let participatedWarCount = 0;
+    const player = byPlayer.get(key);
 
-    orderedMatches.forEach((match) => {
-      participatedWarCount += 1;
+    player.wars.add(String(row.__warId));
 
-      if (!match.hasKills) return;
+    const rowKills = num(row?.kills);
+    const rowDeaths = num(row?.deaths);
+    const rowKd = ratio(rowKills, rowDeaths);
 
-      const globalWarIndex = warIndexById[match.warId] ?? 0;
-      const before = cumulativeKills;
-      const after = before + (Number(match.kills) || 0);
-      cumulativeKills = after;
+    player.kills += rowKills;
+    player.deaths += rowDeaths;
+    player.kdSum += rowKd;
+    player.kdCount += 1;
+    const damageAliases = [
+      'damageDealt',
+      'damage_dealt',
+      'damage dealt',
+      'damageDone',
+      'damage',
+    ];
+    const ccAliases = [
+      'ccHits',
+      'cc_hits',
+      'cc hits',
+      'CC Hits',
+      'cc',
+      'CC',
+    ];
 
-      thresholds.forEach((threshold) => {
-        if (
-          before < threshold &&
-          after >= threshold &&
-          !thresholdReached[threshold].some((item) => item.name === name)
-        ) {
-          thresholdReached[threshold].push({
-            name,
-            threshold,
-            date: match.date || match.warId,
-            warId: match.warId,
-            globalWarIndex,
-            fromFirstLogWars: globalWarIndex + 1,
-            fromPlayerFirstLogWars: participatedWarCount,
-            totalKillsAtReach: after,
-            chronologyKey: warSortKey(match.warId, match.date),
-          });
-        }
+    const rowDamage = readStatMetric(row, damageAliases, 0);
+    const rowCcHits = readStatMetric(row, ccAliases, 0);
+
+    player.damage += rowDamage;
+
+    if (hasOwnStatMetric(row, damageAliases)) {
+      player.damageAverageSum += rowDamage;
+      player.damageAverageCount += 1;
+    }
+
+    player.damageTaken += readStatMetric(
+      row,
+      [
+        'damageTaken',
+        'damage_taken',
+        'damage taken',
+        'Damage Taken',
+      ],
+      0,
+    );
+
+    player.ccHits += rowCcHits;
+
+    if (hasOwnStatMetric(row, ccAliases)) {
+      player.ccAverageSum += rowCcHits;
+      player.ccAverageCount += 1;
+    }
+    player.fortDamage += readStatMetric(
+      row,
+      [
+        'fortDamage',
+        'damageToFort',
+        'damage_to_fort',
+        'damage to fort',
+        'Fort Damage',
+      ],
+      0,
+    );
+
+    const rowKillFeed = readStatMetric(
+      row,
+      ['killFeed', 'feed'],
+      0,
+    );
+
+    // Player Highlights uses the best saved Stats Log KillFeed.
+    player.killFeed = Math.max(player.killFeed, rowKillFeed);
+
+    // Players Performance Total/Average uses the monthly sum.
+    player.killFeedTotal += rowKillFeed;
+
+    // No Combat Log fallback. A streak is shown only when the Stats Log
+    // explicitly contains a streak field.
+    const streakAliases = [
+      'killStreak',
+      'killstreak',
+      'kill_streak',
+      'kill streak',
+      'streak',
+    ];
+
+    if (hasOwnStatMetric(row, streakAliases)) {
+      player.hasKillStreak = true;
+      player.killStreak = Math.max(
+        player.killStreak,
+        readStatMetric(row, streakAliases, 0),
+      );
+    }
+  });
+
+  return [...byPlayer.values()]
+    .map((player) => ({
+      ...player,
+      wars: player.wars.size,
+      kd: ratio(player.kills, player.deaths),
+      averageKd: player.kdCount
+        ? player.kdSum / player.kdCount
+        : ratio(player.kills, player.deaths),
+      averageDamageDealt: player.damageAverageCount
+        ? player.damageAverageSum / player.damageAverageCount
+        : 0,
+      averageCcHits: player.ccAverageCount
+        ? player.ccAverageSum / player.ccAverageCount
+        : 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name),
+    );
+}
+
+function buildSingleGamePlayerHighlights(stats) {
+  const sourceRows = Array.isArray(stats?.secondary?.rows)
+    ? stats.secondary.rows
+    : [];
+
+  const uniqueRows = new Map();
+
+  sourceRows.forEach((row, sourceOrder) => {
+    const name = String(row?.player || row?.name || '').trim();
+
+    if (!name) return;
+
+    const warId = String(
+      row?.warId ||
+        row?.war_id ||
+        row?.war ||
+        row?.id ||
+        row?.date ||
+        `stats-war-${sourceOrder}`,
+    );
+
+    const key = `${warId}::${name.toLowerCase()}`;
+    const current = uniqueRows.get(key);
+    const interactions = num(row?.kills) + num(row?.deaths);
+    const currentInteractions = current
+      ? num(current?.kills) + num(current?.deaths)
+      : -1;
+
+    if (
+      !current ||
+      interactions > currentInteractions ||
+      (
+        interactions === currentInteractions &&
+        sourceOrder < current.__sourceOrder
+      )
+    ) {
+      uniqueRows.set(key, {
+        ...row,
+        player: name,
+        __warId: warId,
+        __sourceOrder: sourceOrder,
+        __time: chronologyTimestamp(row),
+      });
+    }
+  });
+
+  const statRecords = [...uniqueRows.values()].map((row) => {
+    const kills = num(row?.kills);
+    const deaths = num(row?.deaths);
+
+    return {
+      name: String(row?.player || row?.name || '').trim(),
+      warId: String(row.__warId),
+      date:
+        row?.date ||
+        row?.datetime ||
+        row?.dateTime ||
+        row?.timestamp ||
+        row?.time ||
+        '',
+      firstAppearanceTime: row.__time,
+      firstAppearanceOrder: row.__sourceOrder,
+      kills,
+      deaths,
+      kd: ratio(kills, deaths),
+      damage: readStatMetric(
+        row,
+        [
+          'damageDealt',
+          'damage_dealt',
+          'damage dealt',
+          'damageDone',
+          'damage',
+        ],
+        0,
+      ),
+      fortDamage: readStatMetric(
+        row,
+        [
+          'fortDamage',
+          'damageToFort',
+          'damage_to_fort',
+          'damage to fort',
+          'Fort Damage',
+        ],
+        0,
+      ),
+      killFeed: readStatMetric(
+        row,
+        ['killFeed', 'feed'],
+        0,
+      ),
+    };
+  });
+
+  function bestStatRecord(metricKey, isValid) {
+    return (
+      statRecords
+        .filter((record) =>
+          isValid ? isValid(record) : num(record?.[metricKey]) > 0,
+        )
+        .sort(
+          (a, b) =>
+            num(b?.[metricKey]) - num(a?.[metricKey]) ||
+            chronologicalCompare(a, b),
+        )[0] || null
+    );
+  }
+
+  const combatWars = new Map();
+
+  (stats?.ev || []).forEach((event, sourceOrder) => {
+    const warId = String(
+      event?.warId ||
+        event?.war_id ||
+        event?.nodeWarId ||
+        event?.war ||
+        event?.id ||
+        event?.date ||
+        `combat-war-${sourceOrder}`,
+    );
+
+    if (!combatWars.has(warId)) {
+      combatWars.set(warId, {
+        events: [],
+        date:
+          event?.date ||
+          event?.datetime ||
+          event?.dateTime ||
+          event?.timestamp ||
+          event?.time ||
+          '',
+        time: chronologyTimestamp(event),
+        order: sourceOrder,
+      });
+    }
+
+    const war = combatWars.get(warId);
+    war.events.push(event);
+
+    const eventTime = chronologyTimestamp(event);
+
+    if (
+      eventTime < war.time ||
+      (eventTime === war.time && sourceOrder < war.order)
+    ) {
+      war.time = eventTime;
+      war.order = sourceOrder;
+      war.date =
+        event?.date ||
+        event?.datetime ||
+        event?.dateTime ||
+        event?.timestamp ||
+        event?.time ||
+        war.date;
+    }
+  });
+
+  const streakRecords = [];
+
+  combatWars.forEach((war, warId) => {
+    const warStreaks = calculateStreaks(war.events);
+
+    Object.entries(warStreaks || {}).forEach(([name, value]) => {
+      const cleanName = String(name || '').trim();
+      const streak = num(value);
+
+      if (!cleanName || streak <= 0) return;
+
+      streakRecords.push({
+        name: cleanName,
+        warId,
+        date: war.date,
+        value: streak,
+        firstAppearanceTime: war.time,
+        firstAppearanceOrder: war.order,
       });
     });
   });
 
-  function getPlayerChronologyKey(name) {
-    const firstTrackedWarIndex = firstSeenWarIndex[name];
-
-    return (
-      firstCombatKeyByPlayer[name] ||
-      (Number.isFinite(Number(firstTrackedWarIndex))
-        ? `${String(firstTrackedWarIndex).padStart(8, '0')} 00000000 00000000`
-        : '9999-99-99 99999999 99999999')
-    );
-  }
-
-  function getPlayerWarChronologyKey(warId, name) {
-    return (
-      firstCombatKeyByWarPlayer[`${warId}::${name}`] ||
-      getPlayerChronologyKey(name)
-    );
-  }
-
-  function getPlayerMatchValues(name) {
-    return Object.values(playerMatchMap[name] || {}).filter((match) => match.hasKills);
-  }
-
-  function getPlayerAvgKills(name) {
-    const matches = getPlayerMatchValues(name);
-
-    if (!matches.length) return null;
-
-    return (
-      matches.reduce((sum, match) => sum + (Number(match.kills) || 0), 0) /
-      matches.length
-    );
-  }
-
-  function getPlayerAvgKd(name) {
-    const matches = Object.values(playerMatchMap[name] || {}).filter(
-      (match) => match.hasKills || match.hasDeaths,
-    );
-
-    if (!matches.length) return null;
-
-    return (
-      matches.reduce(
-        (sum, match) => sum + kd(Number(match.kills) || 0, Number(match.deaths) || 0),
-        0,
-      ) / matches.length
-    );
-  }
-
-  function getPlayerAvgDamageDealt(name) {
-    const matches = Object.values(playerMatchMap[name] || {}).filter(
-      (match) => match.hasDamageDealt,
-    );
-
-    if (!matches.length) return null;
-
-    return (
-      matches.reduce((sum, match) => sum + (Number(match.damageDealt) || 0), 0) /
-      matches.length
-    );
-  }
-
-  function getPlayerAvgCcHits(name) {
-    const matches = Object.values(playerMatchMap[name] || {}).filter(
-      (match) => match.hasCcHits,
-    );
-
-    if (!matches.length) return null;
-
-    return (
-      matches.reduce((sum, match) => sum + (Number(match.ccHits) || 0), 0) /
-      matches.length
-    );
-  }
-
-  function getPlayerWarIndices(name) {
-    return Object.values(playerMatchMap[name] || {})
-      .map((match) => warIndexById[match.warId])
-      .filter((index) => Number.isFinite(Number(index)))
-      .map((index) => Number(index))
-      .sort((a, b) => a - b);
-  }
-
-  function getLongestConsecutiveWarStreak(name) {
-    const indices = getPlayerWarIndices(name);
-
-    if (!indices.length) return 0;
-
-    let best = 1;
-    let current = 1;
-
-    for (let index = 1; index < indices.length; index += 1) {
-      if (indices[index] === indices[index - 1]) continue;
-
-      if (indices[index] === indices[index - 1] + 1) {
-        current += 1;
-      } else {
-        current = 1;
-      }
-
-      best = Math.max(best, current);
-    }
-
-    return best;
-  }
-
-  function getJoinParticipation(name) {
-    const playerWarIndices = getPlayerWarIndices(name);
-
-    if (!playerWarIndices.length || !totalWars) return 0;
-
-    const firstWarIndex = playerWarIndices[0];
-    const possibleWarsFromFirstAppearance = Math.max(1, totalWars - firstWarIndex);
-
-    return (playerWarIndices.length / possibleWarsFromFirstAppearance) * 100;
-  }
-
-  function getWarEventsSorted(warEvents) {
-    return [...(warEvents || [])].sort(
+  const longestStreak =
+    streakRecords.sort(
       (a, b) =>
-        Number(a.sec || 0) - Number(b.sec || 0) ||
-        Number(a.i || 0) - Number(b.i || 0) ||
-        String(a.killer || '').localeCompare(String(b.killer || '')) ||
-        String(a.victim || '').localeCompare(String(b.victim || '')),
-    );
-  }
+        b.value - a.value ||
+        chronologicalCompare(a, b),
+    )[0] || null;
 
-  function getBestWarKillstreak(warEvents, playerName) {
-    const sortedEvents = getWarEventsSorted(warEvents);
+  const bestFeedRecord = bestStatRecord(
+    'killFeed',
+    (record) => record.killFeed > 0,
+  );
 
-    let current = 0;
-    let best = 0;
-
-    sortedEvents.forEach((event) => {
-      const involvedPlayer = getGuildInvolvedPlayer(event);
-      const killPlayer = getGuildKillPlayer(event);
-
-      if (event.type === 'kill' && killPlayer === playerName) {
-        current += 1;
-        best = Math.max(best, current);
-      }
-
-      if (event.type === 'death' && involvedPlayer === playerName) {
-        current = 0;
-      }
-    });
-
-    return best;
-  }
-
-  function getBestWarKillfeed(warEvents, playerName, seconds = 10) {
-    const kills = getWarEventsSorted(warEvents)
-      .filter((event) => event.type === 'kill' && getGuildKillPlayer(event) === playerName)
-      .map((event) => Number(event.sec) || 0);
-
-    let left = 0;
-    let best = 0;
-
-    for (let right = 0; right < kills.length; right += 1) {
-      while (kills[right] - kills[left] > seconds) {
-        left += 1;
-      }
-
-      best = Math.max(best, right - left + 1);
-    }
-
-    return best;
-  }
-
-  // Average Rank uses the same formula as Overview -> Best Overall:
-  // 1. Rank every available metric inside each war.
-  // 2. Average each metric column only across wars where that column exists.
-  // 3. Calculate the final Average Rank only from available column averages.
-  // No shared store is used.
-
-  function normalizeAverageRankPlayerName(value) {
-    const key = String(value || '')
-      .normalize('NFKC')
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .replace(/\s+/g, '')
-      .trim()
-      .toLowerCase();
-
-    if (key === 'mrsracoon' || key === 'mrsraccoon') {
-      return 'mrsraccoon';
-    }
-
-    return key;
-  }
-
-  function getAverageRankEventPlayer(event) {
-    return (
-      event?.guildPlayer ||
-      getGuildInvolvedPlayer(event) ||
-      (event?.type === 'kill' ? event?.killer : event?.victim) ||
-      ''
-    );
-  }
-
-  function averageRankEventKey(event) {
-    return [
-      String(event?.date || '9999-99-99'),
-      String(Number(event?.sec) || 0).padStart(8, '0'),
-      String(Number(event?.i) || 0).padStart(8, '0'),
-      eventWarId(event),
-    ].join(' ');
-  }
-
-  function averageRankFallbackKey(index = 0) {
-    return `9999-99-99 99999999 ${String(index).padStart(8, '0')}`;
-  }
-
-  function buildOverviewStyleRank(
-    rowsForWar,
-    metric,
-    desc = true,
-    chronologyFields = [],
-  ) {
-    const eligibleRows = rowsForWar.filter(
-      (row) => row?.available?.[metric],
-    );
-
-    return Object.fromEntries(
-      [...eligibleRows]
-        .map((row, originalIndex) => ({
-          ...row,
-          originalIndex,
-        }))
-        .sort((a, b) => {
-          const av = Number(a[metric]) || 0;
-          const bv = Number(b[metric]) || 0;
-
-          if (av !== bv) {
-            return desc ? bv - av : av - bv;
-          }
-
-          for (const field of chronologyFields) {
-            const aKey = String(
-              a?.[field] ||
-                a?.fallbackKey ||
-                averageRankFallbackKey(a.originalIndex),
-            );
-            const bKey = String(
-              b?.[field] ||
-                b?.fallbackKey ||
-                averageRankFallbackKey(b.originalIndex),
-            );
-
-            if (aKey !== bKey) {
-              return aKey.localeCompare(bKey);
-            }
-          }
-
-          return (
-            String(
-              a?.fallbackKey ||
-                averageRankFallbackKey(a.originalIndex),
-            ).localeCompare(
-              String(
-                b?.fallbackKey ||
-                  averageRankFallbackKey(b.originalIndex),
-              ),
-            ) ||
-            a.originalIndex - b.originalIndex ||
-            String(a.name).localeCompare(String(b.name))
-          );
-        })
-        .map((row, index) => [row.playerKey, index + 1]),
-    );
-  }
-
-  function buildOverviewCombatRows(warEvents) {
-    const sortedEvents = getWarEventsSorted(warEvents || []).filter(
-      (event) =>
-        event?.hasTimestamp !== false &&
-        event?.source !== 'summary' &&
-        (event?.type === 'kill' || event?.type === 'death'),
-    );
-    const playersByKey = {};
-    const currentStreak = {};
-    const killEventsByPlayer = {};
-
-    function ensureCombatPlayer(rawName, fallbackIndex = 0) {
-      const playerKey = normalizeAverageRankPlayerName(rawName);
-
-      if (!playerKey) return null;
-
-      playersByKey[playerKey] ||= {
-        playerKey,
-        name: String(rawName || '').trim() || playerKey,
-        kills: 0,
-        deaths: 0,
-        kdNumber: 0,
-        streak: 0,
-        feed: 0,
-        damageDealt: 0,
-        damageTaken: 0,
-        ccHits: 0,
-        fortDamage: 0,
-        firstKey: '',
-        lastKey: '',
-        finalKillKey: '',
-        finalDeathKey: '',
-        streakKey: '',
-        feedKey: '',
-        fallbackKey: averageRankFallbackKey(fallbackIndex),
-        available: {
-          kills: true,
-          deaths: true,
-          kdNumber: true,
-          streak: true,
-          feed: true,
-          damageDealt: false,
-          damageTaken: false,
-          ccHits: false,
-          fortDamage: false,
-        },
-      };
-
-      return playersByKey[playerKey];
-    }
-
-    sortedEvents.forEach((event, index) => {
-      const rawName = getAverageRankEventPlayer(event);
-      const player = ensureCombatPlayer(rawName, index);
-
-      if (!player) return;
-
-      const key = averageRankEventKey(event);
-
-      player.firstKey ||= key;
-      player.lastKey = key;
-
-      if (event.type === 'kill') {
-        player.kills += 1;
-        player.finalKillKey = key;
-
-        currentStreak[player.playerKey] =
-          (currentStreak[player.playerKey] || 0) + 1;
-
-        if (currentStreak[player.playerKey] > player.streak) {
-          player.streak = currentStreak[player.playerKey];
-          player.streakKey = key;
+  return {
+    topFragger: bestStatRecord(
+      'kills',
+      (record) => record.kills > 0,
+    ),
+    bestKd: bestStatRecord(
+      'kd',
+      (record) => record.kills > 0,
+    ),
+    damageLeader: bestStatRecord(
+      'damage',
+      (record) => record.damage > 0,
+    ),
+    fortBreaker: bestStatRecord(
+      'fortDamage',
+      (record) => record.fortDamage > 0,
+    ),
+    longestStreak,
+    bestFeed: bestFeedRecord
+      ? {
+          ...bestFeedRecord,
+          value: bestFeedRecord.killFeed,
         }
+      : null,
+  };
+}
 
-        killEventsByPlayer[player.playerKey] ||= [];
-        killEventsByPlayer[player.playerKey].push({
-          sec: Number(event?.sec) || 0,
-          key,
-        });
-      }
+function buildCombatStreakMetrics(stats) {
+  const eventsByWar = new Map();
 
-      if (event.type === 'death') {
-        player.deaths += 1;
-        player.finalDeathKey = key;
-        currentStreak[player.playerKey] = 0;
-      }
-    });
-
-    Object.values(playersByKey).forEach((player) => {
-      player.kdNumber = player.deaths
-        ? Number((player.kills / player.deaths).toFixed(2))
-        : Number(player.kills.toFixed(2));
-
-      const killEvents = killEventsByPlayer[player.playerKey] || [];
-      let left = 0;
-      let best = 0;
-      let bestKey = '';
-
-      for (let right = 0; right < killEvents.length; right += 1) {
-        while (
-          killEvents[right].sec - killEvents[left].sec > 30
-        ) {
-          left += 1;
-        }
-
-        const count = right - left + 1;
-        const windowKey = killEvents[left]?.key || '';
-
-        if (
-          count > best ||
-          (count === best &&
-            windowKey &&
-            (!bestKey || windowKey < bestKey))
-        ) {
-          best = count;
-          bestKey = windowKey;
-        }
-      }
-
-      player.feed = best;
-      player.feedKey = bestKey;
-    });
-
-    return playersByKey;
-  }
-
-  function buildOverviewSecondaryRows(
-    rowsForWar,
-    warPresence,
-    warIndex,
-  ) {
-    const playersByKey = {};
-
-    (rowsForWar || []).forEach((row, rowIndex) => {
-      const rawName = getSecondaryPlayerName(row);
-      const playerKey = normalizeAverageRankPlayerName(rawName);
-
-      if (!playerKey) return;
-
-      const player =
-        playersByKey[playerKey] ||
-        {
-          playerKey,
-          name: String(rawName || '').trim() || playerKey,
-          kills: 0,
-          deaths: 0,
-          kdNumber: 0,
-          streak: 0,
-          feed: 0,
-          damageDealt: 0,
-          damageTaken: 0,
-          ccHits: 0,
-          fortDamage: 0,
-          firstKey: '',
-          lastKey: '',
-          finalKillKey: '',
-          finalDeathKey: '',
-          streakKey: '',
-          feedKey: '',
-          fallbackKey: averageRankFallbackKey(
-            warIndex * 1000 + rowIndex,
-          ),
-          available: {
-            kills: false,
-            deaths: false,
-            kdNumber: false,
-            streak: false,
-            feed: false,
-            damageDealt: false,
-            damageTaken: false,
-            ccHits: false,
-            fortDamage: false,
-          },
-        };
-
-      const hasKills = getSecondaryMetricExists(
-        row,
-        'kills',
-        warPresence,
-      );
-      const hasDeaths = getSecondaryMetricExists(
-        row,
-        'deaths',
-        warPresence,
-      );
-      const hasFeed = getSecondaryMetricExists(
-        row,
-        'feed',
-        warPresence,
-      );
-      const hasDamageDealt = getSecondaryMetricExists(
-        row,
-        'damageDealt',
-        warPresence,
-      );
-      const hasDamageTaken = getSecondaryMetricExists(
-        row,
-        'damageTaken',
-        warPresence,
-      );
-      const hasCcHits = getSecondaryMetricExists(
-        row,
-        'ccHits',
-        warPresence,
-      );
-      const hasFortDamage = getSecondaryMetricExists(
-        row,
-        'fortDamage',
-        warPresence,
-      );
-
-      if (hasKills) {
-        player.kills = getSecondaryMetricNumber(
-          row,
-          'kills',
-          0,
-        );
-        player.available.kills = true;
-      }
-
-      if (hasDeaths) {
-        player.deaths = getSecondaryMetricNumber(
-          row,
-          'deaths',
-          0,
-        );
-        player.available.deaths = true;
-      }
-
-      player.available.kdNumber =
-        player.available.kills &&
-        player.available.deaths;
-
-      if (player.available.kdNumber) {
-        player.kdNumber = player.deaths
-          ? Number(
-              (player.kills / player.deaths).toFixed(2),
-            )
-          : Number(player.kills.toFixed(2));
-      }
-
-      if (hasFeed) {
-        player.feed = getSecondaryMetricNumber(
-          row,
-          'feed',
-          0,
-        );
-        player.available.feed = true;
-      }
-
-      if (hasDamageDealt) {
-        player.damageDealt = getSecondaryMetricNumber(
-          row,
-          'damageDealt',
-          0,
-        );
-        player.available.damageDealt = true;
-      }
-
-      if (hasDamageTaken) {
-        player.damageTaken = getSecondaryMetricNumber(
-          row,
-          'damageTaken',
-          0,
-        );
-        player.available.damageTaken = true;
-      }
-
-      if (hasCcHits) {
-        player.ccHits = getSecondaryMetricNumber(
-          row,
-          'ccHits',
-          0,
-        );
-        player.available.ccHits = true;
-      }
-
-      if (hasFortDamage) {
-        player.fortDamage = getSecondaryMetricNumber(
-          row,
-          'fortDamage',
-          0,
-        );
-        player.available.fortDamage = true;
-      }
-
-      playersByKey[playerKey] = player;
-    });
-
-    return playersByKey;
-  }
-
-  function mergeOverviewWarRows(
-    combatPlayers,
-    secondaryPlayers,
-    warIndex,
-  ) {
-    const playerKeys = new Set([
-      ...Object.keys(combatPlayers || {}),
-      ...Object.keys(secondaryPlayers || {}),
-    ]);
-
-    return [...playerKeys].map((playerKey, index) => {
-      const combat = combatPlayers?.[playerKey];
-      const secondary = secondaryPlayers?.[playerKey];
-      const hasCombat = Boolean(combat);
-
-      return {
-        playerKey,
-        name: combat?.name || secondary?.name || playerKey,
-        kills: hasCombat
-          ? combat.kills
-          : secondary?.kills || 0,
-        deaths: hasCombat
-          ? combat.deaths
-          : secondary?.deaths || 0,
-        kdNumber: hasCombat
-          ? combat.kdNumber
-          : secondary?.kdNumber || 0,
-        streak: hasCombat ? combat.streak : 0,
-        feed: hasCombat
-          ? combat.feed
-          : secondary?.feed || 0,
-        damageDealt: secondary?.damageDealt || 0,
-        damageTaken: secondary?.damageTaken || 0,
-        ccHits: secondary?.ccHits || 0,
-        fortDamage: secondary?.fortDamage || 0,
-        firstKey: combat?.firstKey || '',
-        lastKey: combat?.lastKey || '',
-        finalKillKey: combat?.finalKillKey || '',
-        finalDeathKey: combat?.finalDeathKey || '',
-        streakKey: combat?.streakKey || '',
-        feedKey: combat?.feedKey || '',
-        fallbackKey:
-          combat?.firstKey ||
-          secondary?.fallbackKey ||
-          averageRankFallbackKey(
-            warIndex * 1000 + index,
-          ),
-        available: {
-          kills:
-            hasCombat ||
-            Boolean(secondary?.available?.kills),
-          deaths:
-            hasCombat ||
-            Boolean(secondary?.available?.deaths),
-          kdNumber:
-            hasCombat ||
-            Boolean(secondary?.available?.kdNumber),
-          streak: hasCombat,
-          feed:
-            hasCombat ||
-            Boolean(secondary?.available?.feed),
-          damageDealt: Boolean(
-            secondary?.available?.damageDealt,
-          ),
-          damageTaken: Boolean(
-            secondary?.available?.damageTaken,
-          ),
-          ccHits: Boolean(
-            secondary?.available?.ccHits,
-          ),
-          fortDamage: Boolean(
-            secondary?.available?.fortDamage,
-          ),
-        },
-      };
-    });
-  }
-
-  const averageRankCombatWarMap = {};
-  const averageRankSecondaryWarMap = {};
-
-  events.forEach((event, index) => {
+  (stats?.ev || []).forEach((event, index) => {
     const warId = String(
       event?.id ||
         event?.war ||
         event?.date ||
-        `combat-${index}`,
+        `combat-war-${index}`,
     );
 
-    averageRankCombatWarMap[warId] ||= [];
-    averageRankCombatWarMap[warId].push(event);
+    if (!eventsByWar.has(warId)) {
+      eventsByWar.set(warId, []);
+    }
+
+    eventsByWar.get(warId).push(event);
   });
 
-  (Array.isArray(secondaryRows) ? secondaryRows : []).forEach(
-    (row, index) => {
-      const warId = secondaryWarId(row, index);
+  const byPlayer = new Map();
 
-      averageRankSecondaryWarMap[warId] ||= [];
-      averageRankSecondaryWarMap[warId].push(row);
-    },
-  );
+  eventsByWar.forEach((events) => {
+    const warStreaks = calculateStreaks(events);
 
-  const averageRankWarIds = [
-    ...new Set([
-      ...Object.keys(averageRankCombatWarMap),
-      ...Object.keys(averageRankSecondaryWarMap),
-    ]),
-  ];
-  const averageRankResult = {};
+    Object.entries(warStreaks || {}).forEach(([name, value]) => {
+      const key = String(name || '').trim().toLowerCase();
+      const streak = num(value);
 
-  function ensureAverageRankPlayer(row) {
-    averageRankResult[row.playerKey] ||= {
-      name: row.name,
-      matches: 0,
-      metricTotals: {
-        kills: 0,
-        deaths: 0,
-        kd: 0,
-        streak: 0,
-        feed: 0,
-        damageDealt: 0,
-        damageTaken: 0,
-        ccHits: 0,
-        fortDamage: 0,
-      },
-      metricMatches: {
-        kills: 0,
-        deaths: 0,
-        kd: 0,
-        streak: 0,
-        feed: 0,
-        damageDealt: 0,
-        damageTaken: 0,
-        ccHits: 0,
-        fortDamage: 0,
-      },
-    };
+      if (!key) return;
 
-    return averageRankResult[row.playerKey];
-  }
-
-  const averageRankMetricSettings = {
-    kills: {
-      rowMetric: 'kills',
-      desc: true,
-      chronology: ['finalKillKey', 'firstKey'],
-    },
-    deaths: {
-      rowMetric: 'deaths',
-      desc: false,
-      chronology: ['finalDeathKey', 'firstKey'],
-    },
-    kd: {
-      rowMetric: 'kdNumber',
-      desc: true,
-      chronology: ['lastKey', 'firstKey'],
-    },
-    streak: {
-      rowMetric: 'streak',
-      desc: true,
-      chronology: ['streakKey', 'firstKey'],
-    },
-    feed: {
-      rowMetric: 'feed',
-      desc: true,
-      chronology: ['feedKey', 'firstKey'],
-    },
-    damageDealt: {
-      rowMetric: 'damageDealt',
-      desc: true,
-      chronology: ['firstKey', 'lastKey'],
-    },
-    damageTaken: {
-      rowMetric: 'damageTaken',
-      desc: false,
-      chronology: ['firstKey', 'lastKey'],
-    },
-    ccHits: {
-      rowMetric: 'ccHits',
-      desc: true,
-      chronology: ['firstKey', 'lastKey'],
-    },
-    fortDamage: {
-      rowMetric: 'fortDamage',
-      desc: true,
-      chronology: ['firstKey', 'lastKey'],
-    },
-  };
-
-  averageRankWarIds.forEach((warId, warIndex) => {
-    const combatPlayers = buildOverviewCombatRows(
-      averageRankCombatWarMap[warId] || [],
-    );
-    const secondaryPlayers = buildOverviewSecondaryRows(
-      averageRankSecondaryWarMap[warId] || [],
-      secondaryWarPresence[warId] || {},
-      warIndex,
-    );
-    const rowsForWar = mergeOverviewWarRows(
-      combatPlayers,
-      secondaryPlayers,
-      warIndex,
-    );
-
-    if (!rowsForWar.length) return;
-
-    const ranks = Object.fromEntries(
-      Object.entries(averageRankMetricSettings).map(
-        ([metric, settings]) => [
-          metric,
-          buildOverviewStyleRank(
-            rowsForWar,
-            settings.rowMetric,
-            settings.desc,
-            settings.chronology,
-          ),
-        ],
-      ),
-    );
-
-    rowsForWar.forEach((row) => {
-      const entry = ensureAverageRankPlayer(row);
-      let hasAnyRank = false;
-
-      Object.keys(averageRankMetricSettings).forEach(
-        (metric) => {
-          const rank = ranks[metric]?.[row.playerKey];
-
-          if (
-            rank === null ||
-            rank === undefined ||
-            !Number.isFinite(Number(rank)) ||
-            Number(rank) <= 0
-          ) {
-            return;
-          }
-
-          hasAnyRank = true;
-          entry.metricTotals[metric] += Number(rank);
-          entry.metricMatches[metric] += 1;
-        },
-      );
-
-      if (hasAnyRank) {
-        entry.matches += 1;
+      if (!byPlayer.has(key)) {
+        byPlayer.set(key, {
+          total: 0,
+          maximum: 0,
+        });
       }
+
+      const player = byPlayer.get(key);
+      player.total += streak;
+      player.maximum = Math.max(player.maximum, streak);
     });
   });
 
-  const averageRankTable = Object.fromEntries(
-    Object.entries(averageRankResult).map(
-      ([playerKey, data]) => {
-        const columnRanks = Object.fromEntries(
-          Object.keys(data.metricTotals).map((metric) => [
-            metric,
-            data.metricMatches[metric]
-              ? data.metricTotals[metric] /
-                data.metricMatches[metric]
-              : null,
-          ]),
-        );
+  return byPlayer;
+}
 
-        const availableColumnRanks = Object.values(
-          columnRanks,
-        ).filter(
-          (value) =>
-            value !== null &&
-            value !== undefined &&
-            Number.isFinite(Number(value)),
-        );
-
-        const average = availableColumnRanks.length
-          ? availableColumnRanks.reduce(
-              (sum, value) => sum + Number(value),
-              0,
-            ) / availableColumnRanks.length
-          : null;
-
-        return [
-          playerKey,
-          {
-            name: data.name,
-            matches: data.matches,
-            ranks: columnRanks,
-            average,
-          },
-        ];
-      },
-    ),
+function buildMonthlyPerformancePlayers(
+  stats,
+  statLogPlayers,
+  warCounts,
+) {
+  const primaryByName = new Map(
+    (stats?.players || []).map((player) => [
+      String(player?.name || '').trim().toLowerCase(),
+      player,
+    ]),
   );
 
-  function getOverviewFormulaAverageRank(name) {
-    const playerKey = normalizeAverageRankPlayerName(name);
-    const result = averageRankTable[playerKey];
-    const average = Number(result?.average);
+  const statsLogByName = new Map(
+    (statLogPlayers || []).map((player) => [
+      String(player?.name || '').trim().toLowerCase(),
+      player,
+    ]),
+  );
 
-    return Number.isFinite(average)
-      ? Number(average.toFixed(2))
-      : null;
-  }
+  const warsByName = new Map(
+    Object.entries(warCounts || {}).map(([name, wars]) => [
+      String(name || '').trim().toLowerCase(),
+      num(wars),
+    ]),
+  );
 
-  function getOverviewFormulaAverageRankMatchCount(name) {
-    const playerKey = normalizeAverageRankPlayerName(name);
+  const streakMetricsByName = buildCombatStreakMetrics(stats);
+  const chronologyByName = buildPlayerChronology(stats);
 
-    return Number(averageRankTable[playerKey]?.matches) || 0;
-  }
+  const playerKeys = new Set([
+    ...primaryByName.keys(),
+    ...statsLogByName.keys(),
+    ...warsByName.keys(),
+    ...streakMetricsByName.keys(),
+  ]);
 
-  const rows = (safe.players || [])
-    .map((player) => {
-      const kills = num(player.kills);
-      const deaths = num(player.deaths);
-      const ratio = kd(kills, deaths);
-      const streak = num(safe.st?.[player.name]);
-      const feed = num(safe.fd?.[player.name]);
-      const damageDealt = num(player.damageDealt);
-      const damageTaken = num(player.damageTaken);
-      const ccHits = num(player.ccHits);
-      const fortDamage = num(player.fortDamage);
-      const matchValues = getPlayerMatchValues(player.name);
-      const avgKillsMatchCount = matchValues.length;
-      const trackedWars = Object.keys(playerMatchMap[player.name] || {}).length;
+  return [...playerKeys]
+    .map((key) => {
+      const primary = primaryByName.get(key);
+      const secondary = statsLogByName.get(key);
+      const name =
+        secondary?.name ||
+        primary?.name ||
+        key;
+
+      const kills = secondary
+        ? num(secondary.kills)
+        : num(primary?.kills);
+      const deaths = secondary
+        ? num(secondary.deaths)
+        : num(primary?.deaths);
+
       const wars = Math.max(
-        trackedWars,
-        num(player.wars),
-        num(player.warCount),
-        num(player.matches),
+        num(warsByName.get(key)),
+        num(secondary?.wars),
       );
-      const maxMatchKills = Math.max(
-        0,
-        ...matchValues.map((match) => Number(match.kills) || 0),
-      );
-      const fiftyPlusKillWars = matchValues.filter(
-        (match) => (Number(match.kills) || 0) >= 50,
-      ).length;
-      const kdMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
-        (match) => match.hasKills || match.hasDeaths,
-      );
-      const maxMatchKd = Math.max(
-        0,
-        ...kdMatchValues.map((match) =>
-          kd(Number(match.kills) || 0, Number(match.deaths) || 0),
-        ),
-      );
-      const avgKillsPerMatch = getPlayerAvgKills(player.name);
-      const avgKdPerMatch = getPlayerAvgKd(player.name);
-      const avgKdMatchCount = kdMatchValues.length;
-      const allTrackedMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
-        (match) =>
-          match.hasKills ||
-          match.hasDeaths ||
-          match.hasDamageDealt ||
-          match.hasFortDamage ||
-          match.hasCcHits,
-      );
-      const hallMatchCount = allTrackedMatchValues.length;
-      const damageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
-        (match) => match.hasDamageDealt,
-      );
-      const fortDamageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
-        (match) => match.hasFortDamage,
-      );
-      const ccHitsMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
-        (match) => match.hasCcHits,
-      );
-      const maxMatchDamageDealt = Math.max(
-        0,
-        ...damageMatchValues.map((match) => Number(match.damageDealt) || 0),
-      );
-      const maxMatchFortDamage = Math.max(
-        0,
-        ...fortDamageMatchValues.map((match) => Number(match.fortDamage) || 0),
-      );
-      const maxMatchCcHits = Math.max(
-        0,
-        ...ccHitsMatchValues.map((match) => Number(match.ccHits) || 0),
-      );
-      const avgDamageDealtPerMatch = getPlayerAvgDamageDealt(player.name);
-      const avgDamageDealtMatchCount = damageMatchValues.length;
-      const avgCcHitsPerMatch = getPlayerAvgCcHits(player.name);
-      const avgCcHitsMatchCount = ccHitsMatchValues.length;
-      const joinParticipation = getJoinParticipation(player.name);
-      const consecutiveWars = getLongestConsecutiveWarStreak(player.name);
-      const averageRank =
-        getOverviewFormulaAverageRank(player.name);
-      const averageRankMatchCount =
-        getOverviewFormulaAverageRankMatchCount(player.name);
-      const chronologyKey = getPlayerChronologyKey(player.name);
-      const score = Math.max(
-        0,
-        Math.round(
-          kills * 3 +
-            ratio * 420 +
-            streak * 90 +
-            feed * 120 +
-            wars * 60 +
-            damageDealt / 2_000_000 +
-            fortDamage / 1_000_000 +
-            ccHits * 8 -
-            deaths * 0.7,
-        ),
-      );
-
-      let title = 'Guild Veteran';
-      if (kills >= 1000) title = 'Top Fragger';
-      if (ratio >= 4) title = 'Best K/D';
-      if (streak >= 15) title = 'Clutch King';
-      if (feed >= 7) title = 'Killfeed Master';
-      if (wars >= 8) title = 'Siege Veteran';
+      const streakMetrics = streakMetricsByName.get(key);
+      const chronology = chronologyByName.get(key);
 
       return {
-        ...player,
+        name,
+        wars,
+        firstAppearanceTime:
+          chronology?.time ?? Number.POSITIVE_INFINITY,
+        firstAppearanceOrder:
+          chronology?.order ?? Number.POSITIVE_INFINITY,
         kills,
         deaths,
-        kd: ratio,
-        streak,
-        feed,
-        wars,
-        damageDealt,
-        damageTaken,
-        ccHits,
-        fortDamage,
-        maxMatchKills,
-        fiftyPlusKillWars,
-        maxMatchKd,
-        hallMatchCount,
-        avgKillsPerMatch,
-        avgKillsMatchCount,
-        avgKdPerMatch,
-        avgKdMatchCount,
-        maxMatchDamageDealt,
-        maxMatchFortDamage,
-        maxMatchCcHits,
-        avgDamageDealtPerMatch,
-        avgDamageDealtMatchCount,
-        avgCcHitsPerMatch,
-        avgCcHitsMatchCount,
-        joinParticipation,
-        consecutiveWars,
-        averageRank,
-        averageRankMatchCount,
-        chronologyKey,
-        score,
-        title,
+        kd: ratio(kills, deaths),
+        averageKd: secondary
+          ? num(secondary.averageKd)
+          : ratio(kills, deaths),
+        averageDamageDealt: secondary
+          ? num(secondary.averageDamageDealt)
+          : wars > 0
+            ? readStatMetric(
+                primary,
+                [
+                  'damageDealt',
+                  'damage_dealt',
+                  'damage dealt',
+                  'damageDone',
+                  'damage',
+                ],
+                0,
+              ) / wars
+            : 0,
+        averageCcHits: secondary
+          ? num(secondary.averageCcHits)
+          : wars > 0
+            ? readStatMetric(
+                primary,
+                [
+                  'ccHits',
+                  'cc_hits',
+                  'cc hits',
+                  'CC Hits',
+                  'cc',
+                  'CC',
+                ],
+                0,
+              ) / wars
+            : 0,
+        killStreak: num(streakMetrics?.total),
+        longestKillStreak: num(streakMetrics?.maximum),
+        killFeed: secondary
+          ? num(secondary.killFeedTotal)
+          : readStatMetric(
+              primary,
+              ['killFeed', 'feed'],
+              0,
+            ),
+        bestKillFeed: secondary
+          ? num(secondary.killFeed)
+          : readStatMetric(
+              primary,
+              ['killFeed', 'feed'],
+              0,
+            ),
+        damageDealt: secondary
+          ? num(secondary.damage)
+          : readStatMetric(
+              primary,
+              [
+                'damageDealt',
+                'damage_dealt',
+                'damage dealt',
+                'damageDone',
+                'damage',
+              ],
+              0,
+            ),
+        damageTaken: secondary
+          ? num(secondary.damageTaken)
+          : readStatMetric(
+              primary,
+              [
+                'damageTaken',
+                'damage_taken',
+                'damage taken',
+                'Damage Taken',
+              ],
+              0,
+            ),
+        ccHits: secondary
+          ? num(secondary.ccHits)
+          : readStatMetric(
+              primary,
+              [
+                'ccHits',
+                'cc_hits',
+                'cc hits',
+                'CC Hits',
+                'cc',
+                'CC',
+              ],
+              0,
+            ),
+        fortDamage: secondary
+          ? num(secondary.fortDamage)
+          : readStatMetric(
+              primary,
+              [
+                'fortDamage',
+                'damageToFort',
+                'damage_to_fort',
+                'damage to fort',
+                'Fort Damage',
+              ],
+              0,
+            ),
       };
     })
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        compareChronology(a, b),
-    );
-
-  const leaderboardRows = rows.filter((row) => row.wars >= minimumWars);
-  const eligiblePlayerNames = new Set(leaderboardRows.map((row) => row.name));
-
-  const bestKd =
-    [...leaderboardRows]
-      .filter((row) => row.kills >= 5)
-      .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0] ||
-    leaderboardRows[0];
-
-  const topKills =
-    [...leaderboardRows].sort(
-      (a, b) => b.kills - a.kills || compareChronology(a, b),
-    )[0] || leaderboardRows[0];
-
-  const topStreak =
-    [...leaderboardRows].sort(
-      (a, b) => b.streak - a.streak || compareChronology(a, b),
-    )[0] || leaderboardRows[0];
-
-  const topFeed =
-    [...leaderboardRows].sort(
-      (a, b) => b.feed - a.feed || compareChronology(a, b),
-    )[0] || leaderboardRows[0];
-
-  const topWars =
-    [...leaderboardRows].sort(
-      (a, b) => b.wars - a.wars || compareChronology(a, b),
-    )[0] || leaderboardRows[0];
-
-  const achievements = [
-    { title: 'Hall MVP', icon: Crown, player: leaderboardRows[0], value: shortNum(leaderboardRows[0]?.score), sub: 'Highest total score', tone: 'amber' },
-    { title: 'Top Fragger', icon: Swords, player: topKills, value: nf.format(topKills?.kills || 0), sub: 'Most kills', tone: 'rose' },
-    { title: 'Best K/D', icon: Target, player: bestKd, value: (bestKd?.kd || 0).toFixed(2), sub: 'Best ratio', tone: 'emerald' },
-    { title: 'Clutch King', icon: Flame, player: topStreak, value: nf.format(topStreak?.streak || 0), sub: 'Longest streak', tone: 'orange' },
-    { title: 'Killfeed Master', icon: Zap, player: topFeed, value: nf.format(topFeed?.feed || 0), sub: 'Best feed', tone: 'cyan' },
-    { title: 'Siege Veteran', icon: Shield, player: topWars, value: nf.format(topWars?.wars || 0), sub: 'Most wars', tone: 'blue' },
-  ];
-
-  const months = Object.values(
-    events.reduce((acc, event) => {
-      const month = String(event.date || '').slice(0, 7) || 'Unknown';
-      acc[month] ||= { month, kills: 0, deaths: 0, wars: new Set() };
-
-      if (event.type === 'death') acc[month].deaths += 1;
-      else if (getGuildKillPlayer(event)) acc[month].kills += 1;
-
-      acc[month].wars.add(String(event.id || event.date));
-
-      return acc;
-    }, {}),
-  )
-    .map((item) => ({ ...item, wars: item.wars.size }))
-    .sort((a, b) => b.month.localeCompare(a.month));
-
-  const thresholdLeaderboards = Object.fromEntries(
-    thresholds.map((threshold) => [
-      threshold,
-      {
-        first: [...thresholdReached[threshold]]
-          .filter((item) => eligiblePlayerNames.has(item.name))
-          .sort(
-            (a, b) =>
-              a.globalWarIndex - b.globalWarIndex ||
-              compareChronology(a, b),
-          )
-          .slice(0, 10),
-        fastest: [...thresholdReached[threshold]]
-          .filter((item) => eligiblePlayerNames.has(item.name))
-          .sort(
-            (a, b) =>
-              a.fromPlayerFirstLogWars - b.fromPlayerFirstLogWars ||
-              a.globalWarIndex - b.globalWarIndex ||
-              compareChronology(a, b),
-          )
-          .slice(0, 10),
-      },
-    ]),
-  );
-
-  return {
-    rows: leaderboardRows,
-    achievements,
-    months,
-    thresholdLeaderboards,
-    topKillers: [...leaderboardRows]
-      .filter((row) => row.kills > 0)
-      .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
-      .slice(0, 10),
-    topDamagePlayers: [...leaderboardRows]
-      .filter((row) => row.damageDealt > 0)
-      .sort((a, b) => b.damageDealt - a.damageDealt || compareChronology(a, b))
-      .slice(0, 10),
-    totals: {
-      kills: num(safe.kills) || rows.reduce((sum, row) => sum + row.kills, 0),
-      deaths: num(safe.deaths) || rows.reduce((sum, row) => sum + row.deaths, 0),
-      kd: num(safe.kd) || kd(num(safe.kills), num(safe.deaths)),
-      players: leaderboardRows.length,
-      wars: totalWars,
-      score: rows.reduce((sum, row) => sum + row.score, 0),
-      damageDealt: rows.reduce((sum, row) => sum + row.damageDealt, 0),
-    },
-  };
+    .filter((player) => String(player.name || '').trim());
 }
 
-function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
-  const safe = stats?.players?.length ? stats : demoStats;
-  const signature = hallStatsSignature(safe, minimumWars);
+function buildPlayerWarCounts(stats) {
+  const map = new Map();
 
-  if (safe && typeof safe === 'object') {
-    const objectEntry = hallDataObjectCache.get(safe);
+  function add(name, warId) {
+    const cleanName = String(name || '').trim();
+    const cleanWar = String(warId || '').trim();
 
-    if (
-      objectEntry?.signature === signature &&
-      objectEntry?.data
-    ) {
-      return objectEntry.data;
+    if (!cleanName || !cleanWar) return;
+
+    if (!map.has(cleanName)) {
+      map.set(cleanName, new Set());
+    }
+
+    map.get(cleanName).add(cleanWar);
+  }
+
+  (stats?.ev || []).forEach((event, index) => {
+    add(
+      getGuildPlayer(event),
+      event?.id || event?.war || event?.date || `event-${index}`,
+    );
+  });
+
+  (stats?.secondary?.rows || []).forEach((row, index) => {
+    add(
+      row?.player || row?.name,
+      row?.id || row?.war || row?.date || `secondary-${index}`,
+    );
+  });
+
+  return Object.fromEntries(
+    [...map.entries()].map(([name, wars]) => [name, wars.size]),
+  );
+}
+
+// A guild encounter qualifies only when that exact Node War reaches
+// the requested combined kills + deaths threshold.
+function getWarGuildBreakdown(log, minimumInteractions = 30) {
+  const summary = log?.summary || log?.stats || log?.analytics || {};
+  const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
+
+  return guilds
+    .map((guild) => ({
+      name: cleanGuild(guild?.name),
+      // Same interpretation used by Overview:
+      // our kills are the enemy guild's recorded deaths,
+      // our deaths are the enemy guild's recorded kills.
+      kills: num(guild?.deaths),
+      deaths: num(guild?.kills),
+    }))
+    .filter(
+      (guild) =>
+        guild.name &&
+        guild.kills + guild.deaths >= minimumInteractions,
+    )
+    .sort(
+      (a, b) =>
+        b.kills + b.deaths - (a.kills + a.deaths) ||
+        b.kills - a.kills ||
+        a.name.localeCompare(b.name),
+    );
+}
+
+function getFeaturedWarGuild(log, minimumInteractions = 30) {
+  return (
+    getWarGuildBreakdown(log, minimumInteractions)[0] ||
+    null
+  );
+}
+
+function buildEnemyRows(
+  logs,
+  stats,
+  minimumInteractions = 30,
+) {
+  const byGuild = {};
+
+  function add(name, kills, deaths, warId) {
+    const guildName = cleanGuild(name);
+
+    if (!guildName) return;
+
+    byGuild[guildName] ||= {
+      name: guildName,
+      kills: 0,
+      deaths: 0,
+      wars: new Set(),
+      warRows: [],
+    };
+
+    byGuild[guildName].kills += num(kills);
+    byGuild[guildName].deaths += num(deaths);
+
+    if (warId) {
+      byGuild[guildName].wars.add(String(warId));
     }
   }
 
-  const signatureEntry =
-    hallDataSignatureCache.get(signature);
+  (logs || []).forEach((log, index) => {
+    const summary = log?.summary || {};
+    const guilds = Array.isArray(summary?.guilds) ? summary.guilds : [];
+    const warId = log?.id || dateOf(log) || `log-${index}`;
 
-  if (signatureEntry) {
-    // Refresh LRU order.
-    hallDataSignatureCache.delete(signature);
-    hallDataSignatureCache.set(signature, signatureEntry);
+    guilds.forEach((guild) => {
+      // Same formula and field direction as Overview.
+      const ourKills = num(guild?.deaths);
+      const ourDeaths = num(guild?.kills);
+      const totalInteractions = ourKills + ourDeaths;
 
-    if (safe && typeof safe === 'object') {
-      hallDataObjectCache.set(safe, {
-        signature,
-        data: signatureEntry,
-      });
-    }
+      if (totalInteractions < minimumInteractions) return;
 
-    return signatureEntry;
-  }
+      add(guild?.name, ourKills, ourDeaths, warId);
+    });
+  });
 
-  const data = computeHallData(safe, minimumWars);
+  if (!Object.keys(byGuild).length) {
+    (stats?.ev || []).forEach((event, index) => {
+      const guild = cleanGuild(event?.guild);
+      const warId = event?.id || event?.war || event?.date || `event-${index}`;
 
-  rememberHallData(signature, data);
-
-  if (safe && typeof safe === 'object') {
-    hallDataObjectCache.set(safe, {
-      signature,
-      data,
+      if (event?.type === 'kill') add(guild, 1, 0, warId);
+      if (event?.type === 'death') add(guild, 0, 1, warId);
     });
   }
 
-  return data;
+  return Object.values(byGuild)
+    .map((guild) => {
+      const kills = num(guild.kills);
+      const deaths = num(guild.deaths);
+      const totalInteractions = kills + deaths;
+      const kd = ratio(kills, deaths);
+
+      return {
+        name: guild.name,
+        wars: guild.wars.size,
+        kills,
+        deaths,
+        totalInteractions,
+        kd,
+      };
+    })
+    .filter(
+      (guild) =>
+        guild.wars > 0 &&
+        guild.totalInteractions >= minimumInteractions,
+    )
+    .sort(
+      (a, b) =>
+        b.wars - a.wars ||
+        b.kills + b.deaths - (a.kills + a.deaths) ||
+        a.name.localeCompare(b.name),
+    );
 }
 
-const toneClasses = {
-  amber: {
-    soft: 'border-amber-400/25 bg-amber-500/10 text-amber-300 shadow-amber-500/10',
-    text: 'text-amber-300',
-    bar: 'from-amber-500 to-yellow-300',
-    glow: 'shadow-[0_0_35px_rgba(245,158,11,.18)]',
-  },
-  rose: {
-    soft: 'border-rose-400/25 bg-rose-500/10 text-rose-300 shadow-rose-500/10',
-    text: 'text-rose-300',
-    bar: 'from-rose-500 to-red-300',
-    glow: 'shadow-[0_0_35px_rgba(244,63,94,.15)]',
-  },
-  emerald: {
-    soft: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300 shadow-emerald-500/10',
-    text: 'text-emerald-300',
-    bar: 'from-emerald-500 to-lime-300',
-    glow: 'shadow-[0_0_35px_rgba(16,185,129,.15)]',
-  },
-  greenDeep: {
-    soft: 'border-emerald-700/30 bg-emerald-950/20 text-emerald-300 shadow-emerald-900/10',
-    text: 'text-emerald-300',
-    bar: 'from-emerald-900 to-emerald-500',
-    glow: 'shadow-[0_0_35px_rgba(6,78,59,.16)]',
-  },
-  greenEmerald: {
-    soft: 'border-emerald-500/28 bg-emerald-500/12 text-emerald-200 shadow-emerald-500/10',
-    text: 'text-emerald-200',
-    bar: 'from-emerald-600 to-green-300',
-    glow: 'shadow-[0_0_35px_rgba(16,185,129,.16)]',
-  },
-  greenMint: {
-    soft: 'border-teal-400/28 bg-teal-500/10 text-teal-200 shadow-teal-400/10',
-    text: 'text-teal-200',
-    bar: 'from-teal-500 to-emerald-200',
-    glow: 'shadow-[0_0_35px_rgba(45,212,191,.14)]',
-  },
-  greenLime: {
-    soft: 'border-lime-400/28 bg-lime-500/10 text-lime-300 shadow-lime-400/10',
-    text: 'text-lime-300',
-    bar: 'from-lime-500 to-green-300',
-    glow: 'shadow-[0_0_35px_rgba(132,204,22,.14)]',
-  },
-  greenTeal: {
-    soft: 'border-green-400/28 bg-green-500/10 text-green-300 shadow-green-400/10',
-    text: 'text-green-300',
-    bar: 'from-green-600 to-teal-300',
-    glow: 'shadow-[0_0_35px_rgba(34,197,94,.14)]',
-  },
-  yellowGold: {
-    soft: 'border-yellow-400/30 bg-yellow-500/12 text-yellow-300 shadow-yellow-500/10',
-    text: 'text-yellow-300',
-    bar: 'from-yellow-600 via-yellow-400 to-amber-300',
-    glow: 'shadow-[0_0_35px_rgba(234,179,8,.15)]',
-  },
-  yellowAmber: {
-    soft: 'border-amber-400/30 bg-amber-500/12 text-amber-300 shadow-amber-500/10',
-    text: 'text-amber-300',
-    bar: 'from-amber-600 via-yellow-400 to-yellow-200',
-    glow: 'shadow-[0_0_35px_rgba(245,158,11,.15)]',
-  },
-  yellowLemon: {
-    soft: 'border-yellow-300/30 bg-yellow-400/10 text-yellow-200 shadow-yellow-400/10',
-    text: 'text-yellow-200',
-    bar: 'from-yellow-500 via-yellow-300 to-lime-200',
-    glow: 'shadow-[0_0_35px_rgba(250,204,21,.14)]',
-  },
-  yellowHoney: {
-    soft: 'border-yellow-500/28 bg-yellow-500/12 text-yellow-300 shadow-yellow-500/10',
-    text: 'text-yellow-300',
-    bar: 'from-yellow-700 via-yellow-500 to-amber-300',
-    glow: 'shadow-[0_0_35px_rgba(234,179,8,.14)]',
-  },
-  yellowSand: {
-    soft: 'border-amber-300/26 bg-yellow-300/10 text-amber-200 shadow-yellow-300/10',
-    text: 'text-amber-200',
-    bar: 'from-amber-500 via-yellow-300 to-yellow-100',
-    glow: 'shadow-[0_0_35px_rgba(253,224,71,.12)]',
-  },
-  redDeep: {
-    soft: 'border-red-700/30 bg-red-950/20 text-red-300 shadow-red-900/10',
-    text: 'text-red-300',
-    bar: 'from-red-900 to-red-500',
-    glow: 'shadow-[0_0_35px_rgba(127,29,29,.16)]',
-  },
-  redCrimson: {
-    soft: 'border-red-500/28 bg-red-500/12 text-red-200 shadow-red-500/10',
-    text: 'text-red-200',
-    bar: 'from-red-600 to-rose-300',
-    glow: 'shadow-[0_0_35px_rgba(239,68,68,.15)]',
-  },
-  redRose: {
-    soft: 'border-rose-400/28 bg-rose-500/10 text-rose-200 shadow-rose-400/10',
-    text: 'text-rose-200',
-    bar: 'from-rose-600 to-red-300',
-    glow: 'shadow-[0_0_35px_rgba(244,63,94,.14)]',
-  },
-  redRuby: {
-    soft: 'border-red-400/28 bg-red-500/10 text-red-300 shadow-red-400/10',
-    text: 'text-red-300',
-    bar: 'from-red-500 to-orange-300',
-    glow: 'shadow-[0_0_35px_rgba(248,113,113,.14)]',
-  },
-  orange: {
-    soft: 'border-orange-400/25 bg-orange-500/10 text-orange-300 shadow-orange-500/10',
-    text: 'text-orange-300',
-    bar: 'from-orange-500 to-amber-300',
-    glow: 'shadow-[0_0_35px_rgba(249,115,22,.15)]',
-  },
-  cyan: {
-    soft: 'border-cyan-400/25 bg-cyan-500/10 text-cyan-300 shadow-cyan-500/10',
-    text: 'text-cyan-300',
-    bar: 'from-cyan-500 to-blue-300',
-    glow: 'shadow-[0_0_35px_rgba(6,182,212,.15)]',
-  },
-  blue: {
-    soft: 'border-blue-400/25 bg-blue-500/10 text-blue-300 shadow-blue-500/10',
-    text: 'text-blue-300',
-    bar: 'from-blue-500 to-sky-300',
-    glow: 'shadow-[0_0_35px_rgba(59,130,246,.18)]',
-  },
-  blueDark: {
-    soft: 'border-blue-700/30 bg-blue-900/18 text-blue-300 shadow-blue-800/10',
-    text: 'text-blue-300',
-    bar: 'from-blue-800 to-blue-500',
-    glow: 'shadow-[0_0_35px_rgba(30,64,175,.16)]',
-  },
-  blueRoyal: {
-    soft: 'border-blue-500/28 bg-blue-600/12 text-blue-200 shadow-blue-600/10',
-    text: 'text-blue-200',
-    bar: 'from-blue-600 to-blue-300',
-    glow: 'shadow-[0_0_35px_rgba(37,99,235,.16)]',
-  },
-  blueSky: {
-    soft: 'border-sky-400/28 bg-sky-500/10 text-sky-300 shadow-sky-500/10',
-    text: 'text-sky-300',
-    bar: 'from-sky-500 to-cyan-300',
-    glow: 'shadow-[0_0_35px_rgba(14,165,233,.15)]',
-  },
-  blueIce: {
-    soft: 'border-cyan-300/25 bg-cyan-500/10 text-cyan-200 shadow-cyan-400/10',
-    text: 'text-cyan-200',
-    bar: 'from-cyan-400 to-blue-200',
-    glow: 'shadow-[0_0_35px_rgba(34,211,238,.14)]',
-  },
-  blueIndigo: {
-    soft: 'border-indigo-400/28 bg-indigo-500/10 text-indigo-300 shadow-indigo-500/10',
-    text: 'text-indigo-300',
-    bar: 'from-indigo-500 to-blue-300',
-    glow: 'shadow-[0_0_35px_rgba(99,102,241,.15)]',
-  },
-  violet: {
-    soft: 'border-violet-400/25 bg-violet-500/10 text-violet-300 shadow-violet-500/10',
-    text: 'text-violet-300',
-    bar: 'from-violet-500 to-fuchsia-300',
-    glow: 'shadow-[0_0_35px_rgba(139,92,246,.15)]',
-  },
-  slate: {
-    soft: 'border-slate-700 bg-slate-950/70 text-slate-300 shadow-slate-900/10',
-    text: 'text-slate-300',
-    bar: 'from-slate-500 to-slate-300',
-    glow: 'shadow-[0_0_35px_rgba(15,23,42,.4)]',
-  },
-};
+function percentageChange(current, previous) {
+  if (!num(previous)) {
+    return num(current) ? null : 0;
+  }
 
-function getTone(tone) {
-  return toneClasses[tone] || toneClasses.blue;
+  return ((num(current) - num(previous)) / Math.abs(num(previous))) * 100;
 }
 
-function PageFrame({ children }) {
-  return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,.3),transparent)]" />
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
-      <div className="relative space-y-5">{children}</div>
-    </div>
+function comparisonInfo(
+  current,
+  previous,
+  previousPeriodLabel,
+  lowerIsBetter = false,
+) {
+  const change = percentageChange(current, previous);
+
+  if (change == null) {
+    return {
+      text: `No ${previousPeriodLabel || 'previous period'} baseline`,
+      tone: 'neutral',
+    };
+  }
+
+  if (change === 0) {
+    return {
+      text: `• 0% vs ${previousPeriodLabel || 'previous period'}`,
+      tone: 'neutral',
+    };
+  }
+
+  const improved = lowerIsBetter ? change < 0 : change > 0;
+
+  return {
+    text: `${change > 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(
+      0,
+    )}% vs ${previousPeriodLabel || 'previous period'} · ${
+      improved ? 'better' : 'worse'
+    }`,
+    tone: improved ? 'positive' : 'negative',
+  };
+}
+
+function buildRosterPerformancePlayers(activePlayers) {
+  const activeByName = new Map(
+    (activePlayers || []).map((player) => [
+      String(player?.name || '').trim().toLowerCase(),
+      player,
+    ]),
   );
+
+  return GUILD_ROSTER.map((rosterName, rosterOrder) => {
+    const activePlayer = activeByName.get(
+      rosterName.toLowerCase(),
+    );
+
+    if (activePlayer) {
+      const wars = num(activePlayer.wars);
+
+      return {
+        ...activePlayer,
+        name: rosterName,
+        wars,
+        rosterOrder,
+        inactive: wars <= 0,
+      };
+    }
+
+    return {
+      name: rosterName,
+      wars: 0,
+      rosterOrder,
+      firstAppearanceTime: Number.POSITIVE_INFINITY,
+      firstAppearanceOrder: Number.POSITIVE_INFINITY,
+      kills: 0,
+      deaths: 0,
+      kd: 0,
+      averageKd: 0,
+      averageDamageDealt: 0,
+      averageCcHits: 0,
+      killStreak: 0,
+      longestKillStreak: 0,
+      killFeed: 0,
+      bestKillFeed: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      ccHits: 0,
+      fortDamage: 0,
+      inactive: true,
+    };
+  }).sort((a, b) => {
+    if (a.inactive !== b.inactive) {
+      return a.inactive ? 1 : -1;
+    }
+
+    if (!a.inactive) {
+      return (
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        b.damageDealt - a.damageDealt ||
+        chronologicalCompare(a, b)
+      );
+    }
+
+    return chronologicalCompare(a, b);
+  });
 }
 
-function PremiumPanel({ children, className = '', glow = false }) {
-  return (
-    <div
-      className={cls(
-        'relative overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/72 shadow-2xl backdrop-blur-xl',
-        glow && 'shadow-[0_0_40px_rgba(59,130,246,.12)]',
-        className,
-      )}
-    >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/40 to-transparent" />
-      <div className="relative">{children}</div>
-    </div>
+function buildReview(
+  logs,
+  selectedMonth,
+  daysAgo = DEFAULT_RECAP_DAYS_AGO,
+) {
+  const selectedWindow = monthDateWindow(
+    selectedMonth,
+    daysAgo,
   );
-}
+  const previousCalendarMonth =
+    previousMonthId(selectedMonth);
+  const previousWindow =
+    num(daysAgo) > 0
+      ? previousDateWindow(selectedWindow)
+      : monthDateWindow(previousCalendarMonth, 0);
+  const previousPeriodLabel =
+    num(daysAgo) > 0
+      ? `previous ${selectedWindow.days} days`
+      : shortMonthLabel(previousCalendarMonth);
 
-function Avatar({ name, size = 'md', rank = 0 }) {
-  const sizes = {
-    sm: 'h-9 w-9 text-xs rounded-xl',
-    md: 'h-12 w-12 text-sm rounded-2xl',
-    lg: 'h-16 w-16 text-lg rounded-2xl',
-    xl: 'h-24 w-24 text-3xl rounded-[1.65rem]',
+  const monthLogs = (logs || [])
+    .filter((log) =>
+      dateIsInWindow(
+        dateOf(log),
+        selectedWindow,
+      ),
+    )
+    .map((log) => ({
+      ...log,
+      date: dateOf(log),
+    }));
+
+  const previousLogs = (logs || [])
+    .filter((log) =>
+      dateIsInWindow(
+        dateOf(log),
+        previousWindow,
+      ),
+    )
+    .map((log) => ({
+      ...log,
+      date: dateOf(log),
+    }));
+
+  const rows = monthLogs.map(buildNodeWarRow);
+  const previousRows = previousLogs.map(buildNodeWarRow);
+
+  const sourceLogById = new Map(
+    monthLogs.map((log) => [String(log?.id || ''), log]),
+  );
+
+  const sourceLogByDate = new Map();
+
+  monthLogs.forEach((log) => {
+    const date = String(dateOf(log) || '');
+
+    if (date && !sourceLogByDate.has(date)) {
+      sourceLogByDate.set(date, log);
+    }
+  });
+
+  function sourceLogForRow(row) {
+    return (
+      sourceLogById.get(String(row?.id || '')) ||
+      sourceLogByDate.get(String(row?.date || '')) ||
+      null
+    );
+  }
+
+  function featuredGuildForRow(row) {
+    return getFeaturedWarGuild(sourceLogForRow(row));
+  }
+
+  const stats = calculateStats(monthLogs);
+  const warCounts = buildPlayerWarCounts(stats);
+
+  const totals = {
+    wars: rows.length,
+    kills: rows.reduce((sum, row) => sum + num(row.kills), 0),
+    deaths: rows.reduce((sum, row) => sum + num(row.deaths), 0),
+    damage: rows.reduce((sum, row) => sum + num(row.damageDealt), 0),
+    fortDamage: rows.reduce((sum, row) => sum + num(row.fortDamage), 0),
   };
 
-  const ring =
-    rank === 1
-      ? 'border-amber-300/50 shadow-[0_0_30px_rgba(245,158,11,.2)]'
-      : rank === 2
-        ? 'border-slate-300/35 shadow-[0_0_24px_rgba(148,163,184,.14)]'
-        : rank === 3
-          ? 'border-orange-300/40 shadow-[0_0_24px_rgba(249,115,22,.14)]'
-          : 'border-blue-300/20 shadow-[0_0_24px_rgba(59,130,246,.08)]';
+  totals.kd = ratio(totals.kills, totals.deaths);
+  totals.avgKills = totals.wars ? totals.kills / totals.wars : 0;
+  totals.avgDeaths = totals.wars ? totals.deaths / totals.wars : 0;
+  totals.avgDamage = totals.wars ? totals.damage / totals.wars : 0;
+  totals.avgFortDamage = totals.wars
+    ? totals.fortDamage / totals.wars
+    : 0;
+  totals.avgWarKd = rows.length
+    ? rows.reduce(
+        (sum, row) =>
+          sum + num(row.kdNumber ?? row.kd),
+        0,
+      ) / rows.length
+    : 0;
 
-  return (
-    <div
-      className={cls(
-        'grid shrink-0 place-items-center border bg-gradient-to-br from-slate-700 via-slate-950 to-blue-950 font-black text-blue-100',
-        sizes[size],
-        ring,
-      )}
-    >
-      {initials(name)}
-    </div>
-  );
-}
+  totals.avgWarsPerWeek = selectedWindow.days
+    ? totals.wars / (selectedWindow.days / 7)
+    : 0;
 
-function StatCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
-  const toneInfo = getTone(tone);
-
-  return (
-    <div className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/75 p-4 shadow-xl transition duration-200 hover:-translate-y-0.5 hover:border-blue-400/25 hover:bg-slate-900/80">
-      <div className="absolute right-0 top-0 h-20 w-20 rounded-full bg-blue-500/5 blur-2xl transition group-hover:bg-blue-500/10" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{label}</div>
-          <div className="mt-2 text-2xl font-black text-slate-100">{value}</div>
-          {sub && <div className="mt-1 text-xs font-bold text-slate-500">{sub}</div>}
-        </div>
-        <div className={cls('grid h-11 w-11 place-items-center rounded-xl border shadow-lg', toneInfo.soft, toneInfo.glow)}>
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SectionTitle({ icon: Icon, title, action }) {
-  return (
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-slate-300">
-        <span className="grid h-8 w-8 place-items-center rounded-xl border border-blue-400/20 bg-blue-500/10 text-blue-300">
-          <Icon className="h-4 w-4" />
-        </span>
-        {title}
-      </h3>
-      {action && (
-        <button className="group flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs font-black text-blue-300 transition hover:border-blue-400/30 hover:bg-blue-500/10 hover:text-blue-200">
-          {action}
-          <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function RankBadge({ rank }) {
-  const classes =
-    rank === 1
-      ? 'border-amber-300/40 bg-amber-500/15 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,.18)]'
-      : rank === 2
-        ? 'border-slate-300/30 bg-slate-400/10 text-slate-200'
-        : rank === 3
-          ? 'border-orange-300/35 bg-orange-500/10 text-orange-200'
-          : 'border-slate-700 bg-slate-900 text-slate-400';
-
-  return (
-    <div className={cls('grid h-10 w-10 place-items-center rounded-xl border text-sm font-black', classes)}>
-      #{rank}
-    </div>
-  );
-}
-
-function LegendRow({ row, rank }) {
-  return (
-    <div className="group grid grid-cols-[54px_1.35fr_.85fr_.6fr_.55fr_.55fr] items-center gap-3 border-b border-slate-900/90 px-4 py-3.5 last:border-b-0 hover:bg-blue-500/[0.045]">
-      <RankBadge rank={rank} />
-      <div className="flex min-w-0 items-center gap-3">
-        <Avatar name={row.name} size="sm" rank={rank} />
-        <div className="min-w-0">
-          <div className="truncate text-sm font-black text-white">{row.name}</div>
-          <div className="truncate text-xs font-bold text-blue-300">{row.family || row.guild || 'Adversary'}</div>
-        </div>
-      </div>
-      <div className="truncate text-sm font-bold text-slate-300">{row.title}</div>
-      <div className="text-right text-sm font-black text-blue-200">{shortNum(row.score)}</div>
-      <div className="text-right text-sm font-black text-emerald-300">{row.kd.toFixed(2)}</div>
-      <div className="text-right text-sm font-black text-slate-200">{nf.format(row.kills)}</div>
-    </div>
-  );
-}
-
-function Leaderboard({ rows, limit = 8, title = 'Hall Leaderboard' }) {
-  return (
-    <PremiumPanel>
-      <div className="p-5 pb-0">
-        <SectionTitle icon={BarChart3} title={title} action="View all" />
-      </div>
-      <div className="overflow-x-auto">
-        <div className="min-w-[760px]">
-          <div className="grid grid-cols-[54px_1.35fr_.85fr_.6fr_.55fr_.55fr] gap-3 border-y border-slate-800 bg-slate-950/80 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-            <div>Rank</div>
-            <div>Player</div>
-            <div>Title</div>
-            <div className="text-right">Score</div>
-            <div className="text-right">K/D</div>
-            <div className="text-right">Kills</div>
-          </div>
-          {rows.slice(0, limit).map((row, index) => <LegendRow key={row.name} row={row} rank={index + 1} />)}
-        </div>
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function AchievementCard({ item, compact = false }) {
-  const Icon = item.icon;
-  const toneInfo = getTone(item.tone);
-
-  return (
-    <div className="group relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/70 p-4 shadow-xl transition duration-200 hover:-translate-y-1 hover:border-blue-400/30 hover:bg-slate-900/85">
-      <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-blue-500/5 blur-2xl transition group-hover:bg-blue-500/12" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div className={cls('grid h-12 w-12 place-items-center rounded-2xl border shadow-lg', toneInfo.soft, toneInfo.glow)}>
-          <Icon className="h-6 w-6" />
-        </div>
-        <Sparkles className="h-4 w-4 text-slate-600 group-hover:text-blue-300" />
-      </div>
-      <div className={cls('relative', compact ? 'mt-3' : 'mt-5')}>
-        <div className="text-sm font-black uppercase tracking-wide text-white">{item.title}</div>
-        <div className="mt-1 text-xs font-bold text-slate-500">{item.sub}</div>
-      </div>
-      <div className="relative mt-4 flex items-center gap-3 rounded-2xl border border-slate-800 bg-black/25 p-3">
-        <Avatar name={item.player?.name} size="sm" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-black text-slate-100">{item.player?.name || '-'}</div>
-          <div className="text-xs font-bold text-slate-500">{item.player?.title || 'Legend'}</div>
-        </div>
-        <div className={cls('text-lg font-black', toneInfo.text)}>{item.value}</div>
-      </div>
-      <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-slate-900">
-        <div className={cls('h-full w-3/4 rounded-full bg-gradient-to-r', toneInfo.bar)} />
-      </div>
-    </div>
-  );
-}
-
-function TopLegendCard({ row, rank, wide = false, center = false }) {
-  const isGold = rank === 1;
-  const frame =
-    rank === 1
-      ? 'border-amber-300/35 bg-gradient-to-br from-amber-500/12 via-slate-950 to-blue-950/35'
-      : rank === 2
-        ? 'border-slate-300/20 bg-gradient-to-br from-slate-300/8 via-slate-950 to-blue-950/20'
-        : rank === 3
-          ? 'border-orange-300/25 bg-gradient-to-br from-orange-500/10 via-slate-950 to-blue-950/20'
-          : 'border-slate-800 bg-slate-950/70';
-
-  return (
-    <div
-      className={cls(
-        'group relative overflow-hidden rounded-3xl border p-4 shadow-xl transition duration-200 hover:-translate-y-1',
-        frame,
-        isGold && 'shadow-[0_0_40px_rgba(245,158,11,.13)]',
-        wide && 'md:col-span-2',
-        center && 'xl:scale-105',
-      )}
-    >
-      <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-blue-500/10 blur-2xl transition group-hover:bg-blue-500/15" />
-      <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/40 to-transparent" />
-      <div className="relative flex items-center gap-4">
-        <RankBadge rank={rank} />
-        <Avatar name={row.name} size={center ? 'xl' : 'lg'} rank={rank} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-xl font-black text-white">{row.name}</div>
-          <div className="truncate text-sm font-bold text-blue-300">{row.title}</div>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs font-black text-slate-400">
-            <span>{nf.format(row.kills)} kills</span>
-            <span>·</span>
-            <span>{row.kd.toFixed(2)} K/D</span>
-            <span>·</span>
-            <span>{shortNum(row.score)} score</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <PremiumPanel className="p-8 text-center">
-      <Trophy className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-      <h3 className="text-xl font-black text-white">No data yet.</h3>
-      <p className="mt-2 text-sm font-semibold text-slate-500">Selectează un log, o zi sau All Logs ca să fie calculate statisticile.</p>
-    </PremiumPanel>
-  );
-}
-
-function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
-  const width = max ? Math.max(5, Math.min(100, (num(value) / max) * 100)) : 0;
-  const colors = {
-    blue: 'from-blue-500 to-sky-300',
-    blueDark: 'from-blue-950 via-blue-800 to-blue-600',
-    blueRoyal: 'from-blue-700 via-blue-500 to-blue-300',
-    blueSky: 'from-sky-600 via-sky-400 to-cyan-200',
-    blueIndigo: 'from-indigo-700 via-indigo-500 to-blue-300',
-    blueIce: 'from-cyan-500 via-sky-300 to-blue-100',
-    emerald: 'from-emerald-500 to-lime-300',
-    greenDeep: 'from-emerald-950 via-emerald-700 to-green-500',
-    greenEmerald: 'from-emerald-600 via-green-400 to-lime-200',
-    greenMint: 'from-teal-500 via-emerald-300 to-green-100',
-    greenLime: 'from-lime-500 via-green-300 to-emerald-200',
-    greenTeal: 'from-green-700 via-teal-400 to-emerald-200',
-    yellowGold: 'from-yellow-600 via-yellow-400 to-amber-300',
-    yellowAmber: 'from-amber-600 via-yellow-400 to-yellow-200',
-    yellowLemon: 'from-yellow-500 via-yellow-300 to-lime-200',
-    yellowHoney: 'from-yellow-700 via-yellow-500 to-amber-300',
-    yellowSand: 'from-amber-500 via-yellow-300 to-yellow-100',
-    redDeep: 'from-red-950 via-red-700 to-red-500',
-    redCrimson: 'from-red-700 via-red-500 to-rose-300',
-    redRose: 'from-rose-700 via-rose-500 to-red-200',
-    redRuby: 'from-red-500 via-orange-400 to-red-200',
-    amber: 'from-amber-500 to-yellow-300',
-    rose: 'from-rose-500 to-red-300',
+  const previousTotals = {
+    wars: previousRows.length,
+    kills: previousRows.reduce((sum, row) => sum + num(row.kills), 0),
+    deaths: previousRows.reduce((sum, row) => sum + num(row.deaths), 0),
+    damage: previousRows.reduce((sum, row) => sum + num(row.damageDealt), 0),
+    fortDamage: previousRows.reduce(
+      (sum, row) => sum + num(row.fortDamage),
+      0,
+    ),
   };
 
-  return (
-    <div className="mb-3 last:mb-0">
-      <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
-        <span className="truncate text-slate-200">{label}</span>
-        <span className="shrink-0 text-slate-400">{right ?? shortNum(value)}</span>
-      </div>
-      <div className="h-2 rounded-full bg-slate-900/90">
-        <div className={cls('h-2 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)} style={{ width: `${width}%` }} />
-      </div>
-    </div>
+  previousTotals.kd = ratio(
+    previousTotals.kills,
+    previousTotals.deaths,
   );
+
+  const statLogPlayers = buildStatsLogPlayers(stats);
+  const activePlayers = buildMonthlyPerformancePlayers(
+    stats,
+    statLogPlayers,
+    warCounts,
+  );
+  const players = buildRosterPerformancePlayers(activePlayers);
+  const {
+    topFragger,
+    bestKd,
+    damageLeader,
+    fortBreaker,
+    longestStreak,
+    bestFeed,
+  } = buildSingleGamePlayerHighlights(stats);
+
+  const enemies = buildEnemyRows(monthLogs, stats, 30);
+
+  const highlightEnemies = buildEnemyRows(
+    monthLogs,
+    stats,
+    50,
+  ).map((enemy) => {
+    const matchingRows = rows
+      .filter((row) =>
+        getWarGuildBreakdown(
+          sourceLogForRow(row),
+          50,
+        ).some((guild) => guild.name === enemy.name),
+      )
+      .sort(
+        (a, b) =>
+          String(b.date || '').localeCompare(String(a.date || '')),
+      );
+
+    return {
+      ...enemy,
+      warRows: matchingRows,
+    };
+  });
+
+  const mostFought = highlightEnemies[0] || null;
+
+  // Inverted by request:
+  // Best Matchup uses the lowest K/D result.
+  // Toughest Opponent uses the highest K/D result.
+  const bestMatchup =
+    [...highlightEnemies]
+      .filter((enemy) => enemy.kills + enemy.deaths > 0)
+      .sort(
+        (a, b) =>
+          a.kd - b.kd ||
+          b.wars - a.wars ||
+          b.deaths - a.deaths,
+      )[0] || null;
+
+  const toughestMatchup =
+    [...highlightEnemies]
+      .filter((enemy) => enemy.kills + enemy.deaths > 0)
+      .sort(
+        (a, b) =>
+          b.kd - a.kd ||
+          b.wars - a.wars ||
+          b.kills - a.kills,
+      )[0] || null;
+
+  const highestKillsWar =
+    [...rows].sort(
+      (a, b) =>
+        num(b.kills) - num(a.kills) ||
+        String(b.date).localeCompare(String(a.date)),
+    )[0] || null;
+
+  const bestKdWar =
+    [...rows].sort(
+      (a, b) =>
+        num(b.kdNumber ?? b.kd) - num(a.kdNumber ?? a.kd) ||
+        num(b.kills) - num(a.kills),
+    )[0] || null;
+
+  const highestDamageWar =
+    [...rows]
+      .filter((row) => num(row.damageDealt) > 0)
+      .sort(
+        (a, b) =>
+          num(b.damageDealt) - num(a.damageDealt),
+      )[0] || null;
+
+  return {
+    previousMonth: previousPeriodLabel,
+    totals,
+    previousTotals,
+    players,
+    topFragger,
+    bestKd,
+    damageLeader,
+    fortBreaker,
+    longestStreak,
+    bestFeed,
+    enemies,
+    mostFought,
+    bestMatchup,
+    toughestMatchup,
+    featuredWars: [
+      highestKillsWar && {
+        id: 'kills',
+        label: 'Highest Kill Total',
+        value: `${compact(highestKillsWar.kills)} Kills`,
+        date: highestKillsWar.date,
+        guild: featuredGuildForRow(highestKillsWar),
+        row: highestKillsWar,
+        accent: 'blue',
+      },
+      bestKdWar && {
+        id: 'kd',
+        label: 'Best K/D War',
+        value: `${num(bestKdWar.kdNumber ?? bestKdWar.kd).toFixed(
+          2,
+        )} K/D`,
+        date: bestKdWar.date,
+        guild: featuredGuildForRow(bestKdWar),
+        row: bestKdWar,
+        accent: 'violet',
+      },
+      highestDamageWar && {
+        id: 'damage',
+        label: 'Highest Damage War',
+        value: compact(highestDamageWar.damageDealt),
+        date: highestDamageWar.date,
+        guild: featuredGuildForRow(highestDamageWar),
+        row: highestDamageWar,
+        accent: 'cyan',
+      },
+    ].filter(Boolean),
+  };
 }
 
-function HallHeaderCard({
+function SectionShell({
   icon: Icon,
   title,
-  value,
-  sub,
-  tone = 'blue',
-  active = false,
-  onClick,
+  accent = 'blue',
+  transparent = false,
+  subtle = false,
+  children,
 }) {
-  const toneInfo = getTone(tone);
+  const surfaceClass = transparent
+    ? 'monthly-panel-transparent'
+    : subtle
+      ? 'monthly-panel-subtle'
+      : '';
+
+  return (
+    <section
+      className={`monthly-guild-panel ${surfaceClass} overflow-hidden rounded-[22px] border border-transparent`}
+      style={monthlyPanelStyle(accent)}
+    >
+      <div className="monthly-section-header flex h-9 items-center gap-2 border-b px-4">
+        <Icon
+          size={14}
+          style={{
+            color: `rgb(${MONTHLY_PANEL_ACCENTS[accent] || MONTHLY_PANEL_ACCENTS.blue})`,
+          }}
+        />
+        <h2 className="text-[12px] font-black uppercase tracking-[0.08em] text-[#d8e5f7]">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  averageLabel,
+  averageValue,
+  comparison,
+  accent,
+}) {
+  const theme = {
+    blue: {
+      icon: 'text-[#4ea1ff]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(59,130,246,.08)]',
+    },
+    violet: {
+      icon: 'text-[#a66cff]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(139,92,246,.08)]',
+    },
+    rose: {
+      icon: 'text-[#ff657a]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(244,63,94,.08)]',
+    },
+    cyan: {
+      icon: 'text-[#37d9ff]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(34,211,238,.08)]',
+    },
+    green: {
+      icon: 'text-[#74ff37]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(132,204,22,.08)]',
+    },
+    amber: {
+      icon: 'text-[#ffc54d]',
+      shadow: 'shadow-[inset_0_0_32px_rgba(245,158,11,.08)]',
+    },
+  }[accent];
+
+  return (
+    <div
+      className={`monthly-guild-panel min-h-[86px] rounded-[22px] border border-transparent p-3 ${theme.shadow}`}
+      style={monthlyPanelStyle(accent)}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-white/[.04] bg-black/20 ${theme.icon}`}
+        >
+          <Icon size={28} strokeWidth={2.1} />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.1em] text-[#8090a8]">
+            {label}
+          </p>
+          <div className="mt-1 flex items-end gap-2">
+            <p className="text-[26px] font-black leading-none text-white">
+              {value}
+            </p>
+            {averageLabel && (
+              <div className="mb-0.5 border-l border-white/10 pl-2">
+                <p className="text-[8px] font-black uppercase tracking-[0.08em] text-[#6f7d90]">
+                  {averageLabel}
+                </p>
+                <p className="text-[12px] font-black leading-none text-[#c8d6e8]">
+                  {averageValue}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <p
+            className={`mt-2 truncate text-[10px] font-black ${
+              comparison?.tone === 'positive'
+                ? 'text-[#75e34f]'
+                : comparison?.tone === 'negative'
+                  ? 'text-[#ff6077]'
+                  : 'text-[#7f8da2]'
+            }`}
+          >
+            {comparison?.text}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MatchupCard({
+  icon: Icon,
+  label,
+  name,
+  wars,
+  value,
+  accent,
+  onClick,
+  openLabel,
+}) {
+  const classes = {
+    violet:
+      'border-violet-500/40 bg-gradient-to-r from-violet-950/24 via-slate-950/12 to-transparent text-violet-300',
+    cyan:
+      'border-cyan-500/40 bg-gradient-to-r from-cyan-950/22 via-slate-950/12 to-transparent text-cyan-300',
+    rose:
+      'border-rose-500/40 bg-gradient-to-r from-rose-950/22 via-slate-950/12 to-transparent text-rose-300',
+  }[accent];
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cls(
-        'relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-xl transition duration-200 hover:-translate-y-0.5',
-        toneInfo.soft,
-        active && 'ring-2 ring-white/20',
-      )}
+      disabled={!onClick}
+      className={`monthly-guild-panel group flex min-h-[86px] w-full items-center gap-3 rounded-[22px] border border-transparent p-3 text-left ${
+        onClick ? 'cursor-pointer' : 'cursor-default'
+      } ${classes}`}
+      style={monthlyPanelStyle(accent)}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent)]" />
-      <div className="relative flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] opacity-75">
-            {title}
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[10px] border border-current/30 bg-black/25">
+        <Icon size={30} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-black uppercase tracking-[0.1em]">
+          {label}
+        </p>
+
+        <div className="mt-1 flex min-w-0 items-center gap-2">
+          <p className="truncate text-[14px] font-black text-white">
+            {name || '-'}
           </p>
-          {false && <p className="mt-2 text-3xl font-black leading-none">{value}</p>}
-          {false && sub && <p className="mt-2 text-xs font-bold opacity-70">{sub}</p>}
+
+          {wars > 0 && (
+            <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black text-slate-300">
+              {wars} war{wars === 1 ? '' : 's'}
+            </span>
+          )}
         </div>
 
-        <div className={cls('grid h-11 w-11 shrink-0 place-items-center rounded-2xl border bg-slate-950/55', toneInfo.soft)}>
-          <Icon className="h-5 w-5" />
+        <p className="mt-1 text-[10px] font-black text-slate-400">
+          {value || 'No data'}
+        </p>
+
+        {onClick && (
+          <p className="mt-1 flex items-center gap-1 text-[9px] font-black text-slate-500 group-hover:text-white">
+            {openLabel || 'Open node wars'}
+            <ChevronRight size={11} />
+          </p>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function PlayerHighlight({
+  icon: Icon,
+  label,
+  labelSub,
+  name,
+  value,
+  unit,
+  accent,
+}) {
+  const classes = {
+    blue: 'border-blue-500/30 text-blue-300',
+    violet: 'border-violet-500/30 text-violet-300',
+    cyan: 'border-cyan-500/30 text-cyan-300',
+    green: 'border-emerald-500/30 text-emerald-300',
+    amber: 'border-amber-500/30 text-amber-300',
+    pink: 'border-fuchsia-500/30 text-fuchsia-300',
+  }[accent];
+
+  return (
+    <div
+      className={`monthly-guild-panel min-h-[96px] rounded-[22px] border border-transparent p-3 ${classes}`}
+      style={monthlyPanelStyle(accent)}
+    >
+      <div className="flex h-full items-center gap-3">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[12px] border border-current/25 bg-black/25">
+          <Icon size={34} />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          <div className="flex h-[28px] flex-col justify-end overflow-hidden">
+            <p className="truncate text-[9px] font-black uppercase leading-none tracking-[0.08em]">
+              {label}
+            </p>
+            <p className="mt-1 h-[9px] text-[8px] font-black uppercase leading-none tracking-[0.08em] text-current/70">
+              {labelSub || ' '}
+            </p>
+          </div>
+          <p className="mt-1 truncate text-[13px] font-black text-white">
+            {name || '-'}
+          </p>
+          <p className="mt-1 text-[21px] font-black leading-none text-white">
+            {value || '-'}
+          </p>
+          <p className="mt-1 text-[10px] font-medium text-[#8c9bb0]">
+            {unit}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeaturedWar({ item, onOpen }) {
+  const accent = {
+    blue: 'border-blue-500/55 from-blue-950/34 via-slate-950/14',
+    violet: 'border-violet-500/55 from-violet-950/34 via-slate-950/14',
+    cyan: 'border-cyan-500/55 from-cyan-950/32 via-slate-950/14',
+  }[item.accent];
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(item.row)}
+      className={`monthly-guild-panel group relative min-h-[108px] overflow-hidden rounded-[22px] border border-transparent p-4 text-left ${accent}`}
+      style={monthlyPanelStyle(item.accent)}
+    >
+      <div className="absolute inset-y-0 right-0 w-[58%] opacity-75">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_65%_45%,rgba(255,255,255,.14),transparent_30%)]" />
+        <div className="absolute bottom-0 right-0 h-20 w-full bg-[linear-gradient(150deg,transparent_0%,transparent_32%,rgba(255,255,255,.06)_32%,rgba(255,255,255,.06)_36%,transparent_36%,transparent_48%,rgba(255,255,255,.05)_48%,rgba(255,255,255,.05)_52%,transparent_52%)]" />
+      </div>
+
+      <div className="relative z-10 flex h-full items-center gap-4">
+        <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-[8px] border border-current/40 bg-black/30 text-current">
+          <Shield size={30} />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.08em] text-current">
+            {item.label}
+          </p>
+          <p className="mt-2 text-[25px] font-black leading-none text-white">
+            {item.value}
+          </p>
+          <p className="mt-2 text-[11px] font-black text-[#dbe8f8]">
+            {formatDate(item.date)}
+          </p>
+
+          <p className="mt-1 truncate text-[11px] font-bold text-[#9fb0c6]">
+            vs {item.guild?.name || 'Enemy guild unavailable'}
+          </p>
+
+          <p className="mt-1 text-[10px] font-black text-[#6f7d90]">
+            {item.guild
+              ? `${compact(item.guild.kills)} kills · ${compact(
+                  item.guild.deaths,
+                )} deaths against this guild`
+              : `${compact(item.row?.kills)} total kills · ${compact(
+                  item.row?.deaths,
+                )} total deaths`}
+          </p>
         </div>
       </div>
     </button>
   );
 }
 
-function HallTopHeaders({ data, activeTab, onTabChange }) {
-  const leaderboardRows = data.rows;
-
-  const bestKd = [...leaderboardRows]
-    .filter((player) => player.kills >= 5)
-    .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0];
-
-  const topStreak = [...leaderboardRows]
-    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))[0];
-
-  const totalEligibleKills = leaderboardRows.reduce((sum, player) => sum + player.kills, 0);
-  const totalEligibleDamage = leaderboardRows.reduce((sum, player) => sum + player.damageDealt, 0);
+function BarCell({ value, max, color }) {
+  const width = value > 0 ? Math.max(3, (value / Math.max(1, max)) * 100) : 0;
 
   return (
-    <header className="rounded-3xl border border-slate-700 bg-slate-950/70 p-5">
-      <div className="grid gap-3 md:grid-cols-4">
-        <HallHeaderCard
-          icon={Swords}
-          title="Kills"
-          value={nf.format(totalEligibleKills)}
-          sub={`Min ${MIN_HALL_WARS} wars`}
-          tone="blueRoyal"
-          active={activeTab === 'kills'}
-          onClick={() => onTabChange('kills')}
+    <div className="flex items-center gap-2">
+      <span className="w-[48px] text-right text-[11px] font-black text-[#d8e5f7]">
+        {compact(value)}
+      </span>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-950/32">
+        <div
+          className={`h-full rounded-full ${color}`}
+          style={{ width: `${width}%` }}
         />
-
-        <HallHeaderCard
-          icon={Target}
-          title="Highlights"
-          value={bestKd ? bestKd.kd.toFixed(2) : '0.00'}
-          sub={topStreak ? `Best K/D · Streak ${shortNum(topStreak.streak)}` : 'Best K/D · Streak'}
-          tone="greenDeep"
-          active={activeTab === 'highlights'}
-          onClick={() => onTabChange('highlights')}
-        />
-
-        <HallHeaderCard
-          icon={BarChart3}
-          title="Damage"
-          value={shortNum(totalEligibleDamage)}
-          sub={`Min ${MIN_HALL_WARS} wars`}
-          tone="yellowGold"
-          active={activeTab === 'damage'}
-          onClick={() => onTabChange('damage')}
-        />
-
-        <HallHeaderCard
-          icon={CalendarDays}
-          title="Node Wars"
-          value={shortNum(data.totals.wars)}
-          sub={`Min ${MIN_HALL_WARS} wars`}
-          tone="redDeep"
-          active={activeTab === 'nodeWars'}
-          onClick={() => onTabChange('nodeWars')}
-        />
-      </div>
-    </header>
-  );
-}
-
-function CombatOutputPanel({ data }) {
-  const topTotalKills = [...data.rows]
-    .filter((player) => player.kills > 0)
-    .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
-    .slice(0, 10);
-
-  const topAverageKills = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.avgKillsMatchCount) > 0 &&
-        Number.isFinite(Number(player.avgKillsPerMatch)),
-    )
-    .sort(
-      (a, b) =>
-        b.avgKillsPerMatch - a.avgKillsPerMatch ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topFraggers = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.avgKillsMatchCount) > 0 &&
-        player.maxMatchKills > 0,
-    )
-    .sort((a, b) => b.maxMatchKills - a.maxMatchKills || compareChronology(a, b))
-    .slice(0, 10);
-
-  const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
-  const maxAverageKills = Math.max(1, ...topAverageKills.map((player) => player.avgKillsPerMatch));
-  const maxSingleMatchKills = Math.max(1, ...topFraggers.map((player) => player.maxMatchKills));
-
-  return (
-    <PremiumPanel className="p-5">
-      <SectionTitle icon={Swords} title="Kills" />
-      <div className="grid gap-5 md:grid-cols-3">
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills</p>
-          {topTotalKills.length ? (
-            topTotalKills.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.kills}
-                max={maxTotalKills}
-                right={nf.format(player.kills)}
-                tone="blueDark"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills</p>
-          {topAverageKills.length ? (
-            topAverageKills.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.avgKillsPerMatch}
-                max={maxAverageKills}
-                right={player.avgKillsPerMatch.toFixed(2)}
-                tone="blueRoyal"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers</p>
-          {topFraggers.length ? (
-            topFraggers.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.maxMatchKills}
-                max={maxSingleMatchKills}
-                right={shortNum(player.maxMatchKills)}
-                tone="blueSky"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
-          )}
-        </div>
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function CombatRecordsPanel({ data }) {
-  const topAverageKd = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.avgKdMatchCount) > 0 &&
-        Number.isFinite(Number(player.avgKdPerMatch)),
-    )
-    .sort(
-      (a, b) =>
-        b.avgKdPerMatch - a.avgKdPerMatch ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topHighestMatchKd = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.maxMatchKd) > 0 &&
-        Number.isFinite(Number(player.maxMatchKd)),
-    )
-    .sort(
-      (a, b) =>
-        b.maxMatchKd - a.maxMatchKd ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topAverageRank = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.averageRankMatchCount) > 0 &&
-        Number.isFinite(Number(player.averageRank)),
-    )
-    .sort(
-      (a, b) =>
-        a.averageRank - b.averageRank ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topStreaks = [...data.rows]
-    .filter((player) => player.streak > 0)
-    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))
-    .slice(0, 10);
-
-  const topFeeds = [...data.rows]
-    .filter((player) => player.feed > 0)
-    .sort((a, b) => b.feed - a.feed || compareChronology(a, b))
-    .slice(0, 10);
-
-  const topFiftyPlusKillWars = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.fiftyPlusKillWars) > 0,
-    )
-    .sort(
-      (a, b) =>
-        b.fiftyPlusKillWars - a.fiftyPlusKillWars ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const maxAverageKd = Math.max(1, ...topAverageKd.map((player) => player.avgKdPerMatch));
-  const maxHighestMatchKd = Math.max(1, ...topHighestMatchKd.map((player) => player.maxMatchKd));
-  const maxAverageRank = Math.max(1, ...topAverageRank.map((player) => player.averageRank));
-  const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
-  const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
-  const maxFiftyPlusKillWars = Math.max(
-    1,
-    ...topFiftyPlusKillWars.map((player) => player.fiftyPlusKillWars),
-  );
-
-  return (
-    <PremiumPanel className="p-5">
-      <SectionTitle icon={Target} title="Highlights" />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-6">
-        <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Best Average K/D</p>
-          {topAverageKd.length ? (
-            topAverageKd.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.avgKdPerMatch}
-                max={maxAverageKd}
-                right={player.avgKdPerMatch.toFixed(2)}
-                tone="greenDeep"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average K/D data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest K/D · Single Match</p>
-          {topHighestMatchKd.length ? (
-            topHighestMatchKd.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.maxMatchKd}
-                max={maxHighestMatchKd}
-                right={player.maxMatchKd.toFixed(2)}
-                tone="greenEmerald"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-match K/D data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Best Average Rank</p>
-          {topAverageRank.length ? (
-            topAverageRank.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={Math.max(0.01, maxAverageRank - player.averageRank + 1)}
-                max={maxAverageRank}
-                right={player.averageRank.toFixed(2)}
-                tone="greenMint"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average rank data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Kill Streak</p>
-          {topStreaks.length ? (
-            topStreaks.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.streak}
-                max={maxStreak}
-                right={shortNum(player.streak)}
-                tone="greenLime"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible kill streak data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Biggest Kill Feed</p>
-          {topFeeds.length ? (
-            topFeeds.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.feed}
-                max={maxFeed}
-                right={shortNum(player.feed)}
-                tone="greenTeal"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible kill feed data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">50+ Kills in Wars</p>
-          {topFiftyPlusKillWars.length ? (
-            topFiftyPlusKillWars.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.fiftyPlusKillWars}
-                max={maxFiftyPlusKillWars}
-                right={`${shortNum(player.fiftyPlusKillWars)} Wars`}
-                tone="greenTeal"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible 50+ kills wars data yet.</p>
-          )}
-        </div>
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function FirstMilestonesPanel({ data }) {
-  const thresholds = [1000, 3000, 5000];
-
-  function renderFirstLeaderboard(threshold) {
-    const rows = data.thresholdLeaderboards?.[threshold]?.first || [];
-    const maxValue = Math.max(1, ...rows.map((row) => row.fromFirstLogWars || 0));
-
-    return (
-      <div>
-        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          First to {threshold} Kills
-        </p>
-        {rows.length ? (
-          rows.map((row, index) => (
-            <HallProgressRow
-              key={`${threshold}-first-${row.name}`}
-              label={`${index + 1}. ${row.name}`}
-              value={Math.max(1, maxValue - row.fromFirstLogWars + 1)}
-              max={maxValue}
-              right={row.date || '-'}
-              tone="blueIndigo"
-            />
-          ))
-        ) : (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
-            No player reached {threshold} kills yet.
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <PremiumPanel className="p-5">
-      <SectionTitle icon={Trophy} title="First Milestones" />
-      <div className="grid gap-5 md:grid-cols-3">
-        {thresholds.map((threshold) => (
-          <React.Fragment key={`first-${threshold}`}>
-            {renderFirstLeaderboard(threshold)}
-          </React.Fragment>
-        ))}
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function FastestMilestonesPanel({ data }) {
-  const thresholds = [1000, 3000, 5000];
-
-  function renderFastestLeaderboard(threshold) {
-    const rows = data.thresholdLeaderboards?.[threshold]?.fastest || [];
-    const maxValue = Math.max(1, ...rows.map((row) => row.fromPlayerFirstLogWars || 0));
-
-    return (
-      <div>
-        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Fastest to {threshold} Kills
-        </p>
-        {rows.length ? (
-          rows.map((row, index) => (
-            <HallProgressRow
-              key={`${threshold}-fastest-${row.name}`}
-              label={`${index + 1}. ${row.name}`}
-              value={Math.max(1, maxValue - row.fromPlayerFirstLogWars + 1)}
-              max={maxValue}
-              right={`${row.fromPlayerFirstLogWars} Node Wars`}
-              tone="blueIce"
-            />
-          ))
-        ) : (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
-            No player reached {threshold} kills yet.
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <PremiumPanel className="p-5">
-      <SectionTitle icon={Zap} title="Fastest Milestones" />
-      <div className="grid gap-5 md:grid-cols-3">
-        {thresholds.map((threshold) => (
-          <React.Fragment key={`fastest-${threshold}`}>
-            {renderFastestLeaderboard(threshold)}
-          </React.Fragment>
-        ))}
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function ArsenalOutputPanel({ data }) {
-  const maxKills = Math.max(1, ...data.topKillers.map((player) => player.kills));
-  const maxDamage = Math.max(1, ...data.topDamagePlayers.map((player) => player.damageDealt));
-
-  return (
-    <PremiumPanel className="p-5">
-      <SectionTitle icon={BarChart3} title="Arsenal Output" action="Hall V1" />
-      <div className="grid gap-5 md:grid-cols-2">
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Kill Leaders</p>
-          {data.topKillers.length ? (
-            data.topKillers.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.kills}
-                max={maxKills}
-                right={shortNum(player.kills)}
-                tone="emerald"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No kill leaders yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Damage Leaders</p>
-          {data.topDamagePlayers.length ? (
-            data.topDamagePlayers.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.damageDealt}
-                max={maxDamage}
-                right={shortNum(player.damageDealt)}
-                tone="amber"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No secondary damage data yet.</p>
-          )}
-        </div>
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function DamageRecordsPanel({ data }) {
-  const topSingleGameDamageDealt = [...data.rows]
-    .filter((player) => player.maxMatchDamageDealt > 0)
-    .sort(
-      (a, b) =>
-        b.maxMatchDamageDealt - a.maxMatchDamageDealt ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topAverageDamageDealt = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.avgDamageDealtMatchCount) > 0 &&
-        Number.isFinite(Number(player.avgDamageDealtPerMatch)),
-    )
-    .sort(
-      (a, b) =>
-        b.avgDamageDealtPerMatch - a.avgDamageDealtPerMatch ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topSingleGameFortDamage = [...data.rows]
-    .filter((player) => player.maxMatchFortDamage > 0)
-    .sort(
-      (a, b) =>
-        b.maxMatchFortDamage - a.maxMatchFortDamage ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topSingleGameCcHits = [...data.rows]
-    .filter((player) => player.maxMatchCcHits > 0)
-    .sort(
-      (a, b) =>
-        b.maxMatchCcHits - a.maxMatchCcHits ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topAverageCcHits = [...data.rows]
-    .filter(
-      (player) =>
-        Number(player.avgCcHitsMatchCount) > 0 &&
-        Number.isFinite(Number(player.avgCcHitsPerMatch)),
-    )
-    .sort(
-      (a, b) =>
-        b.avgCcHitsPerMatch - a.avgCcHitsPerMatch ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const maxSingleGameDamageDealt = Math.max(1, ...topSingleGameDamageDealt.map((player) => player.maxMatchDamageDealt));
-  const maxAverageDamageDealt = Math.max(1, ...topAverageDamageDealt.map((player) => player.avgDamageDealtPerMatch));
-  const maxSingleGameFortDamage = Math.max(1, ...topSingleGameFortDamage.map((player) => player.maxMatchFortDamage));
-  const maxSingleGameCcHits = Math.max(1, ...topSingleGameCcHits.map((player) => player.maxMatchCcHits));
-  const maxAverageCcHits = Math.max(1, ...topAverageCcHits.map((player) => player.avgCcHitsPerMatch));
-
-  return (
-    <PremiumPanel className="p-5">
-      <SectionTitle icon={BarChart3} title="Damage" />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game</p>
-          {topSingleGameDamageDealt.length ? (
-            topSingleGameDamageDealt.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.maxMatchDamageDealt}
-                max={maxSingleGameDamageDealt}
-                right={shortNum(player.maxMatchDamageDealt)}
-                tone="yellowGold"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game damage dealt data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt</p>
-          {topAverageDamageDealt.length ? (
-            topAverageDamageDealt.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.avgDamageDealtPerMatch}
-                max={maxAverageDamageDealt}
-                right={shortNum(player.avgDamageDealtPerMatch)}
-                tone="yellowAmber"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average damage dealt data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fort Damage in 1 Game</p>
-          {topSingleGameFortDamage.length ? (
-            topSingleGameFortDamage.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.maxMatchFortDamage}
-                max={maxSingleGameFortDamage}
-                right={shortNum(player.maxMatchFortDamage)}
-                tone="yellowLemon"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game fort damage data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most CC Hits in 1 Game</p>
-          {topSingleGameCcHits.length ? (
-            topSingleGameCcHits.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.maxMatchCcHits}
-                max={maxSingleGameCcHits}
-                right={shortNum(player.maxMatchCcHits)}
-                tone="yellowHoney"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game CC hits data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits</p>
-          {topAverageCcHits.length ? (
-            topAverageCcHits.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.avgCcHitsPerMatch}
-                max={maxAverageCcHits}
-                right={player.avgCcHitsPerMatch.toFixed(1).replace(/\.0$/, '')}
-                tone="yellowSand"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average CC hits data yet.</p>
-          )}
-        </div>
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function NodeWarsRecordsPanel({ data }) {
-  const topMostNodeWars = [...data.rows]
-    .filter((player) => player.wars > 0)
-    .sort((a, b) => b.wars - a.wars || compareChronology(a, b))
-    .slice(0, 10);
-
-  const topJoinParticipation = [...data.rows]
-    .filter((player) => player.wars > 0)
-    .sort(
-      (a, b) =>
-        b.joinParticipation - a.joinParticipation ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const topConsecutiveWars = [...data.rows]
-    .filter((player) => player.consecutiveWars > 0)
-    .sort(
-      (a, b) =>
-        b.consecutiveWars - a.consecutiveWars ||
-        compareChronology(a, b),
-    )
-    .slice(0, 10);
-
-  const maxNodeWars = Math.max(1, ...topMostNodeWars.map((player) => player.wars));
-  const maxJoinParticipation = Math.max(1, ...topJoinParticipation.map((player) => player.joinParticipation));
-  const maxConsecutiveWars = Math.max(1, ...topConsecutiveWars.map((player) => player.consecutiveWars));
-
-  return (
-    <PremiumPanel className="p-5">
-      <SectionTitle icon={CalendarDays} title="Node Wars" />
-      <div className="grid gap-5 md:grid-cols-3">
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Node Wars</p>
-          {topMostNodeWars.length ? (
-            topMostNodeWars.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.wars}
-                max={maxNodeWars}
-                right={shortNum(player.wars)}
-                tone="redDeep"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible Node Wars data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation</p>
-          {topJoinParticipation.length ? (
-            topJoinParticipation.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.joinParticipation}
-                max={maxJoinParticipation}
-                right={`${player.joinParticipation.toFixed(1).replace(/\.0$/, '')}%`}
-                tone="redCrimson"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible participation data yet.</p>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Consecutive Matches</p>
-          {topConsecutiveWars.length ? (
-            topConsecutiveWars.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.consecutiveWars}
-                max={maxConsecutiveWars}
-                right={shortNum(player.consecutiveWars)}
-                tone="redRose"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible consecutive match data yet.</p>
-          )}
-        </div>
-      </div>
-    </PremiumPanel>
-  );
-}
-
-function Variant1({ data }) {
-  const [activeTab, setActiveTab] = useState('kills');
-
-  return (
-    <div className="space-y-5">
-      <HallTopHeaders
-        data={data}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
-      {activeTab === 'kills' ? (
-        <>
-          <CombatOutputPanel data={data} />
-
-          <FirstMilestonesPanel data={data} />
-
-          <FastestMilestonesPanel data={data} />
-        </>
-      ) : activeTab === 'damage' ? (
-        <DamageRecordsPanel data={data} />
-      ) : activeTab === 'nodeWars' ? (
-        <NodeWarsRecordsPanel data={data} />
-      ) : (
-        <CombatRecordsPanel data={data} />
-      )}
-    </div>
-  );
-}
-
-function PreviewAll({ data }) {
-  return (
-    <div className="min-h-screen bg-[#050b16] p-4 text-slate-100 md:p-8">
-      <div className="mx-auto max-w-[1600px] space-y-10">
-        <PageFrame>
-          <Variant1 data={data} />
-        </PageFrame>
       </div>
     </div>
   );
 }
 
-export default function HallOfFame({ stats, allTimeStats } = {}) {
-  const previewMode = !stats && !allTimeStats;
-  const data = useMemo(
-    () =>
-      buildHallData(
-        allTimeStats?.players?.length ? allTimeStats : stats,
-        MIN_HALL_WARS,
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className = '',
+  toneClass = 'text-[#7f8da2]',
+  rainbow = false,
+}) {
+  const active = sort.key === sortKey;
+  const arrow = active
+    ? sort.direction === 'asc'
+      ? '↑'
+      : '↓'
+    : '↕';
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-left transition hover:brightness-125 ${
+        active ? 'brightness-125' : ''
+      } ${
+        rainbow
+          ? 'bg-clip-text text-transparent'
+          : toneClass
+      } ${className}`}
+      style={
+        rainbow
+          ? {
+              backgroundImage:
+                'linear-gradient(90deg, #fb7185, #facc15, #4ade80, #38bdf8, #a78bfa)',
+            }
+          : undefined
+      }
+    >
+      <span>{label}</span>
+      <span className="text-[10px]">{arrow}</span>
+    </button>
+  );
+}
+
+const DEFAULT_OVERALL_WEIGHTS = Object.freeze({
+  kills: 0,
+  deaths: 0,
+  kd: 10,
+  killStreak: 0,
+  killFeed: 0,
+  damageDealt: 40,
+  damageTaken: 0,
+  ccHits: 20,
+  fortDamage: 30,
+});
+
+const OVERALL_WEIGHT_CONTROLS = Object.freeze([
+  {
+    key: 'kills',
+    label: 'Kills',
+    tone: 'text-blue-400',
+    accent: '#60a5fa',
+  },
+  {
+    key: 'deaths',
+    label: 'Deaths ↓',
+    tone: 'text-rose-400',
+    accent: '#fb7185',
+  },
+  {
+    key: 'kd',
+    label: 'K/D',
+    tone: 'text-emerald-400',
+    accent: '#34d399',
+  },
+  {
+    key: 'killStreak',
+    label: 'Killstreak',
+    tone: 'text-slate-200',
+    accent: '#e2e8f0',
+  },
+  {
+    key: 'killFeed',
+    label: 'KillFeed',
+    tone: 'text-orange-400',
+    accent: '#fb923c',
+  },
+  {
+    key: 'damageDealt',
+    label: 'DMG Dealt',
+    tone: 'text-cyan-400',
+    accent: '#22d3ee',
+  },
+  {
+    key: 'damageTaken',
+    label: 'DMG Taken ↓',
+    tone: 'text-pink-400',
+    accent: '#f472b6',
+  },
+  {
+    key: 'ccHits',
+    label: 'CC Hits',
+    tone: 'text-violet-400',
+    accent: '#a78bfa',
+  },
+  {
+    key: 'fortDamage',
+    label: 'DMG to Fort',
+    tone: 'text-amber-400',
+    accent: '#fbbf24',
+  },
+]);
+
+function percentileScore(
+  player,
+  entries,
+  lowerIsBetter = false,
+) {
+  const ranked = [...(entries || [])].sort((a, b) => {
+    const aValue = num(a?.value);
+    const bValue = num(b?.value);
+    const valueDifference = lowerIsBetter
+      ? aValue - bValue
+      : bValue - aValue;
+
+    return (
+      valueDifference ||
+      chronologicalCompare(a?.player, b?.player)
+    );
+  });
+
+  if (!ranked.length) return 50;
+  if (ranked.length === 1) return 100;
+
+  const index = ranked.findIndex(
+    (entry) => entry?.player === player,
+  );
+
+  if (index < 0) return 50;
+
+  return (
+    ((ranked.length - 1 - index) /
+      (ranked.length - 1)) *
+    100
+  );
+}
+
+function weightedImpactPart(parts) {
+  const totalWeight = parts.reduce(
+    (sum, part) => sum + num(part.weight),
+    0,
+  );
+
+  if (!totalWeight) return 0;
+
+  return (
+    parts.reduce(
+      (sum, part) =>
+        sum + num(part.score) * num(part.weight),
+      0,
+    ) / totalWeight
+  );
+}
+
+function overallMetricValue(player, key, viewMode) {
+  const wars = Math.max(1, num(player?.wars));
+
+  if (viewMode === 'average') {
+    switch (key) {
+      case 'kills':
+        return num(player?.kills) / wars;
+      case 'deaths':
+        return num(player?.deaths) / wars;
+      case 'kd':
+        return num(player?.averageKd);
+      case 'killStreak':
+        return num(player?.killStreak) / wars;
+      case 'killFeed':
+        return num(player?.killFeed) / wars;
+      case 'damageDealt':
+        return num(player?.averageDamageDealt);
+      case 'damageTaken':
+        return num(player?.damageTaken) / wars;
+      case 'ccHits':
+        return num(player?.averageCcHits);
+      case 'fortDamage':
+        return num(player?.fortDamage) / wars;
+      default:
+        return 0;
+    }
+  }
+
+  switch (key) {
+    case 'kills':
+      return num(player?.kills);
+    case 'deaths':
+      return num(player?.deaths);
+    case 'kd':
+      return num(player?.kd);
+    case 'killStreak':
+      return num(player?.longestKillStreak);
+    case 'killFeed':
+      return num(player?.bestKillFeed);
+    case 'damageDealt':
+      return num(player?.damageDealt);
+    case 'damageTaken':
+      return num(player?.damageTaken);
+    case 'ccHits':
+      return num(player?.ccHits);
+    case 'fortDamage':
+      return num(player?.fortDamage);
+    default:
+      return 0;
+  }
+}
+
+function addImpactScores(
+  players,
+  weights,
+  viewMode,
+) {
+  const activePlayers = (players || []).filter(
+    (player) => !player.inactive && num(player.wars) > 0,
+  );
+
+  if (!activePlayers.length) {
+    return (players || []).map((player) => ({
+      ...player,
+      impact: 0,
+    }));
+  }
+
+  const activeControls = OVERALL_WEIGHT_CONTROLS.filter(
+    ({ key }) => num(weights?.[key]) > 0,
+  );
+
+  const totalWeight = activeControls.reduce(
+    (sum, { key }) => sum + num(weights?.[key]),
+    0,
+  );
+
+  if (!totalWeight) {
+    return (players || []).map((player) => ({
+      ...player,
+      impact: 0,
+    }));
+  }
+
+  const metricEntries = Object.fromEntries(
+    activeControls.map(({ key }) => [
+      key,
+      activePlayers.map((player) => ({
+        player,
+        value: overallMetricValue(
+          player,
+          key,
+          viewMode,
+        ),
+      })),
+    ]),
+  );
+
+  return (players || []).map((player) => {
+    if (player.inactive || num(player.wars) <= 0) {
+      return {
+        ...player,
+        impact: 0,
+      };
+    }
+
+    const parts = activeControls.map(({ key }) => ({
+      score: percentileScore(
+        player,
+        metricEntries[key],
+        key === 'deaths' || key === 'damageTaken',
       ),
-    [stats, allTimeStats],
-  );
+      weight: num(weights?.[key]),
+    }));
 
-  if (previewMode) return <PreviewAll data={buildHallData(demoStats, 0)} />;
-  if (!data.rows.length) return <EmptyState />;
+    const impact = weightedImpactPart(parts);
+
+    return {
+      ...player,
+      impact: Math.round(
+        Math.max(0, Math.min(100, impact)) * 10,
+      ) / 10,
+    };
+  });
+}
+
+function performanceValue(player, key, viewMode) {
+  if (viewMode !== 'average') {
+    if (key === 'killStreak') {
+      return num(player?.longestKillStreak);
+    }
+
+    if (key === 'killFeed') {
+      return num(player?.bestKillFeed);
+    }
+
+    return num(player?.[key]);
+  }
+
+  if (key === 'wars' || key === 'impact') {
+    return num(player?.[key]);
+  }
+
+  if (key === 'kd') {
+    return num(player?.averageKd);
+  }
+
+  const wars = num(player?.wars);
+  return wars > 0 ? num(player?.[key]) / wars : 0;
+}
+
+function formatPerformanceValue(key, value, viewMode) {
+  if (key === 'kd') {
+    return num(value).toFixed(2);
+  }
+
+  if (key === 'impact') {
+    return num(value).toFixed(1);
+  }
+
+  if (viewMode === 'average' && key !== 'wars') {
+    if (
+      ['damageDealt', 'damageTaken', 'fortDamage'].includes(key)
+    ) {
+      return compact(value);
+    }
+
+    return num(value).toFixed(1);
+  }
+
+  return compact(value);
+}
+
+const performanceColumnThemes = {
+  kills: {
+    text: 'text-blue-400',
+    bar: 'bg-blue-400',
+  },
+  deaths: {
+    text: 'text-rose-400',
+    bar: 'bg-rose-400',
+  },
+  kdPositive: {
+    text: 'text-emerald-400',
+    bar: 'bg-emerald-400',
+  },
+  kdNegative: {
+    text: 'text-red-400',
+    bar: 'bg-red-400',
+  },
+  impact: {
+    text: '',
+    bar: '',
+  },
+  killStreak: {
+    text: 'text-slate-200',
+    bar: 'bg-slate-200',
+  },
+  killFeed: {
+    text: 'text-orange-400',
+    bar: 'bg-orange-400',
+  },
+  damageDealt: {
+    text: 'text-cyan-400',
+    bar: 'bg-cyan-400',
+  },
+  damageTaken: {
+    text: 'text-pink-400',
+    bar: 'bg-pink-400',
+  },
+  ccHits: {
+    text: 'text-violet-400',
+    bar: 'bg-violet-400',
+  },
+  fortDamage: {
+    text: 'text-amber-400',
+    bar: 'bg-amber-400',
+  },
+};
+
+function PerformanceMetricCell({
+  player,
+  metricKey,
+  max,
+  viewMode,
+}) {
+  if (player.inactive) {
+    return (
+      <span className="text-center font-black text-slate-700">
+        —
+      </span>
+    );
+  }
+
+  const value = performanceValue(player, metricKey, viewMode);
+  const width =
+    value <= 0
+      ? 0
+      : Math.max(
+          3,
+          Math.min(
+            100,
+            Math.round((value / Math.max(1, max)) * 100),
+          ),
+        );
+
+  const isImpact = metricKey === 'impact';
+  const theme =
+    metricKey === 'kd'
+      ? value >= 1
+        ? performanceColumnThemes.kdPositive
+        : performanceColumnThemes.kdNegative
+      : performanceColumnThemes[metricKey] || {
+          text: 'text-slate-300',
+          bar: 'bg-slate-300',
+        };
+
+  const rainbowGradient =
+    'linear-gradient(90deg, #fb7185, #facc15, #4ade80, #38bdf8, #a78bfa)';
 
   return (
-    <PageFrame>
-      <Variant1 data={data} />
-    </PageFrame>
+    <div className="mx-auto flex w-full min-w-0 flex-col items-center">
+      <span
+        className={`whitespace-nowrap text-center text-[11px] font-black leading-none ${
+          isImpact
+            ? 'bg-clip-text text-transparent'
+            : theme.text
+        }`}
+        style={
+          isImpact
+            ? { backgroundImage: rainbowGradient }
+            : undefined
+        }
+      >
+        {formatPerformanceValue(metricKey, value, viewMode)}
+      </span>
+
+      <span className="mt-1 block h-[2px] w-[64%] overflow-visible rounded-full bg-slate-800/55">
+        <span
+          className={`relative block h-full rounded-full ${
+            isImpact ? '' : theme.bar
+          }`}
+          style={{
+            width: `${width}%`,
+            backgroundImage: isImpact
+              ? rainbowGradient
+              : undefined,
+            boxShadow: isImpact
+              ? '0 0 8px rgba(56,189,248,0.4)'
+              : '0 0 7px currentColor',
+          }}
+        >
+          {width > 0 && (
+            <span
+              className={`absolute right-0 top-1/2 h-[4px] w-[4px] -translate-y-1/2 rounded-full ${
+                isImpact ? 'bg-violet-300' : theme.bar
+              } shadow-[0_0_6px_currentColor]`}
+            />
+          )}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function PlayersTable({ players }) {
+  const [viewMode, setViewMode] = useState('average');
+  const [overallWeights, setOverallWeights] = useState(
+    () => ({ ...DEFAULT_OVERALL_WEIGHTS }),
+  );
+  const [sort, setSort] = useState({
+    key: 'impact',
+    direction: 'desc',
+  });
+
+  const playersWithImpact = useMemo(
+    () =>
+      addImpactScores(
+        players || [],
+        overallWeights,
+        viewMode,
+      ),
+    [players, overallWeights, viewMode],
+  );
+
+  const rows = useMemo(() => {
+    const sorted = [...playersWithImpact];
+
+    sorted.sort((a, b) => {
+      if (a.inactive !== b.inactive) {
+        return a.inactive ? 1 : -1;
+      }
+
+      if (a.inactive && b.inactive) {
+        return a.name.localeCompare(b.name);
+      }
+
+      if (sort.key === 'name') {
+        const result = a.name.localeCompare(b.name);
+        return sort.direction === 'asc' ? result : -result;
+      }
+
+      const aValue = performanceValue(a, sort.key, viewMode);
+      const bValue = performanceValue(b, sort.key, viewMode);
+      const result = aValue - bValue;
+
+      if (result !== 0) {
+        return sort.direction === 'asc' ? result : -result;
+      }
+
+      return chronologicalCompare(a, b);
+    });
+
+    return sorted;
+  }, [playersWithImpact, sort, viewMode]);
+
+  const activeRows = rows.filter((player) => !player.inactive);
+
+  const metricMaximums = useMemo(() => {
+    const metricKeys = [
+      'kills',
+      'deaths',
+      'kd',
+      'impact',
+      'killStreak',
+      'killFeed',
+      'damageDealt',
+      'damageTaken',
+      'ccHits',
+      'fortDamage',
+    ];
+
+    return Object.fromEntries(
+      metricKeys.map((key) => [
+        key,
+        key === 'impact'
+          ? 100
+          : Math.max(
+              1,
+              ...activeRows.map((player) =>
+                performanceValue(player, key, viewMode),
+              ),
+            ),
+      ]),
+    );
+  }, [activeRows, viewMode]);
+
+  const overallWeightTotal = OVERALL_WEIGHT_CONTROLS.reduce(
+    (sum, { key }) => sum + num(overallWeights[key]),
+    0,
+  );
+
+  function handleOverallWeight(key, value) {
+    setOverallWeights((current) => ({
+      ...current,
+      [key]: Math.max(0, Math.min(100, num(value))),
+    }));
+    setSort({
+      key: 'impact',
+      direction: 'desc',
+    });
+  }
+
+  function resetOverallWeights() {
+    setOverallWeights({ ...DEFAULT_OVERALL_WEIGHTS });
+    setSort({
+      key: 'impact',
+      direction: 'desc',
+    });
+  }
+
+  function handleViewMode(mode) {
+    setViewMode(mode);
+    setSort({
+      key: 'impact',
+      direction: 'desc',
+    });
+  }
+
+  function handleSort(key) {
+    setSort((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction:
+            current.direction === 'desc' ? 'asc' : 'desc',
+        };
+      }
+
+      return {
+        key,
+        direction: key === 'name' ? 'asc' : 'desc',
+      };
+    });
+  }
+
+  if (!rows.length) {
+    return <p className="p-5 text-sm text-slate-500">No player data.</p>;
+  }
+
+  const gridColumns =
+    'grid-cols-[28px_minmax(170px,1.45fr)_minmax(92px,.72fr)_minmax(48px,.42fr)_minmax(72px,.58fr)_minmax(72px,.58fr)_minmax(62px,.5fr)_minmax(82px,.66fr)_minmax(80px,.64fr)_minmax(98px,.82fr)_minmax(98px,.82fr)_minmax(74px,.6fr)_minmax(100px,.84fr)]';
+
+  return (
+    <>
+      <div className="monthly-formula-panel border-b border-[#28405f]/40 px-3 py-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] font-black uppercase tracking-[0.09em] text-white">
+                Overall Formula
+              </p>
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black text-slate-400">
+                Live
+              </span>
+            </div>
+            <p className="mt-1 text-[9px] font-bold text-slate-500">
+              Only slider weights affect Overall · Total and Average rank independently · Deaths and DMG Taken reward lower values
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="rounded-md border border-[#263c59] bg-slate-950/22 px-2.5 py-1.5 text-[9px] font-black text-slate-400">
+              Weight pool:{' '}
+              <span className="text-white">
+                {overallWeightTotal}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={resetOverallWeights}
+              className="rounded-md border border-[#263c59] bg-slate-950/22 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-slate-400 transition hover:border-[#4ea1ff] hover:text-white"
+            >
+              Reset
+            </button>
+
+            <div className="flex items-center rounded-lg border border-[#263c59] bg-slate-950/22 p-1">
+              {[
+                ['total', 'Total'],
+                ['average', 'Average'],
+              ].map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleViewMode(mode)}
+                  className={`rounded-md px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.06em] transition ${
+                    viewMode === mode
+                      ? 'bg-[#315dff] text-white shadow-[0_4px_14px_rgba(49,93,255,.25)]'
+                      : 'text-[#7f8da2] hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+          {OVERALL_WEIGHT_CONTROLS.map(
+            ({ key, label, tone, accent }) => {
+              const rawWeight = num(overallWeights[key]);
+              const effectiveWeight =
+                overallWeightTotal > 0
+                  ? (rawWeight / overallWeightTotal) * 100
+                  : 0;
+
+              return (
+                <label
+                  key={key}
+                  className="grid grid-cols-[96px_minmax(0,1fr)_58px] items-center gap-2"
+                >
+                  <span
+                    className={`truncate text-[9px] font-black uppercase tracking-[0.045em] ${tone}`}
+                  >
+                    {label}
+                  </span>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={rawWeight}
+                    onChange={(event) =>
+                      handleOverallWeight(
+                        key,
+                        event.target.value,
+                      )
+                    }
+                    className="h-1.5 w-full cursor-pointer transition-all duration-75 ease-linear"
+                    style={{ accentColor: accent }}
+                  />
+
+                  <span className="text-right text-[9px] font-black tabular-nums text-slate-300">
+                    {effectiveWeight.toFixed(1)}%
+                  </span>
+                </label>
+              );
+            },
+          )}
+        </div>
+      </div>
+
+      <div className={`isolate max-h-[720px] overflow-auto ${scrollCls}`}>
+        <div className="w-full min-w-[1160px]">
+          <div
+            className={`monthly-player-performance-header sticky top-0 z-30 grid ${gridColumns} items-center gap-1 border-b border-[#28405f]/80 px-2 py-2 text-[9px] font-black uppercase tracking-[0.045em]`}
+          >
+            <span className="text-[#7f8da2]">#</span>
+
+            <SortHeader
+              label="Player"
+              sortKey="name"
+              sort={sort}
+              onSort={handleSort}
+              className="pr-3"
+            />
+            <SortHeader
+              label="Overall"
+              sortKey="impact"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              rainbow
+            />
+            <SortHeader
+              label="Wars"
+              sortKey="wars"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+            />
+            <SortHeader
+              label="Kills"
+              sortKey="kills"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-blue-400"
+            />
+            <SortHeader
+              label="Deaths"
+              sortKey="deaths"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-rose-400"
+            />
+            <SortHeader
+              label="K/D"
+              sortKey="kd"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-emerald-400"
+            />
+            <SortHeader
+              label="Killstreak"
+              sortKey="killStreak"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-slate-200"
+            />
+            <SortHeader
+              label="KillFeed"
+              sortKey="killFeed"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-orange-400"
+            />
+            <SortHeader
+              label="DMG Dealt"
+              sortKey="damageDealt"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-cyan-400"
+            />
+            <SortHeader
+              label="DMG Taken"
+              sortKey="damageTaken"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-pink-400"
+            />
+            <SortHeader
+              label="CC Hits"
+              sortKey="ccHits"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-violet-400"
+            />
+            <SortHeader
+              label="DMG to Fort"
+              sortKey="fortDamage"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-amber-400"
+            />
+          </div>
+
+          <div className="relative z-0 divide-y divide-[#28405f]/45">
+            {rows.map((player, index) => {
+              const inactive = player.inactive;
+
+              return (
+                <div
+                  key={player.name}
+                  className={`grid ${gridColumns} items-center gap-1 px-2 py-2 text-[12px] transition hover:bg-white/[.02] ${
+                    inactive ? 'bg-slate-950/16' : ''
+                  }`}
+                >
+                  <span
+                    className={`font-black ${
+                      inactive
+                        ? 'text-[#405067]'
+                        : 'text-[#64748b]'
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+
+                  <div className="flex min-w-0 items-center gap-1.5 pr-3">
+                    <span
+                      className={`truncate font-black ${
+                        inactive ? 'text-slate-500' : 'text-white'
+                      }`}
+                    >
+                      {player.name}
+                    </span>
+
+                    {inactive && (
+                      <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.04em] text-rose-400">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="impact"
+                    max={100}
+                    viewMode={viewMode}
+                  />
+
+                  <span
+                    className={`text-center font-black ${
+                      inactive
+                        ? 'text-slate-700'
+                        : 'text-[#d8e5f7]'
+                    }`}
+                  >
+                    {inactive ? '—' : player.wars}
+                  </span>
+
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="kills"
+                    max={metricMaximums.kills}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="deaths"
+                    max={metricMaximums.deaths}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="kd"
+                    max={metricMaximums.kd}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="killStreak"
+                    max={metricMaximums.killStreak}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="killFeed"
+                    max={metricMaximums.killFeed}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="damageDealt"
+                    max={metricMaximums.damageDealt}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="damageTaken"
+                    max={metricMaximums.damageTaken}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="ccHits"
+                    max={metricMaximums.ccHits}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="fortDamage"
+                    max={metricMaximums.fortDamage}
+                    viewMode={viewMode}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function EnemyGuildReport({ enemies }) {
+  const [sortBy, setSortBy] = useState('wars');
+
+  const rows = useMemo(() => {
+    const sorted = [...enemies];
+
+    sorted.sort((a, b) => {
+      if (sortBy === 'kd') {
+        return (
+          b.kd - a.kd ||
+          b.wars - a.wars ||
+          b.kills - a.kills ||
+          a.name.localeCompare(b.name)
+        );
+      }
+
+      if (sortBy === 'kills') {
+        return (
+          b.kills - a.kills ||
+          b.wars - a.wars ||
+          b.kd - a.kd ||
+          a.name.localeCompare(b.name)
+        );
+      }
+
+      return (
+        b.wars - a.wars ||
+        b.kills - a.kills ||
+        b.kd - a.kd ||
+        a.name.localeCompare(b.name)
+      );
+    });
+
+    return sorted;
+  }, [enemies, sortBy]);
+
+  return (
+    <>
+      <div className="monthly-guild-ranking-header flex items-center justify-between border-b border-[#28405f]/40 px-3 py-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.09em] text-[#8291a7]">
+          Guild Rankings
+        </p>
+
+        <label className="flex items-center gap-2">
+          <span className="text-[9px] font-black uppercase tracking-[0.07em] text-[#64748b]">
+            Rank by
+          </span>
+          <select
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value)}
+            className="h-8 rounded-md border border-[#263c59] bg-[#020813] px-2 text-[11px] font-black text-white outline-none focus:border-[#4ea1ff]"
+            style={{ colorScheme: 'dark' }}
+          >
+            <option className="bg-[#020813] text-white" value="wars">
+              Wars
+            </option>
+            <option className="bg-[#020813] text-white" value="kd">
+              K/D
+            </option>
+            <option className="bg-[#020813] text-white" value="kills">
+              Kills
+            </option>
+          </select>
+        </label>
+      </div>
+
+      {!rows.length ? (
+        <div className="flex min-h-[280px] items-center justify-center p-5 text-sm font-bold text-slate-500">
+          No enemy guild data for this month.
+        </div>
+      ) : (
+        <div
+          className={`max-h-[448px] overflow-y-auto divide-y divide-[#28405f]/45 ${scrollCls}`}
+        >
+          {rows.map((enemy, index) => {
+            const positive = enemy.kd >= 1;
+
+            return (
+              <div
+                key={enemy.name}
+                className="group grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3.5 transition hover:bg-white/[.025]"
+              >
+                <div
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg border text-[11px] font-black ${
+                    index === 0
+                      ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                      : index === 1
+                        ? 'border-slate-300/20 bg-slate-300/5 text-slate-300'
+                        : index === 2
+                          ? 'border-orange-400/25 bg-orange-400/10 text-orange-300'
+                          : 'border-[#263c59] bg-slate-950/22 text-[#7589a3]'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-[14px] font-black text-white">
+                      {enemy.name}
+                    </p>
+                    <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.05em] text-slate-400">
+                      {enemy.wars} war{enemy.wars === 1 ? '' : 's'}
+                    </span>
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-3 text-[11px] font-black">
+                    <span className="text-blue-300">
+                      {compact(enemy.kills)} K
+                    </span>
+                    <span className="text-rose-300">
+                      {compact(enemy.deaths)} D
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <p
+                    className={`text-[17px] font-black ${
+                      positive ? 'text-[#75e34f]' : 'text-[#ff6077]'
+                    }`}
+                  >
+                    {enemy.kd.toFixed(2)}
+                  </p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
+                    K/D
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function MonthlyRecap({
+  logs = [],
+  onOpenMatchOverview = () => {},
+}) {
+  const months = useMemo(() => {
+    const available = [
+      ...new Set(
+        (logs || [])
+          .map((log) => monthFromDate(dateOf(log)))
+          .filter((month) => month && month >= MIN_MONTH),
+      ),
+    ].sort((a, b) => b.localeCompare(a));
+
+    if (!available.includes(MIN_MONTH)) {
+      available.push(MIN_MONTH);
+      available.sort((a, b) => b.localeCompare(a));
+    }
+
+    return available;
+  }, [logs]);
+
+  const [selectedMonth, setSelectedMonth] = useState(
+    months[0] || MIN_MONTH,
+  );
+  const [daysAgo, setDaysAgo] = useState(
+    DEFAULT_RECAP_DAYS_AGO,
+  );
+
+  useEffect(() => {
+    if (!months.includes(selectedMonth)) {
+      setSelectedMonth(months[0] || MIN_MONTH);
+    }
+  }, [months, selectedMonth]);
+
+  const review = useMemo(
+    () =>
+      buildReview(
+        logs,
+        selectedMonth,
+        daysAgo,
+      ),
+    [logs, selectedMonth, daysAgo],
+  );
+
+  const activeDateWindow = useMemo(
+    () => monthDateWindow(selectedMonth, daysAgo),
+    [selectedMonth, daysAgo],
+  );
+
+  const {
+    previousMonth,
+    totals,
+    previousTotals,
+    players,
+    topFragger,
+    bestKd,
+    damageLeader,
+    fortBreaker,
+    longestStreak,
+    bestFeed,
+    enemies,
+    mostFought,
+    bestMatchup,
+    toughestMatchup,
+    featuredWars,
+  } = review;
+
+  return (
+    <div className="monthly-recap-guild-style space-y-2.5 bg-transparent text-white">
+      <style>{MONTHLY_GUILD_PANEL_CSS}</style>
+      <div className="flex flex-col gap-3 pb-1 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-[32px] font-black leading-none tracking-[-0.02em] text-white">
+            Monthly Recap
+          </h1>
+          <p className="mt-1 text-[13px] font-medium text-[#8d9bb0]">
+            Node Wars Performance Overview —{' '}
+            <span className="font-bold text-[#4ea1ff]">
+              {monthLabel(selectedMonth)}
+            </span>
+            <span className="text-[#52637b]">
+              {' '}
+              ·{' '}
+              {daysAgo
+                ? `${formatDate(activeDateWindow.start)} – ${formatDate(
+                    activeDateWindow.end,
+                  )}`
+                : 'Full month'}
+            </span>
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative">
+            <CalendarDays
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7f8da2]"
+            />
+            <select
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+              className="h-10 rounded-[8px] border border-[#23364f] bg-slate-950/24 py-2 pl-9 pr-9 text-[12px] font-bold text-[#d8e5f7] outline-none focus:border-[#4ea1ff]"
+            >
+              {months.map((month) => (
+                <option key={month} value={month}>
+                  {monthLabel(month)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#23364f] bg-slate-950/24 px-3 focus-within:border-[#4ea1ff]">
+            <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.07em] text-[#7f8da2]">
+              Days Ago
+            </span>
+            <input
+              type="number"
+              min="0"
+              max="366"
+              step="1"
+              value={daysAgo}
+              onChange={(event) =>
+                setDaysAgo(
+                  Math.max(
+                    0,
+                    Math.min(
+                      366,
+                      Math.floor(num(event.target.value)),
+                    ),
+                  ),
+                )
+              }
+              className="w-14 bg-transparent text-right text-[12px] font-black tabular-nums text-[#d8e5f7] outline-none"
+            />
+            <span className="whitespace-nowrap text-[9px] font-bold text-[#52637b]">
+              0 = full month
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+        <KpiCard
+          icon={Flag}
+          label="Total Wars"
+          value={compact(totals.wars, 0)}
+          comparison={comparisonInfo(
+            totals.wars,
+            previousTotals.wars,
+            previousMonth,
+          )}
+          accent="blue"
+        />
+        <KpiCard
+          icon={Swords}
+          label="Total Kills"
+          value={compact(totals.kills)}
+          averageLabel="Avg / War"
+          averageValue={totals.avgKills.toFixed(1)}
+          comparison={comparisonInfo(
+            totals.kills,
+            previousTotals.kills,
+            previousMonth,
+          )}
+          accent="violet"
+        />
+        <KpiCard
+          icon={Skull}
+          label="Total Deaths"
+          value={compact(totals.deaths)}
+          averageLabel="Avg / War"
+          averageValue={totals.avgDeaths.toFixed(1)}
+          comparison={comparisonInfo(
+            totals.deaths,
+            previousTotals.deaths,
+            previousMonth,
+            true,
+          )}
+          accent="rose"
+        />
+        <KpiCard
+          icon={Crosshair}
+          label="Overall K/D"
+          value={totals.kd.toFixed(2)}
+          averageLabel="Avg War K/D"
+          averageValue={totals.avgWarKd.toFixed(2)}
+          comparison={comparisonInfo(
+            totals.kd,
+            previousTotals.kd,
+            previousMonth,
+          )}
+          accent="cyan"
+        />
+        <KpiCard
+          icon={Zap}
+          label="Damage"
+          value={compact(totals.damage)}
+          averageLabel="Avg / War"
+          averageValue={compact(totals.avgDamage)}
+          comparison={comparisonInfo(
+            totals.damage,
+            previousTotals.damage,
+            previousMonth,
+          )}
+          accent="green"
+        />
+        <KpiCard
+          icon={Castle}
+          label="Fort Damage"
+          value={compact(totals.fortDamage)}
+          averageLabel="Avg / War"
+          averageValue={compact(totals.avgFortDamage)}
+          comparison={comparisonInfo(
+            totals.fortDamage,
+            previousTotals.fortDamage,
+            previousMonth,
+          )}
+          accent="amber"
+        />
+      </div>
+
+      <SectionShell icon={Swords} title="Featured Wars" accent="blue" transparent>
+        <div className="grid gap-2 p-2 xl:grid-cols-3">
+          {featuredWars.length ? (
+            featuredWars.map((item) => (
+              <FeaturedWar
+                key={item.id}
+                item={item}
+                onOpen={onOpenMatchOverview}
+              />
+            ))
+          ) : (
+            <p className="col-span-full p-5 text-sm text-slate-500">
+              No featured wars for this month.
+            </p>
+          )}
+        </div>
+      </SectionShell>
+
+      <SectionShell icon={Shield} title="Enemy Guild Report" accent="violet" transparent>
+        <div className="grid items-stretch gap-0 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,.95fr)]">
+          <div className="border-b border-[#28405f]/70 p-2 xl:border-b-0 xl:border-r">
+            <div className="grid min-h-[488px] grid-cols-1 content-stretch gap-2">
+              <MatchupCard
+                icon={Swords}
+                label="Most Fought Guild"
+                name={mostFought?.name}
+                wars={mostFought?.wars}
+                value={
+                  mostFought
+                    ? `${compact(mostFought.kills)} K · ${compact(
+                        mostFought.deaths,
+                      )} D`
+                    : null
+                }
+                accent="violet"
+                onClick={
+                  mostFought?.warRows?.length
+                    ? () => onOpenMatchOverview(mostFought.warRows)
+                    : undefined
+                }
+                openLabel={
+                  mostFought?.warRows?.length
+                    ? `Open all ${mostFought.warRows.length} node war${
+                        mostFought.warRows.length === 1 ? '' : 's'
+                      }`
+                    : undefined
+                }
+              />
+
+              <MatchupCard
+                icon={Trophy}
+                label="Best Matchup"
+                name={bestMatchup?.name}
+                wars={bestMatchup?.wars}
+                value={
+                  bestMatchup
+                    ? `${bestMatchup.kd.toFixed(2)} K/D`
+                    : null
+                }
+                accent="cyan"
+                onClick={
+                  bestMatchup?.warRows?.length
+                    ? () => onOpenMatchOverview(bestMatchup.warRows)
+                    : undefined
+                }
+                openLabel={
+                  bestMatchup?.warRows?.length
+                    ? `Open all ${bestMatchup.warRows.length} node war${
+                        bestMatchup.warRows.length === 1 ? '' : 's'
+                      }`
+                    : undefined
+                }
+              />
+
+              <MatchupCard
+                icon={Target}
+                label="Toughest Opponent"
+                name={toughestMatchup?.name}
+                wars={toughestMatchup?.wars}
+                value={
+                  toughestMatchup
+                    ? `${toughestMatchup.kd.toFixed(2)} K/D`
+                    : null
+                }
+                accent="rose"
+                onClick={
+                  toughestMatchup?.warRows?.length
+                    ? () => onOpenMatchOverview(toughestMatchup.warRows)
+                    : undefined
+                }
+                openLabel={
+                  toughestMatchup?.warRows?.length
+                    ? `Open all ${toughestMatchup.warRows.length} node war${
+                        toughestMatchup.warRows.length === 1 ? '' : 's'
+                      }`
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+
+          <div
+            className="monthly-guild-panel min-w-0 overflow-hidden rounded-[22px] border border-transparent"
+            style={monthlyPanelStyle('violet')}
+          >
+            <EnemyGuildReport enemies={enemies} />
+          </div>
+        </div>
+      </SectionShell>
+
+      <SectionShell icon={Users} title="Player Highlights" accent="green" transparent>
+        <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <PlayerHighlight
+            icon={Crosshair}
+            label="Top Fragger"
+            name={topFragger?.name}
+            value={topFragger ? compact(topFragger.kills) : '-'}
+            unit={
+              topFragger?.date
+                ? `Kills · ${formatDate(topFragger.date)}`
+                : 'Kills'
+            }
+            accent="blue"
+          />
+          <PlayerHighlight
+            icon={Gauge}
+            label="Highest K/D"
+            labelSub="Single Match"
+            name={bestKd?.name}
+            value={bestKd ? bestKd.kd.toFixed(2) : '-'}
+            unit={
+              bestKd?.date
+                ? `K/D · ${formatDate(bestKd.date)}`
+                : 'K/D Ratio'
+            }
+            accent="violet"
+          />
+          <PlayerHighlight
+            icon={Zap}
+            label="Damage Leader"
+            name={damageLeader?.name}
+            value={damageLeader ? compact(damageLeader.damage) : '-'}
+            unit={
+              damageLeader?.date
+                ? `Damage · ${formatDate(damageLeader.date)}`
+                : 'Damage'
+            }
+            accent="cyan"
+          />
+          <PlayerHighlight
+            icon={Castle}
+            label="Fort Breaker"
+            name={fortBreaker?.name}
+            value={fortBreaker ? compact(fortBreaker.fortDamage) : '-'}
+            unit={
+              fortBreaker?.date
+                ? `Fort Damage · ${formatDate(fortBreaker.date)}`
+                : 'Fort Damage'
+            }
+            accent="green"
+          />
+          <PlayerHighlight
+            icon={Medal}
+            label="Longest Killstreak"
+            name={longestStreak?.name}
+            value={longestStreak ? compact(longestStreak.value, 0) : '-'}
+            unit={
+              longestStreak?.date
+                ? `Kills · ${formatDate(longestStreak.date)}`
+                : 'Kills'
+            }
+            accent="amber"
+          />
+          <PlayerHighlight
+            icon={Flame}
+            label="Best Kill Feed"
+            name={bestFeed?.name}
+            value={bestFeed ? compact(bestFeed.value, 0) : '-'}
+            unit={
+              bestFeed?.date
+                ? `Kills · ${formatDate(bestFeed.date)}`
+                : 'Kills'
+            }
+            accent="pink"
+          />
+        </div>
+      </SectionShell>
+
+      <SectionShell icon={Activity} title="Players Performance" accent="cyan" subtle>
+        <PlayersTable players={players} />
+      </SectionShell>
+
+    </div>
   );
 }
