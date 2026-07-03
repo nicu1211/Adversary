@@ -547,13 +547,13 @@ function secondaryMetricFromHeader(value) {
     kills: new Set(['kills', 'kill', 'k', 'total kills']),
     deaths: new Set(['deaths', 'death', 'd', 'total deaths']),
     kd: new Set(['kd', 'k d', 'ratio', 'kill death ratio', 'kills deaths ratio']),
-    killFeed: new Set([
-      'killfeed',
-      'kill feed',
-      'feed',
-      'best feed',
-      'max feed',
-      'kf',
+    killStreak: new Set([
+      'killstreak',
+      'kill streak',
+      'streak',
+      'best streak',
+      'max streak',
+      'ks',
     ]),
     damageDealt: new Set([
       'damage',
@@ -599,7 +599,7 @@ function secondaryMetricFromHeader(value) {
   if (/^(total )?kills?$/.test(header)) return 'kills';
   if (/^(total )?deaths?$/.test(header)) return 'deaths';
   if (/^(k d|kd)( ratio)?$/.test(header)) return 'kd';
-  if (header.includes('kill') && header.includes('feed')) return 'killFeed';
+  if (header.includes('kill') && header.includes('streak')) return 'killStreak';
   if (header.includes('cc') || header.includes('crowd control')) return 'ccHits';
 
   if (header.includes('damage') || header.includes('dmg')) {
@@ -693,7 +693,7 @@ function parseSecondaryLineWithHeader(line, index, header) {
 
   const kills = readMetric('kills');
   const deaths = readMetric('deaths');
-  const killFeed = readMetric('killFeed');
+  const killStreak = readMetric('killStreak');
   const damageDealt = readMetric('damageDealt');
   const damageTaken = readMetric('damageTaken');
   const ccHits = readMetric('ccHits');
@@ -702,7 +702,7 @@ function parseSecondaryLineWithHeader(line, index, header) {
   const anyMetricPresent = [
     kills,
     deaths,
-    killFeed,
+    killStreak,
     damageDealt,
     damageTaken,
     ccHits,
@@ -715,10 +715,10 @@ function parseSecondaryLineWithHeader(line, index, header) {
     player,
     kills: kills.value,
     deaths: deaths.value,
-    // Kill Streak is calculated from the timestamped Combat Log.
+    killStreak: killStreak.value,
+    // Kill Feed is calculated from the timestamped Combat Log.
     // It is not a column in the Stats Log.
-    killStreak: 0,
-    killFeed: killFeed.value,
+    killFeed: 0,
     damageDealt: damageDealt.value,
     damageTaken: damageTaken.value,
     ccHits: ccHits.value,
@@ -729,7 +729,7 @@ function parseSecondaryLineWithHeader(line, index, header) {
     availableFields: [
       kills.present && 'kills',
       deaths.present && 'deaths',
-      killFeed.present && 'killFeed',
+      killStreak.present && 'killStreak',
       damageDealt.present && 'damageDealt',
       damageTaken.present && 'damageTaken',
       ccHits.present && 'ccHits',
@@ -737,8 +737,8 @@ function parseSecondaryLineWithHeader(line, index, header) {
     ].filter(Boolean),
     has_kills: kills.present,
     has_deaths: deaths.present,
-    has_kill_streak: false,
-    has_kill_feed: killFeed.present,
+    has_kill_streak: killStreak.present,
+    has_kill_feed: false,
     has_damage_dealt: damageDealt.present,
     has_damage_taken: damageTaken.present,
     has_cc_hits: ccHits.present,
@@ -755,7 +755,7 @@ function parseSecondaryLineLegacy(line, index) {
    *
    * 0 Kills
    * 1 Deaths
-   * 2 Kill Feed
+   * 2 Kill Streak
    * 3 Damage Dealt
    * 4 Damage Taken
    * 5 CC Hits
@@ -833,7 +833,7 @@ function parseSecondaryLineLegacy(line, index) {
 
   const killsIndex = 0;
   const deathsIndex = 1;
-  const killFeedIndex = 2;
+  const killStreakIndex = 2;
   const damageDealtIndex = 3;
   const damageTakenIndex = 4;
   const ccHitsIndex = 5;
@@ -841,7 +841,7 @@ function parseSecondaryLineLegacy(line, index) {
 
   const kills = readColumn(killsIndex);
   const deaths = readColumn(deathsIndex);
-  const killFeed = readColumn(killFeedIndex);
+  const killStreak = readColumn(killStreakIndex);
   const damageDealt = readColumn(damageDealtIndex);
   const damageTaken = readColumn(damageTakenIndex);
   const ccHits = readColumn(ccHitsIndex);
@@ -851,9 +851,9 @@ function parseSecondaryLineLegacy(line, index) {
     player,
     kills,
     deaths,
-    // Kill Streak is calculated only from the timestamped Combat Log.
-    killStreak: 0,
-    killFeed,
+    killStreak,
+    // Kill Feed is calculated only from the timestamped Combat Log.
+    killFeed: 0,
     damageDealt,
     damageTaken,
     ccHits,
@@ -863,8 +863,8 @@ function parseSecondaryLineLegacy(line, index) {
     source: 'legacy-position-right-aligned',
     has_kills: hasColumn(killsIndex),
     has_deaths: hasColumn(deathsIndex),
-    has_kill_streak: false,
-    has_kill_feed: hasColumn(killFeedIndex),
+    has_kill_streak: hasColumn(killStreakIndex),
+    has_kill_feed: false,
     has_damage_dealt: hasColumn(damageDealtIndex),
     has_damage_taken: hasColumn(damageTakenIndex),
     has_cc_hits: hasColumn(ccHitsIndex),
@@ -2812,7 +2812,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 7,
+    version: 8,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
@@ -2836,13 +2836,14 @@ export function getLogSummary(log) {
   const raw = String(log?.raw || '');
 
   /*
-   * Summary version 7 uses right-aligned Stats Log column parsing:
-   * Kills, Deaths, Kill Feed, Damage Dealt, Damage Taken, CC Hits,
-   * Heal, Ally Heal, Fort Damage. Heal and Ally Heal are intentionally
-   * ignored. When raw text is available, rebuild older summaries so values
-   * saved with the previous shifted-column parser are corrected.
+   * Summary version 8 uses the confirmed Stats Log layout:
+   * Name, Kills, Deaths, Kill Streak, Damage Dealt, Damage Taken,
+   * CC Hits, Heal, Ally Heal, Fort Damage.
+   * Heal and Ally Heal are ignored. Kill Feed comes from the Combat Log.
+   * When raw text is available, rebuild older summaries so values saved
+   * with an incorrect column mapping are corrected.
    */
-  if (normalized && (Number(normalized.version) >= 7 || !raw)) {
+  if (normalized && (Number(normalized.version) >= 8 || !raw)) {
     return normalized;
   }
 
