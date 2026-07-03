@@ -2768,13 +2768,25 @@ export default function App() {
   }, [loadNodeLogs]);
 
   useEffect(() => {
-    if (page === 'raw') {
+    /*
+     * Raw Logs and Player Stats both require the complete saved text.
+     *
+     * The lightweight /api/logs?range=all response only contains summaries.
+     * Those summaries can preserve totals, but they cannot reliably preserve
+     * every player's per-war participation. Loading includeRaw=1 here lets
+     * calculateStats read and merge both:
+     *   1. the timestamped Combat Log
+     *   2. the Stats Log stored after ADVERSARY_SECONDARY_LOG_START
+     *
+     * Player Stats then counts the union of both sources without counting the
+     * same war twice.
+     */
+    if (page === 'raw' || page === 'players') {
       loadEditableRawLogs();
       return;
     }
 
     if (
-      page === 'players' ||
       page === 'hall' ||
       page === 'guild' ||
       page === 'monthly'
@@ -3446,6 +3458,7 @@ export default function App() {
               ) : (
                 <PlayerStats
                   stats={allTimeStats}
+                  logs={Array.isArray(allLogs) ? allLogs : []}
                   onOpenMatchOverview={openMatchOverviewFromPlayerStats}
                 />
               )}
