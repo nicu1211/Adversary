@@ -478,47 +478,90 @@ function parseSecondaryLine(line, index) {
 
   const thirdColumn = String(numericColumns[2] || '').trim();
   const thirdNumber = parseSecondaryNumber(thirdColumn);
+  const laterValuesLookLikeDamage =
+    parseSecondaryNumber(numericColumns[5]) >= 1000 ||
+    parseSecondaryNumber(numericColumns[6]) >= 1000;
+
+  /*
+   * Current detailed logs normally use:
+   * Kills, Deaths, K/D, Killstreak, Killfeed,
+   * Damage Dealt, Damage Taken, CC Hits, Fort Damage.
+   *
+   * Some older logs omit K/D, and the oldest layout also omitted
+   * Killstreak. Keep support for all three layouts.
+   */
   const looksLikeKdColumn =
     player &&
     numericColumns.length >= 9 &&
-    /[.,]/.test(thirdColumn) &&
     thirdNumber >= 0 &&
-    thirdNumber <= 50;
+    thirdNumber <= 50 &&
+    (/[.,]/.test(thirdColumn) || laterValuesLookLikeDamage);
 
-  const killFeed = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[4] : numericColumns[2],
-    ),
-  );
+  const hasSeparateKillstreak =
+    looksLikeKdColumn || numericColumns.length >= 8;
 
-  const damageDealt = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[5] : numericColumns[3],
-    ),
-  );
+  const killstreakIndex = looksLikeKdColumn
+    ? 3
+    : hasSeparateKillstreak
+      ? 2
+      : -1;
 
-  const damageTaken = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[6] : numericColumns[4],
-    ),
-  );
+  const killfeedIndex = looksLikeKdColumn
+    ? 4
+    : hasSeparateKillstreak
+      ? 3
+      : 2;
 
-  const ccHits = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[7] : numericColumns[5],
-    ),
-  );
+  const damageDealtIndex = looksLikeKdColumn
+    ? 5
+    : hasSeparateKillstreak
+      ? 4
+      : 3;
 
-  const fortDamage = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[8] : numericColumns[8],
-    ),
-  );
+  const damageTakenIndex = looksLikeKdColumn
+    ? 6
+    : hasSeparateKillstreak
+      ? 5
+      : 4;
+
+  const ccHitsIndex = looksLikeKdColumn
+    ? 7
+    : hasSeparateKillstreak
+      ? 6
+      : 5;
+
+  const fortDamageIndex = looksLikeKdColumn
+    ? 8
+    : hasSeparateKillstreak
+      ? 7
+      : 6;
+
+  function hasColumn(columnIndex) {
+    return (
+      columnIndex >= 0 &&
+      columnIndex < numericColumns.length &&
+      String(numericColumns[columnIndex] || '').trim() !== ''
+    );
+  }
+
+  function readColumn(columnIndex) {
+    return hasColumn(columnIndex)
+      ? Math.round(parseSecondaryNumber(numericColumns[columnIndex]))
+      : 0;
+  }
+
+  const killStreak = readColumn(killstreakIndex);
+  const killFeed = readColumn(killfeedIndex);
+  const damageDealt = readColumn(damageDealtIndex);
+  const damageTaken = readColumn(damageTakenIndex);
+  const ccHits = readColumn(ccHitsIndex);
+  const fortDamage = readColumn(fortDamageIndex);
 
   if (
     !player &&
     kills === 0 &&
     deaths === 0 &&
+    killStreak === 0 &&
     killFeed === 0 &&
     damageDealt === 0 &&
     damageTaken === 0 &&
@@ -532,12 +575,27 @@ function parseSecondaryLine(line, index) {
     player,
     kills,
     deaths,
+    killStreak,
     killFeed,
     damageDealt,
     damageTaken,
     ccHits,
     fortDamage,
     line: index + 1,
+    rawLine: String(line || ''),
+
+    /*
+     * These flags let Player Stats distinguish a real zero from a
+     * column that did not exist in older wars.
+     */
+    has_kills: hasColumn(0),
+    has_deaths: hasColumn(1),
+    has_kill_streak: hasColumn(killstreakIndex),
+    has_kill_feed: hasColumn(killfeedIndex),
+    has_damage_dealt: hasColumn(damageDealtIndex),
+    has_damage_taken: hasColumn(damageTakenIndex),
+    has_cc_hits: hasColumn(ccHitsIndex),
+    has_fort_damage: hasColumn(fortDamageIndex),
   };
 }
 
@@ -556,6 +614,10 @@ function secondaryRowsTotals(rows) {
     (totals, row) => ({
       kills: totals.kills + (Number(row.kills) || 0),
       deaths: totals.deaths + (Number(row.deaths) || 0),
+      killStreak: Math.max(
+        totals.killStreak,
+        Number(row.killStreak ?? row.killstreak) || 0,
+      ),
       killFeed: Math.max(totals.killFeed, Number(row.killFeed) || 0),
       damageDealt: totals.damageDealt + (Number(row.damageDealt) || 0),
       damageTaken: totals.damageTaken + (Number(row.damageTaken) || 0),
@@ -565,6 +627,7 @@ function secondaryRowsTotals(rows) {
     {
       kills: 0,
       deaths: 0,
+      killStreak: 0,
       killFeed: 0,
       damageDealt: 0,
       damageTaken: 0,
@@ -1070,6 +1133,10 @@ function calculateStatsFromRaw(items) {
       war: row.war,
       kills: (Number(current.kills) || 0) + (Number(row.kills) || 0),
       deaths: (Number(current.deaths) || 0) + (Number(row.deaths) || 0),
+      killStreak: Math.max(
+        Number(current.killStreak) || 0,
+        Number(row.killStreak ?? row.killstreak) || 0,
+      ),
       killFeed: Math.max(
         Number(current.killFeed) || 0,
         Number(row.killFeed) || 0,
@@ -1092,6 +1159,7 @@ function calculateStatsFromRaw(items) {
       war: row.war,
       kills: 0,
       deaths: 0,
+      killStreak: 0,
       killFeed: 0,
       damageDealt: 0,
       damageTaken: 0,
@@ -1198,6 +1266,12 @@ function calculateStatsFromRaw(items) {
 
     if (!target?.name) return;
 
+    /*
+     * Persist the matched player on the row itself so the per-war
+     * Player Stats history can use the row after a summary is saved.
+     */
+    row.player = target.name;
+
     mergeSecondaryRow(target.name, row);
     assignedSecondaryPlayers.add(`${row.id}:${target.name}`);
   });
@@ -1286,6 +1360,7 @@ function calculateStatsFromRaw(items) {
         kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
         ...(secondary
           ? {
+              killStreak: secondary.killStreak,
               killFeed: secondary.killFeed,
               damageDealt: secondary.damageDealt,
               damageTaken: secondary.damageTaken,
@@ -1327,6 +1402,11 @@ function calculateStatsFromRaw(items) {
   const fd = { ...classicKillFeed };
 
   Object.values(secondaryByPlayer).forEach((row) => {
+    st[row.player] = Math.max(
+      Number(st[row.player]) || 0,
+      Number(row.killStreak) || 0,
+    );
+
     fd[row.player] = Math.max(
       Number(fd[row.player]) || 0,
       Number(row.killFeed) || 0,
@@ -1362,9 +1442,13 @@ function mergeStatsFromSummaries(items) {
   const st = {};
   const fd = {};
   const secondaryByPlayer = {};
+  const secondaryRows = [];
+  const secondaryRowsByKey = new Map();
+
   const secondaryTotals = {
     kills: 0,
     deaths: 0,
+    killStreak: 0,
     killFeed: 0,
     damageDealt: 0,
     damageTaken: 0,
@@ -1377,31 +1461,319 @@ function mergeStatsFromSummaries(items) {
   let hasTimeline = false;
   let summaryOnly = false;
 
+  function normalizePlayerKey(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase();
+  }
+
+  function findPlayerMetric(source, playerName) {
+    if (!source || typeof source !== 'object') {
+      return {
+        exists: false,
+        value: 0,
+      };
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, playerName)) {
+      return {
+        exists: true,
+        value: Number(source[playerName]) || 0,
+      };
+    }
+
+    const normalizedName = normalizePlayerKey(playerName);
+    const matchingKey = Object.keys(source).find(
+      (key) => normalizePlayerKey(key) === normalizedName,
+    );
+
+    if (!matchingKey) {
+      return {
+        exists: false,
+        value: 0,
+      };
+    }
+
+    return {
+      exists: true,
+      value: Number(source[matchingKey]) || 0,
+    };
+  }
+
+  function addSecondaryRow(row, fallback, index = 0) {
+    const playerName = String(
+      row?.player ||
+        row?.name ||
+        row?.playerName ||
+        '',
+    ).trim();
+
+    const normalized = {
+      ...row,
+      player: playerName,
+      id: String(
+        row?.id ??
+          row?.warId ??
+          fallback.id,
+      ),
+      date:
+        row?.date ||
+        fallback.date,
+      war:
+        row?.war ||
+        row?.warName ||
+        fallback.war,
+      line:
+        row?.line ??
+        index + 1,
+      fortDamage:
+        Number(
+          row?.fortDamage ??
+            row?.damageToFort,
+        ) || 0,
+    };
+
+    const rowKey = [
+      normalized.id,
+      normalizePlayerKey(playerName) || `unnamed-${index}`,
+    ].join('::');
+
+    const existing = secondaryRowsByKey.get(rowKey);
+
+    if (existing) {
+      return existing;
+    }
+
+    secondaryRowsByKey.set(rowKey, normalized);
+    secondaryRows.push(normalized);
+
+    return normalized;
+  }
+
   items.forEach((log) => {
     const summary = getLogSummary(log);
+    const summaryVersion = Number(summary.version) || 1;
+
+    const logId = String(
+      log?.id ??
+        log?.apiId ??
+        log?.date ??
+        log?.name ??
+        `summary-${secondaryRows.length}`,
+    );
+
+    const logDate = dateOf(log);
+    const logName = log?.name || logDate || 'Battle log';
+
+    const fallback = {
+      id: logId,
+      date: logDate,
+      war: logName,
+    };
+
+    const summaryPlayers = Array.isArray(summary.players)
+      ? summary.players
+      : [];
+
+    const summaryGuilds = Array.isArray(summary.guilds)
+      ? summary.guilds
+      : [];
+
+    const summaryRows = Array.isArray(summary.secondary?.rows)
+      ? summary.secondary.rows
+      : [];
 
     kills += Number(summary.kills) || 0;
     deaths += Number(summary.deaths) || 0;
 
-    if (summary.hasTimeline) hasTimeline = true;
-    if (summary.summaryOnly) summaryOnly = true;
+    if (summary.hasTimeline) {
+      hasTimeline = true;
+    }
 
-    summary.players.forEach((player) => {
-      add(playerKills, player.name, Number(player.kills) || 0);
-      add(playerDeaths, player.name, Number(player.deaths) || 0);
+    if (summary.summaryOnly) {
+      summaryOnly = true;
+    }
 
-      playerFamilies[player.name] =
-        player.family || playerFamilies[player.name] || '-';
+    const rowsByPlayer = new Map();
 
-      if (
-        player.killFeed != null ||
-        player.killStreak != null ||
-        player.damageDealt != null ||
-        player.damageTaken != null ||
-        player.ccHits != null ||
-        player.fortDamage != null
-      ) {
-        const current = secondaryByPlayer[player.name] || {
+    summaryRows.forEach((sourceRow, index) => {
+      const playerName = String(
+        sourceRow?.player ||
+          sourceRow?.name ||
+          sourceRow?.playerName ||
+          '',
+      ).trim();
+
+      const streakMetric = findPlayerMetric(
+        summary.st,
+        playerName,
+      );
+
+      const feedMetric = findPlayerMetric(
+        summary.fd,
+        playerName,
+      );
+
+      /*
+       * Before summary version 3, some saved rows used killStreak as
+       * the name of the Killfeed column. Use summary.st for the real
+       * streak whenever it is available and preserve the old value as
+       * Killfeed.
+       */
+      const legacyKillFeed =
+        summaryVersion < 3 &&
+        sourceRow?.killFeed == null &&
+        sourceRow?.killStreak != null
+          ? Number(sourceRow.killStreak) || 0
+          : 0;
+
+      const normalizedRow = addSecondaryRow(
+        {
+          ...sourceRow,
+          killStreak: streakMetric.exists
+            ? streakMetric.value
+            : summaryVersion >= 3
+              ? Number(
+                  sourceRow?.killStreak ??
+                    sourceRow?.killstreak,
+                ) || 0
+              : 0,
+          killFeed:
+            Number(
+              sourceRow?.killFeed ??
+                sourceRow?.killfeed ??
+                feedMetric.value ??
+                legacyKillFeed,
+            ) ||
+            legacyKillFeed ||
+            0,
+          has_kill_streak:
+            sourceRow?.has_kill_streak ??
+            sourceRow?.hasKillStreak ??
+            streakMetric.exists ??
+            false,
+          has_kill_feed:
+            sourceRow?.has_kill_feed ??
+            sourceRow?.hasKillFeed ??
+            feedMetric.exists ??
+            Boolean(
+              sourceRow?.killFeed != null ||
+                sourceRow?.killfeed != null ||
+                legacyKillFeed,
+            ),
+        },
+        fallback,
+        index,
+      );
+
+      const playerKey = normalizePlayerKey(
+        normalizedRow?.player,
+      );
+
+      if (playerKey && normalizedRow) {
+        rowsByPlayer.set(playerKey, normalizedRow);
+      }
+    });
+
+    summaryPlayers.forEach((player, playerIndex) => {
+      if (!player?.name) return;
+
+      const playerName = String(player.name).trim();
+      const playerKey = normalizePlayerKey(playerName);
+
+      const playerKillsValue =
+        Number(player.kills) || 0;
+
+      const playerDeathsValue =
+        Number(player.deaths) || 0;
+
+      add(
+        playerKills,
+        playerName,
+        playerKillsValue,
+      );
+
+      add(
+        playerDeaths,
+        playerName,
+        playerDeathsValue,
+      );
+
+      playerFamilies[playerName] =
+        player.family ||
+        playerFamilies[playerName] ||
+        '-';
+
+      const streakMetric = findPlayerMetric(
+        summary.st,
+        playerName,
+      );
+
+      const feedMetric = findPlayerMetric(
+        summary.fd,
+        playerName,
+      );
+
+      const legacyPlayerKillFeed =
+        summaryVersion < 3 &&
+        player.killFeed == null &&
+        player.killStreak != null
+          ? Number(player.killStreak) || 0
+          : 0;
+
+      const playerHasKillStreak =
+        streakMetric.exists ||
+        (
+          summaryVersion >= 3 &&
+          (
+            player.killStreak !== undefined ||
+            player.killstreak !== undefined
+          )
+        );
+
+      const playerKillStreak =
+        streakMetric.exists
+          ? streakMetric.value
+          : summaryVersion >= 3
+            ? Number(
+                player.killStreak ??
+                  player.killstreak,
+              ) || 0
+            : 0;
+
+      const playerHasKillFeed =
+        player.killFeed !== undefined ||
+        player.killfeed !== undefined ||
+        player.feed !== undefined ||
+        feedMetric.exists ||
+        Boolean(legacyPlayerKillFeed);
+
+      const playerKillFeed =
+        Number(
+          player.killFeed ??
+            player.killfeed ??
+            player.feed ??
+            (feedMetric.exists
+              ? feedMetric.value
+              : legacyPlayerKillFeed),
+        ) || 0;
+
+      const playerHasDamageDealt =
+        player.damageDealt !== undefined;
+
+      const playerHasDamageTaken =
+        player.damageTaken !== undefined;
+
+      const playerHasCcHits =
+        player.ccHits !== undefined;
+
+      const playerHasFortDamage =
+        player.fortDamage !== undefined ||
+        player.damageToFort !== undefined;
+
+      const currentSecondary =
+        secondaryByPlayer[playerName] || {
+          killStreak: 0,
           killFeed: 0,
           damageDealt: 0,
           damageTaken: 0,
@@ -1409,106 +1781,339 @@ function mergeStatsFromSummaries(items) {
           fortDamage: 0,
         };
 
-        // Legacy summaries stored the third stats column as killStreak.
-        const playerKillFeed =
-          Number(player.killFeed ?? player.killStreak) || 0;
+      secondaryByPlayer[playerName] = {
+        killStreak: Math.max(
+          currentSecondary.killStreak,
+          playerKillStreak,
+        ),
+        killFeed: Math.max(
+          currentSecondary.killFeed,
+          playerKillFeed,
+        ),
+        damageDealt:
+          currentSecondary.damageDealt +
+          (Number(player.damageDealt) || 0),
+        damageTaken:
+          currentSecondary.damageTaken +
+          (Number(player.damageTaken) || 0),
+        ccHits:
+          currentSecondary.ccHits +
+          (Number(player.ccHits) || 0),
+        fortDamage:
+          currentSecondary.fortDamage +
+          (Number(
+            player.fortDamage ??
+              player.damageToFort,
+          ) || 0),
+      };
 
-        secondaryByPlayer[player.name] = {
-          killFeed: Math.max(current.killFeed, playerKillFeed),
-          damageDealt: current.damageDealt + (Number(player.damageDealt) || 0),
-          damageTaken: current.damageTaken + (Number(player.damageTaken) || 0),
-          ccHits: current.ccHits + (Number(player.ccHits) || 0),
-          fortDamage: current.fortDamage + (Number(player.fortDamage) || 0),
-        };
+      let matchRow = rowsByPlayer.get(playerKey);
+
+      if (!matchRow) {
+        matchRow = addSecondaryRow(
+          {
+            player: playerName,
+            kills: playerKillsValue,
+            deaths: playerDeathsValue,
+            killStreak: playerKillStreak,
+            killFeed: playerKillFeed,
+            damageDealt:
+              Number(player.damageDealt) || 0,
+            damageTaken:
+              Number(player.damageTaken) || 0,
+            ccHits:
+              Number(player.ccHits) || 0,
+            fortDamage:
+              Number(
+                player.fortDamage ??
+                  player.damageToFort,
+              ) || 0,
+            has_kills: true,
+            has_deaths: true,
+            has_kill_streak:
+              playerHasKillStreak,
+            has_kill_feed:
+              playerHasKillFeed,
+            has_damage_dealt:
+              playerHasDamageDealt,
+            has_damage_taken:
+              playerHasDamageTaken,
+            has_cc_hits:
+              playerHasCcHits,
+            has_fort_damage:
+              playerHasFortDamage,
+            source: 'summary-player',
+          },
+          fallback,
+          playerIndex,
+        );
+
+        rowsByPlayer.set(playerKey, matchRow);
+      } else {
+        if (
+          matchRow.kills === undefined ||
+          matchRow.kills === null
+        ) {
+          matchRow.kills = playerKillsValue;
+        }
+
+        if (
+          matchRow.deaths === undefined ||
+          matchRow.deaths === null
+        ) {
+          matchRow.deaths = playerDeathsValue;
+        }
+
+        if (
+          matchRow.killStreak === undefined ||
+          matchRow.killStreak === null ||
+          playerHasKillStreak
+        ) {
+          matchRow.killStreak = playerKillStreak;
+        }
+
+        if (
+          matchRow.killFeed === undefined ||
+          matchRow.killFeed === null ||
+          playerHasKillFeed
+        ) {
+          matchRow.killFeed = playerKillFeed;
+        }
+
+        if (
+          matchRow.damageDealt === undefined ||
+          matchRow.damageDealt === null
+        ) {
+          matchRow.damageDealt =
+            Number(player.damageDealt) || 0;
+        }
+
+        if (
+          matchRow.damageTaken === undefined ||
+          matchRow.damageTaken === null
+        ) {
+          matchRow.damageTaken =
+            Number(player.damageTaken) || 0;
+        }
+
+        if (
+          matchRow.ccHits === undefined ||
+          matchRow.ccHits === null
+        ) {
+          matchRow.ccHits =
+            Number(player.ccHits) || 0;
+        }
+
+        if (
+          matchRow.fortDamage === undefined ||
+          matchRow.fortDamage === null
+        ) {
+          matchRow.fortDamage =
+            Number(
+              player.fortDamage ??
+                player.damageToFort,
+            ) || 0;
+        }
+
+        matchRow.has_kills = true;
+        matchRow.has_deaths = true;
+
+        if (playerHasKillStreak) {
+          matchRow.has_kill_streak = true;
+        }
+
+        if (playerHasKillFeed) {
+          matchRow.has_kill_feed = true;
+        }
+
+        if (playerHasDamageDealt) {
+          matchRow.has_damage_dealt = true;
+        }
+
+        if (playerHasDamageTaken) {
+          matchRow.has_damage_taken = true;
+        }
+
+        if (playerHasCcHits) {
+          matchRow.has_cc_hits = true;
+        }
+
+        if (playerHasFortDamage) {
+          matchRow.has_fort_damage = true;
+        }
       }
     });
 
-    if (summary.secondary?.totals) {
-      secondaryTotals.kills += Number(summary.secondary.totals.kills) || 0;
-      secondaryTotals.deaths += Number(summary.secondary.totals.deaths) || 0;
-      const summaryKillFeed =
-        Number(
-          summary.secondary.totals.killFeed ??
-            summary.secondary.totals.killStreak,
-        ) || 0;
+    summaryGuilds.forEach((guild) => {
+      if (!guild?.name) return;
 
-      secondaryTotals.killFeed = Math.max(
-        secondaryTotals.killFeed,
-        summaryKillFeed,
+      add(
+        guildKills,
+        guild.name,
+        Number(guild.kills) || 0,
       );
-      secondaryTotals.damageDealt += Number(summary.secondary.totals.damageDealt) || 0;
-      secondaryTotals.damageTaken += Number(summary.secondary.totals.damageTaken) || 0;
-      secondaryTotals.ccHits += Number(summary.secondary.totals.ccHits) || 0;
-      secondaryTotals.fortDamage += Number(summary.secondary.totals.fortDamage) || 0;
-    }
 
-    summary.guilds.forEach((guild) => {
-      add(guildKills, guild.name, Number(guild.kills) || 0);
-      add(guildDeaths, guild.name, Number(guild.deaths) || 0);
+      add(
+        guildDeaths,
+        guild.name,
+        Number(guild.deaths) || 0,
+      );
     });
 
     if (summary.hasTimeline) {
-      summary.line.forEach((point) => {
-        const key = `${log.date || dateOf(log)} ${point.time}`;
+      (summary.line || []).forEach((point) => {
+        if (!point?.time) return;
+
+        const pointDate =
+          point.date ||
+          logDate;
+
+        const key = `${pointDate} ${point.time}`;
 
         lineMap[key] ||= {
+          date: pointDate,
           time: point.time,
           kills: 0,
           deaths: 0,
         };
 
-        lineMap[key].kills += Number(point.kills) || 0;
-        lineMap[key].deaths += Number(point.deaths) || 0;
-      });
+        lineMap[key].kills +=
+          Number(point.kills) || 0;
 
+        lineMap[key].deaths +=
+          Number(point.deaths) || 0;
+      });
     }
 
-    Object.entries(summary.st || {}).forEach(([name, value]) => {
-      st[name] = Math.max(Number(st[name]) || 0, Number(value) || 0);
-    });
-
-    Object.entries(summary.fd || {}).forEach(([name, value]) => {
-      fd[name] = Math.max(Number(fd[name]) || 0, Number(value) || 0);
-    });
-  });
-
-  Object.entries(secondaryByPlayer).forEach(([name, secondary]) => {
-    fd[name] = Math.max(
-      Number(fd[name]) || 0,
-      Number(secondary.killFeed) || 0,
+    Object.entries(summary.st || {}).forEach(
+      ([name, value]) => {
+        st[name] = Math.max(
+          Number(st[name]) || 0,
+          Number(value) || 0,
+        );
+      },
     );
+
+    Object.entries(summary.fd || {}).forEach(
+      ([name, value]) => {
+        fd[name] = Math.max(
+          Number(fd[name]) || 0,
+          Number(value) || 0,
+        );
+      },
+    );
+
+    const totals = summary.secondary?.totals || {};
+
+    secondaryTotals.kills +=
+      Number(totals.kills) || 0;
+
+    secondaryTotals.deaths +=
+      Number(totals.deaths) || 0;
+
+    secondaryTotals.killStreak = Math.max(
+      secondaryTotals.killStreak,
+      Number(
+        totals.killStreak ??
+          totals.killstreak,
+      ) || 0,
+    );
+
+    secondaryTotals.killFeed = Math.max(
+      secondaryTotals.killFeed,
+      Number(
+        totals.killFeed ??
+          totals.killfeed ??
+          (
+            summaryVersion < 3
+              ? totals.killStreak
+              : 0
+          ),
+      ) || 0,
+    );
+
+    secondaryTotals.damageDealt +=
+      Number(totals.damageDealt) || 0;
+
+    secondaryTotals.damageTaken +=
+      Number(totals.damageTaken) || 0;
+
+    secondaryTotals.ccHits +=
+      Number(totals.ccHits) || 0;
+
+    secondaryTotals.fortDamage +=
+      Number(
+        totals.fortDamage ??
+          totals.damageToFort,
+      ) || 0;
   });
+
+  Object.entries(secondaryByPlayer).forEach(
+    ([name, secondary]) => {
+      st[name] = Math.max(
+        Number(st[name]) || 0,
+        Number(secondary.killStreak) || 0,
+      );
+
+      fd[name] = Math.max(
+        Number(fd[name]) || 0,
+        Number(secondary.killFeed) || 0,
+      );
+    },
+  );
 
   const players = [
-    ...new Set([...Object.keys(playerKills), ...Object.keys(playerDeaths)]),
+    ...new Set([
+      ...Object.keys(playerKills),
+      ...Object.keys(playerDeaths),
+    ]),
   ]
     .map((name) => {
       const pk = playerKills[name] || 0;
       const pd = playerDeaths[name] || 0;
 
-      const secondary = secondaryByPlayer[name] || null;
+      const secondary =
+        secondaryByPlayer[name] || null;
 
       return {
         name,
-        family: playerFamilies[name] || '-',
+        family:
+          playerFamilies[name] || '-',
         kills: pk,
         deaths: pd,
-        kd: pd ? (pk / pd).toFixed(2) : pk.toFixed(2),
+        kd: pd
+          ? (pk / pd).toFixed(2)
+          : pk.toFixed(2),
         ...(secondary
           ? {
-              killFeed: secondary.killFeed,
-              damageDealt: secondary.damageDealt,
-              damageTaken: secondary.damageTaken,
-              ccHits: secondary.ccHits,
-              fortDamage: secondary.fortDamage,
+              killStreak:
+                secondary.killStreak,
+              killFeed:
+                secondary.killFeed,
+              damageDealt:
+                secondary.damageDealt,
+              damageTaken:
+                secondary.damageTaken,
+              ccHits:
+                secondary.ccHits,
+              fortDamage:
+                secondary.fortDamage,
             }
           : {}),
       };
     })
-    .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+    .sort(
+      (a, b) =>
+        b.kills - a.kills ||
+        a.deaths - b.deaths ||
+        a.name.localeCompare(b.name),
+    );
 
   const guilds = [
-    ...new Set([...Object.keys(guildKills), ...Object.keys(guildDeaths)]),
+    ...new Set([
+      ...Object.keys(guildKills),
+      ...Object.keys(guildDeaths),
+    ]),
   ].map((name) => {
     const gk = guildKills[name] || 0;
     const gd = guildDeaths[name] || 0;
@@ -1517,28 +2122,58 @@ function mergeStatsFromSummaries(items) {
       name,
       kills: gk,
       deaths: gd,
-      kd: gd ? (gk / gd).toFixed(2) : gk.toFixed(2),
+      kd: gd
+        ? (gk / gd).toFixed(2)
+        : gk.toFixed(2),
     };
   });
 
-  const line = Object.values(lineMap);
+  const line = Object.values(lineMap).sort(
+    (a, b) =>
+      String(a.date || '').localeCompare(
+        String(b.date || ''),
+      ) ||
+      String(a.time || '').localeCompare(
+        String(b.time || ''),
+      ),
+  );
+
+  secondaryRows.sort(
+    (a, b) =>
+      String(a.date || '').localeCompare(
+        String(b.date || ''),
+      ) ||
+      String(a.id || '').localeCompare(
+        String(b.id || ''),
+      ) ||
+      String(a.player || '').localeCompare(
+        String(b.player || ''),
+      ),
+  );
 
   return {
+    /*
+     * Do not put every raw kill event into the all-time result.
+     * Keeping this empty prevents the browser freeze.
+     */
     ev: [],
     players,
     guilds,
     line,
     kills,
     deaths,
-    kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+    kd: deaths
+      ? (kills / deaths).toFixed(2)
+      : kills.toFixed(2),
     st,
     fd,
     secondary: {
-      rows: [],
+      rows: secondaryRows,
       totals: secondaryTotals,
     },
     hasTimeline,
-    summaryOnly: summaryOnly && !hasTimeline,
+    summaryOnly:
+      summaryOnly && !hasTimeline,
   };
 }
 
@@ -1652,7 +2287,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 1,
+    version: 3,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
