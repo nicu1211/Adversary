@@ -373,35 +373,6 @@ function compactNumber(value, digits = 1) {
   return number.toLocaleString('en-US');
 }
 
-function rowMetricAvailable(row, metric) {
-  const availabilityKey = {
-    damageDealt: 'hasDamageDealt',
-    damageTaken: 'hasDamageTaken',
-    ccHits: 'hasCcHits',
-    fortDamage: 'hasFortDamage',
-  }[metric];
-
-  if (!availabilityKey) return true;
-
-  if (
-    row?.statAvailability &&
-    Object.prototype.hasOwnProperty.call(
-      row.statAvailability,
-      metric,
-    )
-  ) {
-    return Boolean(row.statAvailability[metric]);
-  }
-
-  return Boolean(row?.[availabilityKey]);
-}
-
-function formatRowMetric(row, metric, digits = 1) {
-  return rowMetricAvailable(row, metric)
-    ? compactNumber(row?.[metric], digits)
-    : '—';
-}
-
 function accentByIndex(index) {
   const accents = [
     {
@@ -714,45 +685,29 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
               <WarMetric
                 label="Damage"
-                value={formatRowMetric(row, 'damageDealt')}
-                valueClass={
-                  rowMetricAvailable(row, 'damageDealt')
-                    ? 'text-amber-300'
-                    : 'text-slate-500'
-                }
+                value={compactNumber(row.damageDealt)}
+                valueClass="text-amber-300"
                 icon={<Zap size={17} className="text-amber-300" />}
               />
 
               <WarMetric
                 label="Taken"
-                value={formatRowMetric(row, 'damageTaken')}
-                valueClass={
-                  rowMetricAvailable(row, 'damageTaken')
-                    ? 'text-pink-300'
-                    : 'text-slate-500'
-                }
+                value={compactNumber(row.damageTaken)}
+                valueClass="text-pink-300"
                 icon={<Shield size={17} className="text-pink-300" />}
               />
 
               <WarMetric
                 label="CC Hits"
-                value={formatRowMetric(row, 'ccHits')}
-                valueClass={
-                  rowMetricAvailable(row, 'ccHits')
-                    ? 'text-cyan-300'
-                    : 'text-slate-500'
-                }
+                value={compactNumber(row.ccHits)}
+                valueClass="text-cyan-300"
                 icon={<Hand size={17} className="text-cyan-300" />}
               />
 
               <WarMetric
                 label="Fort"
-                value={formatRowMetric(row, 'fortDamage')}
-                valueClass={
-                  rowMetricAvailable(row, 'fortDamage')
-                    ? 'text-violet-300'
-                    : 'text-slate-500'
-                }
+                value={compactNumber(row.fortDamage)}
+                valueClass="text-violet-300"
                 icon={<Castle size={17} className="text-violet-300" />}
               />
             </div>
@@ -1041,33 +996,24 @@ export default function NodeWars({
         bv = Number(b.kdNumber) || 0;
       }
 
-      const secondarySortMetric = [
-        'damageDealt',
-        'damageTaken',
-        'ccHits',
-        'fortDamage',
-      ].includes(sort.key)
-        ? sort.key
-        : null;
+      if (sort.key === 'damageDealt') {
+        av = Number(a.damageDealt) || 0;
+        bv = Number(b.damageDealt) || 0;
+      }
 
-      if (secondarySortMetric) {
-        const aAvailable = rowMetricAvailable(
-          a,
-          secondarySortMetric,
-        );
-        const bAvailable = rowMetricAvailable(
-          b,
-          secondarySortMetric,
-        );
+      if (sort.key === 'damageTaken') {
+        av = Number(a.damageTaken) || 0;
+        bv = Number(b.damageTaken) || 0;
+      }
 
-        // Missing values stay at the bottom for both ascending and
-        // descending sorts. A recorded zero remains a real sortable value.
-        if (aAvailable !== bAvailable) {
-          return aAvailable ? -1 : 1;
-        }
+      if (sort.key === 'ccHits') {
+        av = Number(a.ccHits) || 0;
+        bv = Number(b.ccHits) || 0;
+      }
 
-        av = Number(a?.[secondarySortMetric]) || 0;
-        bv = Number(b?.[secondarySortMetric]) || 0;
+      if (sort.key === 'fortDamage') {
+        av = Number(a.fortDamage) || 0;
+        bv = Number(b.fortDamage) || 0;
       }
 
       if (av === bv) {
@@ -1099,57 +1045,31 @@ export default function NodeWars({
     visibleIds.every((id) => selectedRealWars.includes(id));
 
   const totals = useMemo(() => {
-    const kills = rows.reduce(
-      (sum, row) => sum + (Number(row.kills) || 0),
+    const kills = rows.reduce((sum, row) => sum + row.kills, 0);
+    const deaths = rows.reduce((sum, row) => sum + row.deaths, 0);
+    const damageDealt = rows.reduce(
+      (sum, row) => sum + (Number(row.damageDealt) || 0),
       0,
     );
-    const deaths = rows.reduce(
-      (sum, row) => sum + (Number(row.deaths) || 0),
+    const damageTaken = rows.reduce(
+      (sum, row) => sum + (Number(row.damageTaken) || 0),
       0,
     );
-
-    function recordedMetricTotal(metric) {
-      const recordedRows = rows.filter((row) =>
-        rowMetricAvailable(row, metric),
-      );
-
-      return {
-        available: recordedRows.length > 0,
-        recordedWars: recordedRows.length,
-        value: recordedRows.reduce(
-          (sum, row) =>
-            sum + (Number(row?.[metric]) || 0),
-          0,
-        ),
-      };
-    }
-
-    const damageDealt = recordedMetricTotal('damageDealt');
-    const damageTaken = recordedMetricTotal('damageTaken');
-    const ccHits = recordedMetricTotal('ccHits');
-    const fortDamage = recordedMetricTotal('fortDamage');
+    const ccHits = rows.reduce((sum, row) => sum + (Number(row.ccHits) || 0), 0);
+    const fortDamage = rows.reduce(
+      (sum, row) => sum + (Number(row.fortDamage) || 0),
+      0,
+    );
 
     return {
       matches: rows.length,
       kills,
       deaths,
-      kd: deaths
-        ? (kills / deaths).toFixed(2)
-        : kills.toFixed(2),
-      damageDealt: damageDealt.value,
-      damageTaken: damageTaken.value,
-      ccHits: ccHits.value,
-      fortDamage: fortDamage.value,
-      hasDamageDealt: damageDealt.available,
-      hasDamageTaken: damageTaken.available,
-      hasCcHits: ccHits.available,
-      hasFortDamage: fortDamage.available,
-      recordedWars: {
-        damageDealt: damageDealt.recordedWars,
-        damageTaken: damageTaken.recordedWars,
-        ccHits: ccHits.recordedWars,
-        fortDamage: fortDamage.recordedWars,
-      },
+      kd: deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2),
+      damageDealt,
+      damageTaken,
+      ccHits,
+      fortDamage,
     };
   }, [rows]);
 
@@ -1380,84 +1300,36 @@ export default function NodeWars({
 
           <SummaryStat
             label="Damage"
-            value={
-              totals.hasDamageDealt
-                ? compactNumber(totals.damageDealt)
-                : '—'
-            }
-            valueClass={
-              totals.hasDamageDealt
-                ? 'text-amber-300'
-                : 'text-slate-500'
-            }
-            barClass={
-              totals.hasDamageDealt
-                ? 'bg-amber-300'
-                : 'bg-slate-700'
-            }
+            value={compactNumber(totals.damageDealt)}
+            valueClass="text-amber-300"
+            barClass="bg-amber-300"
             icon={<Zap size={20} className="text-amber-300" />}
             accentRgb="245, 158, 11"
           />
 
           <SummaryStat
             label="Damage Taken"
-            value={
-              totals.hasDamageTaken
-                ? compactNumber(totals.damageTaken)
-                : '—'
-            }
-            valueClass={
-              totals.hasDamageTaken
-                ? 'text-pink-300'
-                : 'text-slate-500'
-            }
-            barClass={
-              totals.hasDamageTaken
-                ? 'bg-pink-300'
-                : 'bg-slate-700'
-            }
+            value={compactNumber(totals.damageTaken)}
+            valueClass="text-pink-300"
+            barClass="bg-pink-300"
             icon={<Shield size={20} className="text-pink-300" />}
             accentRgb="236, 72, 153"
           />
 
           <SummaryStat
             label="CC Hits"
-            value={
-              totals.hasCcHits
-                ? compactNumber(totals.ccHits)
-                : '—'
-            }
-            valueClass={
-              totals.hasCcHits
-                ? 'text-cyan-300'
-                : 'text-slate-500'
-            }
-            barClass={
-              totals.hasCcHits
-                ? 'bg-cyan-300'
-                : 'bg-slate-700'
-            }
+            value={compactNumber(totals.ccHits)}
+            valueClass="text-cyan-300"
+            barClass="bg-cyan-300"
             icon={<Hand size={20} className="text-cyan-300" />}
             accentRgb="6, 182, 212"
           />
 
           <SummaryStat
             label="Fort Damage"
-            value={
-              totals.hasFortDamage
-                ? compactNumber(totals.fortDamage)
-                : '—'
-            }
-            valueClass={
-              totals.hasFortDamage
-                ? 'text-violet-300'
-                : 'text-slate-500'
-            }
-            barClass={
-              totals.hasFortDamage
-                ? 'bg-violet-300'
-                : 'bg-slate-700'
-            }
+            value={compactNumber(totals.fortDamage)}
+            valueClass="text-violet-300"
+            barClass="bg-violet-300"
             icon={<Castle size={20} className="text-violet-300" />}
             accentRgb="139, 92, 246"
           />
