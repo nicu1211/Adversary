@@ -2083,19 +2083,40 @@ function mergeStatsFromSummaries(items) {
       );
 
       /*
-       * Old summaries may have mixed Combat Killstreak and Stats KillFeed in
-       * the same legacy field. That value is ambiguous, so never use a
-       * `killStreak` field as KillFeed. Only an explicit KillFeed field/flag is
-       * trusted; otherwise the page must show an em dash.
+       * Before summary version 10, the Stats Log's third numeric column was
+       * saved under the old `killStreak`/`streak` property name. That column
+       * was always Kill Feed; Combat Log Killstreak lived separately in the
+       * summary `st` map. Recover that per-war Stats Log value so older wars
+       * are not lost from Player Stats when the backend returns summary-only
+       * history for them.
        */
-      const legacyKillFeed =
+      const legacyKillFeedKey =
         summaryVersion < 10
-          ? Number(
-              sourceRow?.killFeed ??
-                sourceRow?.killfeed ??
-                sourceRow?.feed,
-            ) || 0
-          : 0;
+          ? [
+              'killFeed',
+              'killfeed',
+              'feed',
+              'killStreak',
+              'killstreak',
+              'streak',
+            ].find(
+              (key) =>
+                Object.prototype.hasOwnProperty.call(
+                  sourceRow || {},
+                  key,
+                ) &&
+                sourceRow?.[key] !== undefined &&
+                sourceRow?.[key] !== null &&
+                sourceRow?.[key] !== '',
+            )
+          : null;
+
+      const legacyKillFeedExists =
+        summaryVersion < 10 && legacyKillFeedKey != null;
+
+      const legacyKillFeed = legacyKillFeedExists
+        ? Number(sourceRow?.[legacyKillFeedKey]) || 0
+        : 0;
 
       const normalizedRow = addSecondaryRow(
         {
@@ -2135,9 +2156,7 @@ function mergeStatsFromSummaries(items) {
                   sourceRow?.hasKillFeed
               : sourceRow?.has_kill_feed ||
                   sourceRow?.hasKillFeed ||
-                  sourceRow?.killFeed != null ||
-                  sourceRow?.killfeed != null ||
-                  sourceRow?.feed != null
+                  legacyKillFeedExists
           ),
         },
         fallback,
@@ -2287,12 +2306,20 @@ function mergeStatsFromSummaries(items) {
             matchRow?.hasKillFeed ||
             player?.has_kill_feed ||
             player?.hasKillFeed ||
-            matchRow?.killFeed != null ||
-            matchRow?.killfeed != null ||
-            matchRow?.feed != null ||
-            player?.killFeed != null ||
-            player?.killfeed != null ||
-            player?.feed != null
+            // Only explicit legacy KillFeed aliases on a player object are
+            // trusted here. `matchRow.killFeed` is always normalized to a
+            // numeric fallback, so property existence alone would turn a
+            // missing column into a fake 0.
+            ['killFeed', 'killfeed', 'feed'].some(
+              (key) =>
+                Object.prototype.hasOwnProperty.call(
+                  player || {},
+                  key,
+                ) &&
+                player?.[key] !== undefined &&
+                player?.[key] !== null &&
+                player?.[key] !== '',
+            )
           )
       );
 
