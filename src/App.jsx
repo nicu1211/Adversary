@@ -2784,9 +2784,10 @@ export default function App() {
      */
     if (page === 'raw' || page === 'players') {
       loadEditableRawLogs();
-      return;
     }
+  }, [page, loadEditableRawLogs]);
 
+  useEffect(() => {
     if (
       page === 'hall' ||
       page === 'guild' ||
@@ -2794,7 +2795,7 @@ export default function App() {
     ) {
       loadAllLogs();
     }
-  }, [page, loadAllLogs, loadEditableRawLogs]);
+  }, [page, loadAllLogs]);
 
   useEffect(() => {
     loadOverviewLogs();
