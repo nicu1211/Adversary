@@ -864,37 +864,6 @@ function compactNumber(value, digits = 1) {
   return number.toLocaleString('en-US');
 }
 
-function hasOwnOverviewField(source, key) {
-  return Boolean(
-    source &&
-      Object.prototype.hasOwnProperty.call(source, key),
-  );
-}
-
-function overviewMetricAvailable(
-  source,
-  flagKeys = [],
-  valueKeys = [],
-) {
-  if (!source) return false;
-
-  for (const key of flagKeys) {
-    if (hasOwnOverviewField(source, key)) {
-      return Boolean(source[key]);
-    }
-  }
-
-  // For legacy summaries, a non-zero value proves the column existed.
-  // A zero without an explicit availability flag remains unknown.
-  return valueKeys.some((key) => {
-    if (!hasOwnOverviewField(source, key)) return false;
-
-    const value = Number(source[key]);
-
-    return Number.isFinite(value) && value !== 0;
-  });
-}
-
 function MetricGlyph({ type, color }) {
   const commonProps = {
     width: '1em',
@@ -1400,8 +1369,7 @@ function AverageRank({
   }
 
   const metricAliases = {
-    streak: ['killStreak', 'killstreak', 'streak'],
-    feed: ['killFeed', 'killfeed', 'feed'],
+    feed: ['killFeed', 'feed', 'killStreak'],
     damageDealt: [
       'damageDealt',
       'damage_dealt',
@@ -1559,127 +1527,282 @@ function AverageRank({
     return String(value);
   }
 
-  function detectBestOverallColumns(_log, oneStats) {
-    const available = oneStats?.secondary?.available || {};
-    const secondaryRows = Array.isArray(
-      oneStats?.secondary?.rows,
-    )
-      ? oneStats.secondary.rows
-      : [];
-    const hasTimeline = statsHasTimeline(oneStats);
+  function detectBestOverallColumns(log, oneStats) {
+    const presence = {
+      kills: false,
+      deaths: false,
+      kd: false,
+      feed: false,
+      damageDealt: false,
+      damageTaken: false,
+      ccHits: false,
+      fortDamage: false,
+    };
 
-    function metricAvailable(
-      metric,
-      flagKeys,
-      valueKeys,
-    ) {
-      if (
-        Object.prototype.hasOwnProperty.call(
-          available,
-          metric,
-        )
-      ) {
-        return Boolean(available[metric]);
-      }
+    const raw = getOriginalLogRaw(log);
+    const startMarker =
+      '===== ADVERSARY_SECONDARY_LOG_START =====';
+    const endMarker =
+      '===== ADVERSARY_SECONDARY_LOG_END =====';
 
-      return secondaryRows.some((row) => {
-        for (const flagKey of flagKeys) {
-          if (
-            Object.prototype.hasOwnProperty.call(
-              row || {},
-              flagKey,
-            )
-          ) {
-            return Boolean(row[flagKey]);
-          }
+    let secondaryRaw = '';
+
+    if (raw.includes(startMarker) && raw.includes(endMarker)) {
+      secondaryRaw =
+        raw.split(startMarker)[1]?.split(endMarker)[0] || '';
+    }
+
+    const normalizedSecondary = String(secondaryRaw || '')
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ');
+
+    const explicitHeader = {
+      feed: /\bkill\s*feed\b|\bkillfeed\b/.test(
+        normalizedSecondary,
+      ),
+      damageDealt:
+        /\bdamage\s*dealt\b|\bdmg\s*dealt\b/.test(
+          normalizedSecondary,
+        ),
+      damageTaken:
+        /\bdamage\s*taken\b|\bdmg\s*taken\b/.test(
+          normalizedSecondary,
+        ),
+      ccHits:
+        /\bcc\s*hits?\b|\bcrowd\s*control\b/.test(
+          normalizedSecondary,
+        ),
+      fortDamage:
+        /\bdamage\s*(?:to|on)\s*fort\b|\bfort\s*damage\b|\bdmg\s*to\s*fort\b/.test(
+          normalizedSecondary,
+        ),
+    };
+
+    const hasRecognizedDetailHeader = Object.values(
+      explicitHeader,
+    ).some(Boolean);
+
+    let foundRawStatsRow = false;
+
+    String(secondaryRaw || '')
+      .split(/\r?\n/)
+      .forEach((line) => {
+        let columns = splitPresenceColumns(line);
+        columns = expandPresenceNumberColumns(columns);
+
+        const firstNumberIndex = columns.findIndex(
+          isPresenceNumber,
+        );
+
+        if (firstNumberIndex < 0) return;
+
+        const numericColumns = columns
+          .slice(firstNumberIndex)
+          .filter(isPresenceNumber);
+
+        if (numericColumns.length < 2) return;
+
+        foundRawStatsRow = true;
+        presence.kills = true;
+        presence.deaths = true;
+        presence.kd = true;
+
+        // When the table has named headers, those headers are authoritative.
+        // This prevents old two-column or three-column tables from inheriting
+        // auto-generated zeroes for columns that were never present.
+        if (hasRecognizedDetailHeader) {
+          Object.entries(explicitHeader).forEach(
+            ([metric, exists]) => {
+              if (exists) presence[metric] = true;
+            },
+          );
+          return;
         }
 
-        return valueKeys.some((valueKey) => {
-          if (
-            !Object.prototype.hasOwnProperty.call(
-              row || {},
-              valueKey,
-            )
-          ) {
-            return false;
+        const thirdRaw = String(numericColumns[2] || '');
+        const thirdNumber = parsePresenceNumber(thirdRaw);
+        const looksLikeFullTableWithKd =
+          numericColumns.length >= 9 &&
+          /[.,]/.test(thirdRaw) &&
+          Number.isFinite(thirdNumber) &&
+          thirdNumber >= 0 &&
+          thirdNumber <= 50;
+
+        if (looksLikeFullTableWithKd) {
+          if (numericColumns.length >= 5) presence.feed = true;
+          if (numericColumns.length >= 6) {
+            presence.damageDealt = true;
           }
+          if (numericColumns.length >= 7) {
+            presence.damageTaken = true;
+          }
+          if (numericColumns.length >= 8) presence.ccHits = true;
+          if (numericColumns.length >= 9) {
+            presence.fortDamage = true;
+          }
+        } else {
+          if (numericColumns.length >= 3) presence.feed = true;
+          if (numericColumns.length >= 4) {
+            presence.damageDealt = true;
+          }
+          if (numericColumns.length >= 5) {
+            presence.damageTaken = true;
+          }
+          if (numericColumns.length >= 6) presence.ccHits = true;
+          if (numericColumns.length >= 9) {
+            presence.fortDamage = true;
+          }
+        }
+      });
 
-          const value = Number(row[valueKey]);
+    if (foundRawStatsRow) {
+      return presence;
+    }
 
-          return Number.isFinite(value) && value !== 0;
-        });
+    // Summary-only logs do not retain the original table layout. In that
+    // case, count a detail column only when there is positive evidence:
+    // a non-zero value, an explicit presence flag, or structured column
+    // metadata. Merely owning an auto-filled property with value 0 is not
+    // considered evidence that the old column existed.
+    const sourceSummary =
+      log?.summary ||
+      log?.stats ||
+      log?.analytics ||
+      log?._src?.summary ||
+      log?._src?.stats ||
+      log?._src?.analytics ||
+      {};
+    const summarySecondary =
+      sourceSummary?.secondary ||
+      sourceSummary?.secondaryStats ||
+      {};
+    const summaryPlayers = Array.isArray(sourceSummary?.players)
+      ? sourceSummary.players
+      : [];
+    const summaryRows = Array.isArray(summarySecondary?.rows)
+      ? summarySecondary.rows
+      : [];
+    const evidenceRows = [...summaryRows, ...summaryPlayers];
+    const structuredText = structuredMetricText([
+      summarySecondary?.headers,
+      summarySecondary?.header,
+      summarySecondary?.columns,
+      summarySecondary?.columnNames,
+      summarySecondary?.fields,
+      summarySecondary?.availableFields,
+      summarySecondary?.schema,
+      summarySecondary?.metrics,
+    ])
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ');
+
+    function hasExplicitPresenceFlag(row, aliases) {
+      return aliases.some((alias) => {
+        const compact = String(alias).replace(
+          /[^a-zA-Z0-9]/g,
+          '',
+        );
+        const camel =
+          compact.charAt(0).toLowerCase() + compact.slice(1);
+        const snake = String(alias)
+          .replace(/([a-z])([A-Z])/g, '$1_$2')
+          .replace(/[^a-zA-Z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .toLowerCase();
+        const candidates = [
+          `has_${snake}`,
+          `${snake}_exists`,
+          `${snake}_present`,
+          `${snake}_provided`,
+          `${camel}HasValue`,
+          `${camel}Exists`,
+          `${camel}Present`,
+          `${camel}Provided`,
+        ];
+
+        return candidates.some(
+          (key) =>
+            Object.prototype.hasOwnProperty.call(row || {}, key) &&
+            Boolean(row[key]),
+        );
       });
     }
 
-    const killsAvailable = metricAvailable(
-      'kills',
-      ['has_kills', 'hasKills'],
-      ['kills'],
+    function hasSummaryMetric(metric, headerPatterns) {
+      const aliases = metricAliases[metric];
+
+      if (headerPatterns.some((pattern) => pattern.test(structuredText))) {
+        return true;
+      }
+
+      if (
+        evidenceRows.some(
+          (row) =>
+            hasExplicitPresenceFlag(row, aliases) ||
+            aliases.some(
+              (alias) =>
+                Object.prototype.hasOwnProperty.call(
+                  row || {},
+                  alias,
+                ) &&
+                Number(row[alias]) !== 0,
+            ),
+        )
+      ) {
+        return true;
+      }
+
+      const totals = summarySecondary?.totals || {};
+
+      return aliases.some(
+        (alias) =>
+          Object.prototype.hasOwnProperty.call(totals, alias) &&
+          Number(totals[alias]) !== 0,
+      );
+    }
+
+    const hasCoreSummary =
+      summaryPlayers.length > 0 ||
+      summaryRows.length > 0 ||
+      (oneStats?.players || []).length > 0 ||
+      (oneStats?.ev || []).length > 0;
+
+    presence.kills = hasCoreSummary;
+    presence.deaths = hasCoreSummary;
+    presence.kd = hasCoreSummary;
+    presence.feed = hasSummaryMetric('feed', [
+      /\bkill\s*feed\b/,
+      /\bkillfeed\b/,
+    ]);
+    presence.damageDealt = hasSummaryMetric(
+      'damageDealt',
+      [/\bdamage\s*dealt\b/, /\bdmg\s*dealt\b/],
     );
-    const deathsAvailable = metricAvailable(
-      'deaths',
-      ['has_deaths', 'hasDeaths'],
-      ['deaths'],
+    presence.damageTaken = hasSummaryMetric(
+      'damageTaken',
+      [/\bdamage\s*taken\b/, /\bdmg\s*taken\b/],
+    );
+    presence.ccHits = hasSummaryMetric('ccHits', [
+      /\bcc\s*hits?\b/,
+      /\bcrowd\s*control\b/,
+    ]);
+    presence.fortDamage = hasSummaryMetric(
+      'fortDamage',
+      [
+        /\bdamage\s*(?:to|on)\s*fort\b/,
+        /\bfort\s*damage\b/,
+        /\bdmg\s*to\s*fort\b/,
+      ],
     );
 
-    return {
-      kills: hasTimeline || killsAvailable,
-      deaths: hasTimeline || deathsAvailable,
-      kd:
-        hasTimeline ||
-        (killsAvailable && deathsAvailable),
-      // Killstreak is available only from Combat Log data (or a trusted
-      // version-10 summary that preserved the Combat Log result).
-      streak:
-        hasTimeline ||
-        Object.keys(oneStats?.st || {}).length > 0 ||
-        (oneStats?.players || []).some((player) =>
-          overviewMetricAvailable(
-            player,
-            ['has_kill_streak', 'hasKillStreak'],
-            ['killStreak', 'killstreak', 'streak'],
-          ),
-        ),
-      // Kill Feed is the third numeric Stats Log field.
-      feed: metricAvailable(
-        'killFeed',
-        ['has_kill_feed', 'hasKillFeed'],
-        ['killFeed', 'killfeed', 'feed'],
-      ),
-      damageDealt: metricAvailable(
-        'damageDealt',
-        ['has_damage_dealt', 'hasDamageDealt'],
-        ['damageDealt', 'damage_dealt', 'damage'],
-      ),
-      damageTaken: metricAvailable(
-        'damageTaken',
-        ['has_damage_taken', 'hasDamageTaken'],
-        ['damageTaken', 'damage_taken'],
-      ),
-      ccHits: metricAvailable(
-        'ccHits',
-        ['has_cc_hits', 'hasCcHits'],
-        ['ccHits', 'cc_hits', 'cc'],
-      ),
-      fortDamage: metricAvailable(
-        'fortDamage',
-        ['has_fort_damage', 'hasFortDamage'],
-        ['fortDamage', 'damageToFort', 'damage_to_fort'],
-      ),
-    };
+    return presence;
   }
 
   function buildRowsFromStats(oneStats, logColumns) {
     const hasTimeline = statsHasTimeline(oneStats);
-    const hasTimestampedCombatEvents = (oneStats?.ev || []).some(
-      (event) =>
-        event?.hasTimestamp !== false &&
-        event?.source !== 'summary' &&
-        (event?.type === 'kill' || event?.type === 'death'),
-    );
-    const timelineStreaks = hasTimestampedCombatEvents
+    const timelineStreaks = hasTimeline
       ? calculateStreaks(oneStats?.ev || [])
-      : oneStats?.st || {};
+      : {};
 
     const playerByKey = new Map();
     const secondaryByKey = new Map();
@@ -1732,7 +1855,6 @@ function AverageRank({
 
     (oneStats?.ev || []).forEach((event) => {
       if (event?.type !== 'kill' && event?.type !== 'death') return;
-      if (event?.hasTimestamp === false || event?.source === 'summary') return;
 
       const key = registerName(guildPlayerFromEvent(event));
 
@@ -1768,33 +1890,16 @@ function AverageRank({
         ? Number((kills / deaths).toFixed(2))
         : Number(kills.toFixed(2));
 
-      const savedStatsSource = secondaryRow || combatPlayer;
-      const streakKey = getPlayerKeyFromObject(timelineStreaks, name);
-      const playerHasStreakFlag = overviewMetricAvailable(
-        combatPlayer,
-        ['has_kill_streak', 'hasKillStreak'],
-        ['killStreak', 'killstreak', 'streak'],
-      );
-      const streakAvailable = Boolean(
-        hasCombatEvents || streakKey != null || playerHasStreakFlag,
-      );
-      const timelineStreak = streakKey != null
-        ? Number(timelineStreaks[streakKey]) || 0
-        : playerHasStreakFlag
-          ? readMetric(combatPlayer, metricAliases.streak, 0)
-          : 0;
+      // Best Overall Feed is sourced only from a Stats Log column.
+      // Combat Log timestamps never create or replace this value.
+      const savedFeedSource = secondaryRow || combatPlayer;
 
-      // Kill Feed comes only from the Stats Log's third numeric field.
-      const feedAvailable = Boolean(
-        logColumns?.feed &&
-          overviewMetricAvailable(
-            savedStatsSource,
-            ['has_kill_feed', 'hasKillFeed'],
+      const feed = logColumns?.feed
+        ? readMetric(
+            savedFeedSource,
             metricAliases.feed,
-          ),
-      );
-      const feed = feedAvailable
-        ? readMetric(savedStatsSource, metricAliases.feed, 0)
+            getPlayerObjectValue(oneStats?.fd, name, 0),
+          )
         : 0;
 
       const readOptionalMetric = (metric) => {
@@ -1819,7 +1924,10 @@ function AverageRank({
         kills,
         deaths,
         kdNumber,
-        streak: streakAvailable ? timelineStreak : null,
+        streak:
+          hasTimeline && hasCombatEvents
+            ? Number(getPlayerObjectValue(timelineStreaks, name, 0)) || 0
+            : null,
         feed,
         damageDealt: readOptionalMetric('damageDealt'),
         damageTaken: readOptionalMetric('damageTaken'),
@@ -1835,8 +1943,10 @@ function AverageRank({
           kd:
             Boolean(logColumns?.kd) ||
             (hasTimeline && hasCombatEvents),
-          streak: streakAvailable,
-          feed: feedAvailable,
+          streak: hasTimeline && hasCombatEvents,
+          // A Feed rank exists only when the Stats Log physically
+          // contains the Kill Feed column.
+          feed: Boolean(logColumns?.feed),
           damageDealt: optionalMetricExists('damageDealt'),
           damageTaken: optionalMetricExists('damageTaken'),
           ccHits: optionalMetricExists('ccHits'),
@@ -2366,7 +2476,7 @@ function AverageRank({
     );
 
   function formatAverageRank(value) {
-    return value == null ? '—' : Number(value).toFixed(2);
+    return value == null ? '-' : Number(value).toFixed(2);
   }
 
   return (
@@ -2425,7 +2535,7 @@ function AverageRank({
                     </small>
 
                     {player.average === 9999
-                      ? '—'
+                      ? '-'
                       : player.average.toFixed(2)}
                   </span>
                 </div>
@@ -2490,8 +2600,8 @@ function AverageRank({
                     >
                       <p className="text-slate-500">{item[0]}</p>
                       <b className={item[2]}>
-                        {item[1] === '—'
-                          ? '—'
+                        {item[1] === '-'
+                          ? '-'
                           : `#${item[1]}`}
                       </b>
                     </div>
@@ -2533,16 +2643,8 @@ function PlayerAverageComparisonCard({
 }) {
   const currentNumber = Number(current);
   const averageNumber = Number(average);
-  const hasCurrent =
-    current !== undefined &&
-    current !== null &&
-    current !== '' &&
-    Number.isFinite(currentNumber);
-  const hasAverage =
-    average !== undefined &&
-    average !== null &&
-    average !== '' &&
-    Number.isFinite(averageNumber);
+  const hasCurrent = Number.isFinite(currentNumber);
+  const hasAverage = Number.isFinite(averageNumber);
   const difference =
     hasCurrent && hasAverage
       ? currentNumber - averageNumber
@@ -2807,168 +2909,36 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     return new Intl.NumberFormat('en-US').format(number);
   }
 
-  const optionalPlayerMetricKeys = new Set([
-    'streak',
-    'feed',
-    'damageDealt',
-    'damageTaken',
-    'ccHits',
-    'fortDamage',
-  ]);
-
-  const combatPlayerKeys = useMemo(() => {
-    const result = new Set();
-
-    (events || []).forEach((event) => {
-      if (event?.type !== 'kill' && event?.type !== 'death') return;
-      if (event?.hasTimestamp === false || event?.source === 'summary') return;
-
-      const playerName =
-        event?.guildPlayer ||
-        (event?.type === 'kill' ? event?.killer : event?.victim);
-      const playerKey = normalizePlayerName(playerName);
-
-      if (playerKey) result.add(playerKey);
-    });
-
-    return result;
-  }, [events]);
-
   const rows = players
-    .map((player) => {
-      const streakKey = getPlayerKeyFromObject(
-        streaks,
-        player.name,
-      );
-      const feedKey = getPlayerKeyFromObject(
-        feeds,
-        player.name,
-      );
-      const playerKey = normalizePlayerName(player.name);
-
-      const streakAvailable = Boolean(
-        combatPlayerKeys.has(playerKey) ||
-          streakKey != null ||
-          overviewMetricAvailable(
-            player,
-            ['has_kill_streak', 'hasKillStreak'],
-            ['killStreak', 'killstreak', 'streak'],
-          ),
-      );
-      const feedAvailable = Boolean(
-        feedKey != null ||
-          overviewMetricAvailable(
-            player,
-            ['has_kill_feed', 'hasKillFeed'],
-            ['killFeed', 'killfeed', 'feed'],
-          ),
-      );
-      const damageDealtAvailable = overviewMetricAvailable(
-        player,
-        ['has_damage_dealt', 'hasDamageDealt'],
-        ['damageDealt', 'damage_dealt', 'damage'],
-      );
-      const damageTakenAvailable = overviewMetricAvailable(
-        player,
-        ['has_damage_taken', 'hasDamageTaken'],
-        ['damageTaken', 'damage_taken'],
-      );
-      const ccHitsAvailable = overviewMetricAvailable(
-        player,
-        ['has_cc_hits', 'hasCcHits'],
-        ['ccHits', 'cc_hits', 'cc'],
-      );
-      const fortDamageAvailable = overviewMetricAvailable(
-        player,
-        ['has_fort_damage', 'hasFortDamage'],
-        ['fortDamage', 'damageToFort', 'damage_to_fort'],
-      );
-
-      return {
-        ...player,
-        streak: Number(
-          streakKey != null
-            ? streaks?.[streakKey]
-            : player?.killStreak ??
-                player?.killstreak ??
-                player?.streak,
-        ) || 0,
-        feed: Number(
-          feedKey != null
-            ? feeds?.[feedKey]
-            : player?.killFeed ??
-                player?.killfeed ??
-                player?.feed,
-        ) || 0,
-        damageDealt: Number(player.damageDealt) || 0,
-        damageTaken: Number(player.damageTaken) || 0,
-        ccHits: Number(player.ccHits) || 0,
-        fortDamage: Number(
-          player.fortDamage ?? player.damageToFort,
-        ) || 0,
-        __available: {
-          streak: streakAvailable,
-          feed: feedAvailable,
-          damageDealt: damageDealtAvailable,
-          damageTaken: damageTakenAvailable,
-          ccHits: ccHitsAvailable,
-          fortDamage: fortDamageAvailable,
-        },
-      };
-    })
-    .filter((player) =>
-      normalizePlayerName(player.name).includes(
-        normalizePlayerName(query),
-      ),
-    )
+    .map((player) => ({
+      ...player,
+      streak: streaks[player.name] || 0,
+      feed: feeds[player.name] || 0,
+      damageDealt: Number(player.damageDealt) || 0,
+      damageTaken: Number(player.damageTaken) || 0,
+      ccHits: Number(player.ccHits) || 0,
+      fortDamage: Number(player.fortDamage) || 0,
+    }))
+    .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
     .sort((a, b) => {
-      if (key !== 'name' && optionalPlayerMetricKeys.has(key)) {
-        const aAvailable = Boolean(a?.__available?.[key]);
-        const bAvailable = Boolean(b?.__available?.[key]);
-
-        // Missing statistics always stay at the bottom instead of being
-        // treated as numeric zero.
-        if (aAvailable !== bAvailable) {
-          return aAvailable ? -1 : 1;
-        }
-      }
-
-      const av =
-        key === 'name'
-          ? a.name.toLowerCase()
-          : Number(a[key]) || 0;
-      const bv =
-        key === 'name'
-          ? b.name.toLowerCase()
-          : Number(b[key]) || 0;
+      const av = key === 'name' ? a.name.toLowerCase() : Number(a[key]);
+      const bv = key === 'name' ? b.name.toLowerCase() : Number(b[key]);
 
       if (av < bv) return direction === 'asc' ? -1 : 1;
       if (av > bv) return direction === 'asc' ? 1 : -1;
-      return a.name.localeCompare(b.name);
+      return 0;
     });
 
-  function progressMaximum(metric) {
-    const values = rows
-      .filter(
-        (player) =>
-          !optionalPlayerMetricKeys.has(metric) ||
-          Boolean(player?.__available?.[metric]),
-      )
-      .map((player) => Number(player?.[metric]) || 0);
-
-    return Math.max(1, ...values);
-  }
-
   const progressMax = {
-    kills: progressMaximum('kills'),
-    deaths: progressMaximum('deaths'),
-    kd: progressMaximum('kd'),
-    streak: progressMaximum('streak'),
-    feed: progressMaximum('feed'),
-    damageDealt: progressMaximum('damageDealt'),
-    damageTaken: progressMaximum('damageTaken'),
-    ccHits: progressMaximum('ccHits'),
-    fortDamage: progressMaximum('fortDamage'),
+    kills: Math.max(1, ...rows.map((player) => Number(player.kills) || 0)),
+    deaths: Math.max(1, ...rows.map((player) => Number(player.deaths) || 0)),
+    kd: Math.max(1, ...rows.map((player) => Number(player.kd) || 0)),
+    streak: Math.max(1, ...rows.map((player) => Number(player.streak) || 0)),
+    feed: Math.max(1, ...rows.map((player) => Number(player.feed) || 0)),
+    damageDealt: Math.max(1, ...rows.map((player) => Number(player.damageDealt) || 0)),
+    damageTaken: Math.max(1, ...rows.map((player) => Number(player.damageTaken) || 0)),
+    ccHits: Math.max(1, ...rows.map((player) => Number(player.ccHits) || 0)),
+    fortDamage: Math.max(1, ...rows.map((player) => Number(player.fortDamage) || 0)),
   };
 
   const progressThemes = {
@@ -2983,35 +2953,11 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     fortDamage: 'from-amber-500 to-yellow-300',
   };
 
-  function ProgressValue({
-    id,
-    value,
-    available = true,
-    children,
-    className = '',
-  }) {
+  function ProgressValue({ id, value, children, className = '' }) {
     const numeric = Number(value) || 0;
     const width = numeric <= 0
       ? 0
-      : Math.max(
-          3,
-          Math.min(
-            100,
-            Math.round(
-              (numeric / (progressMax[id] || 1)) * 100,
-            ),
-          ),
-        );
-
-    if (!available) {
-      return (
-        <div className={`mx-auto flex w-full min-w-0 flex-col items-center ${className}`}>
-          <span className="whitespace-nowrap text-center leading-none text-slate-500">
-            —
-          </span>
-        </div>
-      );
-    }
+      : Math.max(3, Math.min(100, Math.round((numeric / (progressMax[id] || 1)) * 100)));
 
     return (
       <div className={`mx-auto flex w-full min-w-0 flex-col items-center ${className}`}>
@@ -3072,13 +3018,16 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
       );
   }, [events, selected]);
 
-  // Use the values already calculated for the selected player row.
-  // Recounting only timeline events makes the popup depend on log type.
-  const selectedKills = Number(selected?.kills) || 0;
-  const selectedDeaths = Number(selected?.deaths) || 0;
-  const selectedKdNumber = selectedDeaths
-    ? selectedKills / selectedDeaths
-    : selectedKills;
+  const kills = history.filter(
+    (event) => samePlayerName(event.killer, selected?.name),
+  ).length;
+
+  const deaths = history.filter(
+    (event) => samePlayerName(event.victim, selected?.name),
+  ).length;
+
+  const kdNumber = deaths ? kills / deaths : kills;
+  const kd = kdNumber.toFixed(2);
 
   const {
     favourite,
@@ -3195,12 +3144,6 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
     const metricAliases = {
       kills: ['kills', 'Kills'],
       deaths: ['deaths', 'Deaths'],
-      streak: [
-        'killStreak',
-        'killstreak',
-        'streak',
-        'KillStreak',
-      ],
       feed: [
         'killFeed',
         'killfeed',
@@ -3449,120 +3392,226 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
       });
     }
 
-    function detectLifetimeColumns(_log, oneStats) {
-      const available =
-        oneStats?.secondary?.available || {};
-      const secondaryRows = Array.isArray(
-        oneStats?.secondary?.rows,
-      )
-        ? oneStats.secondary.rows
-        : [];
-      const hasTimeline = Boolean(
-        oneStats?.hasTimeline ||
-          (oneStats?.ev || []).some(
-            (event) =>
-              event?.hasTimestamp !== false &&
-              event?.source !== 'summary' &&
-              event?.time != null,
-          ),
-      );
+    function detectLifetimeColumns(log, oneStats) {
+      const presence = {
+        kills: false,
+        deaths: false,
+        kd: false,
+        feed: false,
+        damageDealt: false,
+        damageTaken: false,
+        ccHits: false,
+        fortDamage: false,
+      };
 
-      function metricAvailable(
-        metric,
-        flagKeys,
-        valueKeys,
+      const raw = getLifetimeLogRaw(log);
+      const startMarker =
+        '===== ADVERSARY_SECONDARY_LOG_START =====';
+      const endMarker =
+        '===== ADVERSARY_SECONDARY_LOG_END =====';
+      let secondaryRaw = '';
+
+      if (
+        raw.includes(startMarker) &&
+        raw.includes(endMarker)
       ) {
-        if (
-          Object.prototype.hasOwnProperty.call(
-            available,
-            metric,
-          )
-        ) {
-          return Boolean(available[metric]);
-        }
+        secondaryRaw =
+          raw.split(startMarker)[1]?.split(endMarker)[0] ||
+          '';
+      }
 
-        return secondaryRows.some((row) => {
-          for (const flagKey of flagKeys) {
-            if (
-              Object.prototype.hasOwnProperty.call(
-                row || {},
-                flagKey,
-              )
-            ) {
-              return Boolean(row[flagKey]);
-            }
+      const normalizedSecondary =
+        normalizePresenceText(secondaryRaw);
+      const explicitHeader = {
+        feed: /\bkill feed\b|\bkillfeed\b/.test(
+          normalizedSecondary,
+        ),
+        damageDealt:
+          /\bdamage dealt\b|\bdmg dealt\b/.test(
+            normalizedSecondary,
+          ),
+        damageTaken:
+          /\bdamage taken\b|\bdmg taken\b/.test(
+            normalizedSecondary,
+          ),
+        ccHits:
+          /\bcc hits?\b|\bcrowd control\b/.test(
+            normalizedSecondary,
+          ),
+        fortDamage:
+          /\bdamage (?:to|on) fort\b|\bfort damage\b|\bdmg to fort\b/.test(
+            normalizedSecondary,
+          ),
+      };
+      const hasRecognizedDetailHeader = Object.values(
+        explicitHeader,
+      ).some(Boolean);
+      let foundRawStatsRow = false;
+
+      String(secondaryRaw || '')
+        .split(/\r?\n/)
+        .forEach((line) => {
+          let columns = splitPresenceColumns(line);
+
+          columns = expandPresenceNumberColumns(columns);
+
+          const firstNumberIndex = columns.findIndex(
+            isPresenceNumber,
+          );
+
+          if (firstNumberIndex < 0) return;
+
+          const numericColumns = columns
+            .slice(firstNumberIndex)
+            .filter(isPresenceNumber);
+
+          if (numericColumns.length < 2) return;
+
+          foundRawStatsRow = true;
+          presence.kills = true;
+          presence.deaths = true;
+          presence.kd = true;
+
+          if (hasRecognizedDetailHeader) {
+            Object.entries(explicitHeader).forEach(
+              ([metric, exists]) => {
+                if (exists) presence[metric] = true;
+              },
+            );
+            return;
           }
 
-          return valueKeys.some((valueKey) => {
-            if (
-              !Object.prototype.hasOwnProperty.call(
-                row || {},
-                valueKey,
-              )
-            ) {
-              return false;
+          const thirdRaw = String(numericColumns[2] || '');
+          const thirdNumber =
+            parsePresenceNumber(thirdRaw);
+          const looksLikeFullTableWithKd =
+            numericColumns.length >= 9 &&
+            /[.,]/.test(thirdRaw) &&
+            Number.isFinite(thirdNumber) &&
+            thirdNumber >= 0 &&
+            thirdNumber <= 50;
+
+          if (looksLikeFullTableWithKd) {
+            if (numericColumns.length >= 5) {
+              presence.feed = true;
             }
+            if (numericColumns.length >= 6) {
+              presence.damageDealt = true;
+            }
+            if (numericColumns.length >= 7) {
+              presence.damageTaken = true;
+            }
+            if (numericColumns.length >= 8) {
+              presence.ccHits = true;
+            }
+            if (numericColumns.length >= 9) {
+              presence.fortDamage = true;
+            }
+          } else {
+            if (numericColumns.length >= 3) {
+              presence.feed = true;
+            }
+            if (numericColumns.length >= 4) {
+              presence.damageDealt = true;
+            }
+            if (numericColumns.length >= 5) {
+              presence.damageTaken = true;
+            }
+            if (numericColumns.length >= 6) {
+              presence.ccHits = true;
+            }
+            if (numericColumns.length >= 9) {
+              presence.fortDamage = true;
+            }
+          }
+        });
 
-            const value = Number(row[valueKey]);
+      if (foundRawStatsRow) return presence;
 
-            return Number.isFinite(value) && value !== 0;
-          });
+      const sourceSummary =
+        log?.summary ||
+        log?.stats ||
+        log?.analytics ||
+        log?._src?.summary ||
+        log?._src?.stats ||
+        log?._src?.analytics ||
+        {};
+      const summarySecondary =
+        sourceSummary?.secondary ||
+        sourceSummary?.secondaryStats ||
+        {};
+      const evidenceRows = [
+        ...(Array.isArray(summarySecondary?.rows)
+          ? summarySecondary.rows
+          : []),
+        ...(Array.isArray(sourceSummary?.players)
+          ? sourceSummary.players
+          : []),
+        ...(oneStats?.secondary?.rows || []),
+        ...(oneStats?.players || []),
+      ];
+      const structuredText = normalizePresenceText(
+        structuredPresenceText([
+          summarySecondary?.headers,
+          summarySecondary?.header,
+          summarySecondary?.columns,
+          summarySecondary?.columnNames,
+          summarySecondary?.fields,
+          summarySecondary?.availableFields,
+          summarySecondary?.schema,
+          summarySecondary?.metrics,
+          oneStats?.secondary?.headers,
+          oneStats?.secondary?.header,
+          oneStats?.secondary?.columns,
+          oneStats?.secondary?.columnNames,
+          oneStats?.secondary?.fields,
+          oneStats?.secondary?.availableFields,
+          oneStats?.secondary?.schema,
+          oneStats?.secondary?.metrics,
+        ]),
+      );
+
+      function structuredHasAlias(aliases) {
+        return aliases.some((alias) => {
+          const normalized = normalizePresenceText(alias);
+
+          return Boolean(
+            normalized &&
+              structuredText.includes(normalized),
+          );
         });
       }
 
-      const killsAvailable = metricAvailable(
-        'kills',
-        ['has_kills', 'hasKills'],
-        ['kills'],
-      );
-      const deathsAvailable = metricAvailable(
-        'deaths',
-        ['has_deaths', 'hasDeaths'],
-        ['deaths'],
-      );
+      function hasSummaryMetric(metric) {
+        const aliases = metricAliases[metric];
 
-      return {
-        kills: hasTimeline || killsAvailable,
-        deaths: hasTimeline || deathsAvailable,
-        kd:
-          hasTimeline ||
-          (killsAvailable && deathsAvailable),
-        streak:
-          hasTimeline ||
-          Object.keys(oneStats?.st || {}).length > 0 ||
-          (oneStats?.players || []).some((player) =>
-            overviewMetricAvailable(
-              player,
-              ['has_kill_streak', 'hasKillStreak'],
-              ['killStreak', 'killstreak', 'streak'],
-            ),
-          ),
-        feed: metricAvailable(
-          'killFeed',
-          ['has_kill_feed', 'hasKillFeed'],
-          ['killFeed', 'killfeed', 'feed'],
-        ),
-        damageDealt: metricAvailable(
-          'damageDealt',
-          ['has_damage_dealt', 'hasDamageDealt'],
-          ['damageDealt', 'damage_dealt', 'damage'],
-        ),
-        damageTaken: metricAvailable(
-          'damageTaken',
-          ['has_damage_taken', 'hasDamageTaken'],
-          ['damageTaken', 'damage_taken'],
-        ),
-        ccHits: metricAvailable(
-          'ccHits',
-          ['has_cc_hits', 'hasCcHits'],
-          ['ccHits', 'cc_hits', 'cc'],
-        ),
-        fortDamage: metricAvailable(
-          'fortDamage',
-          ['has_fort_damage', 'hasFortDamage'],
-          ['fortDamage', 'damageToFort', 'damage_to_fort'],
-        ),
-      };
+        return (
+          structuredHasAlias(aliases) ||
+          evidenceRows.some(
+            (row) =>
+              hasExplicitPresenceFlag(row, aliases) ||
+              sourceHasNonZeroMetric(row, aliases),
+          )
+        );
+      }
+
+      const hasCoreSummaryRows =
+        evidenceRows.length > 0;
+
+      presence.kills = hasCoreSummaryRows;
+      presence.deaths = hasCoreSummaryRows;
+      presence.kd =
+        presence.kills && presence.deaths;
+      presence.feed = hasSummaryMetric('feed');
+      presence.damageDealt =
+        hasSummaryMetric('damageDealt');
+      presence.damageTaken =
+        hasSummaryMetric('damageTaken');
+      presence.ccHits = hasSummaryMetric('ccHits');
+      presence.fortDamage =
+        hasSummaryMetric('fortDamage');
+
+      return presence;
     }
 
     function readMetricValue(
@@ -3704,40 +3753,46 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
         oneStats?.st,
         selected.name,
       );
-      const playerHasStreak = overviewMetricAvailable(
-        playerRow,
-        ['has_kill_streak', 'hasKillStreak'],
-        metricAliases.streak,
+      const streakValue = Number(
+        getPlayerObjectValue(
+          oneStats?.st,
+          selected.name,
+          0,
+        ),
       );
-      const streakExists = Boolean(
-        hasCombatTimeline || streakKey != null || playerHasStreak,
-      );
-      const streakValue = streakKey != null
-        ? Number(oneStats.st[streakKey]) || 0
-        : playerHasStreak
-          ? readMetricValue(
-              [playerRow],
-              metricAliases.streak,
-              0,
-            )
-          : 0;
 
       addAverageMetric(
         'streak',
         streakValue,
-        streakExists,
+        hasCombatTimeline ||
+          (streakKey != null && streakValue !== 0),
       );
 
-      const feedValue = readMetricValue(
+      const feedKey = getPlayerKeyFromObject(
+        oneStats?.fd,
+        selected.name,
+      );
+      const feedFromObjects = Number(
+        getPlayerObjectValue(
+          oneStats?.fd,
+          selected.name,
+          0,
+        ),
+      );
+      const feedFromRows = readMetricValue(
         [secondaryRow, playerRow],
         metricAliases.feed,
-        0,
+        feedFromObjects,
       );
+      const feedExists =
+        hasCombatTimeline ||
+        columns.feed ||
+        (feedKey != null && feedFromObjects !== 0);
 
       addAverageMetric(
         'feed',
-        feedValue,
-        columns.feed,
+        columns.feed ? feedFromRows : feedFromObjects,
+        feedExists,
       );
 
       const damageDealtValue = readMetricValue(
@@ -3926,61 +3981,37 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                     </td>
 
                     <td className="py-2 text-center font-black">
-                      <ProgressValue
-                        id="streak"
-                        value={player.streak}
-                        available={player.__available.streak}
-                      >
+                      <ProgressValue id="streak" value={player.streak}>
                         {formatNumber(player.streak)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-orange-300">
-                      <ProgressValue
-                        id="feed"
-                        value={player.feed}
-                        available={player.__available.feed}
-                      >
+                      <ProgressValue id="feed" value={player.feed}>
                         🔥 {formatNumber(player.feed)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-cyan-300">
-                      <ProgressValue
-                        id="damageDealt"
-                        value={player.damageDealt}
-                        available={player.__available.damageDealt}
-                      >
+                      <ProgressValue id="damageDealt" value={player.damageDealt}>
                         {formatNumber(player.damageDealt)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-rose-300">
-                      <ProgressValue
-                        id="damageTaken"
-                        value={player.damageTaken}
-                        available={player.__available.damageTaken}
-                      >
+                      <ProgressValue id="damageTaken" value={player.damageTaken}>
                         {formatNumber(player.damageTaken)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-violet-300">
-                      <ProgressValue
-                        id="ccHits"
-                        value={player.ccHits}
-                        available={player.__available.ccHits}
-                      >
+                      <ProgressValue id="ccHits" value={player.ccHits}>
                         {formatNumber(player.ccHits)}
                       </ProgressValue>
                     </td>
 
                     <td className="py-2 text-center font-black text-amber-300">
-                      <ProgressValue
-                        id="fortDamage"
-                        value={player.fortDamage}
-                        available={player.__available.fortDamage}
-                      >
+                      <ProgressValue id="fortDamage" value={player.fortDamage}>
                         {formatNumber(player.fortDamage)}
                       </ProgressValue>
                     </td>
@@ -4024,7 +4055,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
               <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 <PlayerAverageComparisonCard
                   label="Kills"
-                  current={selectedKills}
+                  current={kills}
                   average={selectedLifetimeAverageStats?.kills}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.kills || 0
@@ -4035,7 +4066,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="Deaths"
-                  current={selectedDeaths}
+                  current={deaths}
                   average={selectedLifetimeAverageStats?.deaths}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.deaths || 0
@@ -4047,22 +4078,18 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="K/D"
-                  current={selectedKdNumber}
+                  current={kdNumber}
                   average={selectedLifetimeAverageStats?.kd}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.kd || 0
                   }
                   type="kd"
-                  tone={selectedKdNumber < 1 ? 'red' : 'emerald'}
+                  tone={kdNumber < 1 ? 'red' : 'emerald'}
                 />
 
                 <PlayerAverageComparisonCard
                   label="Killstreak"
-                  current={
-                    selected.__available?.streak
-                      ? selected.streak
-                      : undefined
-                  }
+                  current={streaks[selected.name] || 0}
                   average={selectedLifetimeAverageStats?.streak}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.streak || 0
@@ -4073,11 +4100,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="Killfeed"
-                  current={
-                    selected.__available?.feed
-                      ? selected.feed
-                      : undefined
-                  }
+                  current={feeds[selected.name] || 0}
                   average={selectedLifetimeAverageStats?.feed}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.feed || 0
@@ -4088,11 +4111,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="DMG Dealt"
-                  current={
-                    selected.__available?.damageDealt
-                      ? selected.damageDealt
-                      : undefined
-                  }
+                  current={selected.damageDealt}
                   average={selectedLifetimeAverageStats?.damageDealt}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.damageDealt || 0
@@ -4103,11 +4122,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="DMG Taken"
-                  current={
-                    selected.__available?.damageTaken
-                      ? selected.damageTaken
-                      : undefined
-                  }
+                  current={selected.damageTaken}
                   average={selectedLifetimeAverageStats?.damageTaken}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.damageTaken || 0
@@ -4119,11 +4134,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="CC Hits"
-                  current={
-                    selected.__available?.ccHits
-                      ? selected.ccHits
-                      : undefined
-                  }
+                  current={selected.ccHits}
                   average={selectedLifetimeAverageStats?.ccHits}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.ccHits || 0
@@ -4134,11 +4145,7 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
 
                 <PlayerAverageComparisonCard
                   label="DMG to Fort"
-                  current={
-                    selected.__available?.fortDamage
-                      ? selected.fortDamage
-                      : undefined
-                  }
+                  current={selected.fortDamage}
                   average={selectedLifetimeAverageStats?.fortDamage}
                   averageMatches={
                     selectedLifetimeAverageStats?.metricWars?.fortDamage || 0
@@ -5298,93 +5305,26 @@ export default function OverviewPage({
     ? buildConsecutiveFlowMarkers(stats.ev || [])
     : [];
 
-  const players = Array.isArray(stats?.players)
-    ? stats.players
-    : [];
-  const secondaryRows = Array.isArray(stats?.secondary?.rows)
-    ? stats.secondary.rows
-    : [];
-  const secondaryTotals = stats?.secondary?.totals || {};
-  const secondaryAvailable = stats?.secondary?.available || {};
-
-  const playerSecondaryTotals = players.reduce(
+  const playerSecondaryTotals = (stats.players || []).reduce(
     (totals, player) => ({
       damageDealt:
         totals.damageDealt + (Number(player.damageDealt) || 0),
       damageTaken:
         totals.damageTaken + (Number(player.damageTaken) || 0),
       ccHits: totals.ccHits + (Number(player.ccHits) || 0),
-      fortDamage:
-        totals.fortDamage +
-        (Number(player.fortDamage ?? player.damageToFort) || 0),
+      fortDamage: totals.fortDamage + (Number(player.fortDamage) || 0),
     }),
-    {
-      damageDealt: 0,
-      damageTaken: 0,
-      ccHits: 0,
-      fortDamage: 0,
-    },
+    { damageDealt: 0, damageTaken: 0, ccHits: 0, fortDamage: 0 },
   );
 
-  function aggregateMetricAvailable(
-    metric,
-    flagKeys,
-    valueKeys,
-  ) {
-    if (hasOwnOverviewField(secondaryAvailable, metric)) {
-      return Boolean(secondaryAvailable[metric]);
-    }
-
-    return [secondaryTotals, ...secondaryRows, ...players].some(
-      (source) =>
-        overviewMetricAvailable(
-          source,
-          flagKeys,
-          valueKeys,
-        ),
-    );
-  }
-
-  const damageDealtAvailable = aggregateMetricAvailable(
-    'damageDealt',
-    ['has_damage_dealt', 'hasDamageDealt'],
-    ['damageDealt', 'damage_dealt', 'damage'],
-  );
-  const damageTakenAvailable = aggregateMetricAvailable(
-    'damageTaken',
-    ['has_damage_taken', 'hasDamageTaken'],
-    ['damageTaken', 'damage_taken'],
-  );
-  const ccHitsAvailable = aggregateMetricAvailable(
-    'ccHits',
-    ['has_cc_hits', 'hasCcHits'],
-    ['ccHits', 'cc_hits', 'cc'],
-  );
-  const fortDamageAvailable = aggregateMetricAvailable(
-    'fortDamage',
-    ['has_fort_damage', 'hasFortDamage'],
-    ['fortDamage', 'damageToFort', 'damage_to_fort'],
-  );
-
+  const secondaryTotals = stats.secondary?.totals || {};
   const damageDealt =
-    Number(secondaryTotals.damageDealt) ||
-    playerSecondaryTotals.damageDealt ||
-    0;
+    Number(secondaryTotals.damageDealt) || playerSecondaryTotals.damageDealt || 0;
   const damageTaken =
-    Number(secondaryTotals.damageTaken) ||
-    playerSecondaryTotals.damageTaken ||
-    0;
-  const ccHits =
-    Number(secondaryTotals.ccHits) ||
-    playerSecondaryTotals.ccHits ||
-    0;
+    Number(secondaryTotals.damageTaken) || playerSecondaryTotals.damageTaken || 0;
+  const ccHits = Number(secondaryTotals.ccHits) || playerSecondaryTotals.ccHits || 0;
   const fortDamage =
-    Number(
-      secondaryTotals.fortDamage ??
-        secondaryTotals.damageToFort,
-    ) ||
-    playerSecondaryTotals.fortDamage ||
-    0;
+    Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0;
 
   return (
     <div className="overview-guild-page space-y-4">
@@ -5435,11 +5375,7 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="damageDealt" color="#38bdf8" />}
             label="Damage"
-            value={
-              damageDealtAvailable
-                ? compactNumber(damageDealt)
-                : '—'
-            }
+            value={compactNumber(damageDealt)}
             sub="Dealt"
             tone="cyan"
             valueClass="text-cyan-300"
@@ -5448,11 +5384,7 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="damageTaken" color="#fb7185" />}
             label="Damage Taken"
-            value={
-              damageTakenAvailable
-                ? compactNumber(damageTaken)
-                : '—'
-            }
+            value={compactNumber(damageTaken)}
             sub="Taken"
             tone="rose"
             valueClass="text-rose-300"
@@ -5461,11 +5393,7 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="ccHits" color="#a855f7" />}
             label="CC Hits"
-            value={
-              ccHitsAvailable
-                ? compactNumber(ccHits)
-                : '—'
-            }
+            value={compactNumber(ccHits)}
             sub="Control"
             tone="violet"
             valueClass="text-violet-300"
@@ -5474,11 +5402,7 @@ export default function OverviewPage({
           <BattleMetricCard
             icon={<MetricGlyph type="damageToFort" color="#f59e0b" />}
             label="Fort Damage"
-            value={
-              fortDamageAvailable
-                ? compactNumber(fortDamage)
-                : '—'
-            }
+            value={compactNumber(fortDamage)}
             sub="Structure"
             tone="amber"
             valueClass="text-amber-300"
