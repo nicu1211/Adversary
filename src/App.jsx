@@ -2635,6 +2635,37 @@ export default function App() {
     }
   }, [allLogs]);
 
+  const loadEditableRawLogs = useCallback(async () => {
+    try {
+      setLoadingAllLogs(true);
+
+      // The normal all-history request intentionally returns lightweight
+      // summaries. Raw Log editing needs the original saved text, so request
+      // it explicitly only when the Raw Logs page is opened.
+      const data = await apiGet(
+        logsPath({ range: 'all', includeRaw: 1 }),
+        { timeoutMs: 60000 },
+      );
+      const normalized = normalizeLogs(data);
+
+      setAllLogs(normalized);
+      setMessage('');
+
+      return normalized;
+    } catch (error) {
+      console.error('Failed to load editable raw logs:', error);
+      setMessage(
+        `Raw log load failed: ${
+          error?.message || error || 'unknown error'
+        }.`,
+      );
+
+      return [];
+    } finally {
+      setLoadingAllLogs(false);
+    }
+  }, []);
+
   const loadOverviewLogs = useCallback(async () => {
     if (page !== 'overview') return;
 
@@ -2737,16 +2768,20 @@ export default function App() {
   }, [loadNodeLogs]);
 
   useEffect(() => {
+    if (page === 'raw') {
+      loadEditableRawLogs();
+      return;
+    }
+
     if (
       page === 'players' ||
       page === 'hall' ||
-      page === 'raw' ||
       page === 'guild' ||
       page === 'monthly'
     ) {
       loadAllLogs();
     }
-  }, [page, loadAllLogs]);
+  }, [page, loadAllLogs, loadEditableRawLogs]);
 
   useEffect(() => {
     loadOverviewLogs();
