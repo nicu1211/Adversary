@@ -637,6 +637,85 @@ function secondaryRowsTotals(rows) {
   );
 }
 
+function explicitSecondaryMetricPresence(
+  row,
+  flagKeys,
+  valueKeys,
+) {
+  if (!row) return null;
+
+  for (const key of flagKeys) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      return Boolean(row[key]);
+    }
+  }
+
+  for (const key of valueKeys) {
+    if (!Object.prototype.hasOwnProperty.call(row, key)) {
+      continue;
+    }
+
+    const value = Number(row[key]);
+
+    if (Number.isFinite(value) && value !== 0) {
+      return true;
+    }
+  }
+
+  return null;
+}
+
+function secondaryRowsAvailability(rows) {
+  const definitions = {
+    kills: {
+      flags: ['has_kills', 'hasKills'],
+      values: ['kills'],
+    },
+    deaths: {
+      flags: ['has_deaths', 'hasDeaths'],
+      values: ['deaths'],
+    },
+    killStreak: {
+      flags: ['has_kill_streak', 'hasKillStreak'],
+      values: ['killStreak', 'killstreak'],
+    },
+    killFeed: {
+      flags: ['has_kill_feed', 'hasKillFeed'],
+      values: ['killFeed', 'killfeed', 'feed'],
+    },
+    damageDealt: {
+      flags: ['has_damage_dealt', 'hasDamageDealt'],
+      values: ['damageDealt', 'damage_dealt', 'damage'],
+    },
+    damageTaken: {
+      flags: ['has_damage_taken', 'hasDamageTaken'],
+      values: ['damageTaken', 'damage_taken'],
+    },
+    ccHits: {
+      flags: ['has_cc_hits', 'hasCcHits'],
+      values: ['ccHits', 'cc_hits', 'cc'],
+    },
+    fortDamage: {
+      flags: ['has_fort_damage', 'hasFortDamage'],
+      values: ['fortDamage', 'damageToFort', 'damage_to_fort'],
+    },
+  };
+
+  return Object.fromEntries(
+    Object.entries(definitions).map(([metric, definition]) => [
+      metric,
+      (rows || []).some(
+        (row) =>
+          explicitSecondaryMetricPresence(
+            row,
+            definition.flags,
+            definition.values,
+          ) === true,
+      ),
+    ]),
+  );
+}
+
 function parseClassicEventLine(line, index, name, date, id) {
   const closeBracket = line.indexOf(']');
   const openParenthesis = line.lastIndexOf('(');
@@ -1014,6 +1093,7 @@ function calculateStatsFromRaw(items) {
       secondary: {
         rows: [],
         totals: secondaryRowsTotals([]),
+        available: secondaryRowsAvailability([]),
       },
       hasTimeline: false,
       summaryOnly: false,
@@ -1426,6 +1506,7 @@ function calculateStatsFromRaw(items) {
     secondary: {
       rows: secondaryRows,
       totals: secondaryTotals,
+      available: secondaryRowsAvailability(secondaryRows),
     },
     hasTimeline,
     summaryOnly,
@@ -1714,6 +1795,59 @@ function mergeStatsFromSummaries(items) {
         playerName,
       );
 
+      let matchRow = rowsByPlayer.get(playerKey);
+
+      /*
+       * Presence is NOT the same thing as a numeric property existing.
+       * Older summaries filled missing columns with zero, so checking
+       * `player.damageDealt !== undefined` incorrectly marked missing
+       * historical columns as available. Explicit per-row flags are the
+       * source of truth. A non-zero value is only a legacy fallback.
+       */
+      function explicitMetricPresence(source, flagKeys, valueKeys) {
+        if (!source) return null;
+
+        for (const key of flagKeys) {
+          if (Object.prototype.hasOwnProperty.call(source, key)) {
+            return Boolean(source[key]);
+          }
+        }
+
+        for (const key of valueKeys) {
+          if (!Object.prototype.hasOwnProperty.call(source, key)) {
+            continue;
+          }
+
+          const value = Number(source[key]);
+
+          if (Number.isFinite(value) && value !== 0) {
+            return true;
+          }
+        }
+
+        return null;
+      }
+
+      function resolveMetricPresence(flagKeys, valueKeys, extra = false) {
+        const rowPresence = explicitMetricPresence(
+          matchRow,
+          flagKeys,
+          valueKeys,
+        );
+
+        if (rowPresence !== null) return rowPresence;
+
+        const playerPresence = explicitMetricPresence(
+          player,
+          flagKeys,
+          valueKeys,
+        );
+
+        if (playerPresence !== null) return playerPresence;
+
+        return Boolean(extra);
+      }
+
       const legacyPlayerKillFeed =
         summaryVersion < 3 &&
         player.killFeed == null &&
@@ -1721,55 +1855,100 @@ function mergeStatsFromSummaries(items) {
           ? Number(player.killStreak) || 0
           : 0;
 
-      const playerHasKillStreak =
-        streakMetric.exists ||
-        (
-          summaryVersion >= 3 &&
-          (
-            player.killStreak !== undefined ||
-            player.killstreak !== undefined
-          )
-        );
+      const playerHasKillStreak = resolveMetricPresence(
+        ['has_kill_streak', 'hasKillStreak'],
+        ['killStreak', 'killstreak'],
+        streakMetric.exists || Boolean(summary.hasTimeline),
+      );
 
       const playerKillStreak =
-        streakMetric.exists
-          ? streakMetric.value
-          : summaryVersion >= 3
-            ? Number(
-                player.killStreak ??
-                  player.killstreak,
-              ) || 0
-            : 0;
+        matchRow && playerHasKillStreak
+          ? Number(
+              matchRow.killStreak ??
+                matchRow.killstreak,
+            ) || 0
+          : streakMetric.exists
+            ? streakMetric.value
+            : summaryVersion >= 3
+              ? Number(
+                  player.killStreak ??
+                    player.killstreak,
+                ) || 0
+              : 0;
 
-      const playerHasKillFeed =
-        player.killFeed !== undefined ||
-        player.killfeed !== undefined ||
-        player.feed !== undefined ||
+      const playerHasKillFeed = resolveMetricPresence(
+        ['has_kill_feed', 'hasKillFeed'],
+        ['killFeed', 'killfeed', 'feed'],
         feedMetric.exists ||
-        Boolean(legacyPlayerKillFeed);
+          Boolean(legacyPlayerKillFeed) ||
+          Boolean(summary.hasTimeline),
+      );
 
       const playerKillFeed =
-        Number(
-          player.killFeed ??
-            player.killfeed ??
-            player.feed ??
-            (feedMetric.exists
-              ? feedMetric.value
-              : legacyPlayerKillFeed),
-        ) || 0;
+        matchRow && playerHasKillFeed
+          ? Number(
+              matchRow.killFeed ??
+                matchRow.killfeed ??
+                matchRow.feed,
+            ) || 0
+          : Number(
+              player.killFeed ??
+                player.killfeed ??
+                player.feed ??
+                (feedMetric.exists
+                  ? feedMetric.value
+                  : legacyPlayerKillFeed),
+            ) || 0;
 
-      const playerHasDamageDealt =
-        player.damageDealt !== undefined;
+      const playerHasDamageDealt = resolveMetricPresence(
+        ['has_damage_dealt', 'hasDamageDealt'],
+        ['damageDealt', 'damage_dealt', 'damage'],
+      );
 
-      const playerHasDamageTaken =
-        player.damageTaken !== undefined;
+      const playerHasDamageTaken = resolveMetricPresence(
+        ['has_damage_taken', 'hasDamageTaken'],
+        ['damageTaken', 'damage_taken'],
+      );
 
-      const playerHasCcHits =
-        player.ccHits !== undefined;
+      const playerHasCcHits = resolveMetricPresence(
+        ['has_cc_hits', 'hasCcHits'],
+        ['ccHits', 'cc_hits', 'cc'],
+      );
 
-      const playerHasFortDamage =
-        player.fortDamage !== undefined ||
-        player.damageToFort !== undefined;
+      const playerHasFortDamage = resolveMetricPresence(
+        ['has_fort_damage', 'hasFortDamage'],
+        ['fortDamage', 'damageToFort', 'damage_to_fort'],
+      );
+
+      const damageDealtValue = playerHasDamageDealt
+        ? Number(
+            matchRow?.damageDealt ??
+              player.damageDealt,
+          ) || 0
+        : 0;
+
+      const damageTakenValue = playerHasDamageTaken
+        ? Number(
+            matchRow?.damageTaken ??
+              player.damageTaken,
+          ) || 0
+        : 0;
+
+      const ccHitsValue = playerHasCcHits
+        ? Number(
+            matchRow?.ccHits ??
+              player.ccHits,
+          ) || 0
+        : 0;
+
+      const fortDamageValue = playerHasFortDamage
+        ? Number(
+            matchRow?.fortDamage ??
+              matchRow?.damageToFort ??
+              player.fortDamage ??
+              player.damageToFort,
+          ) || 0
+        : 0;
 
       const currentSecondary =
         secondaryByPlayer[playerName] || {
@@ -1779,35 +1958,58 @@ function mergeStatsFromSummaries(items) {
           damageTaken: 0,
           ccHits: 0,
           fortDamage: 0,
+          has_kill_streak: false,
+          has_kill_feed: false,
+          has_damage_dealt: false,
+          has_damage_taken: false,
+          has_cc_hits: false,
+          has_fort_damage: false,
         };
 
       secondaryByPlayer[playerName] = {
-        killStreak: Math.max(
-          currentSecondary.killStreak,
-          playerKillStreak,
-        ),
-        killFeed: Math.max(
-          currentSecondary.killFeed,
-          playerKillFeed,
-        ),
+        killStreak: playerHasKillStreak
+          ? Math.max(
+              currentSecondary.killStreak,
+              playerKillStreak,
+            )
+          : currentSecondary.killStreak,
+        killFeed: playerHasKillFeed
+          ? Math.max(
+              currentSecondary.killFeed,
+              playerKillFeed,
+            )
+          : currentSecondary.killFeed,
         damageDealt:
           currentSecondary.damageDealt +
-          (Number(player.damageDealt) || 0),
+          damageDealtValue,
         damageTaken:
           currentSecondary.damageTaken +
-          (Number(player.damageTaken) || 0),
+          damageTakenValue,
         ccHits:
           currentSecondary.ccHits +
-          (Number(player.ccHits) || 0),
+          ccHitsValue,
         fortDamage:
           currentSecondary.fortDamage +
-          (Number(
-            player.fortDamage ??
-              player.damageToFort,
-          ) || 0),
+          fortDamageValue,
+        has_kill_streak:
+          currentSecondary.has_kill_streak ||
+          playerHasKillStreak,
+        has_kill_feed:
+          currentSecondary.has_kill_feed ||
+          playerHasKillFeed,
+        has_damage_dealt:
+          currentSecondary.has_damage_dealt ||
+          playerHasDamageDealt,
+        has_damage_taken:
+          currentSecondary.has_damage_taken ||
+          playerHasDamageTaken,
+        has_cc_hits:
+          currentSecondary.has_cc_hits ||
+          playerHasCcHits,
+        has_fort_damage:
+          currentSecondary.has_fort_damage ||
+          playerHasFortDamage,
       };
-
-      let matchRow = rowsByPlayer.get(playerKey);
 
       if (!matchRow) {
         matchRow = addSecondaryRow(
@@ -1881,38 +2083,43 @@ function mergeStatsFromSummaries(items) {
         }
 
         if (
-          matchRow.damageDealt === undefined ||
-          matchRow.damageDealt === null
+          playerHasDamageDealt &&
+          (
+            matchRow.damageDealt === undefined ||
+            matchRow.damageDealt === null
+          )
         ) {
-          matchRow.damageDealt =
-            Number(player.damageDealt) || 0;
+          matchRow.damageDealt = damageDealtValue;
         }
 
         if (
-          matchRow.damageTaken === undefined ||
-          matchRow.damageTaken === null
+          playerHasDamageTaken &&
+          (
+            matchRow.damageTaken === undefined ||
+            matchRow.damageTaken === null
+          )
         ) {
-          matchRow.damageTaken =
-            Number(player.damageTaken) || 0;
+          matchRow.damageTaken = damageTakenValue;
         }
 
         if (
-          matchRow.ccHits === undefined ||
-          matchRow.ccHits === null
+          playerHasCcHits &&
+          (
+            matchRow.ccHits === undefined ||
+            matchRow.ccHits === null
+          )
         ) {
-          matchRow.ccHits =
-            Number(player.ccHits) || 0;
+          matchRow.ccHits = ccHitsValue;
         }
 
         if (
-          matchRow.fortDamage === undefined ||
-          matchRow.fortDamage === null
+          playerHasFortDamage &&
+          (
+            matchRow.fortDamage === undefined ||
+            matchRow.fortDamage === null
+          )
         ) {
-          matchRow.fortDamage =
-            Number(
-              player.fortDamage ??
-                player.damageToFort,
-            ) || 0;
+          matchRow.fortDamage = fortDamageValue;
         }
 
         matchRow.has_kills = true;
@@ -2098,6 +2305,18 @@ function mergeStatsFromSummaries(items) {
                 secondary.ccHits,
               fortDamage:
                 secondary.fortDamage,
+              has_kill_streak:
+                Boolean(secondary.has_kill_streak),
+              has_kill_feed:
+                Boolean(secondary.has_kill_feed),
+              has_damage_dealt:
+                Boolean(secondary.has_damage_dealt),
+              has_damage_taken:
+                Boolean(secondary.has_damage_taken),
+              has_cc_hits:
+                Boolean(secondary.has_cc_hits),
+              has_fort_damage:
+                Boolean(secondary.has_fort_damage),
             }
           : {}),
       };
@@ -2170,6 +2389,7 @@ function mergeStatsFromSummaries(items) {
     secondary: {
       rows: secondaryRows,
       totals: secondaryTotals,
+      available: secondaryRowsAvailability(secondaryRows),
     },
     hasTimeline,
     summaryOnly:
@@ -2234,6 +2454,7 @@ export function calculateStats(items) {
       secondary: {
         rows: [],
         totals: secondaryRowsTotals([]),
+        available: secondaryRowsAvailability([]),
       },
       hasTimeline: false,
       summaryOnly: false,
@@ -2287,7 +2508,7 @@ export function buildLogSummary(log) {
     .slice(0, 5);
 
   return {
-    version: 3,
+    version: 4,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
@@ -2324,7 +2545,11 @@ export function getLogSummary(log) {
       enemyNames: [],
       st: {},
       fd: {},
-      secondary: { rows: [], totals: secondaryRowsTotals([]) },
+      secondary: {
+        rows: [],
+        totals: secondaryRowsTotals([]),
+        available: secondaryRowsAvailability([]),
+      },
       hasTimeline: false,
       summaryOnly: false,
     });
