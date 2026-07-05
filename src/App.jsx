@@ -1011,7 +1011,7 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-modal {
     position: relative;
-    width: min(560px, 94vw);
+    width: min(1120px, 96vw);
     max-height: min(760px, 90vh);
     overflow: auto;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
@@ -1104,6 +1104,135 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-player-row:last-child {
     border-bottom: 0;
+  }
+
+  .adversary-class-modal-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding-right: 48px;
+  }
+
+  .adversary-class-modal-select {
+    min-width: 190px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 12px;
+    padding: 9px 34px 9px 12px;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.92);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+
+  .adversary-class-modal-tab {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 12px;
+    padding: 9px 14px;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.68);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+
+  .adversary-class-modal-tab:hover,
+  .adversary-class-modal-tab.is-active {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.52);
+    color: #fff;
+    background: rgba(var(--class-rgb, 250, 204, 21), 0.13);
+    box-shadow: 0 0 18px rgba(var(--class-rgb, 250, 204, 21), 0.10);
+  }
+
+  .adversary-class-stats-table-wrap {
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 18px;
+    background: rgba(2, 6, 23, 0.48);
+  }
+
+  .adversary-class-stats-table {
+    width: 100%;
+    min-width: 1050px;
+    border-collapse: collapse;
+  }
+
+  .adversary-class-stats-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 10px 11px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.98);
+    font-size: 10px;
+    font-weight: 900;
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .adversary-class-stats-table th:first-child,
+  .adversary-class-stats-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    text-align: left;
+    background: rgba(9, 15, 29, 0.98);
+  }
+
+  .adversary-class-stats-table th:first-child {
+    z-index: 3;
+    background: rgba(15, 23, 42, 0.99);
+  }
+
+  .adversary-class-stats-table td {
+    padding: 11px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.09);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .adversary-class-stats-table tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .adversary-class-stat-average {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .adversary-class-overall-pie {
+    position: relative;
+    display: grid;
+    width: 230px;
+    height: 230px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 999px;
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.38), 0 0 32px rgba(250, 204, 21, 0.10);
+  }
+
+  .adversary-class-overall-pie::before {
+    content: '';
+    position: absolute;
+    inset: 31px;
+    border-radius: inherit;
+    background: rgba(2, 6, 23, 0.97);
+    box-shadow: inset 0 0 20px rgba(15, 23, 42, 0.78);
   }
 
   @keyframes adversary-sidebar-orb-breathe {
@@ -2045,6 +2174,59 @@ function memberClassEntries(member) {
     .filter((entry) => entry.className);
 }
 
+
+const CLASS_STATS_WINDOW_DAYS = 30;
+const CLASS_STATS_METRICS = Object.freeze([
+  { key: 'kills', label: 'Kills' },
+  { key: 'deaths', label: 'Deaths' },
+  { key: 'killFeed', label: 'Kill Feed' },
+  { key: 'damageDealt', label: 'Damage Dealt' },
+  { key: 'damageTaken', label: 'Damage Taken' },
+  { key: 'ccHits', label: 'CC Hits' },
+  { key: 'fortDamage', label: 'Fort Damage' },
+]);
+
+function normalizeRosterPlayerKey(value) {
+  return String(value || '').trim().toLocaleLowerCase();
+}
+
+function formatClassStatNumber(value, maximumFractionDigits = 0) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return '—';
+
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits,
+    minimumFractionDigits: maximumFractionDigits,
+  }).format(number);
+}
+
+function classStatsDateValue(log) {
+  const value = String(dateOf(log) || '').trim();
+  const parsed = new Date(`${value}T00:00:00`);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildOverallClassGradient(slices) {
+  const visible = slices.filter((slice) => slice.count > 0);
+
+  if (!visible.length) return 'conic-gradient(rgba(51, 65, 85, 0.72) 0 100%)';
+
+  let cursor = 0;
+  const stops = visible.map((slice) => {
+    const start = cursor;
+    cursor += slice.percentage;
+    return `${slice.color} ${start.toFixed(4)}% ${Math.min(100, cursor).toFixed(4)}%`;
+  });
+
+  if (cursor < 100) {
+    stops.push(`rgba(51, 65, 85, 0.72) ${cursor.toFixed(4)}% 100%`);
+  }
+
+  return `conic-gradient(${stops.join(', ')})`;
+}
+
 function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const layerRef = useRef(null);
   const orbRefs = useRef([]);
@@ -2060,114 +2242,310 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const orbHoverStateRef = useRef([]);
   const orbLastSoundAtRef = useRef([]);
   const [selectedClass, setSelectedClass] = useState(null);
+  const [classModalView, setClassModalView] = useState('class');
 
   const [loadingClassLogs, setLoadingClassLogs] = useState(false);
+
+  const classAnalytics = useMemo(() => {
+    const rosterMap = new Map();
+    const rosterPlayers = [];
+
+    (Array.isArray(members) ? members : []).forEach((member, index) => {
+      const name = memberDisplayName(member, index);
+      const key = normalizeRosterPlayerKey(name);
+
+      if (!key || rosterMap.has(key)) return;
+
+      const rosterPlayer = { key, name };
+      rosterMap.set(key, rosterPlayer);
+      rosterPlayers.push(rosterPlayer);
+    });
+
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    startDate.setDate(startDate.getDate() - (CLASS_STATS_WINDOW_DAYS - 1));
+    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    const recentLogs = (Array.isArray(logs) ? logs : []).filter((log) => {
+      const logDate = classStatsDateValue(log);
+      return logDate && logDate >= startDate && logDate < endDate;
+    });
+
+    const classRecords = new Map();
+    const usageByRosterPlayer = new Map();
+
+    const ensureClassRecord = (className) => {
+      if (!classRecords.has(className)) {
+        classRecords.set(className, {
+          className,
+          playerKeys: new Set(),
+          players: new Map(),
+          appearances: 0,
+          succession: 0,
+          awakening: 0,
+        });
+      }
+
+      return classRecords.get(className);
+    };
+
+    recentLogs.forEach((log, logIndex) => {
+      if (!log?.raw) return;
+
+      const logDate = classStatsDateValue(log);
+      const logDateValue = logDate?.getTime?.() || 0;
+      const logId = String(log.id ?? log.apiId ?? logIndex);
+      const perWarStats = calculateStats([
+        {
+          ...log,
+          date: dateOf(log),
+        },
+      ]);
+      const statsByPlayer = new Map(
+        (Array.isArray(perWarStats.players) ? perWarStats.players : []).map((player) => [
+          normalizeRosterPlayerKey(player?.name),
+          player,
+        ]),
+      );
+      const seenAssignments = new Set();
+
+      parseClassRows(log.raw).forEach((row) => {
+        const playerKey = normalizeRosterPlayerKey(row.player);
+        const rosterPlayer = rosterMap.get(playerKey);
+        const className = normalizeClassName(row.className || row.class);
+        const mode = row.mode === 'Awakening' ? 'Awakening' : 'Succession';
+
+        if (!rosterPlayer || !className) return;
+
+        const assignmentKey = `${logId}@@${playerKey}@@${className}`;
+        if (seenAssignments.has(assignmentKey)) return;
+        seenAssignments.add(assignmentKey);
+
+        const classRecord = ensureClassRecord(className);
+        classRecord.playerKeys.add(playerKey);
+        classRecord.appearances += 1;
+        classRecord[mode === 'Awakening' ? 'awakening' : 'succession'] += 1;
+
+        if (!classRecord.players.has(playerKey)) {
+          classRecord.players.set(playerKey, {
+            key: playerKey,
+            name: rosterPlayer.name,
+            wars: 0,
+            succession: 0,
+            awakening: 0,
+            statsWars: 0,
+            totals: Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, 0])),
+            best: Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, null])),
+            metricWarCounts: Object.fromEntries(
+              CLASS_STATS_METRICS.map(({ key }) => [key, 0]),
+            ),
+          });
+        }
+
+        const playerRecord = classRecord.players.get(playerKey);
+        playerRecord.wars += 1;
+        playerRecord[mode === 'Awakening' ? 'awakening' : 'succession'] += 1;
+
+        const playerStats = statsByPlayer.get(playerKey);
+
+        if (playerStats) {
+          playerRecord.statsWars += 1;
+
+          CLASS_STATS_METRICS.forEach(({ key }) => {
+            if (playerStats[key] == null || playerStats[key] === '') return;
+
+            const value = Number(playerStats[key]);
+            if (!Number.isFinite(value)) return;
+
+            playerRecord.totals[key] += value;
+            playerRecord.metricWarCounts[key] += 1;
+            playerRecord.best[key] =
+              playerRecord.best[key] == null
+                ? value
+                : Math.max(playerRecord.best[key], value);
+          });
+        }
+
+        if (!usageByRosterPlayer.has(playerKey)) {
+          usageByRosterPlayer.set(playerKey, new Map());
+        }
+
+        const playerUsage = usageByRosterPlayer.get(playerKey);
+        const previousUsage = playerUsage.get(className) || {
+          className,
+          wars: 0,
+          latest: 0,
+        };
+        previousUsage.wars += 1;
+        previousUsage.latest = Math.max(previousUsage.latest, logDateValue);
+        playerUsage.set(className, previousUsage);
+      });
+    });
+
+    const classBreakdown = SIDEBAR_CLASS_ORBS.map((orb) => {
+      const record = classRecords.get(orb.name);
+      const players = record
+        ? [...record.players.values()]
+            .map((player) => ({
+              ...player,
+              kd:
+                player.totals.deaths > 0
+                  ? player.totals.kills / player.totals.deaths
+                  : player.totals.kills,
+              averages: Object.fromEntries(
+                CLASS_STATS_METRICS.map(({ key }) => [
+                  key,
+                  player.metricWarCounts[key] > 0
+                    ? player.totals[key] / player.metricWarCounts[key]
+                    : null,
+                ]),
+              ),
+            }))
+            .sort(
+              (first, second) =>
+                second.wars - first.wars ||
+                second.totals.kills - first.totals.kills ||
+                first.name.localeCompare(second.name),
+            )
+        : [];
+
+      const totals = Object.fromEntries(
+        CLASS_STATS_METRICS.map(({ key }) => [
+          key,
+          players.reduce((sum, player) => sum + (Number(player.totals[key]) || 0), 0),
+        ]),
+      );
+      const metricWarCounts = Object.fromEntries(
+        CLASS_STATS_METRICS.map(({ key }) => [
+          key,
+          players.reduce(
+            (sum, player) => sum + (Number(player.metricWarCounts[key]) || 0),
+            0,
+          ),
+        ]),
+      );
+
+      return {
+        ...orb,
+        players,
+        playerCount: players.length,
+        share: rosterPlayers.length > 0 ? (players.length / rosterPlayers.length) * 100 : 0,
+        appearances: record?.appearances || 0,
+        succession: record?.succession || 0,
+        awakening: record?.awakening || 0,
+        totals,
+        averages: Object.fromEntries(
+          CLASS_STATS_METRICS.map(({ key }) => [
+            key,
+            metricWarCounts[key] > 0 ? totals[key] / metricWarCounts[key] : null,
+          ]),
+        ),
+      };
+    });
+
+    const primaryClassCounts = new Map();
+
+    rosterPlayers.forEach((rosterPlayer) => {
+      const usages = [...(usageByRosterPlayer.get(rosterPlayer.key)?.values() || [])];
+
+      usages.sort(
+        (first, second) =>
+          second.wars - first.wars ||
+          second.latest - first.latest ||
+          first.className.localeCompare(second.className),
+      );
+
+      const primary = usages[0];
+      if (!primary) return;
+
+      primaryClassCounts.set(
+        primary.className,
+        (primaryClassCounts.get(primary.className) || 0) + 1,
+      );
+    });
+
+    const overallSlices = classBreakdown
+      .map((classEntry) => ({
+        id: classEntry.id,
+        name: classEntry.name,
+        count: primaryClassCounts.get(classEntry.name) || 0,
+        percentage:
+          rosterPlayers.length > 0
+            ? ((primaryClassCounts.get(classEntry.name) || 0) / rosterPlayers.length) * 100
+            : 0,
+        color: `rgb(${classEntry.glow || '250, 204, 21'})`,
+        orb: classEntry,
+      }))
+      .filter((slice) => slice.count > 0)
+      .sort(
+        (first, second) =>
+          second.count - first.count || first.name.localeCompare(second.name),
+      );
+
+    const assignedPlayers = [...primaryClassCounts.values()].reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    const unassignedPlayers = Math.max(0, rosterPlayers.length - assignedPlayers);
+
+    if (unassignedPlayers > 0) {
+      overallSlices.push({
+        id: 'unassigned',
+        name: 'Unassigned',
+        count: unassignedPlayers,
+        percentage:
+          rosterPlayers.length > 0 ? (unassignedPlayers / rosterPlayers.length) * 100 : 0,
+        color: 'rgb(71, 85, 105)',
+        orb: null,
+      });
+    }
+
+    return {
+      rosterSize: rosterPlayers.length,
+      recentWarCount: recentLogs.length,
+      startDate,
+      endDate,
+      byClass: Object.fromEntries(classBreakdown.map((entry) => [entry.name, entry])),
+      overallSlices,
+      overallGradient: buildOverallClassGradient(overallSlices),
+      assignedPlayers,
+      unassignedPlayers,
+    };
+  }, [members, logs]);
 
   const classStats = useMemo(() => {
     if (!selectedClass) {
       return {
-        totalPlayers: 0,
         players: [],
+        playerCount: 0,
         share: 0,
         appearances: 0,
         succession: 0,
         awakening: 0,
+        totals: {},
+        averages: {},
       };
     }
 
-    const uniquePlayers = new Map();
-    let classLogRowsFound = 0;
-    const seenAssignments = new Set();
-
-    (Array.isArray(logs) ? logs : []).forEach((log, logIndex) => {
-      if (!log?.raw) return;
-
-      parseClassRows(log.raw).forEach((row) => {
-        const name = String(row.player || '').trim();
-        if (!name) return;
-
-        classLogRowsFound += 1;
-        const playerKey = name.toLowerCase();
-        const assignmentKey = [
-          String(log.id ?? logIndex),
-          playerKey,
-          row.className,
-          row.mode,
-        ].join('@@');
-
-        if (seenAssignments.has(assignmentKey)) return;
-        seenAssignments.add(assignmentKey);
-
-        const player = uniquePlayers.get(playerKey) || { name, entries: [] };
-        player.entries.push({
-          className: row.className,
-          mode: row.mode,
-        });
-        uniquePlayers.set(playerKey, player);
-      });
-    });
-
-    if (!classLogRowsFound) {
-      (Array.isArray(members) ? members : []).forEach((member, index) => {
-        const name = memberDisplayName(member, index);
-        if (!name) return;
-
-        const key = name.toLowerCase();
-        const previous = uniquePlayers.get(key) || { name, entries: [] };
-        previous.entries.push(
-          ...memberClassEntries(member).flatMap((entry) =>
-            Array.from({ length: entry.count }, () => ({
-              className: entry.className,
-              mode: '',
-            })),
-          ),
-        );
-        uniquePlayers.set(key, previous);
-      });
-    }
-
-    const players = [...uniquePlayers.values()]
-      .map((player) => {
-        const entries = player.entries.filter(
-          (entry) => entry.className === selectedClass.name,
-        );
-
-        return {
-          name: player.name,
-          wars: entries.length,
-          succession: entries.filter((entry) => entry.mode === 'Succession').length,
-          awakening: entries.filter((entry) => entry.mode === 'Awakening').length,
-        };
-      })
-      .filter((player) => player.wars > 0)
-      .sort(
-        (first, second) =>
-          second.wars - first.wars || first.name.localeCompare(second.name),
-      );
-    const totalPlayers = uniquePlayers.size;
-    const share = totalPlayers > 0 ? (players.length / totalPlayers) * 100 : 0;
-    const succession = players.reduce(
-      (total, player) => total + player.succession,
-      0,
+    return (
+      classAnalytics.byClass[selectedClass.name] || {
+        ...selectedClass,
+        players: [],
+        playerCount: 0,
+        share: 0,
+        appearances: 0,
+        succession: 0,
+        awakening: 0,
+        totals: {},
+        averages: {},
+      }
     );
-    const awakening = players.reduce(
-      (total, player) => total + player.awakening,
-      0,
-    );
-
-    return {
-      totalPlayers,
-      players,
-      share,
-      appearances: succession + awakening,
-      succession,
-      awakening,
-    };
-  }, [members, logs, selectedClass]);
+  }, [classAnalytics, selectedClass]);
 
   const openClassDetails = useCallback(
     async (orb) => {
       setSelectedClass(orb);
+      setClassModalView('class');
 
       if (typeof loadLogs !== 'function') return;
 
@@ -2612,130 +2990,320 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
               ×
             </button>
 
-            <div className="flex items-center gap-4 pr-12">
-              <img
-                src={selectedClass.src}
-                alt=""
-                className="adversary-class-modal-orb"
-                draggable="false"
-              />
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                  Class distribution
-                </p>
-                <h2
-                  id="adversary-class-modal-title"
-                  className="mt-1 text-3xl font-black text-white"
-                >
-                  {selectedClass.name}
-                </h2>
-              </div>
+            <div className="adversary-class-modal-toolbar">
+              <label className="sr-only" htmlFor="adversary-class-selection">
+                Class selection
+              </label>
+              <select
+                id="adversary-class-selection"
+                className="adversary-class-modal-select"
+                value={selectedClass.id}
+                onChange={(event) => {
+                  const nextClass = SIDEBAR_CLASS_ORBS.find(
+                    (orb) => orb.id === event.target.value,
+                  );
+
+                  if (nextClass) {
+                    setSelectedClass(nextClass);
+                    setClassModalView('class');
+                  }
+                }}
+              >
+                {SIDEBAR_CLASS_ORBS.map((orb) => (
+                  <option key={orb.id} value={orb.id}>
+                    {orb.name}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className={`adversary-class-modal-tab ${
+                  classModalView === 'class' ? 'is-active' : ''
+                }`}
+                onClick={() => setClassModalView('class')}
+              >
+                Class Selection
+              </button>
+
+              <button
+                type="button"
+                className={`adversary-class-modal-tab ${
+                  classModalView === 'overall' ? 'is-active' : ''
+                }`}
+                onClick={() => setClassModalView('overall')}
+              >
+                Overall
+              </button>
             </div>
 
-            <div className="mt-6 flex flex-col items-center gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 sm:flex-row">
-              <div
-                className="adversary-class-pie"
-                style={{ '--class-share': Math.min(100, classStats.share) }}
-                aria-label={`${classStats.share.toFixed(2)} percent of players use ${selectedClass.name}`}
-              >
-                <div className="adversary-class-pie-value">
-                  <div className="text-3xl font-black text-white">
-                    {classStats.share.toFixed(2)}%
+            {classModalView === 'overall' ? (
+              <div className="mt-6">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                      Last {CLASS_STATS_WINDOW_DAYS} days · Guild Roster only
+                    </p>
+                    <h2
+                      id="adversary-class-modal-title"
+                      className="mt-1 text-3xl font-black text-white"
+                    >
+                      Guild Class Overall
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                      Every roster member is counted once using the class they played in the most wars during the last {CLASS_STATS_WINDOW_DAYS} days. Ties use their most recent class.
+                    </p>
                   </div>
-                  <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                    Guild share
+                </div>
+
+                <div className="mt-6 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[260px_1fr]">
+                  <div className="flex flex-col items-center justify-center">
+                    <div
+                      className="adversary-class-overall-pie"
+                      style={{ background: classAnalytics.overallGradient }}
+                      aria-label="Guild class distribution for the last 30 days"
+                    >
+                      <div className="adversary-class-pie-value">
+                        <div className="text-4xl font-black text-white">
+                          {classAnalytics.rosterSize}
+                        </div>
+                        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                          Roster players
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-center text-xs font-bold text-slate-500">
+                      {classAnalytics.recentWarCount} recorded {classAnalytics.recentWarCount === 1 ? 'war' : 'wars'}
+                    </div>
+                  </div>
+
+                  <div className="max-h-[430px] space-y-2 overflow-auto pr-1">
+                    {classAnalytics.overallSlices.length > 0 ? (
+                      classAnalytics.overallSlices.map((slice) => (
+                        <button
+                          key={slice.id}
+                          type="button"
+                          disabled={!slice.orb}
+                          className="flex w-full items-center gap-3 rounded-2xl border border-slate-700/45 bg-slate-900/55 p-3 text-left transition hover:border-slate-500/70 disabled:cursor-default disabled:hover:border-slate-700/45"
+                          onClick={() => {
+                            if (!slice.orb) return;
+                            setSelectedClass(slice.orb);
+                            setClassModalView('class');
+                          }}
+                        >
+                          {slice.orb ? (
+                            <img
+                              src={slice.orb.src}
+                              alt=""
+                              className="h-11 w-11 shrink-0 object-contain"
+                              draggable="false"
+                            />
+                          ) : (
+                            <span
+                              className="h-7 w-7 shrink-0 rounded-full"
+                              style={{ background: slice.color }}
+                            />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-black text-slate-100">
+                              {slice.name}
+                            </span>
+                            <span className="mt-0.5 block text-[11px] font-bold text-slate-500">
+                              {slice.count} {slice.count === 1 ? 'player' : 'players'}
+                            </span>
+                          </span>
+                          <span className="text-xl font-black text-white">
+                            {slice.percentage.toFixed(2)}%
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
+                        {loadingClassLogs
+                          ? 'Loading class history...'
+                          : 'No Guild Roster or class assignments were found for the last 30 days.'}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-
-              <div className="min-w-0 flex-1 space-y-3">
-                <div className="rounded-2xl border border-slate-700/45 bg-slate-900/56 p-4">
-                  <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                    Players
+            ) : (
+              <div className="mt-6">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={selectedClass.src}
+                    alt=""
+                    className="adversary-class-modal-orb"
+                    draggable="false"
+                  />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                      Last {CLASS_STATS_WINDOW_DAYS} days · Guild Roster only
+                    </p>
+                    <h2
+                      id="adversary-class-modal-title"
+                      className="mt-1 text-3xl font-black text-white"
+                    >
+                      {selectedClass.name}
+                    </h2>
                   </div>
-                  <div className="mt-1 text-2xl font-black text-white">
-                    {classStats.players.length}
-                    <span className="ml-2 text-sm font-bold text-slate-400">
-                      of {classStats.totalPlayers}
+                </div>
+
+                <div className="mt-6 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[210px_1fr]">
+                  <div className="flex items-center justify-center">
+                    <div
+                      className="adversary-class-pie"
+                      style={{ '--class-share': Math.min(100, classStats.share) }}
+                      aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} during the last 30 days`}
+                    >
+                      <div className="adversary-class-pie-value">
+                        <div className="text-3xl font-black text-white">
+                          {classStats.share.toFixed(2)}%
+                        </div>
+                        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                          Guild roster
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-700/45 bg-slate-900/56 p-4">
+                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+                        Players
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-white">
+                        {classStats.playerCount}
+                        <span className="ml-2 text-sm font-bold text-slate-400">
+                          of {classAnalytics.rosterSize}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-700/45 bg-slate-900/56 p-4">
+                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+                        Class appearances
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-white">
+                        {classStats.appearances}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">
+                        Succession
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-white">
+                        {classStats.succession}
+                        <span className="ml-2 text-xs font-bold text-slate-400">
+                          {classStats.appearances > 0
+                            ? `${((classStats.succession / classStats.appearances) * 100).toFixed(2)}%`
+                            : '0.00%'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-rose-200">
+                        Awakening
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-white">
+                        {classStats.awakening}
+                        <span className="ml-2 text-xs font-bold text-slate-400">
+                          {classStats.appearances > 0
+                            ? `${((classStats.awakening / classStats.appearances) * 100).toFixed(2)}%`
+                            : '0.00%'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
+                        {selectedClass.name} player statistics
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Stats are joined by player name inside the same saved war as the Class Log assignment.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-slate-700/55 bg-slate-900/72 px-3 py-1 text-xs font-bold text-slate-400">
+                      {classStats.playerCount} roster players
                     </span>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-300">
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ background: `rgb(${selectedClass.glow || '250, 204, 21'})` }}
-                  />
-                  {selectedClass.name}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <span className="h-3 w-3 rounded-full bg-slate-600" />
-                  Other guild players
-                </div>
-              </div>
-            </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">
-                  Succession
-                </div>
-                <div className="mt-1 text-2xl font-black text-white">
-                  {classStats.succession}
-                  <span className="ml-2 text-xs font-bold text-slate-400">
-                    {classStats.appearances > 0
-                      ? `${((classStats.succession / classStats.appearances) * 100).toFixed(2)}%`
-                      : '0.00%'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-rose-200">
-                  Awakening
-                </div>
-                <div className="mt-1 text-2xl font-black text-white">
-                  {classStats.awakening}
-                  <span className="ml-2 text-xs font-bold text-slate-400">
-                    {classStats.appearances > 0
-                      ? `${((classStats.awakening / classStats.appearances) * 100).toFixed(2)}%`
-                      : '0.00%'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
-                  Players using {selectedClass.name}
-                </h3>
-                <span className="rounded-full border border-slate-700/55 bg-slate-900/72 px-3 py-1 text-xs font-bold text-slate-400">
-                  {classStats.players.length}
-                </span>
-              </div>
-
-              {classStats.players.length > 0 ? (
-                <div className="adversary-class-player-list">
-                  {classStats.players.map((player) => (
-                    <div key={player.name} className="adversary-class-player-row">
-                      <span className="font-bold text-slate-100">{player.name}</span>
-                      <span className="text-right text-xs font-black uppercase tracking-[0.08em] text-slate-400">
-                        {player.wars} {player.wars === 1 ? 'war' : 'wars'}
-                        <span className="mt-1 block text-[10px] normal-case tracking-normal text-slate-500">
-                          Succession {player.succession} · Awakening {player.awakening}
-                        </span>
-                      </span>
+                  {classStats.players.length > 0 ? (
+                    <div className="adversary-class-stats-table-wrap">
+                      <table className="adversary-class-stats-table">
+                        <thead>
+                          <tr>
+                            <th>Player</th>
+                            <th>Wars / Mode</th>
+                            <th>Kills</th>
+                            <th>Deaths</th>
+                            <th>K/D</th>
+                            <th>Kill Feed</th>
+                            <th>Damage Dealt</th>
+                            <th>Damage Taken</th>
+                            <th>CC Hits</th>
+                            <th>Fort Damage</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {classStats.players.map((player) => (
+                            <tr key={player.key}>
+                              <td>
+                                <span className="font-black text-slate-100">{player.name}</span>
+                              </td>
+                              <td>
+                                <span className="font-black text-white">{player.wars}</span>
+                                <span className="adversary-class-stat-average">
+                                  S {player.succession} · A {player.awakening}
+                                </span>
+                              </td>
+                              <td>
+                                {player.metricWarCounts.kills > 0
+                                  ? formatClassStatNumber(player.totals.kills)
+                                  : '—'}
+                                <span className="adversary-class-stat-average">
+                                  avg {formatClassStatNumber(player.averages.kills, 2)} · best {formatClassStatNumber(player.best.kills)}
+                                </span>
+                              </td>
+                              <td>
+                                {player.metricWarCounts.deaths > 0
+                                  ? formatClassStatNumber(player.totals.deaths)
+                                  : '—'}
+                                <span className="adversary-class-stat-average">
+                                  avg {formatClassStatNumber(player.averages.deaths, 2)} · best {formatClassStatNumber(player.best.deaths)}
+                                </span>
+                              </td>
+                              <td>{formatClassStatNumber(player.kd, 2)}</td>
+                              {['killFeed', 'damageDealt', 'damageTaken', 'ccHits', 'fortDamage'].map(
+                                (metricKey) => (
+                                  <td key={metricKey}>
+                                    {player.metricWarCounts[metricKey] > 0
+                                      ? formatClassStatNumber(player.totals[metricKey])
+                                      : '—'}
+                                    <span className="adversary-class-stat-average">
+                                      avg {formatClassStatNumber(player.averages[metricKey], 2)} · best {formatClassStatNumber(player.best[metricKey])}
+                                    </span>
+                                  </td>
+                                ),
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
+                      {loadingClassLogs
+                        ? 'Loading class history...'
+                        : `No Guild Roster players were assigned to ${selectedClass.name} in a Class Log during the last ${CLASS_STATS_WINDOW_DAYS} days.`}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
-                  {loadingClassLogs
-                    ? 'Loading class history...'
-                    : 'No assignments found yet. Paste Player, Class and Mode rows into the new Class Log field for a saved Node War.'}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </section>
         </div>,
         document.body,
