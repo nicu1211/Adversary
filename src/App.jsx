@@ -2372,6 +2372,7 @@ const GLOBAL_PANEL_CSS = `
     font-size: 13px;
   }
 
+  .adversary-class-performance-card.is-combined-feed,
   .adversary-class-player-metric.is-combined-feed {
     display: grid;
     align-content: center;
@@ -3437,11 +3438,23 @@ const CLASS_KD_METRIC = Object.freeze({
   rgb: '34, 197, 94',
 });
 
-// Keep Class Overall at eight cards. Kill Streak is shown in Rankings and is
-// paired with Kill Feed inside the compact player-stat card below.
+const CLASS_COMBINED_FEED_METRIC = Object.freeze({
+  key: 'killStreakFeed',
+  label: 'Kill Streak / Kill Feed',
+  rgb: '249, 115, 22',
+  combined: true,
+});
+
+// Keep Class Overall and Player Statistics at eight cards by combining
+// Kill Streak and Kill Feed into the same compact panel.
 const CLASS_STATS_DISPLAY_METRICS = Object.freeze([
   CLASS_KD_METRIC,
-  ...CLASS_STATS_METRICS.filter(({ key }) => key !== 'killStreak'),
+  CLASS_STATS_METRICS.find(({ key }) => key === 'kills'),
+  CLASS_STATS_METRICS.find(({ key }) => key === 'deaths'),
+  CLASS_COMBINED_FEED_METRIC,
+  ...CLASS_STATS_METRICS.filter(
+    ({ key }) => !['kills', 'deaths', 'killStreak', 'killFeed'].includes(key),
+  ),
 ]);
 
 const CLASS_RANKING_METRICS = Object.freeze([
@@ -3449,20 +3462,7 @@ const CLASS_RANKING_METRICS = Object.freeze([
   ...CLASS_STATS_METRICS,
 ]);
 
-const CLASS_PLAYER_METRIC_LAYOUT = Object.freeze([
-  CLASS_KD_METRIC,
-  CLASS_STATS_METRICS.find(({ key }) => key === 'kills'),
-  CLASS_STATS_METRICS.find(({ key }) => key === 'deaths'),
-  {
-    key: 'killStreakFeed',
-    label: 'Kill Streak / Kill Feed',
-    rgb: '249, 115, 22',
-    combined: true,
-  },
-  ...CLASS_STATS_METRICS.filter(
-    ({ key }) => !['kills', 'deaths', 'killStreak', 'killFeed'].includes(key),
-  ),
-]);
+const CLASS_PLAYER_METRIC_LAYOUT = CLASS_STATS_DISPLAY_METRICS;
 
 function normalizeRosterPlayerKey(value) {
   return String(value || '')
@@ -4173,6 +4173,22 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const classPerformanceMetrics = useMemo(
     () =>
       CLASS_STATS_DISPLAY_METRICS.map((metric) => {
+        if (metric.combined) {
+          return {
+            ...metric,
+            combinedMetrics: CLASS_STATS_METRICS.filter(({ key }) =>
+              ['killStreak', 'killFeed'].includes(key),
+            ).map((combinedMetric) => ({
+              ...combinedMetric,
+              hasValue:
+                Number(classStats.metricWarCounts?.[combinedMetric.key]) > 0,
+              overall: classStats.totals?.[combinedMetric.key],
+              average: classStats.averages?.[combinedMetric.key],
+              best: classStats.best?.[combinedMetric.key],
+            })),
+          };
+        }
+
         if (metric.key === 'kd') {
           return {
             ...metric,
@@ -4206,7 +4222,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           ? entry.averageKd != null || entry.kd != null
           : Number(entry.metricWarCounts?.[metric.key]) > 0;
 
-        const totalUnavailable = ['killStreak', 'killFeed'].includes(
+        const totalUnavailable = ['kd', 'killStreak', 'killFeed'].includes(
           metric.key,
         );
 
@@ -4855,7 +4871,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                           setClassRankingMetric(nextMetric);
 
                           if (
-                            ['killStreak', 'killFeed'].includes(nextMetric) &&
+                            ['kd', 'killStreak', 'killFeed'].includes(nextMetric) &&
                             classRankingSort.key === 'overall'
                           ) {
                             setClassRankingSort({ key: 'average', direction: 'desc' });
@@ -4881,7 +4897,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                         const isActive = classRankingSort.key === sortKey;
                         const isUnavailableTotal =
                           sortKey === 'overall' &&
-                          ['killStreak', 'killFeed'].includes(classRankingMetric);
+                          ['kd', 'killStreak', 'killFeed'].includes(classRankingMetric);
 
                         return (
                           <button
@@ -4949,7 +4965,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                               <div className="adversary-class-ranking-value">
                                 <strong>
                                   {entry.totalUnavailable
-                                    ? '—'
+                                    ? '-'
                                     : formatClassStatNumber(entry.overall, decimals)}
                                 </strong>
                               </div>
@@ -5141,7 +5157,60 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
                   <div className="adversary-class-performance-grid">
                     {classPerformanceMetrics.map((metric) => {
+                      if (metric.combined) {
+                        return (
+                          <div
+                            key={metric.key}
+                            className="adversary-class-performance-card is-combined-feed"
+                            style={{ '--metric-rgb': metric.rgb }}
+                          >
+                            {metric.combinedMetrics.map((combinedMetric) => (
+                              <div
+                                key={combinedMetric.key}
+                                className="adversary-class-combined-feed-row"
+                                style={{
+                                  '--combined-metric-rgb': combinedMetric.rgb,
+                                }}
+                              >
+                                <span className="adversary-class-combined-feed-label">
+                                  {combinedMetric.label}
+                                </span>
+                                <div className="adversary-class-combined-feed-values">
+                                  <span>
+                                    <small>Overall</small>
+                                    <strong>-</strong>
+                                  </span>
+                                  <span>
+                                    <small>Average</small>
+                                    <strong>
+                                      {combinedMetric.hasValue
+                                        ? formatClassStatNumber(
+                                            combinedMetric.average,
+                                            2,
+                                          )
+                                        : '—'}
+                                    </strong>
+                                  </span>
+                                  <span>
+                                    <small>Best</small>
+                                    <strong>
+                                      {combinedMetric.hasValue
+                                        ? formatClassStatNumber(
+                                            combinedMetric.best,
+                                            0,
+                                          )
+                                        : '—'}
+                                    </strong>
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+
                       const decimals = metric.key === 'kd' ? 2 : 0;
+                      const totalUnavailable = metric.key === 'kd';
 
                       return (
                         <div
@@ -5156,9 +5225,14 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                             <div className="adversary-class-metric-value">
                               <span>Overall</span>
                               <strong>
-                                {metric.hasValue
-                                  ? formatClassStatNumber(metric.overall, decimals)
-                                  : '—'}
+                                {totalUnavailable
+                                  ? '-'
+                                  : metric.hasValue
+                                    ? formatClassStatNumber(
+                                        metric.overall,
+                                        decimals,
+                                      )
+                                    : '—'}
                               </strong>
                             </div>
                             <div className="adversary-class-metric-value">
@@ -5260,11 +5334,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                                           <div className="adversary-class-combined-feed-values">
                                             <span>
                                               <small>Overall</small>
-                                              <strong>
-                                                {hasValue
-                                                  ? formatClassStatNumber(overall, 0)
-                                                  : '—'}
-                                              </strong>
+                                              <strong>-</strong>
                                             </span>
                                             <span>
                                               <small>Average</small>
@@ -5315,9 +5385,14 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                                     <div className="adversary-class-metric-value">
                                       <span>Overall</span>
                                       <strong>
-                                        {hasValue
-                                          ? formatClassStatNumber(overall, decimals)
-                                          : '—'}
+                                        {isKd
+                                          ? '-'
+                                          : hasValue
+                                            ? formatClassStatNumber(
+                                                overall,
+                                                decimals,
+                                              )
+                                            : '—'}
                                       </strong>
                                     </div>
                                     <div className="adversary-class-metric-value">
