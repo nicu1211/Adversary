@@ -1095,12 +1095,12 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-modal {
     position: relative;
-    width: min(1380px, 92vw);
+    width: min(1340px, 91vw);
     max-height: 86vh;
     overflow: auto;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
-    border-radius: 26px;
-    padding: 22px;
+    border-radius: 23px;
+    padding: 20px;
     color: #e2e8f0;
     background:
       radial-gradient(circle at 12% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.15), transparent 38%),
@@ -1185,8 +1185,8 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-modal-orb {
-    width: 92px;
-    height: 92px;
+    width: 83px;
+    height: 83px;
     object-fit: contain;
     filter: drop-shadow(0 0 20px rgba(var(--class-rgb, 250, 204, 21), 0.42));
   }
@@ -1194,8 +1194,8 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie {
     position: relative;
     display: grid;
-    width: 118px;
-    height: 118px;
+    width: 106px;
+    height: 106px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -1211,7 +1211,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie::before {
     content: '';
     position: absolute;
-    inset: 16px;
+    inset: 14px;
     border-radius: inherit;
     background: rgba(2, 6, 23, 0.96);
     box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.72);
@@ -1357,8 +1357,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.24);
-    border-radius: 17px;
-    padding: 12px 14px 13px;
+    border-radius: 15px;
+    padding: 11px 13px 12px;
     background:
       radial-gradient(circle at 50% 100%, rgba(var(--class-rgb, 250, 204, 21), 0.10), transparent 58%),
       linear-gradient(135deg, rgba(8, 15, 30, 0.95), rgba(2, 6, 23, 0.86));
@@ -1379,8 +1379,8 @@ const GLOBAL_PANEL_CSS = `
     display: flex;
     align-items: end;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
+    gap: 10px;
+    margin-bottom: 7px;
   }
 
   .adversary-class-mode-label {
@@ -1428,7 +1428,7 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     z-index: 1;
     display: flex;
-    height: 19px;
+    height: 17px;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 999px;
@@ -1457,8 +1457,8 @@ const GLOBAL_PANEL_CSS = `
     left: 50%;
     top: 50%;
     display: grid;
-    width: 32px;
-    height: 32px;
+    width: 29px;
+    height: 29px;
     place-items: center;
     border: 2px solid rgba(255, 255, 255, 0.82);
     border-radius: 999px;
@@ -1475,8 +1475,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
-    border-radius: 13px;
-    padding: 8px 10px;
+    border-radius: 12px;
+    padding: 7px 9px;
     background:
       linear-gradient(135deg, rgba(var(--class-rgb, 250, 204, 21), 0.075), transparent 56%),
       rgba(15, 23, 42, 0.62);
@@ -1492,10 +1492,26 @@ const GLOBAL_PANEL_CSS = `
     background: linear-gradient(90deg, transparent, rgba(var(--class-rgb, 250, 204, 21), 0.5), transparent);
   }
 
+
+  .adversary-class-top-summary {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.28) !important;
+    background:
+      radial-gradient(circle at 8% 10%, rgba(var(--class-rgb, 250, 204, 21), 0.14), transparent 42%),
+      linear-gradient(145deg, rgba(var(--class-rgb, 250, 204, 21), 0.055), rgba(2, 6, 23, 0.54));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.028),
+      inset 0 0 30px rgba(var(--class-rgb, 250, 204, 21), 0.035),
+      0 8px 22px rgba(0, 0, 0, 0.15);
+  }
+
+  .adversary-class-top-summary .adversary-class-summary-card {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.22);
+  }
+
   .adversary-class-player-cards {
     display: grid;
-    max-height: 430px;
-    gap: 12px;
+    max-height: 400px;
+    gap: 10px;
     overflow: auto;
     padding: 2px 4px 6px 2px;
   }
@@ -1504,8 +1520,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 20px;
-    padding: 15px;
+    border-radius: 18px;
+    padding: 13px;
     background:
       radial-gradient(circle at 0% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.085), transparent 34%),
       linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(4, 10, 22, 0.86));
@@ -1523,15 +1539,15 @@ const GLOBAL_PANEL_CSS = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding-bottom: 12px;
+    gap: 14px;
+    padding-bottom: 10px;
     border-bottom: 1px solid rgba(148, 163, 184, 0.10);
   }
 
   .adversary-class-player-rank {
     display: grid;
-    width: 34px;
-    height: 34px;
+    width: 31px;
+    height: 31px;
     flex: 0 0 auto;
     place-items: center;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.28);
@@ -1596,10 +1612,10 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-overall-performance {
-    margin-top: 12px;
+    margin-top: 10px;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
-    border-radius: 18px;
-    padding: 14px;
+    border-radius: 16px;
+    padding: 12px;
     background:
       radial-gradient(circle at 8% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.08), transparent 36%),
       rgba(2, 6, 23, 0.42);
@@ -1609,15 +1625,15 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-player-metrics {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 9px;
+    gap: 8px;
   }
 
   .adversary-class-performance-grid {
-    margin-top: 11px;
+    margin-top: 10px;
   }
 
   .adversary-class-player-metrics {
-    margin-top: 12px;
+    margin-top: 10px;
   }
 
   .adversary-class-performance-card,
@@ -1626,8 +1642,8 @@ const GLOBAL_PANEL_CSS = `
     min-width: 0;
     overflow: hidden;
     border: 1px solid rgba(var(--metric-rgb), 0.22);
-    border-radius: 13px;
-    padding: 9px;
+    border-radius: 12px;
+    padding: 8px;
     background:
       radial-gradient(circle at 12% 0%, rgba(var(--metric-rgb), 0.13), transparent 52%),
       linear-gradient(145deg, rgba(var(--metric-rgb), 0.055), rgba(2, 6, 23, 0.52));
@@ -1652,22 +1668,22 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-metric-values {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 8px;
+    margin-top: 7px;
     overflow: hidden;
     border: 1px solid rgba(var(--metric-rgb), 0.13);
-    border-radius: 10px;
+    border-radius: 9px;
     background: rgba(2, 6, 23, 0.44);
   }
 
   .adversary-class-metric-value {
     display: flex;
     min-width: 0;
-    min-height: 50px;
+    min-height: 45px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 6px 4px;
+    gap: 2px;
+    padding: 5px 4px;
     text-align: center;
   }
 
@@ -1722,8 +1738,8 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-overall-pie {
     position: relative;
     display: grid;
-    width: 230px;
-    height: 230px;
+    width: 207px;
+    height: 207px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -1733,7 +1749,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-overall-pie::before {
     content: '';
     position: absolute;
-    inset: 31px;
+    inset: 28px;
     border-radius: inherit;
     background: rgba(2, 6, 23, 0.97);
     box-shadow: inset 0 0 20px rgba(15, 23, 42, 0.78);
@@ -1888,6 +1904,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbArcher,
     className: 'is-red',
     glow: '239, 68, 68',
+    accent: '222, 241, 43',
     startX: 0.88,
     startY: 0.18,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1911,6 +1928,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbBerserker,
     className: 'is-violet-orange',
     glow: '217, 70, 239',
+    accent: '211, 32, 29',
     startX: 0.10,
     startY: 0.52,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1934,6 +1952,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbCorsair,
     className: 'is-red-silver',
     glow: '239, 68, 68',
+    accent: '30, 195, 193',
     startX: 0.53,
     startY: 0.78,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1957,6 +1976,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDarkKnight,
     className: 'is-extra',
     glow: '34, 211, 238',
+    accent: '222, 83, 196',
     startX: 0.06,
     startY: 0.08,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1980,6 +2000,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDeadeye,
     className: 'is-extra',
     glow: '163, 230, 53',
+    accent: '202, 26, 19',
     startX: 0.72,
     startY: 0.12,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2003,6 +2024,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDosa,
     className: 'is-extra',
     glow: '168, 85, 247',
+    accent: '28, 139, 222',
     startX: 0.27,
     startY: 0.19,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2026,6 +2048,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDrakania,
     className: 'is-extra',
     glow: '56, 189, 248',
+    accent: '140, 62, 235',
     startX: 0.56,
     startY: 0.24,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2049,6 +2072,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbGuardian,
     className: 'is-extra',
     glow: '236, 72, 153',
+    accent: '114, 173, 203',
     startX: 0.83,
     startY: 0.29,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2072,6 +2096,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbHashashin,
     className: 'is-extra',
     glow: '125, 211, 252',
+    accent: '240, 192, 97',
     startX: 0.13,
     startY: 0.34,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2095,6 +2120,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbKunoichi,
     className: 'is-extra',
     glow: '245, 158, 11',
+    accent: '215, 77, 178',
     startX: 0.41,
     startY: 0.39,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2118,6 +2144,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbLahn,
     className: 'is-extra',
     glow: '244, 114, 182',
+    accent: '226, 58, 60',
     startX: 0.68,
     startY: 0.43,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2141,6 +2168,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMaegu,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '230, 112, 148',
     startX: 0.88,
     startY: 0.48,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2164,6 +2192,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMaehwa,
     className: 'is-extra',
     glow: '217, 70, 239',
+    accent: '134, 177, 235',
     startX: 0.05,
     startY: 0.53,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2187,6 +2216,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMusa,
     className: 'is-extra',
     glow: '56, 189, 248',
+    accent: '229, 84, 48',
     startX: 0.31,
     startY: 0.57,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2210,6 +2240,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMystic,
     className: 'is-extra',
     glow: '249, 115, 22',
+    accent: '73, 174, 228',
     startX: 0.58,
     startY: 0.61,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2233,6 +2264,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbNinja,
     className: 'is-extra',
     glow: '147, 197, 253',
+    accent: '167, 6, 24',
     startX: 0.82,
     startY: 0.65,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2256,6 +2288,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbNova,
     className: 'is-extra',
     glow: '34, 197, 94',
+    accent: '138, 188, 227',
     startX: 0.12,
     startY: 0.70,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2279,6 +2312,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbRanger,
     className: 'is-extra',
     glow: '125, 211, 252',
+    accent: '40, 157, 27',
     startX: 0.39,
     startY: 0.74,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2302,6 +2336,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbSage,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '230, 167, 37',
     startX: 0.67,
     startY: 0.78,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2325,6 +2360,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbScholar,
     className: 'is-extra',
     glow: '234, 179, 8',
+    accent: '247, 207, 28',
     startX: 0.87,
     startY: 0.82,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2348,6 +2384,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbSeraph,
     className: 'is-extra',
     glow: '245, 158, 11',
+    accent: '146, 38, 40',
     startX: 0.07,
     startY: 0.87,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2371,6 +2408,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbShai,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '9, 166, 90',
     startX: 0.34,
     startY: 0.91,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2394,6 +2432,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbSorceress,
     className: 'is-extra',
     glow: '249, 115, 22',
+    accent: '207, 69, 243',
     startX: 0.69,
     startY: 0.94,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2417,6 +2456,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbStriker,
     className: 'is-extra',
     glow: '34, 197, 94',
+    accent: '228, 110, 15',
     startX: 0.14,
     startY: 0.13,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2440,6 +2480,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbTamer,
     className: 'is-extra',
     glow: '168, 85, 247',
+    accent: '121, 157, 211',
     startX: 0.46,
     startY: 0.14,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2463,6 +2504,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbValkyrie,
     className: 'is-extra',
     glow: '191, 219, 254',
+    accent: '158, 178, 214',
     startX: 0.77,
     startY: 0.14,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2486,6 +2528,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWarrior,
     className: 'is-extra',
     glow: '196, 84, 255',
+    accent: '226, 16, 8',
     startX: 0.25,
     startY: 0.32,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2509,6 +2552,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWitch,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '60, 209, 210',
     startX: 0.58,
     startY: 0.30,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2532,6 +2576,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWizard,
     className: 'is-extra',
     glow: '226, 232, 240',
+    accent: '246, 160, 70',
     startX: 0.86,
     startY: 0.34,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2555,6 +2600,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWoosa,
     className: 'is-extra',
     glow: '45, 212, 191',
+    accent: '168, 66, 233',
     startX: 0.18,
     startY: 0.88,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2578,6 +2624,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWukong,
     className: 'is-extra',
     glow: '251, 146, 60',
+    accent: '160, 29, 23',
     startX: 0.81,
     startY: 0.90,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -3651,7 +3698,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             aria-modal="true"
             aria-labelledby="adversary-class-modal-title"
             className="adversary-class-modal"
-            style={{ '--class-rgb': selectedClass.glow || '250, 204, 21' }}
+            style={{ '--class-rgb': selectedClass.accent || selectedClass.glow || '250, 204, 21' }}
           >
             <button
               type="button"
@@ -3703,7 +3750,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             </div>
 
             {classModalView === 'overall' ? (
-              <div className="mt-6">
+              <div className="mt-5">
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
@@ -3721,7 +3768,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[260px_1fr]">
+                <div className="mt-5 grid gap-5 rounded-[20px] border border-slate-700/55 bg-slate-950/48 p-4 lg:grid-cols-[230px_1fr]">
                   <div className="flex flex-col items-center justify-center">
                     <div
                       className="adversary-class-overall-pie"
@@ -3740,19 +3787,19 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                         </div>
                       </div>
                     </div>
-                    <div className="mt-4 text-center text-xs font-bold text-slate-500">
+                    <div className="mt-3 text-center text-xs font-bold text-slate-500">
                       {classAnalytics.recentWarCount} recorded {classAnalytics.recentWarCount === 1 ? 'war' : 'wars'}
                     </div>
                   </div>
 
-                  <div className="max-h-[430px] space-y-2 overflow-auto pr-1">
+                  <div className="max-h-[390px] space-y-1.5 overflow-auto pr-1">
                     {classAnalytics.overallSlices.length > 0 ? (
                       classAnalytics.overallSlices.map((slice) => (
                         <button
                           key={slice.id}
                           type="button"
                           disabled={!slice.orb}
-                          className="flex w-full items-center gap-3 rounded-2xl border border-slate-700/45 bg-slate-900/55 p-3 text-left transition hover:border-slate-500/70 disabled:cursor-default disabled:hover:border-slate-700/45"
+                          className="flex w-full items-center gap-2.5 rounded-[14px] border border-slate-700/45 bg-slate-900/55 p-2.5 text-left transition hover:border-slate-500/70 disabled:cursor-default disabled:hover:border-slate-700/45"
                           onClick={() => {
                             if (!slice.orb) return;
                             setSelectedClass(slice.orb);
@@ -3763,7 +3810,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                             <img
                               src={slice.orb.src}
                               alt=""
-                              className="h-11 w-11 shrink-0 object-contain"
+                              className="h-10 w-10 shrink-0 object-contain"
                               draggable="false"
                             />
                           ) : (
@@ -3801,9 +3848,9 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                 </div>
               </div>
             ) : (
-              <div className="mt-3">
-                <div className="grid items-center gap-3 xl:grid-cols-[minmax(300px,0.72fr)_minmax(560px,1.28fr)]">
-                  <div className="flex min-w-0 items-center gap-3">
+              <div className="mt-2.5">
+                <div className="grid items-center gap-2.5 xl:grid-cols-[minmax(285px,0.72fr)_minmax(530px,1.28fr)]">
+                  <div className="flex min-w-0 items-center gap-2.5">
                     <img
                       src={selectedClass.src}
                       alt=""
@@ -3823,7 +3870,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                     </div>
                   </div>
 
-                  <div className="grid min-w-0 items-center gap-2 rounded-[16px] border border-slate-700/55 bg-slate-950/48 p-2 sm:grid-cols-[126px_minmax(0,1fr)]">
+                  <div className="adversary-class-top-summary grid min-w-0 items-center gap-1.5 rounded-[14px] border p-[7px] sm:grid-cols-[112px_minmax(0,1fr)]">
                     <div className="flex items-center justify-center">
                       <div
                         className="adversary-class-pie"
@@ -3841,7 +3888,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       </div>
                     </div>
 
-                    <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-1.5 sm:grid-cols-2">
                       <div className="adversary-class-summary-card">
                         <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
                           Players
@@ -3871,7 +3918,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="adversary-class-mode-tug mt-3">
+                <div className="adversary-class-mode-tug mt-2.5">
                   <div className="adversary-class-mode-tug-labels">
                     <div className="adversary-class-mode-label is-succession">
                       <span>Succession</span>
@@ -3958,8 +4005,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </section>
 
-                <div className="mt-4">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="mt-3.5">
+                  <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
                         {selectedClass.name} player statistics
