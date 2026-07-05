@@ -1095,9 +1095,11 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-modal {
     position: relative;
-    width: min(1340px, 91vw);
+    width: min(1600px, 97vw);
+    max-width: calc(100vw - 20px);
     max-height: 86vh;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
     border-radius: 23px;
     padding: 20px;
@@ -1233,9 +1235,72 @@ const GLOBAL_PANEL_CSS = `
     padding-right: 3px;
   }
 
+  .adversary-class-ranking-columns {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) repeat(3, minmax(72px, 0.62fr));
+    align-items: center;
+    gap: 6px;
+    margin-top: 9px;
+    padding: 0 7px 6px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.10);
+  }
+
+  .adversary-class-ranking-columns > span {
+    color: #64748b;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .adversary-class-ranking-sort-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 8px;
+    padding: 5px 4px;
+    color: #64748b;
+    background: rgba(15, 23, 42, 0.46);
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    cursor: pointer;
+  }
+
+  .adversary-class-ranking-sort-button:hover,
+  .adversary-class-ranking-sort-button.is-active {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.32);
+    color: rgb(var(--class-rgb, 250, 204, 21));
+    background: rgba(var(--class-rgb, 250, 204, 21), 0.08);
+  }
+
+  .adversary-class-ranking-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+  }
+
+  .adversary-class-ranking-wars {
+    display: inline-flex;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 999px;
+    padding: 2px 6px;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.56);
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
   .adversary-class-ranking-row {
     display: grid;
-    grid-template-columns: minmax(140px, 1fr) repeat(3, minmax(70px, 0.62fr));
+    grid-template-columns: minmax(150px, 1fr) repeat(3, minmax(72px, 0.62fr));
     align-items: center;
     gap: 6px;
     padding: 7px;
@@ -1701,8 +1766,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 18px;
-    padding: 13px;
+    border-radius: 16px;
+    padding: 11px;
     background:
       radial-gradient(circle at 0% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.085), transparent 34%),
       linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(4, 10, 22, 0.86));
@@ -1720,8 +1785,8 @@ const GLOBAL_PANEL_CSS = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    padding-bottom: 10px;
+    gap: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid rgba(148, 163, 184, 0.10);
   }
 
@@ -1744,8 +1809,8 @@ const GLOBAL_PANEL_CSS = `
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
-    padding: 3px 8px;
-    font-size: 9px;
+    padding: 2px 7px;
+    font-size: 8px;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1793,10 +1858,10 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-overall-performance {
-    margin-top: 10px;
+    margin-top: 9px;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
-    border-radius: 16px;
-    padding: 12px;
+    border-radius: 14px;
+    padding: 10px;
     background:
       radial-gradient(circle at 8% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.08), transparent 36%),
       rgba(2, 6, 23, 0.42);
@@ -1806,15 +1871,15 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-player-metrics {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
   }
 
   .adversary-class-performance-grid {
-    margin-top: 10px;
+    margin-top: 8px;
   }
 
   .adversary-class-player-metrics {
-    margin-top: 10px;
+    margin-top: 8px;
   }
 
   .adversary-class-performance-card,
@@ -1823,8 +1888,8 @@ const GLOBAL_PANEL_CSS = `
     min-width: 0;
     overflow: hidden;
     border: 1px solid rgba(var(--metric-rgb), 0.22);
-    border-radius: 12px;
-    padding: 8px;
+    border-radius: 10px;
+    padding: 6px;
     background:
       radial-gradient(circle at 12% 0%, rgba(var(--metric-rgb), 0.13), transparent 52%),
       linear-gradient(145deg, rgba(var(--metric-rgb), 0.055), rgba(2, 6, 23, 0.52));
@@ -1838,7 +1903,7 @@ const GLOBAL_PANEL_CSS = `
     display: block;
     overflow: hidden;
     color: rgb(var(--metric-rgb));
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 1000;
     text-overflow: ellipsis;
     text-transform: uppercase;
@@ -1849,17 +1914,17 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-metric-values {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 7px;
+    margin-top: 5px;
     overflow: hidden;
     border: 1px solid rgba(var(--metric-rgb), 0.13);
-    border-radius: 9px;
+    border-radius: 8px;
     background: rgba(2, 6, 23, 0.44);
   }
 
   .adversary-class-metric-value {
     display: flex;
     min-width: 0;
-    min-height: 45px;
+    min-height: 40px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -1874,7 +1939,7 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-metric-value span {
     color: #7c8aa0;
-    font-size: 8px;
+    font-size: 7px;
     font-weight: 1000;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1884,7 +1949,7 @@ const GLOBAL_PANEL_CSS = `
     max-width: 100%;
     overflow: hidden;
     color: #f8fafc;
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 1000;
     line-height: 1.05;
     text-overflow: ellipsis;
@@ -3055,6 +3120,10 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const [selectedClass, setSelectedClass] = useState(null);
   const [classModalView, setClassModalView] = useState('class');
   const [classRankingMetric, setClassRankingMetric] = useState('kills');
+  const [classRankingSort, setClassRankingSort] = useState({
+    key: 'overall',
+    direction: 'desc',
+  });
 
   const [loadingClassLogs, setLoadingClassLogs] = useState(false);
 
@@ -3097,6 +3166,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           mode,
           appearances: 0,
           playerKeys: new Set(),
+          warIds: new Set(),
           kdSum: 0,
           kdWarCount: 0,
           bestKd: null,
@@ -3169,6 +3239,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         if (recentModeRecord) {
           recentModeRecord.appearances += 1;
           recentModeRecord.playerKeys.add(playerKey);
+          recentModeRecord.warIds.add(logId);
         }
 
         if (!classRecord.players.has(playerKey)) {
@@ -3378,6 +3449,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           orb,
           appearances: record.appearances,
           playerCount: record.playerKeys.size,
+          warCount: record.warIds.size,
           totals: record.totals,
           averages: Object.fromEntries(
             CLASS_STATS_METRICS.map(({ key }) => [
@@ -3438,7 +3510,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           // one valid 100% circle while still including every class a player used.
           piePercentage:
             overallClassPlayerCount > 0 ? (count / overallClassPlayerCount) * 100 : 0,
-          color: `rgb(${classEntry.glow || '250, 204, 21'})`,
+          color: `rgb(${classEntry.accent || classEntry.glow || '250, 204, 21'})`,
           orb: classEntry,
         };
       })
@@ -3565,15 +3637,33 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             : null,
         };
       })
-      .sort(
-        (first, second) =>
-          Number(second.hasValue) - Number(first.hasValue) ||
-          (Number(second.overall) || 0) - (Number(first.overall) || 0) ||
-          (Number(second.average) || 0) - (Number(first.average) || 0) ||
+      .sort((first, second) => {
+        const hasValueDifference =
+          Number(second.hasValue) - Number(first.hasValue);
+
+        if (hasValueDifference !== 0) return hasValueDifference;
+
+        const firstValue = Number(first[classRankingSort.key]);
+        const secondValue = Number(second[classRankingSort.key]);
+        const safeFirstValue = Number.isFinite(firstValue) ? firstValue : 0;
+        const safeSecondValue = Number.isFinite(secondValue) ? secondValue : 0;
+        const direction = classRankingSort.direction === 'asc' ? 1 : -1;
+        const valueDifference =
+          (safeFirstValue - safeSecondValue) * direction;
+
+        if (valueDifference !== 0) return valueDifference;
+
+        return (
           first.className.localeCompare(second.className) ||
-          first.mode.localeCompare(second.mode),
-      );
-  }, [classAnalytics.modeRankings, classRankingMetric]);
+          first.mode.localeCompare(second.mode)
+        );
+      });
+  }, [
+    classAnalytics.modeRankings,
+    classRankingMetric,
+    classRankingSort.direction,
+    classRankingSort.key,
+  ]);
 
   const openClassDetails = useCallback(
     async (orb) => {
@@ -4090,22 +4180,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                         className="adversary-class-overall-pie"
                         style={{ background: classAnalytics.overallGradient }}
                         aria-label="Guild class distribution for the last 30 days"
-                      >
-                        <div className="adversary-class-pie-value">
-                          <div className="text-4xl font-black text-white">
-                            {classAnalytics.overallClassPlayerCount}
-                          </div>
-                          <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                            Player-class picks
-                          </div>
-                          <div className="mt-1 text-[10px] font-bold text-slate-500">
-                            {classAnalytics.playersWithRecentClassData} roster players
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 text-center text-xs font-bold text-slate-500">
-                        {classAnalytics.recentWarCount} recorded {classAnalytics.recentWarCount === 1 ? 'war' : 'wars'}
-                      </div>
+                      />
                     </div>
 
                     <div className="max-h-[390px] space-y-1.5 overflow-auto pr-1">
@@ -4187,6 +4262,45 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       </select>
                     </div>
 
+                    <div className="adversary-class-ranking-columns">
+                      <span>Class / Mode</span>
+                      {[
+                        ['overall', 'Total'],
+                        ['average', 'Average'],
+                        ['best', 'Best'],
+                      ].map(([sortKey, label]) => {
+                        const isActive = classRankingSort.key === sortKey;
+
+                        return (
+                          <button
+                            key={sortKey}
+                            type="button"
+                            className={`adversary-class-ranking-sort-button ${
+                              isActive ? 'is-active' : ''
+                            }`}
+                            onClick={() =>
+                              setClassRankingSort((current) => ({
+                                key: sortKey,
+                                direction:
+                                  current.key === sortKey && current.direction === 'desc'
+                                    ? 'asc'
+                                    : 'desc',
+                              }))
+                            }
+                          >
+                            {label}
+                            <span aria-hidden="true">
+                              {isActive
+                                ? classRankingSort.direction === 'desc'
+                                  ? '↓'
+                                  : '↑'
+                                : '↕'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     <div className="adversary-class-ranking-list">
                       {classRankingRows.length > 0 ? (
                         classRankingRows.map((entry, index) => {
@@ -4203,27 +4317,29 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                                   <div className="truncate text-[11px] font-black text-slate-100">
                                     {entry.className}
                                   </div>
-                                  <span
-                                    className={`adversary-class-ranking-mode ${
-                                      entry.mode === 'Awakening'
-                                        ? 'is-awakening'
-                                        : 'is-succession'
-                                    }`}
-                                  >
-                                    {entry.mode}
-                                  </span>
+                                  <div className="adversary-class-ranking-meta">
+                                    <span
+                                      className={`adversary-class-ranking-mode ${
+                                        entry.mode === 'Awakening'
+                                          ? 'is-awakening'
+                                          : 'is-succession'
+                                      }`}
+                                    >
+                                      {entry.mode}
+                                    </span>
+                                    <span className="adversary-class-ranking-wars">
+                                      {entry.warCount} {entry.warCount === 1 ? 'war' : 'wars'}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                               <div className="adversary-class-ranking-value">
-                                <span>Total</span>
                                 <strong>{formatClassStatNumber(entry.overall, decimals)}</strong>
                               </div>
                               <div className="adversary-class-ranking-value">
-                                <span>Average</span>
                                 <strong>{formatClassStatNumber(entry.average, 2)}</strong>
                               </div>
                               <div className="adversary-class-ranking-value">
-                                <span>Best</span>
                                 <strong>{formatClassStatNumber(entry.best, decimals)}</strong>
                               </div>
                             </div>
