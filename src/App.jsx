@@ -1194,8 +1194,8 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie {
     position: relative;
     display: grid;
-    width: 150px;
-    height: 150px;
+    width: 118px;
+    height: 118px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -1211,7 +1211,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie::before {
     content: '';
     position: absolute;
-    inset: 20px;
+    inset: 16px;
     border-radius: inherit;
     background: rgba(2, 6, 23, 0.96);
     box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.72);
@@ -1475,8 +1475,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
-    border-radius: 14px;
-    padding: 10px 11px;
+    border-radius: 13px;
+    padding: 8px 10px;
     background:
       linear-gradient(135deg, rgba(var(--class-rgb, 250, 204, 21), 0.075), transparent 56%),
       rgba(15, 23, 42, 0.62);
@@ -2709,6 +2709,28 @@ function formatClassStatNumber(value, maximumFractionDigits = 0) {
 
   if (!Number.isFinite(number)) return '—';
 
+  const absolute = Math.abs(number);
+
+  if (absolute >= 1_000_000) {
+    const compactValue = number / 1_000_000;
+    const compactDigits = Math.abs(compactValue) >= 100 ? 0 : Math.abs(compactValue) >= 10 ? 1 : 2;
+
+    return `${new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: compactDigits,
+      minimumFractionDigits: 0,
+    }).format(compactValue)}M`;
+  }
+
+  if (absolute >= 1_000) {
+    const compactValue = number / 1_000;
+    const compactDigits = Math.abs(compactValue) >= 100 ? 0 : Math.abs(compactValue) >= 10 ? 1 : 2;
+
+    return `${new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: compactDigits,
+      minimumFractionDigits: 0,
+    }).format(compactValue)}K`;
+  }
+
   return new Intl.NumberFormat(undefined, {
     maximumFractionDigits,
     minimumFractionDigits: maximumFractionDigits,
@@ -3779,28 +3801,77 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                 </div>
               </div>
             ) : (
-              <div className="mt-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={selectedClass.src}
-                    alt=""
-                    className="adversary-class-modal-orb"
-                    draggable="false"
-                  />
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                      All Class Logs · Guild Roster only
-                    </p>
-                    <h2
-                      id="adversary-class-modal-title"
-                      className="mt-1 text-3xl font-black text-white"
-                    >
-                      {selectedClass.name}
-                    </h2>
+              <div className="mt-3">
+                <div className="grid items-center gap-3 xl:grid-cols-[minmax(300px,0.72fr)_minmax(560px,1.28fr)]">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <img
+                      src={selectedClass.src}
+                      alt=""
+                      className="adversary-class-modal-orb"
+                      draggable="false"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                        Guild Roster only
+                      </p>
+                      <h2
+                        id="adversary-class-modal-title"
+                        className="mt-1 truncate text-3xl font-black text-white"
+                      >
+                        {selectedClass.name}
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="grid min-w-0 items-center gap-2 rounded-[16px] border border-slate-700/55 bg-slate-950/48 p-2 sm:grid-cols-[126px_minmax(0,1fr)]">
+                    <div className="flex items-center justify-center">
+                      <div
+                        className="adversary-class-pie"
+                        style={{ '--class-share': Math.min(100, classStats.share) }}
+                        aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} in saved Class Logs`}
+                      >
+                        <div className="adversary-class-pie-value">
+                          <div className="text-xl font-black text-white">
+                            {classStats.share.toFixed(2)}%
+                          </div>
+                          <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                            Guild roster
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+                      <div className="adversary-class-summary-card">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                          Players
+                        </div>
+                        <div className="mt-0.5 text-xl font-black text-white">
+                          {classStats.playerCount}
+                          <span className="ml-1.5 text-xs font-bold text-slate-400">
+                            of {classAnalytics.rosterSize}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold leading-tight text-slate-500">
+                          Roster players with this class
+                        </div>
+                      </div>
+                      <div className="adversary-class-summary-card">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                          Class appearances
+                        </div>
+                        <div className="mt-0.5 text-xl font-black text-white">
+                          {classStats.appearances}
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold leading-tight text-slate-500">
+                          Node Wars assigned to {selectedClass.name}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="adversary-class-mode-tug mt-4">
+                <div className="adversary-class-mode-tug mt-3">
                   <div className="adversary-class-mode-tug-labels">
                     <div className="adversary-class-mode-label is-succession">
                       <span>Succession</span>
@@ -3826,52 +3897,6 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="mt-3 grid gap-3 rounded-[18px] border border-slate-700/55 bg-slate-950/48 p-3 lg:grid-cols-[170px_1fr]">
-                  <div className="flex items-center justify-center">
-                    <div
-                      className="adversary-class-pie"
-                      style={{ '--class-share': Math.min(100, classStats.share) }}
-                      aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} in saved Class Logs`}
-                    >
-                      <div className="adversary-class-pie-value">
-                        <div className="text-2xl font-black text-white">
-                          {classStats.share.toFixed(2)}%
-                        </div>
-                        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                          Guild roster
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid min-w-0 gap-2 sm:grid-cols-2">
-                    <div className="adversary-class-summary-card">
-                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                        Players
-                      </div>
-                      <div className="mt-1 text-2xl font-black text-white">
-                        {classStats.playerCount}
-                        <span className="ml-2 text-sm font-bold text-slate-400">
-                          of {classAnalytics.rosterSize}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-[11px] font-bold text-slate-500">
-                        Guild Roster players with this class in saved logs
-                      </div>
-                    </div>
-                    <div className="adversary-class-summary-card">
-                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                        Class appearances
-                      </div>
-                      <div className="mt-1 text-2xl font-black text-white">
-                        {classStats.appearances}
-                      </div>
-                      <div className="mt-2 text-[11px] font-bold text-slate-500">
-                        Total Node Wars assigned to {selectedClass.name}
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 <section className="adversary-class-overall-performance">
                   <div className="flex flex-wrap items-end justify-between gap-3">
