@@ -53,6 +53,7 @@ import {
   normalizeLog,
   normalizeLogs,
   normalizeMembers,
+  parseClassRows,
   parseLog,
   readStorage,
   today,
@@ -68,6 +69,7 @@ const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
 
 const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
+const CLASS_LOG_START = '===== ADVERSARY_CLASS_LOG_START =====';
 
 function getAdminToken() {
   let token = localStorage.getItem(ADMIN_TOKEN_KEY);
@@ -134,12 +136,15 @@ function isRetryableError(error) {
 
 function getMainLogOnly(rawLog) {
   const text = String(rawLog || '');
+  const markerIndexes = [
+    text.indexOf(SECONDARY_LOG_START),
+    text.indexOf(CLASS_LOG_START),
+  ].filter((index) => index >= 0);
+  const firstMarkerIndex = markerIndexes.length
+    ? Math.min(...markerIndexes)
+    : text.length;
 
-  if (!text.includes(SECONDARY_LOG_START)) {
-    return text;
-  }
-
-  return text.split(SECONDARY_LOG_START)[0].trim();
+  return text.slice(0, firstMarkerIndex).trim();
 }
 
 function stripSecondaryFromLog(log) {
@@ -318,6 +323,55 @@ async function deleteApiLog(log) {
 
   throw new Error(
     `Delete failed.\nBackend did not accept any delete route.\nLast error: ${
+      lastError?.message || lastError || 'unknown error'
+    }`,
+  );
+}
+
+async function updateApiLog(log, payload) {
+  const source = log?._src || {};
+  const apiId =
+    log?.apiId ||
+    log?.id ||
+    source.id ||
+    source._id ||
+    source.log_id ||
+    source.key ||
+    source.objectKey ||
+    source.filename ||
+    source.fileName ||
+    source.path ||
+    source.slug;
+
+  if (!apiId) {
+    throw new Error('Cannot update this log because it has no database id.');
+  }
+
+  const id = String(apiId);
+  const body = { ...payload, id: apiId };
+  const attempts = [
+    [`/api/logs/${encodeURIComponent(id)}`, 'PUT', payload],
+    [`/api/logs/${encodeURIComponent(id)}`, 'PATCH', payload],
+    ['/api/logs', 'PUT', body],
+    ['/api/logs', 'PATCH', body],
+    ['/api/logs/update', 'POST', body],
+    ['/api/logs', 'POST', { ...body, action: 'update', _method: 'PUT' }],
+  ];
+  let lastError = null;
+
+  for (const [path, method, attemptBody] of attempts) {
+    try {
+      return await apiWriteWithRetry(path, method, attemptBody, {
+        maxAttempts: 3,
+        baseDelayMs: 500,
+      });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `Update failed. Backend did not accept any update route. Last error: ${
       lastError?.message || lastError || 'unknown error'
     }`,
   );
@@ -1991,7 +2045,7 @@ function memberClassEntries(member) {
     .filter((entry) => entry.className);
 }
 
-function SidebarClassOrbs({ members = [] }) {
+function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const layerRef = useRef(null);
   const orbRefs = useRef([]);
   const physicsRef = useRef([]);
@@ -2007,37 +2061,125 @@ function SidebarClassOrbs({ members = [] }) {
   const orbLastSoundAtRef = useRef([]);
   const [selectedClass, setSelectedClass] = useState(null);
 
+  const [loadingClassLogs, setLoadingClassLogs] = useState(false);
+
   const classStats = useMemo(() => {
     if (!selectedClass) {
-      return { totalPlayers: 0, players: [], share: 0 };
+      return {
+        totalPlayers: 0,
+        players: [],
+        share: 0,
+        appearances: 0,
+        succession: 0,
+        awakening: 0,
+      };
     }
 
-    const uniqueMembers = new Map();
+    const uniquePlayers = new Map();
+    let classLogRowsFound = 0;
+    const seenAssignments = new Set();
 
-    (Array.isArray(members) ? members : []).forEach((member, index) => {
-      const name = memberDisplayName(member, index);
-      if (!name) return;
+    (Array.isArray(logs) ? logs : []).forEach((log, logIndex) => {
+      if (!log?.raw) return;
 
-      const key = name.toLowerCase();
-      const previous = uniqueMembers.get(key) || { name, entries: [] };
-      previous.entries.push(...memberClassEntries(member));
-      uniqueMembers.set(key, previous);
+      parseClassRows(log.raw).forEach((row) => {
+        const name = String(row.player || '').trim();
+        if (!name) return;
+
+        classLogRowsFound += 1;
+        const playerKey = name.toLowerCase();
+        const assignmentKey = [
+          String(log.id ?? logIndex),
+          playerKey,
+          row.className,
+          row.mode,
+        ].join('@@');
+
+        if (seenAssignments.has(assignmentKey)) return;
+        seenAssignments.add(assignmentKey);
+
+        const player = uniquePlayers.get(playerKey) || { name, entries: [] };
+        player.entries.push({
+          className: row.className,
+          mode: row.mode,
+        });
+        uniquePlayers.set(playerKey, player);
+      });
     });
 
-    const players = [...uniqueMembers.values()]
-      .map((player) => ({
-        name: player.name,
-        wars: player.entries
-          .filter((entry) => entry.className === selectedClass.name)
-          .reduce((total, entry) => total + entry.count, 0),
-      }))
-      .filter((player) => player.wars > 0)
-      .sort((first, second) => second.wars - first.wars || first.name.localeCompare(second.name));
-    const totalPlayers = uniqueMembers.size;
-    const share = totalPlayers > 0 ? (players.length / totalPlayers) * 100 : 0;
+    if (!classLogRowsFound) {
+      (Array.isArray(members) ? members : []).forEach((member, index) => {
+        const name = memberDisplayName(member, index);
+        if (!name) return;
 
-    return { totalPlayers, players, share };
-  }, [members, selectedClass]);
+        const key = name.toLowerCase();
+        const previous = uniquePlayers.get(key) || { name, entries: [] };
+        previous.entries.push(
+          ...memberClassEntries(member).flatMap((entry) =>
+            Array.from({ length: entry.count }, () => ({
+              className: entry.className,
+              mode: '',
+            })),
+          ),
+        );
+        uniquePlayers.set(key, previous);
+      });
+    }
+
+    const players = [...uniquePlayers.values()]
+      .map((player) => {
+        const entries = player.entries.filter(
+          (entry) => entry.className === selectedClass.name,
+        );
+
+        return {
+          name: player.name,
+          wars: entries.length,
+          succession: entries.filter((entry) => entry.mode === 'Succession').length,
+          awakening: entries.filter((entry) => entry.mode === 'Awakening').length,
+        };
+      })
+      .filter((player) => player.wars > 0)
+      .sort(
+        (first, second) =>
+          second.wars - first.wars || first.name.localeCompare(second.name),
+      );
+    const totalPlayers = uniquePlayers.size;
+    const share = totalPlayers > 0 ? (players.length / totalPlayers) * 100 : 0;
+    const succession = players.reduce(
+      (total, player) => total + player.succession,
+      0,
+    );
+    const awakening = players.reduce(
+      (total, player) => total + player.awakening,
+      0,
+    );
+
+    return {
+      totalPlayers,
+      players,
+      share,
+      appearances: succession + awakening,
+      succession,
+      awakening,
+    };
+  }, [members, logs, selectedClass]);
+
+  const openClassDetails = useCallback(
+    async (orb) => {
+      setSelectedClass(orb);
+
+      if (typeof loadLogs !== 'function') return;
+
+      try {
+        setLoadingClassLogs(true);
+        await loadLogs();
+      } finally {
+        setLoadingClassLogs(false);
+      }
+    },
+    [loadLogs],
+  );
 
   useEffect(() => {
     if (!selectedClass) return undefined;
@@ -2532,6 +2674,36 @@ function SidebarClassOrbs({ members = [] }) {
               </div>
             </div>
 
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">
+                  Succession
+                </div>
+                <div className="mt-1 text-2xl font-black text-white">
+                  {classStats.succession}
+                  <span className="ml-2 text-xs font-bold text-slate-400">
+                    {classStats.appearances > 0
+                      ? `${((classStats.succession / classStats.appearances) * 100).toFixed(2)}%`
+                      : '0.00%'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-rose-200">
+                  Awakening
+                </div>
+                <div className="mt-1 text-2xl font-black text-white">
+                  {classStats.awakening}
+                  <span className="ml-2 text-xs font-bold text-slate-400">
+                    {classStats.appearances > 0
+                      ? `${((classStats.awakening / classStats.appearances) * 100).toFixed(2)}%`
+                      : '0.00%'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div className="mt-6">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
@@ -2547,15 +2719,20 @@ function SidebarClassOrbs({ members = [] }) {
                   {classStats.players.map((player) => (
                     <div key={player.name} className="adversary-class-player-row">
                       <span className="font-bold text-slate-100">{player.name}</span>
-                      <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                      <span className="text-right text-xs font-black uppercase tracking-[0.08em] text-slate-400">
                         {player.wars} {player.wars === 1 ? 'war' : 'wars'}
+                        <span className="mt-1 block text-[10px] normal-case tracking-normal text-slate-500">
+                          Succession {player.succession} · Awakening {player.awakening}
+                        </span>
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
-                  No player class assignments are stored yet. The popup is ready and will calculate the chart automatically once class data is added to the guild members.
+                  {loadingClassLogs
+                    ? 'Loading class history...'
+                    : 'No assignments found yet. Paste Player, Class and Mode rows into the new Class Log field for a saved Node War.'}
                 </div>
               )}
             </div>
@@ -2581,7 +2758,7 @@ function SidebarClassOrbs({ members = [] }) {
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
-              setSelectedClass(orb);
+              openClassDetails(orb);
             }}
             style={{
               '--orb-size': `${orb.size}px`,
@@ -3249,17 +3426,21 @@ export default function App() {
     [logs],
   );
 
-  async function saveLog(rawOverride) {
+  async function saveLog(rawOverride, editingLogId = null) {
     const rawToSave = rawOverride == null ? raw : rawOverride;
 
     if (!parseLog(rawToSave, date, date, 'x').length) {
       setMessage('Invalid log');
-      return;
+      return null;
     }
 
+    const editingLog = editingLogId == null
+      ? null
+      : logs.find((log) => String(log.id) === String(editingLogId)) || null;
     const localHash = hashLog(rawToSave);
 
     const duplicate = logs.find((log) => {
+      if (editingLog && String(log.id) === String(editingLog.id)) return false;
       if (log.hash && log.hash === localHash) return true;
       if (log.raw) return hashLog(log.raw) === localHash;
       return false;
@@ -3269,62 +3450,78 @@ export default function App() {
       setSelectedDays([dateOf(duplicate)]);
       setSelectedWars([String(duplicate.id)]);
       setMessage('Duplicate log detected locally');
-      return;
+      return null;
     }
 
     const draftLog = {
-      id: `${date}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: date,
+      id:
+        editingLog?.id ||
+        `${date}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: editingLog?.name || date,
       date,
       raw: rawToSave,
       hash: localHash,
-      createdAt: new Date().toISOString(),
+      createdAt: editingLog?.createdAt || new Date().toISOString(),
     };
 
     const summary = buildLogSummary(draftLog);
-
     const payload = {
       ...draftLog,
       summary,
     };
+    const actionLabel = editingLog ? 'Updating' : 'Saving';
 
-    setMessage('Saving log to database...\nattempt 1/5');
+    setMessage(`${actionLabel} log in database...\nattempt 1/5`);
 
     try {
-      const response = await apiWriteWithRetry('/api/logs', 'POST', payload, {
-        maxAttempts: 5,
-        baseDelayMs: 700,
-      });
+      const response = editingLog
+        ? await updateApiLog(editingLog, payload)
+        : await apiWriteWithRetry('/api/logs', 'POST', payload, {
+            maxAttempts: 5,
+            baseDelayMs: 700,
+          });
 
       const savedLog = normalizeLog({
         ...payload,
         ...response,
+        id: response?.id ?? response?._id ?? payload.id,
         summary: response?.summary || payload.summary,
       });
+      const replaceOrAdd = (currentLogs) => {
+        if (!Array.isArray(currentLogs)) return currentLogs;
 
-      setNodeLogs((currentLogs) => [savedLog, ...currentLogs]);
+        if (!editingLog) return [savedLog, ...currentLogs];
 
+        return currentLogs.map((log) =>
+          String(log.id) === String(editingLog.id) ? savedLog : log,
+        );
+      };
+
+      setNodeLogs(replaceOrAdd);
       setAllLogs((currentLogs) =>
-        Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
+        Array.isArray(currentLogs) ? replaceOrAdd(currentLogs) : currentLogs,
       );
-
-      setOverviewLogs((currentLogs) =>
-        Array.isArray(currentLogs) ? [savedLog, ...currentLogs] : currentLogs,
-      );
+      setOverviewLogs(replaceOrAdd);
 
       setSelectedDays([savedLog.date]);
       setSelectedWars([String(savedLog.id)]);
-      setMessage('Log saved to database.\nSummary calculated and saved.');
+      setMessage(
+        editingLog
+          ? 'Log updated in database.\nCombat, Stats and Class data remain attached to the same war.'
+          : 'Log saved to database.\nSummary calculated and saved.',
+      );
+
+      return savedLog;
     } catch (error) {
       const text = String(error?.message || error || 'Unknown error');
 
-      console.error('Database save failed:', error);
+      console.error(editingLog ? 'Database update failed:' : 'Database save failed:', error);
 
       if (text.includes('Duplicate log')) {
         setMessage(
-          `Database refused save: ${text}.\nLogul NU a fost salvat local în browser.`,
+          `Database refused ${editingLog ? 'update' : 'save'}: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
-        return;
+        return null;
       }
 
       if (
@@ -3333,14 +3530,15 @@ export default function App() {
         text.includes('ResourceNotFound')
       ) {
         setMessage(
-          `API save endpoint is not available: ${text}.\nLogul NU a fost salvat local în browser.`,
+          `API ${editingLog ? 'update' : 'save'} endpoint is not available: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
-        return;
+        return null;
       }
 
       setMessage(
-        `Database save failed after 5 attempts: ${text}.\nLogul NU a fost salvat local în browser.`,
+        `Database ${editingLog ? 'update' : 'save'} failed: ${text}.\nLogul NU a fost salvat local în browser.`,
       );
+      return null;
     }
   }
 
@@ -3579,7 +3777,11 @@ export default function App() {
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
-          <SidebarClassOrbs members={members} />
+          <SidebarClassOrbs
+            members={members}
+            logs={Array.isArray(allLogs) ? allLogs : nodeLogs}
+            loadLogs={loadAllLogs}
+          />
 
           <h1 className="pointer-events-none relative z-30 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
             Adversary
