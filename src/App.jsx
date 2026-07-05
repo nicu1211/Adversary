@@ -1095,12 +1095,12 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-modal {
     position: relative;
-    width: min(1120px, 96vw);
-    max-height: min(760px, 90vh);
+    width: min(1340px, 91vw);
+    max-height: 86vh;
     overflow: auto;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
-    border-radius: 28px;
-    padding: 24px;
+    border-radius: 23px;
+    padding: 20px;
     color: #e2e8f0;
     background:
       radial-gradient(circle at 12% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.15), transparent 38%),
@@ -1108,6 +1108,241 @@ const GLOBAL_PANEL_CSS = `
     box-shadow:
       0 28px 90px rgba(0, 0, 0, 0.65),
       0 0 40px rgba(var(--class-rgb, 250, 204, 21), 0.13);
+    scrollbar-gutter: stable;
+  }
+
+  .adversary-class-modal,
+  .adversary-class-player-cards,
+  .adversary-class-player-list,
+  .adversary-class-stats-table-wrap {
+    scrollbar-width: thin;
+    scrollbar-color:
+      rgba(var(--class-rgb, 250, 204, 21), 0.72)
+      rgba(15, 23, 42, 0.52);
+  }
+
+  .adversary-class-modal::-webkit-scrollbar,
+  .adversary-class-player-cards::-webkit-scrollbar,
+  .adversary-class-player-list::-webkit-scrollbar,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .adversary-class-modal::-webkit-scrollbar-track,
+  .adversary-class-player-cards::-webkit-scrollbar-track,
+  .adversary-class-player-list::-webkit-scrollbar-track,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.48);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+  }
+
+  .adversary-class-modal::-webkit-scrollbar-thumb,
+  .adversary-class-player-cards::-webkit-scrollbar-thumb,
+  .adversary-class-player-list::-webkit-scrollbar-thumb,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar-thumb {
+    min-height: 42px;
+    border: 2px solid rgba(15, 23, 42, 0.72);
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      rgba(var(--class-rgb, 250, 204, 21), 0.92),
+      rgba(var(--class-rgb, 250, 204, 21), 0.48)
+    );
+    box-shadow: 0 0 12px rgba(var(--class-rgb, 250, 204, 21), 0.20);
+  }
+
+  .adversary-class-modal::-webkit-scrollbar-thumb:hover,
+  .adversary-class-player-cards::-webkit-scrollbar-thumb:hover,
+  .adversary-class-player-list::-webkit-scrollbar-thumb:hover,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      rgb(var(--class-rgb, 250, 204, 21)),
+      rgba(var(--class-rgb, 250, 204, 21), 0.68)
+    );
+  }
+
+  .adversary-class-modal-content {
+    width: 111.111%;
+    zoom: 0.9;
+  }
+
+  @supports not (zoom: 1) {
+    .adversary-class-modal-content {
+      width: 111.111%;
+      transform: scale(0.9);
+      transform-origin: top left;
+    }
+  }
+
+  .adversary-class-overall-dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .adversary-class-overall-distribution,
+  .adversary-class-rankings-panel {
+    min-width: 0;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 18px;
+    background: rgba(2, 6, 23, 0.46);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  }
+
+  .adversary-class-overall-distribution {
+    display: grid;
+    grid-template-columns: 205px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .adversary-class-rankings-panel {
+    padding: 13px;
+  }
+
+  .adversary-class-rankings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.11);
+  }
+
+  .adversary-class-ranking-select {
+    min-width: 130px;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.28);
+    border-radius: 10px;
+    padding: 7px 28px 7px 9px;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.92);
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .adversary-class-ranking-list {
+    max-height: 390px;
+    overflow: auto;
+    margin-top: 9px;
+    padding-right: 3px;
+  }
+
+  .adversary-class-ranking-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) repeat(3, minmax(70px, 0.62fr));
+    align-items: center;
+    gap: 6px;
+    padding: 7px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  }
+
+  .adversary-class-ranking-row:last-child {
+    border-bottom: 0;
+  }
+
+  .adversary-class-ranking-identity {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .adversary-class-ranking-identity img {
+    width: 31px;
+    height: 31px;
+    flex: 0 0 auto;
+    object-fit: contain;
+  }
+
+  .adversary-class-ranking-mode {
+    display: inline-flex;
+    margin-top: 2px;
+    border-radius: 999px;
+    padding: 2px 6px;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .adversary-class-ranking-mode.is-succession {
+    color: #a5f3fc;
+    background: rgba(6, 182, 212, 0.12);
+  }
+
+  .adversary-class-ranking-mode.is-awakening {
+    color: #fecdd3;
+    background: rgba(244, 63, 94, 0.12);
+  }
+
+  .adversary-class-ranking-value {
+    min-width: 0;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.10);
+    border-radius: 9px;
+    padding: 5px 4px;
+    background: rgba(15, 23, 42, 0.54);
+    text-align: center;
+  }
+
+  .adversary-class-ranking-value span {
+    display: block;
+    color: #64748b;
+    font-size: 7px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .adversary-class-ranking-value strong {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .adversary-class-ranking-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--class-rgb, 250, 204, 21), 0.72) rgba(15, 23, 42, 0.52);
+  }
+
+  .adversary-class-ranking-list::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .adversary-class-ranking-list::-webkit-scrollbar-thumb {
+    border: 2px solid rgba(15, 23, 42, 0.72);
+    border-radius: 999px;
+    background: rgba(var(--class-rgb, 250, 204, 21), 0.72);
+  }
+
+  @media (max-width: 1180px) {
+    .adversary-class-overall-dashboard {
+      grid-template-columns: 1fr;
+    }
+
+    .adversary-class-overall-distribution {
+      grid-template-columns: 190px minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 720px) {
+    .adversary-class-overall-distribution {
+      grid-template-columns: 1fr;
+    }
+
+    .adversary-class-ranking-row {
+      grid-template-columns: minmax(120px, 1fr) repeat(3, minmax(58px, 0.62fr));
+    }
   }
 
   .adversary-class-modal-close {
@@ -1131,8 +1366,8 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-modal-orb {
-    width: 92px;
-    height: 92px;
+    width: 83px;
+    height: 83px;
     object-fit: contain;
     filter: drop-shadow(0 0 20px rgba(var(--class-rgb, 250, 204, 21), 0.42));
   }
@@ -1140,8 +1375,8 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie {
     position: relative;
     display: grid;
-    width: 180px;
-    height: 180px;
+    width: 106px;
+    height: 106px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -1157,7 +1392,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie::before {
     content: '';
     position: absolute;
-    inset: 24px;
+    inset: 14px;
     border-radius: inherit;
     background: rgba(2, 6, 23, 0.96);
     box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.72);
@@ -1303,8 +1538,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.24);
-    border-radius: 20px;
-    padding: 15px 16px 16px;
+    border-radius: 15px;
+    padding: 11px 13px 12px;
     background:
       radial-gradient(circle at 50% 100%, rgba(var(--class-rgb, 250, 204, 21), 0.10), transparent 58%),
       linear-gradient(135deg, rgba(8, 15, 30, 0.95), rgba(2, 6, 23, 0.86));
@@ -1325,8 +1560,8 @@ const GLOBAL_PANEL_CSS = `
     display: flex;
     align-items: end;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 11px;
+    gap: 10px;
+    margin-bottom: 7px;
   }
 
   .adversary-class-mode-label {
@@ -1374,7 +1609,7 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     z-index: 1;
     display: flex;
-    height: 22px;
+    height: 17px;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 999px;
@@ -1403,8 +1638,8 @@ const GLOBAL_PANEL_CSS = `
     left: 50%;
     top: 50%;
     display: grid;
-    width: 36px;
-    height: 36px;
+    width: 29px;
+    height: 29px;
     place-items: center;
     border: 2px solid rgba(255, 255, 255, 0.82);
     border-radius: 999px;
@@ -1421,8 +1656,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
-    border-radius: 18px;
-    padding: 17px;
+    border-radius: 12px;
+    padding: 7px 9px;
     background:
       linear-gradient(135deg, rgba(var(--class-rgb, 250, 204, 21), 0.075), transparent 56%),
       rgba(15, 23, 42, 0.62);
@@ -1438,10 +1673,26 @@ const GLOBAL_PANEL_CSS = `
     background: linear-gradient(90deg, transparent, rgba(var(--class-rgb, 250, 204, 21), 0.5), transparent);
   }
 
+
+  .adversary-class-top-summary {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.28) !important;
+    background:
+      radial-gradient(circle at 8% 10%, rgba(var(--class-rgb, 250, 204, 21), 0.14), transparent 42%),
+      linear-gradient(145deg, rgba(var(--class-rgb, 250, 204, 21), 0.055), rgba(2, 6, 23, 0.54));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.028),
+      inset 0 0 30px rgba(var(--class-rgb, 250, 204, 21), 0.035),
+      0 8px 22px rgba(0, 0, 0, 0.15);
+  }
+
+  .adversary-class-top-summary .adversary-class-summary-card {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.22);
+  }
+
   .adversary-class-player-cards {
     display: grid;
-    max-height: 430px;
-    gap: 12px;
+    max-height: 400px;
+    gap: 10px;
     overflow: auto;
     padding: 2px 4px 6px 2px;
   }
@@ -1450,8 +1701,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 20px;
-    padding: 15px;
+    border-radius: 18px;
+    padding: 13px;
     background:
       radial-gradient(circle at 0% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.085), transparent 34%),
       linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(4, 10, 22, 0.86));
@@ -1469,15 +1720,15 @@ const GLOBAL_PANEL_CSS = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding-bottom: 12px;
+    gap: 14px;
+    padding-bottom: 10px;
     border-bottom: 1px solid rgba(148, 163, 184, 0.10);
   }
 
   .adversary-class-player-rank {
     display: grid;
-    width: 34px;
-    height: 34px;
+    width: 31px;
+    height: 31px;
     flex: 0 0 auto;
     place-items: center;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.28);
@@ -1541,59 +1792,135 @@ const GLOBAL_PANEL_CSS = `
     text-shadow: 0 0 16px rgba(var(--class-rgb, 250, 204, 21), 0.22);
   }
 
+  .adversary-class-overall-performance {
+    margin-top: 10px;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
+    border-radius: 16px;
+    padding: 12px;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.08), transparent 36%),
+      rgba(2, 6, 23, 0.42);
+  }
+
+  .adversary-class-performance-grid,
   .adversary-class-player-metrics {
     display: grid;
-    grid-template-columns: repeat(7, minmax(125px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
-    margin-top: 12px;
-    overflow-x: auto;
-    padding-bottom: 2px;
   }
 
+  .adversary-class-performance-grid {
+    margin-top: 10px;
+  }
+
+  .adversary-class-player-metrics {
+    margin-top: 10px;
+  }
+
+  .adversary-class-performance-card,
   .adversary-class-player-metric {
-    min-width: 125px;
-    border: 1px solid rgba(148, 163, 184, 0.10);
-    border-radius: 14px;
-    padding: 10px;
-    background: rgba(2, 6, 23, 0.44);
+    --metric-rgb: 148, 163, 184;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(var(--metric-rgb), 0.22);
+    border-radius: 12px;
+    padding: 8px;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(var(--metric-rgb), 0.13), transparent 52%),
+      linear-gradient(145deg, rgba(var(--metric-rgb), 0.055), rgba(2, 6, 23, 0.52));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.025),
+      0 8px 20px rgba(0, 0, 0, 0.14);
   }
 
+  .adversary-class-performance-label,
   .adversary-class-player-metric-label {
     display: block;
     overflow: hidden;
-    color: #64748b;
-    font-size: 8px;
-    font-weight: 900;
+    color: rgb(var(--metric-rgb));
+    font-size: 10px;
+    font-weight: 1000;
     text-overflow: ellipsis;
     text-transform: uppercase;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.10em;
     white-space: nowrap;
   }
 
-  .adversary-class-player-metric > strong {
-    display: block;
-    margin-top: 3px;
+  .adversary-class-metric-values {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 7px;
+    overflow: hidden;
+    border: 1px solid rgba(var(--metric-rgb), 0.13);
+    border-radius: 9px;
+    background: rgba(2, 6, 23, 0.44);
+  }
+
+  .adversary-class-metric-value {
+    display: flex;
+    min-width: 0;
+    min-height: 45px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 5px 4px;
+    text-align: center;
+  }
+
+  .adversary-class-metric-value + .adversary-class-metric-value {
+    border-left: 1px solid rgba(var(--metric-rgb), 0.13);
+  }
+
+  .adversary-class-metric-value span {
+    color: #7c8aa0;
+    font-size: 8px;
+    font-weight: 1000;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .adversary-class-metric-value strong {
+    max-width: 100%;
+    overflow: hidden;
     color: #f8fafc;
     font-size: 17px;
     font-weight: 1000;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 0 14px rgba(var(--metric-rgb), 0.18);
   }
 
-  .adversary-class-player-metric-detail {
-    display: flex;
-    justify-content: space-between;
-    gap: 6px;
-    margin-top: 4px;
-    color: #64748b;
-    font-size: 8px;
-    font-weight: 800;
-    white-space: nowrap;
+  @media (max-width: 1100px) {
+    .adversary-class-performance-grid,
+    .adversary-class-player-metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .adversary-class-modal-backdrop {
+      padding: 10px;
+    }
+
+    .adversary-class-modal {
+      width: 96vw;
+      max-height: 90vh;
+      padding: 16px;
+    }
+
+    .adversary-class-performance-grid,
+    .adversary-class-player-metrics {
+      grid-template-columns: 1fr;
+    }
   }
 
   .adversary-class-overall-pie {
     position: relative;
     display: grid;
-    width: 230px;
-    height: 230px;
+    width: 207px;
+    height: 207px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -1603,7 +1930,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-overall-pie::before {
     content: '';
     position: absolute;
-    inset: 31px;
+    inset: 28px;
     border-radius: inherit;
     background: rgba(2, 6, 23, 0.97);
     box-shadow: inset 0 0 20px rgba(15, 23, 42, 0.78);
@@ -1758,6 +2085,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbArcher,
     className: 'is-red',
     glow: '239, 68, 68',
+    accent: '222, 241, 43',
     startX: 0.88,
     startY: 0.18,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1781,6 +2109,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbBerserker,
     className: 'is-violet-orange',
     glow: '217, 70, 239',
+    accent: '211, 32, 29',
     startX: 0.10,
     startY: 0.52,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1804,6 +2133,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbCorsair,
     className: 'is-red-silver',
     glow: '239, 68, 68',
+    accent: '30, 195, 193',
     startX: 0.53,
     startY: 0.78,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1827,6 +2157,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDarkKnight,
     className: 'is-extra',
     glow: '34, 211, 238',
+    accent: '222, 83, 196',
     startX: 0.06,
     startY: 0.08,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1850,6 +2181,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDeadeye,
     className: 'is-extra',
     glow: '163, 230, 53',
+    accent: '202, 26, 19',
     startX: 0.72,
     startY: 0.12,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1873,6 +2205,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDosa,
     className: 'is-extra',
     glow: '168, 85, 247',
+    accent: '28, 139, 222',
     startX: 0.27,
     startY: 0.19,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1896,6 +2229,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbDrakania,
     className: 'is-extra',
     glow: '56, 189, 248',
+    accent: '140, 62, 235',
     startX: 0.56,
     startY: 0.24,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1919,6 +2253,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbGuardian,
     className: 'is-extra',
     glow: '236, 72, 153',
+    accent: '114, 173, 203',
     startX: 0.83,
     startY: 0.29,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1942,6 +2277,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbHashashin,
     className: 'is-extra',
     glow: '125, 211, 252',
+    accent: '240, 192, 97',
     startX: 0.13,
     startY: 0.34,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1965,6 +2301,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbKunoichi,
     className: 'is-extra',
     glow: '245, 158, 11',
+    accent: '215, 77, 178',
     startX: 0.41,
     startY: 0.39,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -1988,6 +2325,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbLahn,
     className: 'is-extra',
     glow: '244, 114, 182',
+    accent: '226, 58, 60',
     startX: 0.68,
     startY: 0.43,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2011,6 +2349,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMaegu,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '230, 112, 148',
     startX: 0.88,
     startY: 0.48,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2034,6 +2373,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMaehwa,
     className: 'is-extra',
     glow: '217, 70, 239',
+    accent: '134, 177, 235',
     startX: 0.05,
     startY: 0.53,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2057,6 +2397,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMusa,
     className: 'is-extra',
     glow: '56, 189, 248',
+    accent: '229, 84, 48',
     startX: 0.31,
     startY: 0.57,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2080,6 +2421,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbMystic,
     className: 'is-extra',
     glow: '249, 115, 22',
+    accent: '73, 174, 228',
     startX: 0.58,
     startY: 0.61,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2103,6 +2445,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbNinja,
     className: 'is-extra',
     glow: '147, 197, 253',
+    accent: '167, 6, 24',
     startX: 0.82,
     startY: 0.65,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2126,6 +2469,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbNova,
     className: 'is-extra',
     glow: '34, 197, 94',
+    accent: '138, 188, 227',
     startX: 0.12,
     startY: 0.70,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2149,6 +2493,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbRanger,
     className: 'is-extra',
     glow: '125, 211, 252',
+    accent: '40, 157, 27',
     startX: 0.39,
     startY: 0.74,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2172,6 +2517,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbSage,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '230, 167, 37',
     startX: 0.67,
     startY: 0.78,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2195,6 +2541,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbScholar,
     className: 'is-extra',
     glow: '234, 179, 8',
+    accent: '247, 207, 28',
     startX: 0.87,
     startY: 0.82,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2218,6 +2565,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbSeraph,
     className: 'is-extra',
     glow: '245, 158, 11',
+    accent: '146, 38, 40',
     startX: 0.07,
     startY: 0.87,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2241,6 +2589,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbShai,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '9, 166, 90',
     startX: 0.34,
     startY: 0.91,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2264,6 +2613,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbSorceress,
     className: 'is-extra',
     glow: '249, 115, 22',
+    accent: '207, 69, 243',
     startX: 0.69,
     startY: 0.94,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2287,6 +2637,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbStriker,
     className: 'is-extra',
     glow: '34, 197, 94',
+    accent: '228, 110, 15',
     startX: 0.14,
     startY: 0.13,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2310,6 +2661,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbTamer,
     className: 'is-extra',
     glow: '168, 85, 247',
+    accent: '121, 157, 211',
     startX: 0.46,
     startY: 0.14,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2333,6 +2685,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbValkyrie,
     className: 'is-extra',
     glow: '191, 219, 254',
+    accent: '158, 178, 214',
     startX: 0.77,
     startY: 0.14,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2356,6 +2709,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWarrior,
     className: 'is-extra',
     glow: '196, 84, 255',
+    accent: '226, 16, 8',
     startX: 0.25,
     startY: 0.32,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2379,6 +2733,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWitch,
     className: 'is-extra',
     glow: '239, 68, 68',
+    accent: '60, 209, 210',
     startX: 0.58,
     startY: 0.30,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2402,6 +2757,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWizard,
     className: 'is-extra',
     glow: '226, 232, 240',
+    accent: '246, 160, 70',
     startX: 0.86,
     startY: 0.34,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2425,6 +2781,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWoosa,
     className: 'is-extra',
     glow: '45, 212, 191',
+    accent: '168, 66, 233',
     startX: 0.18,
     startY: 0.88,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2448,6 +2805,7 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     src: classOrbWukong,
     className: 'is-extra',
     glow: '251, 146, 60',
+    accent: '160, 29, 23',
     startX: 0.81,
     startY: 0.90,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
@@ -2551,13 +2909,18 @@ function memberClassEntries(member) {
 
 const CLASS_STATS_WINDOW_DAYS = 30;
 const CLASS_STATS_METRICS = Object.freeze([
-  { key: 'kills', label: 'Kills' },
-  { key: 'deaths', label: 'Deaths' },
-  { key: 'killFeed', label: 'Kill Feed' },
-  { key: 'damageDealt', label: 'Damage Dealt' },
-  { key: 'damageTaken', label: 'Damage Taken' },
-  { key: 'ccHits', label: 'CC Hits' },
-  { key: 'fortDamage', label: 'Fort Damage' },
+  { key: 'kills', label: 'Kills', rgb: '59, 130, 246' },
+  { key: 'deaths', label: 'Deaths', rgb: '239, 68, 68' },
+  { key: 'killFeed', label: 'Kill Feed', rgb: '249, 115, 22' },
+  { key: 'damageDealt', label: 'Damage Dealt', rgb: '6, 182, 212' },
+  { key: 'damageTaken', label: 'Damage Taken', rgb: '236, 72, 153' },
+  { key: 'ccHits', label: 'CC Hits', rgb: '139, 92, 246' },
+  { key: 'fortDamage', label: 'Fort Damage', rgb: '245, 158, 11' },
+]);
+
+const CLASS_STATS_DISPLAY_METRICS = Object.freeze([
+  { key: 'kd', label: 'K/D', rgb: '34, 197, 94' },
+  ...CLASS_STATS_METRICS,
 ]);
 
 function normalizeRosterPlayerKey(value) {
@@ -2573,6 +2936,28 @@ function formatClassStatNumber(value, maximumFractionDigits = 0) {
   const number = Number(value);
 
   if (!Number.isFinite(number)) return '—';
+
+  const absolute = Math.abs(number);
+
+  if (absolute >= 1_000_000) {
+    const compactValue = number / 1_000_000;
+    const compactDigits = Math.abs(compactValue) >= 100 ? 0 : Math.abs(compactValue) >= 10 ? 1 : 2;
+
+    return `${new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: compactDigits,
+      minimumFractionDigits: 0,
+    }).format(compactValue)}M`;
+  }
+
+  if (absolute >= 1_000) {
+    const compactValue = number / 1_000;
+    const compactDigits = Math.abs(compactValue) >= 100 ? 0 : Math.abs(compactValue) >= 10 ? 1 : 2;
+
+    return `${new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: compactDigits,
+      minimumFractionDigits: 0,
+    }).format(compactValue)}K`;
+  }
 
   return new Intl.NumberFormat(undefined, {
     maximumFractionDigits,
@@ -2669,6 +3054,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const orbLastSoundAtRef = useRef([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [classModalView, setClassModalView] = useState('class');
+  const [classRankingMetric, setClassRankingMetric] = useState('kills');
 
   const [loadingClassLogs, setLoadingClassLogs] = useState(false);
 
@@ -2699,7 +3085,31 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     });
 
     const classRecords = new Map();
+    const recentModeRecords = new Map();
     const usageByRosterPlayer = new Map();
+
+    const ensureRecentModeRecord = (className, mode) => {
+      const key = `${className}@@${mode}`;
+
+      if (!recentModeRecords.has(key)) {
+        recentModeRecords.set(key, {
+          className,
+          mode,
+          appearances: 0,
+          playerKeys: new Set(),
+          kdSum: 0,
+          kdWarCount: 0,
+          bestKd: null,
+          totals: Object.fromEntries(CLASS_STATS_METRICS.map(({ key: metricKey }) => [metricKey, 0])),
+          best: Object.fromEntries(CLASS_STATS_METRICS.map(({ key: metricKey }) => [metricKey, null])),
+          metricWarCounts: Object.fromEntries(
+            CLASS_STATS_METRICS.map(({ key: metricKey }) => [metricKey, 0]),
+          ),
+        });
+      }
+
+      return recentModeRecords.get(key);
+    };
 
     const ensureClassRecord = (className) => {
       if (!classRecords.has(className)) {
@@ -2752,6 +3162,15 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         classRecord.appearances += 1;
         classRecord[mode === 'Awakening' ? 'awakening' : 'succession'] += 1;
 
+        const recentModeRecord = isRecent
+          ? ensureRecentModeRecord(className, mode)
+          : null;
+
+        if (recentModeRecord) {
+          recentModeRecord.appearances += 1;
+          recentModeRecord.playerKeys.add(playerKey);
+        }
+
         if (!classRecord.players.has(playerKey)) {
           classRecord.players.set(playerKey, {
             key: playerKey,
@@ -2760,6 +3179,9 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             succession: 0,
             awakening: 0,
             statsWars: 0,
+            kdSum: 0,
+            kdWarCount: 0,
+            bestKd: null,
             totals: Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, 0])),
             best: Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, null])),
             metricWarCounts: Object.fromEntries(
@@ -2789,7 +3211,38 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
               playerRecord.best[key] == null
                 ? value
                 : Math.max(playerRecord.best[key], value);
+
+            if (recentModeRecord) {
+              recentModeRecord.totals[key] += value;
+              recentModeRecord.metricWarCounts[key] += 1;
+              recentModeRecord.best[key] =
+                recentModeRecord.best[key] == null
+                  ? value
+                  : Math.max(recentModeRecord.best[key], value);
+            }
           });
+
+          const warKills = Number(playerStats.kills);
+          const warDeaths = Number(playerStats.deaths);
+
+          if (Number.isFinite(warKills) && Number.isFinite(warDeaths)) {
+            const warKd = warDeaths > 0 ? warKills / warDeaths : warKills;
+            playerRecord.kdSum += warKd;
+            playerRecord.kdWarCount += 1;
+            playerRecord.bestKd =
+              playerRecord.bestKd == null
+                ? warKd
+                : Math.max(playerRecord.bestKd, warKd);
+
+            if (recentModeRecord) {
+              recentModeRecord.kdSum += warKd;
+              recentModeRecord.kdWarCount += 1;
+              recentModeRecord.bestKd =
+                recentModeRecord.bestKd == null
+                  ? warKd
+                  : Math.max(recentModeRecord.bestKd, warKd);
+            }
+          }
         }
 
         if (isRecent) {
@@ -2820,6 +3273,9 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                 player.totals.deaths > 0
                   ? player.totals.kills / player.totals.deaths
                   : player.totals.kills,
+              averageKd:
+                player.kdWarCount > 0 ? player.kdSum / player.kdWarCount : null,
+              bestKd: player.bestKd,
               averages: Object.fromEntries(
                 CLASS_STATS_METRICS.map(({ key }) => [
                   key,
@@ -2852,6 +3308,34 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           ),
         ]),
       );
+      const best = Object.fromEntries(
+        CLASS_STATS_METRICS.map(({ key }) => {
+          const values = players
+            .map((player) => player.best[key])
+            .filter((value) => Number.isFinite(Number(value)))
+            .map(Number);
+
+          return [key, values.length > 0 ? Math.max(...values) : null];
+        }),
+      );
+      const totalKdWarCount = players.reduce(
+        (sum, player) => sum + (Number(player.kdWarCount) || 0),
+        0,
+      );
+      const totalKdSum = players.reduce(
+        (sum, player) => sum + (Number(player.kdSum) || 0),
+        0,
+      );
+      const kd =
+        totals.deaths > 0 ? totals.kills / totals.deaths : totals.kills;
+      const averageKd =
+        totalKdWarCount > 0 ? totalKdSum / totalKdWarCount : null;
+      const bestKdValues = players
+        .map((player) => player.bestKd)
+        .filter((value) => Number.isFinite(Number(value)))
+        .map(Number);
+      const bestKd =
+        bestKdValues.length > 0 ? Math.max(...bestKdValues) : null;
 
       return {
         ...orb,
@@ -2868,8 +3352,50 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             metricWarCounts[key] > 0 ? totals[key] / metricWarCounts[key] : null,
           ]),
         ),
+        best,
+        kd,
+        averageKd,
+        bestKd,
+        metricWarCounts,
       };
     });
+
+    const modeRankings = SIDEBAR_CLASS_ORBS.flatMap((orb) =>
+      ['Succession', 'Awakening'].map((mode) => {
+        const record = recentModeRecords.get(`${orb.name}@@${mode}`);
+
+        if (!record || record.appearances <= 0) return null;
+
+        const kd =
+          record.totals.deaths > 0
+            ? record.totals.kills / record.totals.deaths
+            : record.totals.kills;
+
+        return {
+          id: `${orb.id}-${mode.toLowerCase()}`,
+          className: orb.name,
+          mode,
+          orb,
+          appearances: record.appearances,
+          playerCount: record.playerKeys.size,
+          totals: record.totals,
+          averages: Object.fromEntries(
+            CLASS_STATS_METRICS.map(({ key }) => [
+              key,
+              record.metricWarCounts[key] > 0
+                ? record.totals[key] / record.metricWarCounts[key]
+                : null,
+            ]),
+          ),
+          best: record.best,
+          metricWarCounts: record.metricWarCounts,
+          kd,
+          averageKd:
+            record.kdWarCount > 0 ? record.kdSum / record.kdWarCount : null,
+          bestKd: record.bestKd,
+        };
+      }),
+    ).filter(Boolean);
 
     const overallClassPlayerCounts = new Map();
     let playersWithRecentClassData = 0;
@@ -2933,6 +3459,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       overallGradient: buildOverallClassGradient(overallSlices),
       overallClassPlayerCount,
       playersWithRecentClassData,
+      modeRankings,
     };
   }, [logs]);
 
@@ -2947,6 +3474,11 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         awakening: 0,
         totals: {},
         averages: {},
+        best: {},
+        kd: null,
+        averageKd: null,
+        bestKd: null,
+        metricWarCounts: {},
       };
     }
 
@@ -2961,6 +3493,11 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         awakening: 0,
         totals: {},
         averages: {},
+        best: {},
+        kd: null,
+        averageKd: null,
+        bestKd: null,
+        metricWarCounts: {},
       }
     );
   }, [classAnalytics, selectedClass]);
@@ -2970,6 +3507,73 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     classModeTotal > 0 ? (classStats.succession / classModeTotal) * 100 : 50;
   const awakeningModeShare =
     classModeTotal > 0 ? (classStats.awakening / classModeTotal) * 100 : 50;
+
+  const classPerformanceMetrics = useMemo(
+    () =>
+      CLASS_STATS_DISPLAY_METRICS.map((metric) => {
+        if (metric.key === 'kd') {
+          return {
+            ...metric,
+            hasValue: Number.isFinite(Number(classStats.kd)),
+            overall: classStats.kd,
+            average: classStats.averageKd,
+            best: classStats.bestKd,
+          };
+        }
+
+        return {
+          ...metric,
+          hasValue: Number(classStats.metricWarCounts?.[metric.key]) > 0,
+          overall: classStats.totals?.[metric.key],
+          average: classStats.averages?.[metric.key],
+          best: classStats.best?.[metric.key],
+        };
+      }),
+    [classStats],
+  );
+
+  const classRankingRows = useMemo(() => {
+    const metric =
+      CLASS_STATS_DISPLAY_METRICS.find((entry) => entry.key === classRankingMetric) ||
+      CLASS_STATS_DISPLAY_METRICS[0];
+
+    return (classAnalytics.modeRankings || [])
+      .map((entry) => {
+        const isKd = metric.key === 'kd';
+        const hasValue = isKd
+          ? entry.averageKd != null || entry.kd != null
+          : Number(entry.metricWarCounts?.[metric.key]) > 0;
+
+        return {
+          ...entry,
+          metric,
+          hasValue,
+          overall: hasValue
+            ? isKd
+              ? entry.kd
+              : entry.totals?.[metric.key]
+            : null,
+          average: hasValue
+            ? isKd
+              ? entry.averageKd
+              : entry.averages?.[metric.key]
+            : null,
+          best: hasValue
+            ? isKd
+              ? entry.bestKd
+              : entry.best?.[metric.key]
+            : null,
+        };
+      })
+      .sort(
+        (first, second) =>
+          Number(second.hasValue) - Number(first.hasValue) ||
+          (Number(second.overall) || 0) - (Number(first.overall) || 0) ||
+          (Number(second.average) || 0) - (Number(first.average) || 0) ||
+          first.className.localeCompare(second.className) ||
+          first.mode.localeCompare(second.mode),
+      );
+  }, [classAnalytics.modeRankings, classRankingMetric]);
 
   const openClassDetails = useCallback(
     async (orb) => {
@@ -3408,7 +4012,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             aria-modal="true"
             aria-labelledby="adversary-class-modal-title"
             className="adversary-class-modal"
-            style={{ '--class-rgb': selectedClass.glow || '250, 204, 21' }}
+            style={{ '--class-rgb': selectedClass.accent || selectedClass.glow || '250, 204, 21' }}
           >
             <button
               type="button"
@@ -3419,6 +4023,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
               ×
             </button>
 
+            <div className="adversary-class-modal-content">
             <div className="adversary-class-modal-toolbar">
               <label className="sr-only" htmlFor="adversary-class-selection">
                 Class selection
@@ -3460,7 +4065,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             </div>
 
             {classModalView === 'overall' ? (
-              <div className="mt-6">
+              <div className="mt-5">
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
@@ -3478,108 +4083,233 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[260px_1fr]">
-                  <div className="flex flex-col items-center justify-center">
-                    <div
-                      className="adversary-class-overall-pie"
-                      style={{ background: classAnalytics.overallGradient }}
-                      aria-label="Guild class distribution for the last 30 days"
-                    >
-                      <div className="adversary-class-pie-value">
-                        <div className="text-4xl font-black text-white">
-                          {classAnalytics.overallClassPlayerCount}
-                        </div>
-                        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                          Player-class picks
-                        </div>
-                        <div className="mt-1 text-[10px] font-bold text-slate-500">
-                          {classAnalytics.playersWithRecentClassData} roster players
+                <div className="adversary-class-overall-dashboard">
+                  <section className="adversary-class-overall-distribution">
+                    <div className="flex flex-col items-center justify-center">
+                      <div
+                        className="adversary-class-overall-pie"
+                        style={{ background: classAnalytics.overallGradient }}
+                        aria-label="Guild class distribution for the last 30 days"
+                      >
+                        <div className="adversary-class-pie-value">
+                          <div className="text-4xl font-black text-white">
+                            {classAnalytics.overallClassPlayerCount}
+                          </div>
+                          <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                            Player-class picks
+                          </div>
+                          <div className="mt-1 text-[10px] font-bold text-slate-500">
+                            {classAnalytics.playersWithRecentClassData} roster players
+                          </div>
                         </div>
                       </div>
+                      <div className="mt-3 text-center text-xs font-bold text-slate-500">
+                        {classAnalytics.recentWarCount} recorded {classAnalytics.recentWarCount === 1 ? 'war' : 'wars'}
+                      </div>
                     </div>
-                    <div className="mt-4 text-center text-xs font-bold text-slate-500">
-                      {classAnalytics.recentWarCount} recorded {classAnalytics.recentWarCount === 1 ? 'war' : 'wars'}
-                    </div>
-                  </div>
 
-                  <div className="max-h-[430px] space-y-2 overflow-auto pr-1">
-                    {classAnalytics.overallSlices.length > 0 ? (
-                      classAnalytics.overallSlices.map((slice) => (
-                        <button
-                          key={slice.id}
-                          type="button"
-                          disabled={!slice.orb}
-                          className="flex w-full items-center gap-3 rounded-2xl border border-slate-700/45 bg-slate-900/55 p-3 text-left transition hover:border-slate-500/70 disabled:cursor-default disabled:hover:border-slate-700/45"
-                          onClick={() => {
-                            if (!slice.orb) return;
-                            setSelectedClass(slice.orb);
-                            setClassModalView('class');
-                          }}
-                        >
-                          {slice.orb ? (
-                            <img
-                              src={slice.orb.src}
-                              alt=""
-                              className="h-11 w-11 shrink-0 object-contain"
-                              draggable="false"
-                            />
-                          ) : (
-                            <span
-                              className="h-7 w-7 shrink-0 rounded-full"
-                              style={{ background: slice.color }}
-                            />
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-black text-slate-100">
-                              {slice.name}
+                    <div className="max-h-[390px] space-y-1.5 overflow-auto pr-1">
+                      {classAnalytics.overallSlices.length > 0 ? (
+                        classAnalytics.overallSlices.map((slice) => (
+                          <button
+                            key={slice.id}
+                            type="button"
+                            disabled={!slice.orb}
+                            className="flex w-full items-center gap-2.5 rounded-[14px] border border-slate-700/45 bg-slate-900/55 p-2.5 text-left transition hover:border-slate-500/70 disabled:cursor-default disabled:hover:border-slate-700/45"
+                            onClick={() => {
+                              if (!slice.orb) return;
+                              setSelectedClass(slice.orb);
+                              setClassModalView('class');
+                            }}
+                          >
+                            {slice.orb ? (
+                              <img
+                                src={slice.orb.src}
+                                alt=""
+                                className="h-10 w-10 shrink-0 object-contain"
+                                draggable="false"
+                              />
+                            ) : (
+                              <span
+                                className="h-7 w-7 shrink-0 rounded-full"
+                                style={{ background: slice.color }}
+                              />
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-black text-slate-100">
+                                {slice.name}
+                              </span>
+                              <span className="mt-0.5 block text-[11px] font-bold text-slate-500">
+                                {slice.count} {slice.count === 1 ? 'player' : 'players'}
+                              </span>
                             </span>
-                            <span className="mt-0.5 block text-[11px] font-bold text-slate-500">
-                              {slice.count} {slice.count === 1 ? 'player' : 'players'}
+                            <span className="text-right">
+                              <span className="block text-xl font-black text-white">
+                                {slice.percentage.toFixed(2)}%
+                              </span>
+                              <span className="block text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                                of roster
+                              </span>
                             </span>
-                          </span>
-                          <span className="text-right">
-                            <span className="block text-xl font-black text-white">
-                              {slice.percentage.toFixed(2)}%
-                            </span>
-                            <span className="block text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">
-                              of roster
-                            </span>
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
-                        {loadingClassLogs
-                          ? 'Loading class history...'
-                          : 'No Guild Roster or class assignments were found for the last 30 days.'}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
+                          {loadingClassLogs
+                            ? 'Loading class history...'
+                            : 'No Guild Roster or class assignments were found for the last 30 days.'}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="adversary-class-rankings-panel">
+                    <div className="adversary-class-rankings-header">
+                      <div>
+                        <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-200">
+                          Class Rankings
+                        </h3>
+                        <p className="mt-1 text-[10px] font-bold text-slate-500">
+                          Every played class and mode · Last {CLASS_STATS_WINDOW_DAYS} days
+                        </p>
                       </div>
-                    )}
-                  </div>
+                      <select
+                        className="adversary-class-ranking-select"
+                        value={classRankingMetric}
+                        onChange={(event) => setClassRankingMetric(event.target.value)}
+                        aria-label="Class ranking statistic"
+                      >
+                        {CLASS_STATS_DISPLAY_METRICS.map((metric) => (
+                          <option key={metric.key} value={metric.key}>
+                            {metric.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="adversary-class-ranking-list">
+                      {classRankingRows.length > 0 ? (
+                        classRankingRows.map((entry, index) => {
+                          const decimals = entry.metric.key === 'kd' ? 2 : 0;
+
+                          return (
+                            <div key={entry.id} className="adversary-class-ranking-row">
+                              <div className="adversary-class-ranking-identity">
+                                <span className="text-[9px] font-black text-slate-600">
+                                  #{index + 1}
+                                </span>
+                                <img src={entry.orb.src} alt="" draggable="false" />
+                                <div className="min-w-0">
+                                  <div className="truncate text-[11px] font-black text-slate-100">
+                                    {entry.className}
+                                  </div>
+                                  <span
+                                    className={`adversary-class-ranking-mode ${
+                                      entry.mode === 'Awakening'
+                                        ? 'is-awakening'
+                                        : 'is-succession'
+                                    }`}
+                                  >
+                                    {entry.mode}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="adversary-class-ranking-value">
+                                <span>Total</span>
+                                <strong>{formatClassStatNumber(entry.overall, decimals)}</strong>
+                              </div>
+                              <div className="adversary-class-ranking-value">
+                                <span>Average</span>
+                                <strong>{formatClassStatNumber(entry.average, 2)}</strong>
+                              </div>
+                              <div className="adversary-class-ranking-value">
+                                <span>Best</span>
+                                <strong>{formatClassStatNumber(entry.best, decimals)}</strong>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-[14px] border border-dashed border-slate-700/65 bg-slate-950/42 p-4 text-center text-xs text-slate-400">
+                          No mode statistics are available for this metric.
+                        </div>
+                      )}
+                    </div>
+                  </section>
                 </div>
               </div>
             ) : (
-              <div className="mt-6">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={selectedClass.src}
-                    alt=""
-                    className="adversary-class-modal-orb"
-                    draggable="false"
-                  />
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                      All Class Logs · Guild Roster only
-                    </p>
-                    <h2
-                      id="adversary-class-modal-title"
-                      className="mt-1 text-3xl font-black text-white"
-                    >
-                      {selectedClass.name}
-                    </h2>
+              <div className="mt-2.5">
+                <div className="grid items-center gap-2.5 xl:grid-cols-[minmax(285px,0.72fr)_minmax(530px,1.28fr)]">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <img
+                      src={selectedClass.src}
+                      alt=""
+                      className="adversary-class-modal-orb"
+                      draggable="false"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                        Guild Roster only
+                      </p>
+                      <h2
+                        id="adversary-class-modal-title"
+                        className="mt-1 truncate text-3xl font-black text-white"
+                      >
+                        {selectedClass.name}
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="adversary-class-top-summary grid min-w-0 items-center gap-1.5 rounded-[14px] border p-[7px] sm:grid-cols-[112px_minmax(0,1fr)]">
+                    <div className="flex items-center justify-center">
+                      <div
+                        className="adversary-class-pie"
+                        style={{ '--class-share': Math.min(100, classStats.share) }}
+                        aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} in saved Class Logs`}
+                      >
+                        <div className="adversary-class-pie-value">
+                          <div className="text-xl font-black text-white">
+                            {classStats.share.toFixed(2)}%
+                          </div>
+                          <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                            Guild roster
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid min-w-0 gap-1.5 sm:grid-cols-2">
+                      <div className="adversary-class-summary-card">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                          Players
+                        </div>
+                        <div className="mt-0.5 text-xl font-black text-white">
+                          {classStats.playerCount}
+                          <span className="ml-1.5 text-xs font-bold text-slate-400">
+                            of {classAnalytics.rosterSize}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold leading-tight text-slate-500">
+                          Roster players with this class
+                        </div>
+                      </div>
+                      <div className="adversary-class-summary-card">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                          Class appearances
+                        </div>
+                        <div className="mt-0.5 text-xl font-black text-white">
+                          {classStats.appearances}
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold leading-tight text-slate-500">
+                          Node Wars assigned to {selectedClass.name}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="adversary-class-mode-tug mt-6">
+                <div className="adversary-class-mode-tug mt-2.5">
                   <div className="adversary-class-mode-tug-labels">
                     <div className="adversary-class-mode-label is-succession">
                       <span>Succession</span>
@@ -3605,55 +4335,69 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[210px_1fr]">
-                  <div className="flex items-center justify-center">
-                    <div
-                      className="adversary-class-pie"
-                      style={{ '--class-share': Math.min(100, classStats.share) }}
-                      aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} in saved Class Logs`}
-                    >
-                      <div className="adversary-class-pie-value">
-                        <div className="text-3xl font-black text-white">
-                          {classStats.share.toFixed(2)}%
-                        </div>
-                        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                          Guild roster
-                        </div>
-                      </div>
+
+                <section className="adversary-class-overall-performance">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-200">
+                        Class Overall Performance
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Combined {selectedClass.name} statistics from the saved wars with matching Class Logs.
+                      </p>
                     </div>
+                    <span className="rounded-full border border-slate-700/55 bg-slate-900/72 px-3 py-1 text-xs font-bold text-slate-400">
+                      {classStats.appearances} class {classStats.appearances === 1 ? 'appearance' : 'appearances'}
+                    </span>
                   </div>
 
-                  <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-                    <div className="adversary-class-summary-card">
-                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                        Players
-                      </div>
-                      <div className="mt-1 text-3xl font-black text-white">
-                        {classStats.playerCount}
-                        <span className="ml-2 text-sm font-bold text-slate-400">
-                          of {classAnalytics.rosterSize}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-[11px] font-bold text-slate-500">
-                        Guild Roster players with this class in saved logs
-                      </div>
-                    </div>
-                    <div className="adversary-class-summary-card">
-                      <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                        Class appearances
-                      </div>
-                      <div className="mt-1 text-3xl font-black text-white">
-                        {classStats.appearances}
-                      </div>
-                      <div className="mt-2 text-[11px] font-bold text-slate-500">
-                        Total Node Wars assigned to {selectedClass.name}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  <div className="adversary-class-performance-grid">
+                    {classPerformanceMetrics.map((metric) => {
+                      const decimals = metric.key === 'kd' ? 2 : 0;
 
-                <div className="mt-6">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                      return (
+                        <div
+                          key={metric.key}
+                          className="adversary-class-performance-card"
+                          style={{ '--metric-rgb': metric.rgb }}
+                        >
+                          <span className="adversary-class-performance-label">
+                            {metric.label}
+                          </span>
+                          <div className="adversary-class-metric-values">
+                            <div className="adversary-class-metric-value">
+                              <span>Overall</span>
+                              <strong>
+                                {metric.hasValue
+                                  ? formatClassStatNumber(metric.overall, decimals)
+                                  : '—'}
+                              </strong>
+                            </div>
+                            <div className="adversary-class-metric-value">
+                              <span>Average</span>
+                              <strong>
+                                {metric.hasValue
+                                  ? formatClassStatNumber(metric.average, 2)
+                                  : '—'}
+                              </strong>
+                            </div>
+                            <div className="adversary-class-metric-value">
+                              <span>Best</span>
+                              <strong>
+                                {metric.hasValue
+                                  ? formatClassStatNumber(metric.best, decimals)
+                                  : '—'}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <div className="mt-3.5">
+                  <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
                         {selectedClass.name} player statistics
@@ -3687,24 +4431,57 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                                 </div>
                               </div>
                             </div>
-                            <div className="adversary-class-player-kd">
-                              <span>K/D</span>
-                              <strong>{formatClassStatNumber(player.kd, 2)}</strong>
-                            </div>
+
                           </header>
 
                           <div className="adversary-class-player-metrics">
-                            {CLASS_STATS_METRICS.map(({ key, label }) => {
-                              const hasValue = player.metricWarCounts[key] > 0;
+                            {CLASS_STATS_DISPLAY_METRICS.map(({ key, label, rgb }) => {
+                              const isKd = key === 'kd';
+                              const hasValue = isKd
+                                ? player.kdWarCount > 0
+                                : player.metricWarCounts[key] > 0;
+                              const overall = isKd ? player.kd : player.totals[key];
+                              const average = isKd
+                                ? player.averageKd
+                                : player.averages[key];
+                              const best = isKd ? player.bestKd : player.best[key];
+                              const decimals = isKd ? 2 : 0;
 
                               return (
-                                <div key={key} className="adversary-class-player-metric">
-                                  <span className="adversary-class-player-metric-label">{label}</span>
-                                  <strong>{hasValue ? formatClassStatNumber(player.totals[key]) : '—'}</strong>
-                                  <span className="adversary-class-player-metric-detail">
-                                    <span>Avg {hasValue ? formatClassStatNumber(player.averages[key], 2) : '—'}</span>
-                                    <span>Best {hasValue ? formatClassStatNumber(player.best[key]) : '—'}</span>
+                                <div
+                                  key={key}
+                                  className="adversary-class-player-metric"
+                                  style={{ '--metric-rgb': rgb }}
+                                >
+                                  <span className="adversary-class-player-metric-label">
+                                    {label}
                                   </span>
+                                  <div className="adversary-class-metric-values">
+                                    <div className="adversary-class-metric-value">
+                                      <span>Overall</span>
+                                      <strong>
+                                        {hasValue
+                                          ? formatClassStatNumber(overall, decimals)
+                                          : '—'}
+                                      </strong>
+                                    </div>
+                                    <div className="adversary-class-metric-value">
+                                      <span>Average</span>
+                                      <strong>
+                                        {hasValue
+                                          ? formatClassStatNumber(average, 2)
+                                          : '—'}
+                                      </strong>
+                                    </div>
+                                    <div className="adversary-class-metric-value">
+                                      <span>Best</span>
+                                      <strong>
+                                        {hasValue
+                                          ? formatClassStatNumber(best, decimals)
+                                          : '—'}
+                                      </strong>
+                                    </div>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -3722,6 +4499,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                 </div>
               </div>
             )}
+            </div>
           </section>
         </div>,
         document.body,
