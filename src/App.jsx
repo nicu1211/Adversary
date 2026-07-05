@@ -2068,6 +2068,227 @@ const GLOBAL_PANEL_CSS = `
     box-shadow: inset 0 0 20px rgba(15, 23, 42, 0.78);
   }
 
+
+  /* Refined class popup layout: matching Overall panels, compact rankings,
+     no visible side scrollbars outside Player Statistics. */
+  .adversary-class-modal {
+    scrollbar-width: none;
+  }
+
+  .adversary-class-modal::-webkit-scrollbar,
+  .adversary-class-overall-list::-webkit-scrollbar,
+  .adversary-class-ranking-list::-webkit-scrollbar,
+  .adversary-class-player-list::-webkit-scrollbar,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .adversary-class-overall-list,
+  .adversary-class-ranking-list,
+  .adversary-class-player-list,
+  .adversary-class-stats-table-wrap {
+    scrollbar-width: none;
+  }
+
+  .adversary-class-overall-dashboard {
+    grid-template-columns: 548px minmax(0, 1fr);
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .adversary-class-overall-distribution,
+  .adversary-class-rankings-panel {
+    height: 430px;
+    box-sizing: border-box;
+  }
+
+  .adversary-class-overall-distribution {
+    grid-template-columns: 188px minmax(0, 1fr);
+    width: 548px;
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .adversary-class-overall-list {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    max-width: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-right: 0;
+  }
+
+  .adversary-class-overall-row {
+    width: 100% !important;
+    min-width: 0;
+    box-sizing: border-box;
+    grid-template-columns: 38px minmax(0, 1fr) 86px !important;
+    column-gap: 7px !important;
+    padding: 8px !important;
+  }
+
+  .adversary-class-overall-row img {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .adversary-class-rankings-panel {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    padding: 10px;
+  }
+
+  .adversary-class-rankings-header {
+    flex: 0 0 auto;
+    gap: 8px;
+    padding-bottom: 7px;
+  }
+
+  .adversary-class-rankings-header p {
+    margin-top: 2px !important;
+  }
+
+  .adversary-class-ranking-select {
+    min-width: 116px;
+    padding: 6px 24px 6px 8px;
+    font-size: 9px;
+  }
+
+  .adversary-class-ranking-columns {
+    grid-template-columns: minmax(130px, 0.9fr) repeat(3, minmax(62px, 0.54fr));
+    gap: 5px;
+    margin-top: 6px;
+    padding: 0 5px 5px;
+  }
+
+  .adversary-class-ranking-sort-button {
+    padding: 4px 3px;
+    font-size: 7px;
+  }
+
+  .adversary-class-ranking-list {
+    min-height: 0;
+    max-height: none;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    margin-top: 4px;
+    padding-right: 0;
+  }
+
+  .adversary-class-ranking-row {
+    grid-template-columns: minmax(130px, 0.9fr) repeat(3, minmax(62px, 0.54fr));
+    gap: 5px;
+    padding: 4px 5px;
+  }
+
+  .adversary-class-ranking-identity {
+    gap: 5px;
+  }
+
+  .adversary-class-ranking-identity img {
+    width: 27px;
+    height: 27px;
+  }
+
+  .adversary-class-ranking-meta {
+    gap: 4px;
+    margin-top: 1px;
+  }
+
+  .adversary-class-ranking-mode,
+  .adversary-class-ranking-wars {
+    padding: 1px 5px;
+    font-size: 7px;
+  }
+
+  .adversary-class-ranking-value {
+    border-radius: 8px;
+    padding: 4px 3px;
+  }
+
+  .adversary-class-ranking-value strong {
+    margin-top: 0;
+    font-size: 11px;
+  }
+
+  .adversary-class-player-stat-card {
+    --player-rgb: var(--class-rgb, 250, 204, 21);
+    border-color: rgba(var(--player-rgb), 0.30);
+    background:
+      radial-gradient(circle at 0% 0%, rgba(var(--player-rgb), 0.18), transparent 38%),
+      linear-gradient(145deg, rgba(var(--player-rgb), 0.075), rgba(4, 10, 22, 0.88));
+    box-shadow:
+      0 12px 30px rgba(0, 0, 0, 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.025),
+      inset 0 0 28px rgba(var(--player-rgb), 0.04);
+  }
+
+  .adversary-class-player-stat-card:hover {
+    border-color: rgba(var(--player-rgb), 0.52);
+    box-shadow:
+      0 16px 38px rgba(0, 0, 0, 0.30),
+      0 0 24px rgba(var(--player-rgb), 0.12),
+      inset 0 0 30px rgba(var(--player-rgb), 0.06);
+  }
+
+  .adversary-class-player-stat-card .adversary-class-player-rank {
+    border-color: rgba(var(--player-rgb), 0.36);
+    color: rgb(var(--player-rgb));
+    background: rgba(var(--player-rgb), 0.10);
+  }
+
+  .adversary-class-player-title-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .adversary-class-player-title-row h4 {
+    flex: 1 1 auto;
+  }
+
+  .adversary-class-player-mode-summary {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    border: 1px solid rgba(var(--player-rgb), 0.28);
+    border-radius: 999px;
+    padding: 2px 7px;
+    color: rgb(var(--player-rgb));
+    background: rgba(var(--player-rgb), 0.09);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+  }
+
+  @media (max-width: 1180px) {
+    .adversary-class-overall-dashboard {
+      grid-template-columns: 1fr;
+    }
+
+    .adversary-class-overall-distribution,
+    .adversary-class-rankings-panel {
+      width: 100%;
+      height: 430px;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .adversary-class-overall-distribution {
+      grid-template-columns: 150px minmax(0, 1fr);
+    }
+
+    .adversary-class-player-title-row {
+      flex-wrap: wrap;
+    }
+  }
+
   @keyframes adversary-sidebar-orb-breathe {
     0%,
     100% {
@@ -3062,6 +3283,25 @@ function normalizeRosterPlayerKey(value) {
     .trim()
     .toLocaleLowerCase()
     .replace(/[^a-z0-9]/g, '');
+}
+
+function getClassPlayerShade(rgbText, index) {
+  const channels = String(rgbText || '250, 204, 21')
+    .split(',')
+    .map((value) => Math.max(0, Math.min(255, Number(value) || 0)))
+    .slice(0, 3);
+  const shadeSteps = [-0.18, -0.10, -0.03, 0.05, 0.12, 0.20, 0.27];
+  const shade = shadeSteps[index % shadeSteps.length];
+
+  return channels
+    .map((channel) =>
+      Math.round(
+        shade >= 0
+          ? channel + (255 - channel) * shade
+          : channel * (1 + shade),
+      ),
+    )
+    .join(', ');
 }
 
 function formatClassStatNumber(value, maximumFractionDigits = 0) {
@@ -4250,7 +4490,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       />
                     </div>
 
-                    <div className="adversary-class-overall-list max-h-[390px] space-y-1.5 overflow-auto pr-1">
+                    <div className="adversary-class-overall-list space-y-1.5">
                       {classAnalytics.overallSlices.length > 0 ? (
                         classAnalytics.overallSlices.map((slice) => (
                           <button
@@ -4582,9 +4822,6 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
                         {selectedClass.name} player statistics
                       </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Stats are joined by player name inside the same saved war as the Class Log assignment.
-                      </p>
                     </div>
                     <span className="rounded-full border border-slate-700/55 bg-slate-900/72 px-3 py-1 text-xs font-bold text-slate-400">
                       {classStats.playerCount} roster players
@@ -4594,21 +4831,29 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   {classStats.players.length > 0 ? (
                     <div className="adversary-class-player-cards">
                       {classStats.players.map((player, playerIndex) => (
-                        <article key={player.key} className="adversary-class-player-stat-card">
+                        <article
+                          key={player.key}
+                          className="adversary-class-player-stat-card"
+                          style={{
+                            '--player-rgb': getClassPlayerShade(
+                              selectedClass.accent || selectedClass.glow,
+                              playerIndex,
+                            ),
+                          }}
+                        >
                           <header className="adversary-class-player-stat-header">
                             <div className="flex min-w-0 items-center gap-3">
                               <span className="adversary-class-player-rank">#{playerIndex + 1}</span>
-                              <div className="min-w-0">
-                                <h4 className="truncate text-base font-black text-white">{player.name}</h4>
-                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                  <span className="adversary-class-player-war-pill">{player.wars} {player.wars === 1 ? 'war' : 'wars'}</span>
-                                  {player.succession > 0 && (
-                                    <span className="adversary-class-mode-pill is-succession">S {player.succession}</span>
-                                  )}
-                                  {player.awakening > 0 && (
-                                    <span className="adversary-class-mode-pill is-awakening">A {player.awakening}</span>
-                                  )}
-                                </div>
+                              <div className="adversary-class-player-title-row min-w-0">
+                                <h4 className="min-w-0 truncate text-base font-black text-white">
+                                  {player.name}
+                                </h4>
+                                <span className="adversary-class-player-war-pill">
+                                  {player.wars} {player.wars === 1 ? 'war' : 'wars'}
+                                </span>
+                                <span className="adversary-class-player-mode-summary">
+                                  S{player.succession}/A{player.awakening}
+                                </span>
                               </div>
                             </div>
 
