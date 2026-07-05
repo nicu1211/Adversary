@@ -2289,6 +2289,165 @@ const GLOBAL_PANEL_CSS = `
     }
   }
 
+
+  /* Clickable class-mode filter and compact paired streak/feed player card. */
+  .adversary-class-mode-label-button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: opacity 160ms ease, filter 160ms ease, transform 160ms ease;
+  }
+
+  .adversary-class-mode-label-button:not(.is-selected),
+  .adversary-class-mode-fill:not(.is-selected) {
+    opacity: 0.82;
+  }
+
+  .adversary-class-mode-label-button:hover,
+  .adversary-class-mode-label-button.is-selected {
+    opacity: 1;
+    filter: brightness(1.18);
+  }
+
+  .adversary-class-mode-label-button.is-selected {
+    transform: translateY(-1px);
+  }
+
+  .adversary-class-mode-fill {
+    display: block;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .adversary-class-mode-fill.is-selected {
+    opacity: 1;
+    filter: brightness(1.18) saturate(1.12);
+  }
+
+  .adversary-class-mode-clash {
+    border: 2px solid rgba(255, 255, 255, 0.82);
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .adversary-class-ranking-sort-button.is-disabled,
+  .adversary-class-ranking-sort-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.38;
+    color: #475569;
+    border-color: rgba(71, 85, 105, 0.18);
+    background: rgba(15, 23, 42, 0.30);
+  }
+
+  .adversary-class-player-stat-card {
+    padding: 9px;
+  }
+
+  .adversary-class-player-stat-header {
+    padding-bottom: 6px;
+  }
+
+  .adversary-class-player-metrics {
+    gap: 5px;
+    margin-top: 6px;
+  }
+
+  .adversary-class-player-metrics .adversary-class-player-metric {
+    padding: 5px;
+  }
+
+  .adversary-class-player-metrics .adversary-class-metric-values {
+    margin-top: 4px;
+  }
+
+  .adversary-class-player-metrics .adversary-class-metric-value {
+    min-height: 34px;
+    gap: 1px;
+    padding: 3px;
+  }
+
+  .adversary-class-player-metrics .adversary-class-metric-value strong {
+    font-size: 13px;
+  }
+
+  .adversary-class-player-metric.is-combined-feed {
+    display: grid;
+    align-content: center;
+    gap: 3px;
+    padding: 4px 5px;
+  }
+
+  .adversary-class-combined-feed-row {
+    display: grid;
+    grid-template-columns: minmax(62px, 0.62fr) minmax(0, 1.38fr);
+    min-width: 0;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .adversary-class-combined-feed-row + .adversary-class-combined-feed-row {
+    border-top: 1px solid rgba(148, 163, 184, 0.10);
+    padding-top: 3px;
+  }
+
+  .adversary-class-combined-feed-label {
+    overflow: hidden;
+    color: rgb(var(--combined-metric-rgb));
+    font-size: 8px;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .adversary-class-combined-feed-values {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(var(--combined-metric-rgb), 0.14);
+    border-radius: 6px;
+    background: rgba(2, 6, 23, 0.42);
+  }
+
+  .adversary-class-combined-feed-values > span {
+    display: flex;
+    min-width: 0;
+    min-height: 25px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 2px;
+    text-align: center;
+  }
+
+  .adversary-class-combined-feed-values > span + span {
+    border-left: 1px solid rgba(var(--combined-metric-rgb), 0.12);
+  }
+
+  .adversary-class-combined-feed-values small {
+    color: #64748b;
+    font-size: 5.5px;
+    font-weight: 1000;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .adversary-class-combined-feed-values strong {
+    max-width: 100%;
+    overflow: hidden;
+    color: #f8fafc;
+    font-size: 11px;
+    font-weight: 1000;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   @keyframes adversary-sidebar-orb-breathe {
     0%,
     100% {
@@ -3264,6 +3423,7 @@ const CLASS_STATS_WINDOW_DAYS = 30;
 const CLASS_STATS_METRICS = Object.freeze([
   { key: 'kills', label: 'Kills', rgb: '59, 130, 246' },
   { key: 'deaths', label: 'Deaths', rgb: '239, 68, 68' },
+  { key: 'killStreak', label: 'Kill Streak', rgb: '251, 113, 133' },
   { key: 'killFeed', label: 'Kill Feed', rgb: '249, 115, 22' },
   { key: 'damageDealt', label: 'Damage Dealt', rgb: '6, 182, 212' },
   { key: 'damageTaken', label: 'Damage Taken', rgb: '236, 72, 153' },
@@ -3271,9 +3431,37 @@ const CLASS_STATS_METRICS = Object.freeze([
   { key: 'fortDamage', label: 'Fort Damage', rgb: '245, 158, 11' },
 ]);
 
+const CLASS_KD_METRIC = Object.freeze({
+  key: 'kd',
+  label: 'K/D',
+  rgb: '34, 197, 94',
+});
+
+// Keep Class Overall at eight cards. Kill Streak is shown in Rankings and is
+// paired with Kill Feed inside the compact player-stat card below.
 const CLASS_STATS_DISPLAY_METRICS = Object.freeze([
-  { key: 'kd', label: 'K/D', rgb: '34, 197, 94' },
+  CLASS_KD_METRIC,
+  ...CLASS_STATS_METRICS.filter(({ key }) => key !== 'killStreak'),
+]);
+
+const CLASS_RANKING_METRICS = Object.freeze([
+  CLASS_KD_METRIC,
   ...CLASS_STATS_METRICS,
+]);
+
+const CLASS_PLAYER_METRIC_LAYOUT = Object.freeze([
+  CLASS_KD_METRIC,
+  CLASS_STATS_METRICS.find(({ key }) => key === 'kills'),
+  CLASS_STATS_METRICS.find(({ key }) => key === 'deaths'),
+  {
+    key: 'killStreakFeed',
+    label: 'Kill Streak / Kill Feed',
+    rgb: '249, 115, 22',
+    combined: true,
+  },
+  ...CLASS_STATS_METRICS.filter(
+    ({ key }) => !['kills', 'deaths', 'killStreak', 'killFeed'].includes(key),
+  ),
 ]);
 
 function normalizeRosterPlayerKey(value) {
@@ -3426,6 +3614,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const orbLastSoundAtRef = useRef([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [classModalView, setClassModalView] = useState('class');
+  const [selectedClassMode, setSelectedClassMode] = useState(null);
   const [classRankingMetric, setClassRankingMetric] = useState('kills');
   const [classRankingSort, setClassRankingSort] = useState({
     key: 'average',
@@ -3461,8 +3650,31 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     });
 
     const classRecords = new Map();
+    const classModeRecords = new Map();
     const recentModeRecords = new Map();
     const usageByRosterPlayer = new Map();
+
+    const createMetricTotals = () =>
+      Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, 0]));
+    const createMetricBest = () =>
+      Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, null]));
+    const createMetricCounts = () =>
+      Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, 0]));
+
+    const createPlayerRecord = (playerKey, playerName) => ({
+      key: playerKey,
+      name: playerName,
+      wars: 0,
+      succession: 0,
+      awakening: 0,
+      statsWars: 0,
+      kdSum: 0,
+      kdWarCount: 0,
+      bestKd: null,
+      totals: createMetricTotals(),
+      best: createMetricBest(),
+      metricWarCounts: createMetricCounts(),
+    });
 
     const ensureRecentModeRecord = (className, mode) => {
       const key = `${className}@@${mode}`;
@@ -3477,11 +3689,9 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           kdSum: 0,
           kdWarCount: 0,
           bestKd: null,
-          totals: Object.fromEntries(CLASS_STATS_METRICS.map(({ key: metricKey }) => [metricKey, 0])),
-          best: Object.fromEntries(CLASS_STATS_METRICS.map(({ key: metricKey }) => [metricKey, null])),
-          metricWarCounts: Object.fromEntries(
-            CLASS_STATS_METRICS.map(({ key: metricKey }) => [metricKey, 0]),
-          ),
+          totals: createMetricTotals(),
+          best: createMetricBest(),
+          metricWarCounts: createMetricCounts(),
         });
       }
 
@@ -3503,6 +3713,47 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       return classRecords.get(className);
     };
 
+    const ensureClassModeRecord = (className, mode) => {
+      const key = `${className}@@${mode}`;
+
+      if (!classModeRecords.has(key)) {
+        classModeRecords.set(key, {
+          className,
+          mode,
+          playerKeys: new Set(),
+          players: new Map(),
+          appearances: 0,
+          succession: 0,
+          awakening: 0,
+        });
+      }
+
+      return classModeRecords.get(key);
+    };
+
+    const applyMetricValues = (record, metricValues) => {
+      CLASS_STATS_METRICS.forEach(({ key }) => {
+        const value = metricValues[key];
+        if (!Number.isFinite(value)) return;
+
+        record.totals[key] += value;
+        record.metricWarCounts[key] += 1;
+        record.best[key] =
+          record.best[key] == null ? value : Math.max(record.best[key], value);
+      });
+
+      const warKills = metricValues.kills;
+      const warDeaths = metricValues.deaths;
+
+      if (Number.isFinite(warKills) && Number.isFinite(warDeaths)) {
+        const warKd = warDeaths > 0 ? warKills / warDeaths : warKills;
+        record.kdSum += warKd;
+        record.kdWarCount += 1;
+        record.bestKd =
+          record.bestKd == null ? warKd : Math.max(record.bestKd, warKd);
+      }
+    };
+
     availableLogs.forEach((log, logIndex) => {
       const logDate = classStatsDateValue(log);
       const logDateValue = logDate?.getTime?.() || 0;
@@ -3520,6 +3771,18 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           player,
         ]),
       );
+      const streakByPlayer = new Map(
+        Object.entries(perWarStats.st || {}).map(([name, value]) => [
+          normalizeRosterPlayerKey(name),
+          value,
+        ]),
+      );
+      const killFeedByPlayer = new Map(
+        Object.entries(perWarStats.fd || {}).map(([name, value]) => [
+          normalizeRosterPlayerKey(name),
+          value,
+        ]),
+      );
       const seenAssignments = new Set();
 
       classRowsForLog(log).forEach((row) => {
@@ -3535,9 +3798,13 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         seenAssignments.add(assignmentKey);
 
         const classRecord = ensureClassRecord(className);
+        const classModeRecord = ensureClassModeRecord(className, mode);
         classRecord.playerKeys.add(playerKey);
         classRecord.appearances += 1;
         classRecord[mode === 'Awakening' ? 'awakening' : 'succession'] += 1;
+        classModeRecord.playerKeys.add(playerKey);
+        classModeRecord.appearances += 1;
+        classModeRecord[mode === 'Awakening' ? 'awakening' : 'succession'] += 1;
 
         const recentModeRecord = isRecent
           ? ensureRecentModeRecord(className, mode)
@@ -3550,76 +3817,62 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         }
 
         if (!classRecord.players.has(playerKey)) {
-          classRecord.players.set(playerKey, {
-            key: playerKey,
-            name: rosterPlayer.name,
-            wars: 0,
-            succession: 0,
-            awakening: 0,
-            statsWars: 0,
-            kdSum: 0,
-            kdWarCount: 0,
-            bestKd: null,
-            totals: Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, 0])),
-            best: Object.fromEntries(CLASS_STATS_METRICS.map(({ key }) => [key, null])),
-            metricWarCounts: Object.fromEntries(
-              CLASS_STATS_METRICS.map(({ key }) => [key, 0]),
-            ),
-          });
+          classRecord.players.set(
+            playerKey,
+            createPlayerRecord(playerKey, rosterPlayer.name),
+          );
+        }
+
+        if (!classModeRecord.players.has(playerKey)) {
+          classModeRecord.players.set(
+            playerKey,
+            createPlayerRecord(playerKey, rosterPlayer.name),
+          );
         }
 
         const playerRecord = classRecord.players.get(playerKey);
+        const modePlayerRecord = classModeRecord.players.get(playerKey);
         playerRecord.wars += 1;
         playerRecord[mode === 'Awakening' ? 'awakening' : 'succession'] += 1;
+        modePlayerRecord.wars += 1;
+        modePlayerRecord[mode === 'Awakening' ? 'awakening' : 'succession'] += 1;
 
         const playerStats = statsByPlayer.get(playerKey);
+        const metricValues = Object.fromEntries(
+          CLASS_STATS_METRICS.map(({ key }) => {
+            let rawValue;
 
-        if (playerStats) {
+            if (key === 'killStreak') {
+              rawValue = streakByPlayer.has(playerKey)
+                ? streakByPlayer.get(playerKey)
+                : playerStats?.killStreak ??
+                  playerStats?.killstreak ??
+                  playerStats?.streak ??
+                  playerStats?.maxKillStreak;
+            } else if (key === 'killFeed') {
+              rawValue = killFeedByPlayer.has(playerKey)
+                ? killFeedByPlayer.get(playerKey)
+                : playerStats?.killFeed;
+            } else {
+              rawValue = playerStats?.[key];
+            }
+
+            const value = Number(rawValue);
+            return [key, Number.isFinite(value) ? value : null];
+          }),
+        );
+        const hasMetricValues = Object.values(metricValues).some((value) =>
+          Number.isFinite(value),
+        );
+
+        if (hasMetricValues) {
           playerRecord.statsWars += 1;
+          modePlayerRecord.statsWars += 1;
+          applyMetricValues(playerRecord, metricValues);
+          applyMetricValues(modePlayerRecord, metricValues);
 
-          CLASS_STATS_METRICS.forEach(({ key }) => {
-            if (playerStats[key] == null || playerStats[key] === '') return;
-
-            const value = Number(playerStats[key]);
-            if (!Number.isFinite(value)) return;
-
-            playerRecord.totals[key] += value;
-            playerRecord.metricWarCounts[key] += 1;
-            playerRecord.best[key] =
-              playerRecord.best[key] == null
-                ? value
-                : Math.max(playerRecord.best[key], value);
-
-            if (recentModeRecord) {
-              recentModeRecord.totals[key] += value;
-              recentModeRecord.metricWarCounts[key] += 1;
-              recentModeRecord.best[key] =
-                recentModeRecord.best[key] == null
-                  ? value
-                  : Math.max(recentModeRecord.best[key], value);
-            }
-          });
-
-          const warKills = Number(playerStats.kills);
-          const warDeaths = Number(playerStats.deaths);
-
-          if (Number.isFinite(warKills) && Number.isFinite(warDeaths)) {
-            const warKd = warDeaths > 0 ? warKills / warDeaths : warKills;
-            playerRecord.kdSum += warKd;
-            playerRecord.kdWarCount += 1;
-            playerRecord.bestKd =
-              playerRecord.bestKd == null
-                ? warKd
-                : Math.max(playerRecord.bestKd, warKd);
-
-            if (recentModeRecord) {
-              recentModeRecord.kdSum += warKd;
-              recentModeRecord.kdWarCount += 1;
-              recentModeRecord.bestKd =
-                recentModeRecord.bestKd == null
-                  ? warKd
-                  : Math.max(recentModeRecord.bestKd, warKd);
-            }
+          if (recentModeRecord) {
+            applyMetricValues(recentModeRecord, metricValues);
           }
         }
 
@@ -3641,8 +3894,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       });
     });
 
-    const classBreakdown = SIDEBAR_CLASS_ORBS.map((orb) => {
-      const record = classRecords.get(orb.name);
+    const buildClassEntry = (orb, record, mode = null) => {
       const players = record
         ? [...record.players.values()]
             .map((player) => ({
@@ -3704,19 +3956,17 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         (sum, player) => sum + (Number(player.kdSum) || 0),
         0,
       );
-      const kd =
-        totals.deaths > 0 ? totals.kills / totals.deaths : totals.kills;
-      const averageKd =
-        totalKdWarCount > 0 ? totalKdSum / totalKdWarCount : null;
+      const kd = totals.deaths > 0 ? totals.kills / totals.deaths : totals.kills;
+      const averageKd = totalKdWarCount > 0 ? totalKdSum / totalKdWarCount : null;
       const bestKdValues = players
         .map((player) => player.bestKd)
         .filter((value) => Number.isFinite(Number(value)))
         .map(Number);
-      const bestKd =
-        bestKdValues.length > 0 ? Math.max(...bestKdValues) : null;
+      const bestKd = bestKdValues.length > 0 ? Math.max(...bestKdValues) : null;
 
       return {
         ...orb,
+        mode,
         players,
         playerCount: players.length,
         share: rosterPlayers.length > 0 ? (players.length / rosterPlayers.length) * 100 : 0,
@@ -3736,7 +3986,21 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         bestKd,
         metricWarCounts,
       };
-    });
+    };
+
+    const classBreakdown = SIDEBAR_CLASS_ORBS.map((orb) =>
+      buildClassEntry(orb, classRecords.get(orb.name)),
+    );
+
+    const classModeBreakdown = SIDEBAR_CLASS_ORBS.flatMap((orb) =>
+      ['Succession', 'Awakening'].map((mode) =>
+        buildClassEntry(
+          orb,
+          classModeRecords.get(`${orb.name}@@${mode}`),
+          mode,
+        ),
+      ),
+    );
 
     const modeRankings = SIDEBAR_CLASS_ORBS.flatMap((orb) =>
       ['Succession', 'Awakening'].map((mode) => {
@@ -3834,6 +4098,9 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       startDate,
       endDate,
       byClass: Object.fromEntries(classBreakdown.map((entry) => [entry.name, entry])),
+      byClassMode: Object.fromEntries(
+        classModeBreakdown.map((entry) => [`${entry.name}@@${entry.mode}`, entry]),
+      ),
       overallSlices,
       overallGradient: buildOverallClassGradient(overallSlices),
       overallClassPlayerCount,
@@ -3842,50 +4109,66 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     };
   }, [logs]);
 
-  const classStats = useMemo(() => {
-    if (!selectedClass) {
-      return {
-        players: [],
-        playerCount: 0,
-        share: 0,
-        appearances: 0,
-        succession: 0,
-        awakening: 0,
-        totals: {},
-        averages: {},
-        best: {},
-        kd: null,
-        averageKd: null,
-        bestKd: null,
-        metricWarCounts: {},
-      };
-    }
+  const emptyClassStats = useCallback(
+    () => ({
+      players: [],
+      playerCount: 0,
+      share: 0,
+      appearances: 0,
+      succession: 0,
+      awakening: 0,
+      totals: {},
+      averages: {},
+      best: {},
+      kd: null,
+      averageKd: null,
+      bestKd: null,
+      metricWarCounts: {},
+    }),
+    [],
+  );
+
+  const combinedClassStats = useMemo(() => {
+    if (!selectedClass) return emptyClassStats();
 
     return (
       classAnalytics.byClass[selectedClass.name] || {
         ...selectedClass,
-        players: [],
-        playerCount: 0,
-        share: 0,
-        appearances: 0,
-        succession: 0,
-        awakening: 0,
-        totals: {},
-        averages: {},
-        best: {},
-        kd: null,
-        averageKd: null,
-        bestKd: null,
-        metricWarCounts: {},
+        ...emptyClassStats(),
       }
     );
-  }, [classAnalytics, selectedClass]);
+  }, [classAnalytics, emptyClassStats, selectedClass]);
 
-  const classModeTotal = classStats.succession + classStats.awakening;
+  const classStats = useMemo(() => {
+    if (!selectedClassMode || !selectedClass) return combinedClassStats;
+
+    return (
+      classAnalytics.byClassMode?.[
+        `${selectedClass.name}@@${selectedClassMode}`
+      ] || {
+        ...selectedClass,
+        mode: selectedClassMode,
+        ...emptyClassStats(),
+      }
+    );
+  }, [
+    classAnalytics,
+    combinedClassStats,
+    emptyClassStats,
+    selectedClass,
+    selectedClassMode,
+  ]);
+
+  const classModeTotal =
+    combinedClassStats.succession + combinedClassStats.awakening;
   const successionModeShare =
-    classModeTotal > 0 ? (classStats.succession / classModeTotal) * 100 : 50;
+    classModeTotal > 0
+      ? (combinedClassStats.succession / classModeTotal) * 100
+      : 50;
   const awakeningModeShare =
-    classModeTotal > 0 ? (classStats.awakening / classModeTotal) * 100 : 50;
+    classModeTotal > 0
+      ? (combinedClassStats.awakening / classModeTotal) * 100
+      : 50;
 
   const classPerformanceMetrics = useMemo(
     () =>
@@ -3913,8 +4196,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
   const classRankingRows = useMemo(() => {
     const metric =
-      CLASS_STATS_DISPLAY_METRICS.find((entry) => entry.key === classRankingMetric) ||
-      CLASS_STATS_DISPLAY_METRICS[0];
+      CLASS_RANKING_METRICS.find((entry) => entry.key === classRankingMetric) ||
+      CLASS_RANKING_METRICS[0];
 
     return (classAnalytics.modeRankings || [])
       .map((entry) => {
@@ -3923,15 +4206,21 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           ? entry.averageKd != null || entry.kd != null
           : Number(entry.metricWarCounts?.[metric.key]) > 0;
 
+        const totalUnavailable = ['killStreak', 'killFeed'].includes(
+          metric.key,
+        );
+
         return {
           ...entry,
           metric,
           hasValue,
-          overall: hasValue
-            ? isKd
-              ? entry.kd
-              : entry.totals?.[metric.key]
-            : null,
+          totalUnavailable,
+          overall:
+            hasValue && !totalUnavailable
+              ? isKd
+                ? entry.kd
+                : entry.totals?.[metric.key]
+              : null,
           average: hasValue
             ? isKd
               ? entry.averageKd
@@ -3975,6 +4264,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const openClassDetails = useCallback(
     async (orb) => {
       setSelectedClass(orb);
+      setSelectedClassMode(null);
       setClassModalView('class');
 
       if (typeof loadLogs !== 'function') return;
@@ -4436,6 +4726,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
                   if (nextClass) {
                     setSelectedClass(nextClass);
+                    setSelectedClassMode(null);
                     setClassModalView('class');
                   }
                 }}
@@ -4456,6 +4747,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   classModalView === 'overall' ? 'is-active' : ''
                 }`}
                 onClick={() => {
+                  setSelectedClassMode(null);
                   setClassModalView('overall');
                   setClassRankingSort({ key: 'average', direction: 'desc' });
                 }}
@@ -4558,10 +4850,20 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       <select
                         className="adversary-class-ranking-select"
                         value={classRankingMetric}
-                        onChange={(event) => setClassRankingMetric(event.target.value)}
+                        onChange={(event) => {
+                          const nextMetric = event.target.value;
+                          setClassRankingMetric(nextMetric);
+
+                          if (
+                            ['killStreak', 'killFeed'].includes(nextMetric) &&
+                            classRankingSort.key === 'overall'
+                          ) {
+                            setClassRankingSort({ key: 'average', direction: 'desc' });
+                          }
+                        }}
                         aria-label="Class ranking statistic"
                       >
-                        {CLASS_STATS_DISPLAY_METRICS.map((metric) => (
+                        {CLASS_RANKING_METRICS.map((metric) => (
                           <option key={metric.key} value={metric.key}>
                             {metric.label}
                           </option>
@@ -4577,14 +4879,18 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                         ['best', 'Best'],
                       ].map(([sortKey, label]) => {
                         const isActive = classRankingSort.key === sortKey;
+                        const isUnavailableTotal =
+                          sortKey === 'overall' &&
+                          ['killStreak', 'killFeed'].includes(classRankingMetric);
 
                         return (
                           <button
                             key={sortKey}
                             type="button"
+                            disabled={isUnavailableTotal}
                             className={`adversary-class-ranking-sort-button ${
                               isActive ? 'is-active' : ''
-                            }`}
+                            } ${isUnavailableTotal ? 'is-disabled' : ''}`}
                             onClick={() =>
                               setClassRankingSort((current) => ({
                                 key: sortKey,
@@ -4641,7 +4947,11 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                                 </div>
                               </div>
                               <div className="adversary-class-ranking-value">
-                                <strong>{formatClassStatNumber(entry.overall, decimals)}</strong>
+                                <strong>
+                                  {entry.totalUnavailable
+                                    ? '—'
+                                    : formatClassStatNumber(entry.overall, decimals)}
+                                </strong>
                               </div>
                               <div className="adversary-class-ranking-value">
                                 <strong>{formatClassStatNumber(entry.average, 2)}</strong>
@@ -4732,29 +5042,86 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="adversary-class-mode-tug mt-2.5">
+                <div
+                  className={`adversary-class-mode-tug mt-2.5 ${
+                    selectedClassMode ? 'has-selected-mode' : ''
+                  }`}
+                >
                   <div className="adversary-class-mode-tug-labels">
-                    <div className="adversary-class-mode-label is-succession">
+                    <button
+                      type="button"
+                      className={`adversary-class-mode-label adversary-class-mode-label-button is-succession ${
+                        selectedClassMode === 'Succession' ? 'is-selected' : ''
+                      }`}
+                      aria-pressed={selectedClassMode === 'Succession'}
+                      onClick={() =>
+                        setSelectedClassMode((current) =>
+                          current === 'Succession' ? null : 'Succession',
+                        )
+                      }
+                    >
                       <span>Succession</span>
-                      <strong>{classStats.succession}</strong>
-                      <small>{classModeTotal > 0 ? `${successionModeShare.toFixed(2)}%` : 'No data'}</small>
-                    </div>
-                    <div className="adversary-class-mode-label is-awakening">
-                      <small>{classModeTotal > 0 ? `${awakeningModeShare.toFixed(2)}%` : 'No data'}</small>
-                      <strong>{classStats.awakening}</strong>
+                      <strong>{combinedClassStats.succession}</strong>
+                      <small>
+                        {classModeTotal > 0
+                          ? `${successionModeShare.toFixed(2)}%`
+                          : 'No data'}
+                      </small>
+                    </button>
+                    <button
+                      type="button"
+                      className={`adversary-class-mode-label adversary-class-mode-label-button is-awakening ${
+                        selectedClassMode === 'Awakening' ? 'is-selected' : ''
+                      }`}
+                      aria-pressed={selectedClassMode === 'Awakening'}
+                      onClick={() =>
+                        setSelectedClassMode((current) =>
+                          current === 'Awakening' ? null : 'Awakening',
+                        )
+                      }
+                    >
+                      <small>
+                        {classModeTotal > 0
+                          ? `${awakeningModeShare.toFixed(2)}%`
+                          : 'No data'}
+                      </small>
+                      <strong>{combinedClassStats.awakening}</strong>
                       <span>Awakening</span>
-                    </div>
+                    </button>
                   </div>
-                  <div className="adversary-class-mode-track" aria-label={`${selectedClass.name} mode split: ${classStats.succession} Succession and ${classStats.awakening} Awakening`}>
-                    <div
-                      className="adversary-class-mode-fill is-succession"
+                  <div
+                    className="adversary-class-mode-track"
+                    aria-label={`${selectedClass.name} mode split: ${combinedClassStats.succession} Succession and ${combinedClassStats.awakening} Awakening`}
+                  >
+                    <button
+                      type="button"
+                      aria-label={`Show ${selectedClass.name} Succession statistics`}
+                      aria-pressed={selectedClassMode === 'Succession'}
+                      className={`adversary-class-mode-fill is-succession ${
+                        selectedClassMode === 'Succession' ? 'is-selected' : ''
+                      }`}
                       style={{ width: `${successionModeShare}%` }}
+                      onClick={() => setSelectedClassMode('Succession')}
                     />
-                    <div
-                      className="adversary-class-mode-fill is-awakening"
+                    <button
+                      type="button"
+                      aria-label={`Show ${selectedClass.name} Awakening statistics`}
+                      aria-pressed={selectedClassMode === 'Awakening'}
+                      className={`adversary-class-mode-fill is-awakening ${
+                        selectedClassMode === 'Awakening' ? 'is-selected' : ''
+                      }`}
                       style={{ width: `${awakeningModeShare}%` }}
+                      onClick={() => setSelectedClassMode('Awakening')}
                     />
-                    <div className="adversary-class-mode-clash">VS</div>
+                    <button
+                      type="button"
+                      className="adversary-class-mode-clash"
+                      aria-label="Show combined class statistics"
+                      title="Show combined statistics"
+                      onClick={() => setSelectedClassMode(null)}
+                    >
+                      {selectedClassMode ? 'ALL' : 'VS'}
+                    </button>
                   </div>
                 </div>
 
@@ -4764,6 +5131,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-200">
                         Class Overall Performance
+                        {selectedClassMode ? ` · ${selectedClassMode}` : ''}
                       </h3>
                     </div>
                     <span className="rounded-full border border-slate-700/55 bg-slate-900/72 px-3 py-1 text-xs font-bold text-slate-400">
@@ -4860,7 +5228,69 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                           </header>
 
                           <div className="adversary-class-player-metrics">
-                            {CLASS_STATS_DISPLAY_METRICS.map(({ key, label, rgb }) => {
+                            {CLASS_PLAYER_METRIC_LAYOUT.map((metric) => {
+                              if (metric.combined) {
+                                const combinedMetrics = CLASS_STATS_METRICS.filter(
+                                  ({ key }) =>
+                                    ['killStreak', 'killFeed'].includes(key),
+                                );
+
+                                return (
+                                  <div
+                                    key={metric.key}
+                                    className="adversary-class-player-metric is-combined-feed"
+                                    style={{ '--metric-rgb': metric.rgb }}
+                                  >
+                                    {combinedMetrics.map((combinedMetric) => {
+                                      const hasValue =
+                                        player.metricWarCounts[combinedMetric.key] > 0;
+                                      const overall = player.totals[combinedMetric.key];
+                                      const average = player.averages[combinedMetric.key];
+                                      const best = player.best[combinedMetric.key];
+
+                                      return (
+                                        <div
+                                          key={combinedMetric.key}
+                                          className="adversary-class-combined-feed-row"
+                                          style={{ '--combined-metric-rgb': combinedMetric.rgb }}
+                                        >
+                                          <span className="adversary-class-combined-feed-label">
+                                            {combinedMetric.label}
+                                          </span>
+                                          <div className="adversary-class-combined-feed-values">
+                                            <span>
+                                              <small>Overall</small>
+                                              <strong>
+                                                {hasValue
+                                                  ? formatClassStatNumber(overall, 0)
+                                                  : '—'}
+                                              </strong>
+                                            </span>
+                                            <span>
+                                              <small>Average</small>
+                                              <strong>
+                                                {hasValue
+                                                  ? formatClassStatNumber(average, 2)
+                                                  : '—'}
+                                              </strong>
+                                            </span>
+                                            <span>
+                                              <small>Best</small>
+                                              <strong>
+                                                {hasValue
+                                                  ? formatClassStatNumber(best, 0)
+                                                  : '—'}
+                                              </strong>
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              }
+
+                              const { key, label, rgb } = metric;
                               const isKd = key === 'kd';
                               const hasValue = isKd
                                 ? player.kdWarCount > 0
