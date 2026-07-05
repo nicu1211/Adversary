@@ -850,7 +850,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-sidebar-class-orbs {
     position: absolute;
     inset: 0;
-    z-index: 0;
+    z-index: 20;
     overflow: hidden;
     pointer-events: none;
   }
@@ -914,6 +914,7 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-sidebar-class-orb {
     position: relative;
+    pointer-events: none;
     display: block;
     width: 100%;
     height: 100%;
@@ -2577,7 +2578,11 @@ function SidebarClassOrbs({ members = [] }) {
             className={`adversary-sidebar-class-orb-shell ${orb.className}`}
             title={orb.name}
             aria-label={`Open ${orb.name} class distribution`}
-            onClick={() => setSelectedClass(orb)}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedClass(orb);
+            }}
             style={{
               '--orb-size': `${orb.size}px`,
               '--orb-opacity': orb.opacity,
@@ -3576,11 +3581,11 @@ export default function App() {
         <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <SidebarClassOrbs members={members} />
 
-          <h1 className="relative z-10 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
+          <h1 className="pointer-events-none relative z-30 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
             Adversary
           </h1>
 
-          <nav className="relative z-10 flex-1">
+          <nav className="pointer-events-none relative z-30 flex-1">
             {menu
               .filter(([id]) => id !== 'raw')
               .map(([id, title]) => {
@@ -3591,7 +3596,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => openPage(id)}
-                      className={`adversary-menu-button relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
+                      className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
                         isMenuActive(id) ? 'is-active' : ''
                       }`}
                       style={{
@@ -3619,7 +3624,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => openPage('nodewars')}
-                          className={`adversary-menu-button relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
+                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
                             page === 'nodewars' ? 'is-active' : ''
                           }`}
                           style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
@@ -3630,7 +3635,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={openOverviewFromMenu}
-                          className={`adversary-menu-button relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
+                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
                             page === 'overview' ? 'is-active' : ''
                           }`}
                           style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
@@ -3644,11 +3649,11 @@ export default function App() {
               })}
           </nav>
 
-          <div className="relative z-10 pt-4">
+          <div className="pointer-events-none relative z-30 pt-4">
             <button
               type="button"
               onClick={() => openPage('raw')}
-              className={`adversary-menu-button relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
+              className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
                 isMenuActive('raw') ? 'is-active' : ''
               }`}
               style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
