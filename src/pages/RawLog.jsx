@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Calendar, DeletePopup, Panel } from "../components/UI";
 import {
   dateOf,
+  parseClassRows,
   parseLog,
   parseSecondaryRows,
   scrollCls,
@@ -10,6 +11,8 @@ import {
 
 const SECONDARY_LOG_START = "===== ADVERSARY_SECONDARY_LOG_START =====";
 const SECONDARY_LOG_END = "===== ADVERSARY_SECONDARY_LOG_END =====";
+const CLASS_LOG_START = "===== ADVERSARY_CLASS_LOG_START =====";
+const CLASS_LOG_END = "===== ADVERSARY_CLASS_LOG_END =====";
 
 function cleanText(text) {
   return String(text || "")
@@ -24,46 +27,60 @@ function countLines(text) {
     .filter((line) => line.trim()).length;
 }
 
-function hasSecondaryLog(rawLog) {
+function extractMarkedSection(rawLog, startMarker, endMarker) {
   const text = String(rawLog || "");
+  const startIndex = text.indexOf(startMarker);
+  const endIndex = text.indexOf(endMarker, startIndex + startMarker.length);
 
-  return text.includes(SECONDARY_LOG_START) && text.includes(SECONDARY_LOG_END);
+  if (startIndex < 0 || endIndex < 0) return "";
+
+  return text.slice(startIndex + startMarker.length, endIndex).trim();
 }
 
 function getMainLogOnly(rawLog) {
   const text = String(rawLog || "");
+  const markerIndexes = [
+    text.indexOf(SECONDARY_LOG_START),
+    text.indexOf(CLASS_LOG_START),
+  ].filter((index) => index >= 0);
+  const firstMarkerIndex = markerIndexes.length
+    ? Math.min(...markerIndexes)
+    : text.length;
 
-  if (!hasSecondaryLog(text)) {
-    return text;
-  }
-
-  return text.split(SECONDARY_LOG_START)[0].trim();
+  return text.slice(0, firstMarkerIndex).trim();
 }
 
 function getSecondaryLog(rawLog) {
-  const text = String(rawLog || "");
-
-  if (!hasSecondaryLog(text)) {
-    return "";
-  }
-
-  const afterStart = text.split(SECONDARY_LOG_START)[1] || "";
-  const secondary = afterStart.split(SECONDARY_LOG_END)[0] || "";
-
-  return secondary.trim();
+  return extractMarkedSection(
+    rawLog,
+    SECONDARY_LOG_START,
+    SECONDARY_LOG_END,
+  );
 }
 
-function buildCombinedRawLog(mainRaw, secondaryRaw) {
+function getClassLog(rawLog) {
+  return extractMarkedSection(rawLog, CLASS_LOG_START, CLASS_LOG_END);
+}
+
+function buildCombinedRawLog(mainRaw, secondaryRaw, classRaw) {
+  const sections = [];
   const cleanMain = cleanText(mainRaw);
   const cleanSecondary = cleanText(secondaryRaw);
+  const cleanClass = cleanText(classRaw);
 
-  if (!cleanSecondary) {
-    return cleanMain;
+  if (cleanMain) sections.push(cleanMain);
+
+  if (cleanSecondary) {
+    sections.push(
+      [SECONDARY_LOG_START, cleanSecondary, SECONDARY_LOG_END].join("\n"),
+    );
   }
 
-  return [cleanMain, "", SECONDARY_LOG_START, cleanSecondary, SECONDARY_LOG_END]
-    .filter((item) => item !== "")
-    .join("\n");
+  if (cleanClass) {
+    sections.push([CLASS_LOG_START, cleanClass, CLASS_LOG_END].join("\n"));
+  }
+
+  return sections.join("\n\n");
 }
 
 function getParsedEntries(raw, name, date) {
@@ -78,12 +95,15 @@ function getSavedLogStats(log) {
   const raw = String(log?.raw || "");
   const mainRaw = getMainLogOnly(raw);
   const secondaryRaw = getSecondaryLog(raw);
+  const classRaw = getClassLog(raw);
 
   return {
     mainRaw,
     secondaryRaw,
+    classRaw,
     mainLines: countLines(mainRaw),
     secondaryLines: countLines(secondaryRaw),
+    classLines: countLines(classRaw),
   };
 }
 
@@ -245,6 +265,7 @@ export default function RawLog({
   deleteLog,
 }) {
   const [secondaryRaw, setSecondaryRaw] = useState("");
+  const [classRaw, setClassRaw] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
 
@@ -264,8 +285,8 @@ export default function RawLog({
   const mainRawOnly = useMemo(() => getMainLogOnly(raw), [raw]);
 
   const combinedPreview = useMemo(
-    () => buildCombinedRawLog(mainRawOnly, secondaryRaw),
-    [mainRawOnly, secondaryRaw],
+    () => buildCombinedRawLog(mainRawOnly, secondaryRaw, classRaw),
+    [mainRawOnly, secondaryRaw, classRaw],
   );
 
   const mainLines = useMemo(() => countLines(mainRawOnly), [mainRawOnly]);
@@ -273,10 +294,12 @@ export default function RawLog({
     () => countLines(secondaryRaw),
     [secondaryRaw],
   );
+  const classLines = useMemo(() => countLines(classRaw), [classRaw]);
   const secondaryRows = useMemo(
     () => parseSecondaryRows(secondaryRaw),
     [secondaryRaw],
   );
+  const classRows = useMemo(() => parseClassRows(classRaw), [classRaw]);
   const secondaryTotals = useMemo(
     () => getSecondaryTotals(secondaryRows),
     [secondaryRows],
@@ -301,10 +324,11 @@ export default function RawLog({
   async function handleSave() {
     if (!canSave) return;
 
-    const cleanSecondary = cleanText(secondaryRaw);
-    const rawToSave = cleanSecondary
-      ? buildCombinedRawLog(mainRawOnly, cleanSecondary)
-      : mainRawOnly;
+    const rawToSave = buildCombinedRawLog(
+      mainRawOnly,
+      secondaryRaw,
+      classRaw,
+    );
 
     try {
       setSaving(true);
@@ -327,13 +351,19 @@ export default function RawLog({
     setSecondaryRaw("");
   }
 
+  function clearClassRaw() {
+    setClassRaw("");
+  }
+
   function loadSavedLogIntoEditor(log) {
     const savedMain = getMainLogOnly(log.raw);
     const savedSecondary = getSecondaryLog(log.raw);
+    const savedClass = getClassLog(log.raw);
 
     setDate(dateOf(log));
     setRaw(savedMain);
     setSecondaryRaw(savedSecondary);
+    setClassRaw(savedClass);
     setEditingLogId(log.id);
 
     window.scrollTo({
@@ -439,7 +469,7 @@ export default function RawLog({
               </p>
             )}
 
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-4 xl:grid-cols-3">
               <div>
                 <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-900 p-4">
                   <span className="block text-sm font-black text-white">
@@ -578,9 +608,58 @@ export default function RawLog({
                   </p>
                 )}
               </div>
+
+              <div>
+                <div className="mb-4 rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4">
+                  <span className="block text-sm font-black text-violet-100">
+                    Class Log
+                  </span>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-violet-100">
+                      Lines: {classLines}
+                    </span>
+
+                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-violet-100">
+                      Players: {classRows.length}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-400">
+                    Class Log
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={clearClassRaw}
+                    disabled={!classRaw}
+                    className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-bold text-slate-300 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                <textarea
+                  value={classRaw}
+                  onChange={(event) => setClassRaw(event.target.value)}
+                  placeholder={
+                    "Player            Class        Mode\nDevilKittenSins   Maegu        Succession\nHamsti            Corsair      Awakening"
+                  }
+                  className="h-96 w-full rounded-2xl border border-violet-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-violet-400"
+                />
+
+                {classRaw.trim() && (
+                  <p className="mt-2 text-xs text-violet-200/80">
+                    Parsed {classRows.length} valid player assignment{classRows.length === 1 ? "" : "s"}.
+                    Succession spelling mistakes such as “Succesion” are accepted automatically.
+                  </p>
+                )}
+              </div>
             </div>
 
-            {secondaryRaw.trim() && (
+            {(secondaryRaw.trim() || classRaw.trim()) && (
               <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-slate-950 p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
@@ -588,7 +667,7 @@ export default function RawLog({
                   </p>
 
                   <p className="text-xs text-slate-400">
-                    La Save se salvează ce ai completat: Combat Log + Stats Log sau doar Stats Log.
+                    Save stores Combat Log, Stats Log and Class Log together in the same war.
                   </p>
                 </div>
 
@@ -629,7 +708,10 @@ export default function RawLog({
                           {dateOf(log)}
                           {log.localOnly ? " · local only" : ""}
                           {savedStats.secondaryRaw
-                            ? ` · secondary ${savedStats.secondaryLines} lines`
+                            ? ` · stats ${savedStats.secondaryLines} lines`
+                            : ""}
+                          {savedStats.classRaw
+                            ? ` · classes ${savedStats.classLines} lines`
                             : ""}
                         </p>
                       </div>
@@ -645,6 +727,20 @@ export default function RawLog({
                           className={`mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400 ${scrollCls}`}
                         >
                           {savedStats.secondaryRaw}
+                        </pre>
+                      </details>
+                    )}
+
+                    {savedStats.classRaw && (
+                      <details className="mt-3 rounded-lg border border-violet-500/20 bg-slate-950 p-2">
+                        <summary className="cursor-pointer text-xs font-bold text-violet-200">
+                          View class log
+                        </summary>
+
+                        <pre
+                          className={`mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400 ${scrollCls}`}
+                        >
+                          {savedStats.classRaw}
                         </pre>
                       </details>
                     )}
