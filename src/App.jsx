@@ -58,6 +58,7 @@ import {
   readStorage,
   today,
 } from './lib/logUtils';
+import { GUILD_ROSTER } from './lib/guildRoster';
 
 const Overview = lazy(() => import('./pages/Overview'));
 const PlayerStats = lazy(() => import('./pages/PlayerStats'));
@@ -2187,7 +2188,12 @@ const CLASS_STATS_METRICS = Object.freeze([
 ]);
 
 function normalizeRosterPlayerKey(value) {
-  return String(value || '').trim().toLocaleLowerCase();
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function formatClassStatNumber(value, maximumFractionDigits = 0) {
@@ -2199,6 +2205,52 @@ function formatClassStatNumber(value, maximumFractionDigits = 0) {
     maximumFractionDigits,
     minimumFractionDigits: maximumFractionDigits,
   }).format(number);
+}
+
+function classRowsForLog(log) {
+  const directRows = [
+    log?.classRows,
+    log?.classes,
+    log?.summary?.classRows,
+    log?.summary?.classes,
+  ]
+    .filter(Array.isArray)
+    .flat()
+    .map((row) => ({
+      player: row?.player || row?.name || row?.playerName || '',
+      className: normalizeClassName(
+        row?.className || row?.class || row?.characterClass,
+      ),
+      mode:
+        String(row?.mode || '').toLowerCase().startsWith('awak')
+          ? 'Awakening'
+          : 'Succession',
+    }))
+    .filter((row) => row.player && row.className);
+
+  const rawSources = [
+    log?.raw,
+    log?.classRaw,
+    log?.classLog,
+    log?.class_log,
+    log?.summary?.classRaw,
+    log?.summary?.classLog,
+  ].filter((value) => typeof value === 'string' && value.trim());
+
+  const parsedRows = rawSources.flatMap((source) => parseClassRows(source));
+  const seen = new Set();
+
+  return [...directRows, ...parsedRows].filter((row) => {
+    const key = [
+      normalizeRosterPlayerKey(row.player),
+      normalizeClassName(row.className || row.class),
+      row.mode === 'Awakening' ? 'Awakening' : 'Succession',
+    ].join('@@');
+
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function classStatsDateValue(log) {
@@ -2250,7 +2302,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     const rosterMap = new Map();
     const rosterPlayers = [];
 
-    (Array.isArray(members) ? members : []).forEach((member, index) => {
+    GUILD_ROSTER.forEach((member, index) => {
       const name = memberDisplayName(member, index);
       const key = normalizeRosterPlayerKey(name);
 
@@ -2266,7 +2318,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     startDate.setDate(startDate.getDate() - (CLASS_STATS_WINDOW_DAYS - 1));
     const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    const recentLogs = (Array.isArray(logs) ? logs : []).filter((log) => {
+    const availableLogs = (Array.isArray(logs) ? logs : []).filter(Boolean);
+    const recentLogs = availableLogs.filter((log) => {
       const logDate = classStatsDateValue(log);
       return logDate && logDate >= startDate && logDate < endDate;
     });
@@ -2289,11 +2342,10 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       return classRecords.get(className);
     };
 
-    recentLogs.forEach((log, logIndex) => {
-      if (!log?.raw) return;
-
+    availableLogs.forEach((log, logIndex) => {
       const logDate = classStatsDateValue(log);
       const logDateValue = logDate?.getTime?.() || 0;
+      const isRecent = Boolean(logDate && logDate >= startDate && logDate < endDate);
       const logId = String(log.id ?? log.apiId ?? logIndex);
       const perWarStats = calculateStats([
         {
@@ -2309,7 +2361,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       );
       const seenAssignments = new Set();
 
-      parseClassRows(log.raw).forEach((row) => {
+      classRowsForLog(log).forEach((row) => {
         const playerKey = normalizeRosterPlayerKey(row.player);
         const rosterPlayer = rosterMap.get(playerKey);
         const className = normalizeClassName(row.className || row.class);
@@ -2366,19 +2418,21 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
           });
         }
 
-        if (!usageByRosterPlayer.has(playerKey)) {
-          usageByRosterPlayer.set(playerKey, new Map());
-        }
+        if (isRecent) {
+          if (!usageByRosterPlayer.has(playerKey)) {
+            usageByRosterPlayer.set(playerKey, new Map());
+          }
 
-        const playerUsage = usageByRosterPlayer.get(playerKey);
-        const previousUsage = playerUsage.get(className) || {
-          className,
-          wars: 0,
-          latest: 0,
-        };
-        previousUsage.wars += 1;
-        previousUsage.latest = Math.max(previousUsage.latest, logDateValue);
-        playerUsage.set(className, previousUsage);
+          const playerUsage = usageByRosterPlayer.get(playerKey);
+          const previousUsage = playerUsage.get(className) || {
+            className,
+            wars: 0,
+            latest: 0,
+          };
+          previousUsage.wars += 1;
+          previousUsage.latest = Math.max(previousUsage.latest, logDateValue);
+          playerUsage.set(className, previousUsage);
+        }
       });
     });
 
@@ -2503,6 +2557,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     return {
       rosterSize: rosterPlayers.length,
       recentWarCount: recentLogs.length,
+      classLogCount: availableLogs.filter((log) => classRowsForLog(log).length > 0).length,
       startDate,
       endDate,
       byClass: Object.fromEntries(classBreakdown.map((entry) => [entry.name, entry])),
@@ -2511,7 +2566,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       assignedPlayers,
       unassignedPlayers,
     };
-  }, [members, logs]);
+  }, [logs]);
 
   const classStats = useMemo(() => {
     if (!selectedClass) {
@@ -2551,7 +2606,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
       try {
         setLoadingClassLogs(true);
-        await loadLogs();
+        await loadLogs(true);
       } finally {
         setLoadingClassLogs(false);
       }
@@ -2997,7 +3052,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
               <select
                 id="adversary-class-selection"
                 className="adversary-class-modal-select"
-                value={selectedClass.id}
+                value={classModalView === 'overall' ? '' : selectedClass.id}
                 onChange={(event) => {
                   const nextClass = SIDEBAR_CLASS_ORBS.find(
                     (orb) => orb.id === event.target.value,
@@ -3009,22 +3064,15 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   }
                 }}
               >
+                <option value="" disabled>
+                  Select class
+                </option>
                 {SIDEBAR_CLASS_ORBS.map((orb) => (
                   <option key={orb.id} value={orb.id}>
                     {orb.name}
                   </option>
                 ))}
               </select>
-
-              <button
-                type="button"
-                className={`adversary-class-modal-tab ${
-                  classModalView === 'class' ? 'is-active' : ''
-                }`}
-                onClick={() => setClassModalView('class')}
-              >
-                Class Selection
-              </button>
 
               <button
                 type="button"
@@ -3138,7 +3186,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   />
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
-                      Last {CLASS_STATS_WINDOW_DAYS} days · Guild Roster only
+                      All Class Logs · Guild Roster only
                     </p>
                     <h2
                       id="adversary-class-modal-title"
@@ -3298,7 +3346,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                     <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
                       {loadingClassLogs
                         ? 'Loading class history...'
-                        : `No Guild Roster players were assigned to ${selectedClass.name} in a Class Log during the last ${CLASS_STATS_WINDOW_DAYS} days.`}
+                        : `No Guild Roster players were assigned to ${selectedClass.name} in any saved Class Log.`}
                     </div>
                   )}
                 </div>
@@ -3734,20 +3782,26 @@ export default function App() {
     }
   }, []);
 
-  const loadAllLogs = useCallback(async () => {
+  const loadAllLogs = useCallback(async (forceRefresh = false) => {
     const allLogsAlreadyLoadedWithRaw =
       Array.isArray(allLogs) &&
       allLogs.length > 0 &&
       allLogs.every((log) => Boolean(log.raw));
 
-    if (allLogsAlreadyLoadedWithRaw) {
+    if (!forceRefresh && allLogsAlreadyLoadedWithRaw) {
       return allLogs;
     }
 
     try {
       setLoadingAllLogs(true);
 
-      const data = await apiGet(logsPath({ range: 'all', includeRaw: 1 }));
+      const data = await apiGet(
+        logsPath({
+          range: 'all',
+          includeRaw: 1,
+          refresh: forceRefresh ? Date.now() : null,
+        }),
+      );
       const normalized = normalizeLogs(data);
 
       setAllLogs(normalized);
