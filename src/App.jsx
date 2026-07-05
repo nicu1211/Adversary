@@ -1097,7 +1097,7 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     width: min(1600px, 97vw);
     max-width: calc(100vw - 20px);
-    max-height: 86vh;
+    max-height: 92vh;
     overflow-x: hidden;
     overflow-y: auto;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
@@ -1167,14 +1167,17 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-modal-content {
+    position: relative;
+    left: 5.55%;
     width: 111.111%;
-    zoom: 0.9;
+    zoom: 0.81;
   }
 
   @supports not (zoom: 1) {
     .adversary-class-modal-content {
+      left: 5.55%;
       width: 111.111%;
-      transform: scale(0.9);
+      transform: scale(0.81);
       transform-origin: top left;
     }
   }
@@ -1752,6 +1755,55 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-top-summary .adversary-class-summary-card {
     border-color: rgba(var(--class-rgb, 250, 204, 21), 0.22);
+  }
+
+
+  .adversary-class-top-summary {
+    width: 85%;
+    justify-self: end;
+    grid-template-columns: 96px minmax(0, 1fr) !important;
+    gap: 5px !important;
+    padding: 6px !important;
+  }
+
+  .adversary-class-top-summary .adversary-class-pie {
+    width: 90px;
+    height: 90px;
+  }
+
+  .adversary-class-top-summary .adversary-class-pie::before {
+    inset: 12px;
+  }
+
+  .adversary-class-top-summary .adversary-class-summary-card {
+    padding: 6px 8px;
+  }
+
+  .adversary-class-overall-row {
+    display: grid !important;
+    grid-template-columns: 40px minmax(128px, 190px) auto;
+    justify-content: start;
+    column-gap: 8px !important;
+  }
+
+  .adversary-class-overall-row .adversary-class-overall-name {
+    min-width: 0;
+  }
+
+  @media (max-width: 1100px) {
+    .adversary-class-top-summary {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .adversary-class-top-summary {
+      grid-template-columns: 84px minmax(0, 1fr) !important;
+    }
+
+    .adversary-class-overall-row {
+      grid-template-columns: 36px minmax(105px, 1fr) auto;
+    }
   }
 
   .adversary-class-player-cards {
@@ -4190,7 +4242,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                             key={slice.id}
                             type="button"
                             disabled={!slice.orb}
-                            className="flex w-full items-center gap-2.5 rounded-[14px] border border-slate-700/45 bg-slate-900/55 p-2.5 text-left transition hover:border-slate-500/70 disabled:cursor-default disabled:hover:border-slate-700/45"
+                            className="adversary-class-overall-row w-full rounded-[14px] border border-slate-700/45 bg-slate-900/55 p-2.5 text-left transition hover:border-slate-500/70 disabled:cursor-default disabled:hover:border-slate-700/45"
                             onClick={() => {
                               if (!slice.orb) return;
                               setSelectedClass(slice.orb);
@@ -4210,7 +4262,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                                 style={{ background: slice.color }}
                               />
                             )}
-                            <span className="min-w-0 flex-1">
+                            <span className="adversary-class-overall-name">
                               <span className="block truncate font-black text-slate-100">
                                 {slice.name}
                               </span>
