@@ -1087,20 +1087,22 @@ const GLOBAL_PANEL_CSS = `
     z-index: 20000;
     display: grid;
     place-items: center;
-    padding: 20px;
-    background: rgba(2, 6, 23, 0.78);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+    padding: 12px;
+    background: rgba(2, 6, 23, 0.84);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
   }
 
   .adversary-class-modal {
     position: relative;
-    width: min(1120px, 96vw);
-    max-height: min(760px, 90vh);
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    max-width: none;
+    max-height: none;
     overflow: auto;
-    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
-    border-radius: 28px;
-    padding: 24px;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.46);
+    border-radius: 26px;
+    padding: 32px 38px 38px;
     color: #e2e8f0;
     background:
       radial-gradient(circle at 12% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.15), transparent 38%),
@@ -1131,8 +1133,8 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-modal-orb {
-    width: 92px;
-    height: 92px;
+    width: 112px;
+    height: 112px;
     object-fit: contain;
     filter: drop-shadow(0 0 20px rgba(var(--class-rgb, 250, 204, 21), 0.42));
   }
@@ -1140,8 +1142,8 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie {
     position: relative;
     display: grid;
-    width: 180px;
-    height: 180px;
+    width: 205px;
+    height: 205px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -1191,11 +1193,19 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-modal-toolbar {
+    position: sticky;
+    top: -32px;
+    z-index: 30;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-    padding-right: 48px;
+    margin: -32px -38px 0;
+    padding: 22px 86px 18px 38px;
+    border-bottom: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.20);
+    background: linear-gradient(180deg, rgba(2, 6, 23, 0.99), rgba(8, 15, 30, 0.96));
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(14px);
   }
 
   .adversary-class-modal-select {
@@ -1440,7 +1450,7 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-player-cards {
     display: grid;
-    max-height: 430px;
+    max-height: 560px;
     gap: 12px;
     overflow: auto;
     padding: 2px 4px 6px 2px;
@@ -1521,8 +1531,14 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-player-kd {
     display: flex;
     flex: 0 0 auto;
+    min-width: 86px;
     flex-direction: column;
     align-items: end;
+    border: 1px solid rgba(52, 211, 153, 0.20);
+    border-radius: 14px;
+    padding: 8px 10px;
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.10), rgba(2, 6, 23, 0.36));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
   }
 
   .adversary-class-player-kd span {
@@ -1534,11 +1550,11 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-player-kd strong {
-    color: rgb(var(--class-rgb, 250, 204, 21));
+    color: #34d399;
     font-size: 24px;
     font-weight: 1000;
     line-height: 1.05;
-    text-shadow: 0 0 16px rgba(var(--class-rgb, 250, 204, 21), 0.22);
+    text-shadow: 0 0 16px rgba(52, 211, 153, 0.24);
   }
 
   .adversary-class-player-metrics {
@@ -1551,17 +1567,33 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-player-metric {
+    position: relative;
     min-width: 125px;
-    border: 1px solid rgba(148, 163, 184, 0.10);
+    overflow: hidden;
+    border: 1px solid rgba(var(--metric-rgb, 148, 163, 184), 0.42);
     border-radius: 14px;
-    padding: 10px;
-    background: rgba(2, 6, 23, 0.44);
+    padding: 11px;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(var(--metric-rgb, 148, 163, 184), 0.34), transparent 52%),
+      linear-gradient(145deg, rgba(var(--metric-rgb, 148, 163, 184), 0.18), rgba(2, 6, 23, 0.76) 68%);
+    box-shadow:
+      0 0 22px rgba(var(--metric-rgb, 148, 163, 184), 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .adversary-class-player-metric::after {
+    content: '';
+    position: absolute;
+    inset-x: 10px;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--metric-rgb, 148, 163, 184), 0.72), transparent);
   }
 
   .adversary-class-player-metric-label {
     display: block;
     overflow: hidden;
-    color: #64748b;
+    color: rgba(var(--metric-rgb, 148, 163, 184), 0.88);
     font-size: 8px;
     font-weight: 900;
     text-overflow: ellipsis;
@@ -1573,7 +1605,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-player-metric > strong {
     display: block;
     margin-top: 3px;
-    color: #f8fafc;
+    color: rgb(var(--metric-rgb, 248, 250, 252));
     font-size: 17px;
     font-weight: 1000;
   }
@@ -1589,11 +1621,140 @@ const GLOBAL_PANEL_CSS = `
     white-space: nowrap;
   }
 
+  .adversary-class-overall-panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.34);
+    border-radius: 24px;
+    padding: 22px;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.20), transparent 38%),
+      linear-gradient(145deg, rgba(13, 24, 46, 0.94), rgba(2, 6, 23, 0.92));
+    box-shadow:
+      0 18px 46px rgba(0, 0, 0, 0.28),
+      0 0 34px rgba(var(--class-rgb, 250, 204, 21), 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .adversary-class-overall-panel::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgb(var(--class-rgb, 250, 204, 21)), transparent);
+  }
+
+  .adversary-class-overall-panel-title {
+    color: rgb(var(--class-rgb, 250, 204, 21));
+    font-size: 17px;
+    font-weight: 1000;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px rgba(var(--class-rgb, 250, 204, 21), 0.28);
+  }
+
+  .adversary-class-overall-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .adversary-class-overall-stat-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(var(--metric-rgb, 148, 163, 184), 0.48);
+    border-radius: 18px;
+    padding: 16px;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(var(--metric-rgb, 148, 163, 184), 0.38), transparent 56%),
+      linear-gradient(145deg, rgba(var(--metric-rgb, 148, 163, 184), 0.16), rgba(2, 6, 23, 0.86) 72%);
+    box-shadow:
+      0 14px 30px rgba(0, 0, 0, 0.24),
+      0 0 24px rgba(var(--metric-rgb, 148, 163, 184), 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .adversary-class-overall-stat-card::after {
+    content: '';
+    position: absolute;
+    inset-x: 14px;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgb(var(--metric-rgb, 148, 163, 184)), transparent);
+    opacity: 0.78;
+  }
+
+  .adversary-class-overall-stat-label {
+    display: block;
+    overflow: hidden;
+    color: rgba(var(--metric-rgb, 148, 163, 184), 0.92);
+    font-size: 9px;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+  }
+
+  .adversary-class-overall-stat-value {
+    display: block;
+    margin-top: 6px;
+    color: #fff;
+    font-size: 30px;
+    font-weight: 1000;
+    line-height: 1.05;
+    text-shadow: 0 0 16px rgba(var(--metric-rgb, 148, 163, 184), 0.20);
+  }
+
+  .adversary-class-overall-stat-detail {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 5px 10px;
+    margin-top: 7px;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 800;
+  }
+
+  @media (max-width: 1100px) {
+    .adversary-class-overall-stats-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .adversary-class-modal-backdrop {
+      padding: 8px;
+    }
+
+    .adversary-class-modal {
+      width: calc(100vw - 12px);
+      height: calc(100vh - 12px);
+      max-height: none;
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .adversary-class-modal-toolbar {
+      top: -18px;
+      margin: -18px -18px 0;
+      padding: 16px 58px 14px 18px;
+    }
+
+    .adversary-class-overall-stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .adversary-class-overall-pie {
     position: relative;
     display: grid;
-    width: 230px;
-    height: 230px;
+    width: 270px;
+    height: 270px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -2551,13 +2712,13 @@ function memberClassEntries(member) {
 
 const CLASS_STATS_WINDOW_DAYS = 30;
 const CLASS_STATS_METRICS = Object.freeze([
-  { key: 'kills', label: 'Kills' },
-  { key: 'deaths', label: 'Deaths' },
-  { key: 'killFeed', label: 'Kill Feed' },
-  { key: 'damageDealt', label: 'Damage Dealt' },
-  { key: 'damageTaken', label: 'Damage Taken' },
-  { key: 'ccHits', label: 'CC Hits' },
-  { key: 'fortDamage', label: 'Fort Damage' },
+  { key: 'kills', label: 'Kills', rgb: '96, 165, 250' },
+  { key: 'deaths', label: 'Deaths', rgb: '251, 113, 133' },
+  { key: 'killFeed', label: 'Kill Feed', rgb: '251, 146, 60' },
+  { key: 'damageDealt', label: 'Damage Dealt', rgb: '34, 211, 238' },
+  { key: 'damageTaken', label: 'Damage Taken', rgb: '244, 114, 182' },
+  { key: 'ccHits', label: 'CC Hits', rgb: '167, 139, 250' },
+  { key: 'fortDamage', label: 'Fort Damage', rgb: '251, 191, 36' },
 ]);
 
 function normalizeRosterPlayerKey(value) {
@@ -2868,6 +3029,23 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             metricWarCounts[key] > 0 ? totals[key] / metricWarCounts[key] : null,
           ]),
         ),
+        best: Object.fromEntries(
+          CLASS_STATS_METRICS.map(({ key }) => [
+            key,
+            players.reduce((bestValue, player) => {
+              const value = Number(player.best[key]);
+              if (!Number.isFinite(value)) return bestValue;
+              return bestValue == null ? value : Math.max(bestValue, value);
+            }, null),
+          ]),
+        ),
+        metricWarCounts,
+        kd:
+          totals.deaths > 0
+            ? totals.kills / totals.deaths
+            : totals.kills > 0
+              ? totals.kills
+              : null,
       };
     });
 
@@ -2947,6 +3125,9 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         awakening: 0,
         totals: {},
         averages: {},
+        best: {},
+        metricWarCounts: {},
+        kd: null,
       };
     }
 
@@ -3394,6 +3575,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     };
   }, []);
 
+  // Class analytics popup: full-screen layout + colored class-overall performance panel.
   const classModal = selectedClass && typeof document !== 'undefined'
     ? createPortal(
         <div
@@ -3652,8 +3834,61 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="mt-6">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <section className="adversary-class-overall-panel mt-6">
+                  <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <h3 className="adversary-class-overall-panel-title">
+                        {selectedClass.name} Class Overall Performance
+                      </h3>
+                      <p className="mt-2 text-sm font-semibold text-slate-400">
+                        Combined class totals, per-war averages and best single-war values from every matched Guild Roster player.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-emerald-300/35 bg-emerald-400/[0.12] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-emerald-200 shadow-[0_0_18px_rgba(52,211,153,0.12)]">
+                      {classStats.appearances} class {classStats.appearances === 1 ? 'appearance' : 'appearances'}
+                    </span>
+                  </div>
+
+                  <div className="adversary-class-overall-stats-grid">
+                    <div
+                      className="adversary-class-overall-stat-card"
+                      style={{ '--metric-rgb': '52, 211, 153' }}
+                    >
+                      <span className="adversary-class-overall-stat-label">Overall K/D</span>
+                      <strong className="adversary-class-overall-stat-value">
+                        {classStats.kd == null ? '—' : formatClassStatNumber(classStats.kd, 2)}
+                      </strong>
+                      <span className="adversary-class-overall-stat-detail">
+                        <span>{formatClassStatNumber(classStats.totals.kills)} kills</span>
+                        <span>{formatClassStatNumber(classStats.totals.deaths)} deaths</span>
+                      </span>
+                    </div>
+
+                    {CLASS_STATS_METRICS.map(({ key, label, rgb }) => {
+                      const hasValue = (classStats.metricWarCounts?.[key] || 0) > 0;
+
+                      return (
+                        <div
+                          key={key}
+                          className="adversary-class-overall-stat-card"
+                          style={{ '--metric-rgb': rgb }}
+                        >
+                          <span className="adversary-class-overall-stat-label">{label}</span>
+                          <strong className="adversary-class-overall-stat-value">
+                            {hasValue ? formatClassStatNumber(classStats.totals[key]) : '—'}
+                          </strong>
+                          <span className="adversary-class-overall-stat-detail">
+                            <span>Avg {hasValue ? formatClassStatNumber(classStats.averages[key], 2) : '—'}</span>
+                            <span>Best {hasValue ? formatClassStatNumber(classStats.best[key]) : '—'}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <div className="mt-7">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
                         {selectedClass.name} player statistics
@@ -3694,11 +3929,15 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                           </header>
 
                           <div className="adversary-class-player-metrics">
-                            {CLASS_STATS_METRICS.map(({ key, label }) => {
+                            {CLASS_STATS_METRICS.map(({ key, label, rgb }) => {
                               const hasValue = player.metricWarCounts[key] > 0;
 
                               return (
-                                <div key={key} className="adversary-class-player-metric">
+                                <div
+                                  key={key}
+                                  className="adversary-class-player-metric"
+                                  style={{ '--metric-rgb': rgb }}
+                                >
                                   <span className="adversary-class-player-metric-label">{label}</span>
                                   <strong>{hasValue ? formatClassStatNumber(player.totals[key]) : '—'}</strong>
                                   <span className="adversary-class-player-metric-detail">
