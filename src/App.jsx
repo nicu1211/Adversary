@@ -1299,6 +1299,296 @@ const GLOBAL_PANEL_CSS = `
     font-weight: 700;
   }
 
+  .adversary-class-mode-tug {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.24);
+    border-radius: 20px;
+    padding: 15px 16px 16px;
+    background:
+      radial-gradient(circle at 50% 100%, rgba(var(--class-rgb, 250, 204, 21), 0.10), transparent 58%),
+      linear-gradient(135deg, rgba(8, 15, 30, 0.95), rgba(2, 6, 23, 0.86));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 14px 38px rgba(0, 0, 0, 0.20);
+  }
+
+  .adversary-class-mode-tug::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.055), transparent 42%, transparent 58%, rgba(244, 63, 94, 0.055));
+  }
+
+  .adversary-class-mode-tug-labels {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 11px;
+  }
+
+  .adversary-class-mode-label {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .adversary-class-mode-label strong {
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .adversary-class-mode-label small {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+
+  .adversary-class-mode-label.is-succession {
+    color: #67e8f9;
+  }
+
+  .adversary-class-mode-label.is-succession small {
+    color: #64748b;
+  }
+
+  .adversary-class-mode-label.is-awakening {
+    justify-content: flex-end;
+    color: #fda4af;
+    text-align: right;
+  }
+
+  .adversary-class-mode-label.is-awakening small {
+    color: #64748b;
+  }
+
+  .adversary-class-mode-track {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.82);
+    box-shadow: inset 0 2px 9px rgba(0, 0, 0, 0.52);
+  }
+
+  .adversary-class-mode-fill {
+    height: 100%;
+    min-width: 0;
+    transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .adversary-class-mode-fill.is-succession {
+    background: linear-gradient(90deg, #0891b2, #22d3ee, #67e8f9);
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.42);
+  }
+
+  .adversary-class-mode-fill.is-awakening {
+    background: linear-gradient(90deg, #fb7185, #f43f5e, #be123c);
+    box-shadow: 0 0 20px rgba(244, 63, 94, 0.42);
+  }
+
+  .adversary-class-mode-clash {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 2px solid rgba(255, 255, 255, 0.82);
+    border-radius: 999px;
+    color: #fff;
+    background: radial-gradient(circle, rgb(var(--class-rgb, 250, 204, 21)), #0f172a 72%);
+    box-shadow: 0 0 18px rgba(var(--class-rgb, 250, 204, 21), 0.48), 0 0 0 5px rgba(2, 6, 23, 0.78);
+    font-size: 9px;
+    font-weight: 1000;
+    letter-spacing: 0.05em;
+    transform: translate(-50%, -50%);
+  }
+
+  .adversary-class-summary-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
+    border-radius: 18px;
+    padding: 17px;
+    background:
+      linear-gradient(135deg, rgba(var(--class-rgb, 250, 204, 21), 0.075), transparent 56%),
+      rgba(15, 23, 42, 0.62);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  }
+
+  .adversary-class-summary-card::after {
+    content: '';
+    position: absolute;
+    inset-x: 16px;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--class-rgb, 250, 204, 21), 0.5), transparent);
+  }
+
+  .adversary-class-player-cards {
+    display: grid;
+    max-height: 430px;
+    gap: 12px;
+    overflow: auto;
+    padding: 2px 4px 6px 2px;
+  }
+
+  .adversary-class-player-stat-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 20px;
+    padding: 15px;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.085), transparent 34%),
+      linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(4, 10, 22, 0.86));
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .adversary-class-player-stat-card:hover {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.36);
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.30), 0 0 24px rgba(var(--class-rgb, 250, 204, 21), 0.075);
+    transform: translateY(-1px);
+  }
+
+  .adversary-class-player-stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.10);
+  }
+
+  .adversary-class-player-rank {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.28);
+    border-radius: 11px;
+    color: rgb(var(--class-rgb, 250, 204, 21));
+    background: rgba(var(--class-rgb, 250, 204, 21), 0.08);
+    font-size: 10px;
+    font-weight: 1000;
+  }
+
+  .adversary-class-player-war-pill,
+  .adversary-class-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .adversary-class-player-war-pill {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.72);
+  }
+
+  .adversary-class-mode-pill.is-succession {
+    border: 1px solid rgba(34, 211, 238, 0.24);
+    color: #a5f3fc;
+    background: rgba(6, 182, 212, 0.10);
+  }
+
+  .adversary-class-mode-pill.is-awakening {
+    border: 1px solid rgba(244, 63, 94, 0.24);
+    color: #fecdd3;
+    background: rgba(244, 63, 94, 0.10);
+  }
+
+  .adversary-class-player-kd {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: end;
+  }
+
+  .adversary-class-player-kd span {
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  .adversary-class-player-kd strong {
+    color: rgb(var(--class-rgb, 250, 204, 21));
+    font-size: 24px;
+    font-weight: 1000;
+    line-height: 1.05;
+    text-shadow: 0 0 16px rgba(var(--class-rgb, 250, 204, 21), 0.22);
+  }
+
+  .adversary-class-player-metrics {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(125px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .adversary-class-player-metric {
+    min-width: 125px;
+    border: 1px solid rgba(148, 163, 184, 0.10);
+    border-radius: 14px;
+    padding: 10px;
+    background: rgba(2, 6, 23, 0.44);
+  }
+
+  .adversary-class-player-metric-label {
+    display: block;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 8px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    white-space: nowrap;
+  }
+
+  .adversary-class-player-metric > strong {
+    display: block;
+    margin-top: 3px;
+    color: #f8fafc;
+    font-size: 17px;
+    font-weight: 1000;
+  }
+
+  .adversary-class-player-metric-detail {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 8px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
   .adversary-class-overall-pie {
     position: relative;
     display: grid;
@@ -2351,7 +2641,8 @@ function buildOverallClassGradient(slices) {
   let cursor = 0;
   const stops = visible.map((slice) => {
     const start = cursor;
-    cursor += slice.percentage;
+    const slicePercentage = Number(slice.piePercentage ?? slice.percentage) || 0;
+    cursor += slicePercentage;
     return `${slice.color} ${start.toFixed(4)}% ${Math.min(100, cursor).toFixed(4)}%`;
   });
 
@@ -2580,62 +2871,56 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       };
     });
 
-    const primaryClassCounts = new Map();
+    const overallClassPlayerCounts = new Map();
+    let playersWithRecentClassData = 0;
 
     rosterPlayers.forEach((rosterPlayer) => {
       const usages = [...(usageByRosterPlayer.get(rosterPlayer.key)?.values() || [])];
 
-      usages.sort(
-        (first, second) =>
-          second.wars - first.wars ||
-          second.latest - first.latest ||
-          first.className.localeCompare(second.className),
-      );
+      if (!usages.length) return;
+      playersWithRecentClassData += 1;
 
-      const primary = usages[0];
-      if (!primary) return;
-
-      primaryClassCounts.set(
-        primary.className,
-        (primaryClassCounts.get(primary.className) || 0) + 1,
-      );
+      // A roster player contributes once to every different class they played
+      // during the 30-day window, rather than only to their most-played class.
+      usages.forEach((usage) => {
+        overallClassPlayerCounts.set(
+          usage.className,
+          (overallClassPlayerCounts.get(usage.className) || 0) + 1,
+        );
+      });
     });
 
+    const overallClassPlayerCount = [...overallClassPlayerCounts.values()].reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+
     const overallSlices = classBreakdown
-      .map((classEntry) => ({
-        id: classEntry.id,
-        name: classEntry.name,
-        count: primaryClassCounts.get(classEntry.name) || 0,
-        percentage:
-          rosterPlayers.length > 0
-            ? ((primaryClassCounts.get(classEntry.name) || 0) / rosterPlayers.length) * 100
-            : 0,
-        color: `rgb(${classEntry.glow || '250, 204, 21'})`,
-        orb: classEntry,
-      }))
+      .map((classEntry) => {
+        const count = overallClassPlayerCounts.get(classEntry.name) || 0;
+
+        return {
+          id: classEntry.id,
+          name: classEntry.name,
+          count,
+          // Displayed percentage answers: what percentage of the full Guild Roster
+          // played this class. Because players may use multiple classes, these shares
+          // can overlap and do not need to add up to 100%.
+          percentage:
+            rosterPlayers.length > 0 ? (count / rosterPlayers.length) * 100 : 0,
+          // The pie geometry uses unique player-class selections so its slices form
+          // one valid 100% circle while still including every class a player used.
+          piePercentage:
+            overallClassPlayerCount > 0 ? (count / overallClassPlayerCount) * 100 : 0,
+          color: `rgb(${classEntry.glow || '250, 204, 21'})`,
+          orb: classEntry,
+        };
+      })
       .filter((slice) => slice.count > 0)
       .sort(
         (first, second) =>
           second.count - first.count || first.name.localeCompare(second.name),
       );
-
-    const assignedPlayers = [...primaryClassCounts.values()].reduce(
-      (sum, count) => sum + count,
-      0,
-    );
-    const unassignedPlayers = Math.max(0, rosterPlayers.length - assignedPlayers);
-
-    if (unassignedPlayers > 0) {
-      overallSlices.push({
-        id: 'unassigned',
-        name: 'Unassigned',
-        count: unassignedPlayers,
-        percentage:
-          rosterPlayers.length > 0 ? (unassignedPlayers / rosterPlayers.length) * 100 : 0,
-        color: 'rgb(71, 85, 105)',
-        orb: null,
-      });
-    }
 
     return {
       rosterSize: rosterPlayers.length,
@@ -2646,8 +2931,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       byClass: Object.fromEntries(classBreakdown.map((entry) => [entry.name, entry])),
       overallSlices,
       overallGradient: buildOverallClassGradient(overallSlices),
-      assignedPlayers,
-      unassignedPlayers,
+      overallClassPlayerCount,
+      playersWithRecentClassData,
     };
   }, [logs]);
 
@@ -2679,6 +2964,12 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       }
     );
   }, [classAnalytics, selectedClass]);
+
+  const classModeTotal = classStats.succession + classStats.awakening;
+  const successionModeShare =
+    classModeTotal > 0 ? (classStats.succession / classModeTotal) * 100 : 50;
+  const awakeningModeShare =
+    classModeTotal > 0 ? (classStats.awakening / classModeTotal) * 100 : 50;
 
   const openClassDetails = useCallback(
     async (orb) => {
@@ -3182,7 +3473,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       Guild Class Overall
                     </h2>
                     <p className="mt-2 max-w-3xl text-sm text-slate-400">
-                      Every roster member is counted once using the class they played in the most wars during the last {CLASS_STATS_WINDOW_DAYS} days. Ties use their most recent class.
+                      Every roster player appears in every different class they used during the last {CLASS_STATS_WINDOW_DAYS} days. Each player is counted once per class, and classes with no recorded players are hidden.
                     </p>
                   </div>
                 </div>
@@ -3196,10 +3487,13 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                     >
                       <div className="adversary-class-pie-value">
                         <div className="text-4xl font-black text-white">
-                          {classAnalytics.rosterSize}
+                          {classAnalytics.overallClassPlayerCount}
                         </div>
                         <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                          Roster players
+                          Player-class picks
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold text-slate-500">
+                          {classAnalytics.playersWithRecentClassData} roster players
                         </div>
                       </div>
                     </div>
@@ -3243,8 +3537,13 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                               {slice.count} {slice.count === 1 ? 'player' : 'players'}
                             </span>
                           </span>
-                          <span className="text-xl font-black text-white">
-                            {slice.percentage.toFixed(2)}%
+                          <span className="text-right">
+                            <span className="block text-xl font-black text-white">
+                              {slice.percentage.toFixed(2)}%
+                            </span>
+                            <span className="block text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                              of roster
+                            </span>
                           </span>
                         </button>
                       ))
@@ -3280,12 +3579,38 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[210px_1fr]">
+                <div className="adversary-class-mode-tug mt-6">
+                  <div className="adversary-class-mode-tug-labels">
+                    <div className="adversary-class-mode-label is-succession">
+                      <span>Succession</span>
+                      <strong>{classStats.succession}</strong>
+                      <small>{classModeTotal > 0 ? `${successionModeShare.toFixed(2)}%` : 'No data'}</small>
+                    </div>
+                    <div className="adversary-class-mode-label is-awakening">
+                      <small>{classModeTotal > 0 ? `${awakeningModeShare.toFixed(2)}%` : 'No data'}</small>
+                      <strong>{classStats.awakening}</strong>
+                      <span>Awakening</span>
+                    </div>
+                  </div>
+                  <div className="adversary-class-mode-track" aria-label={`${selectedClass.name} mode split: ${classStats.succession} Succession and ${classStats.awakening} Awakening`}>
+                    <div
+                      className="adversary-class-mode-fill is-succession"
+                      style={{ width: `${successionModeShare}%` }}
+                    />
+                    <div
+                      className="adversary-class-mode-fill is-awakening"
+                      style={{ width: `${awakeningModeShare}%` }}
+                    />
+                    <div className="adversary-class-mode-clash">VS</div>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[210px_1fr]">
                   <div className="flex items-center justify-center">
                     <div
                       className="adversary-class-pie"
                       style={{ '--class-share': Math.min(100, classStats.share) }}
-                      aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} during the last 30 days`}
+                      aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} in saved Class Logs`}
                     >
                       <div className="adversary-class-pie-value">
                         <div className="text-3xl font-black text-white">
@@ -3298,50 +3623,30 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                     </div>
                   </div>
 
-                  <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-700/45 bg-slate-900/56 p-4">
+                  <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                    <div className="adversary-class-summary-card">
                       <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                         Players
                       </div>
-                      <div className="mt-1 text-2xl font-black text-white">
+                      <div className="mt-1 text-3xl font-black text-white">
                         {classStats.playerCount}
                         <span className="ml-2 text-sm font-bold text-slate-400">
                           of {classAnalytics.rosterSize}
                         </span>
                       </div>
+                      <div className="mt-2 text-[11px] font-bold text-slate-500">
+                        Guild Roster players with this class in saved logs
+                      </div>
                     </div>
-                    <div className="rounded-2xl border border-slate-700/45 bg-slate-900/56 p-4">
+                    <div className="adversary-class-summary-card">
                       <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                         Class appearances
                       </div>
-                      <div className="mt-1 text-2xl font-black text-white">
+                      <div className="mt-1 text-3xl font-black text-white">
                         {classStats.appearances}
                       </div>
-                    </div>
-                    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                      <div className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">
-                        Succession
-                      </div>
-                      <div className="mt-1 text-2xl font-black text-white">
-                        {classStats.succession}
-                        <span className="ml-2 text-xs font-bold text-slate-400">
-                          {classStats.appearances > 0
-                            ? `${((classStats.succession / classStats.appearances) * 100).toFixed(2)}%`
-                            : '0.00%'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4">
-                      <div className="text-xs font-black uppercase tracking-[0.16em] text-rose-200">
-                        Awakening
-                      </div>
-                      <div className="mt-1 text-2xl font-black text-white">
-                        {classStats.awakening}
-                        <span className="ml-2 text-xs font-bold text-slate-400">
-                          {classStats.appearances > 0
-                            ? `${((classStats.awakening / classStats.appearances) * 100).toFixed(2)}%`
-                            : '0.00%'}
-                        </span>
+                      <div className="mt-2 text-[11px] font-bold text-slate-500">
+                        Total Node Wars assigned to {selectedClass.name}
                       </div>
                     </div>
                   </div>
@@ -3363,67 +3668,49 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
 
                   {classStats.players.length > 0 ? (
-                    <div className="adversary-class-stats-table-wrap">
-                      <table className="adversary-class-stats-table">
-                        <thead>
-                          <tr>
-                            <th>Player</th>
-                            <th>Wars / Mode</th>
-                            <th>Kills</th>
-                            <th>Deaths</th>
-                            <th>K/D</th>
-                            <th>Kill Feed</th>
-                            <th>Damage Dealt</th>
-                            <th>Damage Taken</th>
-                            <th>CC Hits</th>
-                            <th>Fort Damage</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {classStats.players.map((player) => (
-                            <tr key={player.key}>
-                              <td>
-                                <span className="font-black text-slate-100">{player.name}</span>
-                              </td>
-                              <td>
-                                <span className="font-black text-white">{player.wars}</span>
-                                <span className="adversary-class-stat-average">
-                                  S {player.succession} · A {player.awakening}
-                                </span>
-                              </td>
-                              <td>
-                                {player.metricWarCounts.kills > 0
-                                  ? formatClassStatNumber(player.totals.kills)
-                                  : '—'}
-                                <span className="adversary-class-stat-average">
-                                  avg {formatClassStatNumber(player.averages.kills, 2)} · best {formatClassStatNumber(player.best.kills)}
-                                </span>
-                              </td>
-                              <td>
-                                {player.metricWarCounts.deaths > 0
-                                  ? formatClassStatNumber(player.totals.deaths)
-                                  : '—'}
-                                <span className="adversary-class-stat-average">
-                                  avg {formatClassStatNumber(player.averages.deaths, 2)} · best {formatClassStatNumber(player.best.deaths)}
-                                </span>
-                              </td>
-                              <td>{formatClassStatNumber(player.kd, 2)}</td>
-                              {['killFeed', 'damageDealt', 'damageTaken', 'ccHits', 'fortDamage'].map(
-                                (metricKey) => (
-                                  <td key={metricKey}>
-                                    {player.metricWarCounts[metricKey] > 0
-                                      ? formatClassStatNumber(player.totals[metricKey])
-                                      : '—'}
-                                    <span className="adversary-class-stat-average">
-                                      avg {formatClassStatNumber(player.averages[metricKey], 2)} · best {formatClassStatNumber(player.best[metricKey])}
-                                    </span>
-                                  </td>
-                                ),
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="adversary-class-player-cards">
+                      {classStats.players.map((player, playerIndex) => (
+                        <article key={player.key} className="adversary-class-player-stat-card">
+                          <header className="adversary-class-player-stat-header">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className="adversary-class-player-rank">#{playerIndex + 1}</span>
+                              <div className="min-w-0">
+                                <h4 className="truncate text-base font-black text-white">{player.name}</h4>
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  <span className="adversary-class-player-war-pill">{player.wars} {player.wars === 1 ? 'war' : 'wars'}</span>
+                                  {player.succession > 0 && (
+                                    <span className="adversary-class-mode-pill is-succession">S {player.succession}</span>
+                                  )}
+                                  {player.awakening > 0 && (
+                                    <span className="adversary-class-mode-pill is-awakening">A {player.awakening}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="adversary-class-player-kd">
+                              <span>K/D</span>
+                              <strong>{formatClassStatNumber(player.kd, 2)}</strong>
+                            </div>
+                          </header>
+
+                          <div className="adversary-class-player-metrics">
+                            {CLASS_STATS_METRICS.map(({ key, label }) => {
+                              const hasValue = player.metricWarCounts[key] > 0;
+
+                              return (
+                                <div key={key} className="adversary-class-player-metric">
+                                  <span className="adversary-class-player-metric-label">{label}</span>
+                                  <strong>{hasValue ? formatClassStatNumber(player.totals[key]) : '—'}</strong>
+                                  <span className="adversary-class-player-metric-detail">
+                                    <span>Avg {hasValue ? formatClassStatNumber(player.averages[key], 2) : '—'}</span>
+                                    <span>Best {hasValue ? formatClassStatNumber(player.best[key]) : '—'}</span>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </article>
+                      ))}
                     </div>
                   ) : (
                     <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
