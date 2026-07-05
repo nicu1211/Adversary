@@ -1108,6 +1108,60 @@ const GLOBAL_PANEL_CSS = `
     box-shadow:
       0 28px 90px rgba(0, 0, 0, 0.65),
       0 0 40px rgba(var(--class-rgb, 250, 204, 21), 0.13);
+    scrollbar-gutter: stable;
+  }
+
+  .adversary-class-modal,
+  .adversary-class-player-cards,
+  .adversary-class-player-list,
+  .adversary-class-stats-table-wrap {
+    scrollbar-width: thin;
+    scrollbar-color:
+      rgba(var(--class-rgb, 250, 204, 21), 0.72)
+      rgba(15, 23, 42, 0.52);
+  }
+
+  .adversary-class-modal::-webkit-scrollbar,
+  .adversary-class-player-cards::-webkit-scrollbar,
+  .adversary-class-player-list::-webkit-scrollbar,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .adversary-class-modal::-webkit-scrollbar-track,
+  .adversary-class-player-cards::-webkit-scrollbar-track,
+  .adversary-class-player-list::-webkit-scrollbar-track,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.48);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+  }
+
+  .adversary-class-modal::-webkit-scrollbar-thumb,
+  .adversary-class-player-cards::-webkit-scrollbar-thumb,
+  .adversary-class-player-list::-webkit-scrollbar-thumb,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar-thumb {
+    min-height: 42px;
+    border: 2px solid rgba(15, 23, 42, 0.72);
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      rgba(var(--class-rgb, 250, 204, 21), 0.92),
+      rgba(var(--class-rgb, 250, 204, 21), 0.48)
+    );
+    box-shadow: 0 0 12px rgba(var(--class-rgb, 250, 204, 21), 0.20);
+  }
+
+  .adversary-class-modal::-webkit-scrollbar-thumb:hover,
+  .adversary-class-player-cards::-webkit-scrollbar-thumb:hover,
+  .adversary-class-player-list::-webkit-scrollbar-thumb:hover,
+  .adversary-class-stats-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      rgb(var(--class-rgb, 250, 204, 21)),
+      rgba(var(--class-rgb, 250, 204, 21), 0.68)
+    );
   }
 
   .adversary-class-modal-close {
@@ -1140,8 +1194,8 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie {
     position: relative;
     display: grid;
-    width: 180px;
-    height: 180px;
+    width: 150px;
+    height: 150px;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 999px;
@@ -1157,7 +1211,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-pie::before {
     content: '';
     position: absolute;
-    inset: 24px;
+    inset: 20px;
     border-radius: inherit;
     background: rgba(2, 6, 23, 0.96);
     box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.72);
@@ -1303,8 +1357,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.24);
-    border-radius: 20px;
-    padding: 15px 16px 16px;
+    border-radius: 17px;
+    padding: 12px 14px 13px;
     background:
       radial-gradient(circle at 50% 100%, rgba(var(--class-rgb, 250, 204, 21), 0.10), transparent 58%),
       linear-gradient(135deg, rgba(8, 15, 30, 0.95), rgba(2, 6, 23, 0.86));
@@ -1325,8 +1379,8 @@ const GLOBAL_PANEL_CSS = `
     display: flex;
     align-items: end;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 11px;
+    gap: 12px;
+    margin-bottom: 8px;
   }
 
   .adversary-class-mode-label {
@@ -1374,7 +1428,7 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     z-index: 1;
     display: flex;
-    height: 22px;
+    height: 19px;
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 999px;
@@ -1403,8 +1457,8 @@ const GLOBAL_PANEL_CSS = `
     left: 50%;
     top: 50%;
     display: grid;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     place-items: center;
     border: 2px solid rgba(255, 255, 255, 0.82);
     border-radius: 999px;
@@ -1421,8 +1475,8 @@ const GLOBAL_PANEL_CSS = `
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
-    border-radius: 16px;
-    padding: 13px;
+    border-radius: 14px;
+    padding: 10px 11px;
     background:
       linear-gradient(135deg, rgba(var(--class-rgb, 250, 204, 21), 0.075), transparent 56%),
       rgba(15, 23, 42, 0.62);
@@ -1542,7 +1596,7 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-overall-performance {
-    margin-top: 18px;
+    margin-top: 12px;
     border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.18);
     border-radius: 18px;
     padding: 14px;
@@ -1587,7 +1641,7 @@ const GLOBAL_PANEL_CSS = `
     display: block;
     overflow: hidden;
     color: rgb(var(--metric-rgb));
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 1000;
     text-overflow: ellipsis;
     text-transform: uppercase;
@@ -1622,8 +1676,8 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-class-metric-value span {
-    color: #64748b;
-    font-size: 7px;
+    color: #7c8aa0;
+    font-size: 8px;
     font-weight: 1000;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -1633,7 +1687,7 @@ const GLOBAL_PANEL_CSS = `
     max-width: 100%;
     overflow: hidden;
     color: #f8fafc;
-    font-size: 14px;
+    font-size: 17px;
     font-weight: 1000;
     line-height: 1.05;
     text-overflow: ellipsis;
@@ -3725,8 +3779,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                 </div>
               </div>
             ) : (
-              <div className="mt-6">
-                <div className="flex items-center gap-4">
+              <div className="mt-4">
+                <div className="flex items-center gap-3">
                   <img
                     src={selectedClass.src}
                     alt=""
@@ -3746,7 +3800,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="adversary-class-mode-tug mt-6">
+                <div className="adversary-class-mode-tug mt-4">
                   <div className="adversary-class-mode-tug-labels">
                     <div className="adversary-class-mode-label is-succession">
                       <span>Succession</span>
@@ -3772,7 +3826,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 lg:grid-cols-[210px_1fr]">
+                <div className="mt-3 grid gap-3 rounded-[18px] border border-slate-700/55 bg-slate-950/48 p-3 lg:grid-cols-[170px_1fr]">
                   <div className="flex items-center justify-center">
                     <div
                       className="adversary-class-pie"
@@ -3780,7 +3834,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       aria-label={`${classStats.share.toFixed(2)} percent of the Guild Roster played ${selectedClass.name} in saved Class Logs`}
                     >
                       <div className="adversary-class-pie-value">
-                        <div className="text-3xl font-black text-white">
+                        <div className="text-2xl font-black text-white">
                           {classStats.share.toFixed(2)}%
                         </div>
                         <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
@@ -3790,12 +3844,12 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                     </div>
                   </div>
 
-                  <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                  <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                     <div className="adversary-class-summary-card">
                       <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                         Players
                       </div>
-                      <div className="mt-1 text-3xl font-black text-white">
+                      <div className="mt-1 text-2xl font-black text-white">
                         {classStats.playerCount}
                         <span className="ml-2 text-sm font-bold text-slate-400">
                           of {classAnalytics.rosterSize}
@@ -3809,7 +3863,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                         Class appearances
                       </div>
-                      <div className="mt-1 text-3xl font-black text-white">
+                      <div className="mt-1 text-2xl font-black text-white">
                         {classStats.appearances}
                       </div>
                       <div className="mt-2 text-[11px] font-bold text-slate-500">
@@ -3879,7 +3933,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                   </div>
                 </section>
 
-                <div className="mt-6">
+                <div className="mt-4">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
