@@ -1168,25 +1168,24 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-modal-content {
     position: relative;
-    left: 5.55%;
-    width: 111.111%;
-    zoom: 0.81;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: clip;
   }
 
-  @supports not (zoom: 1) {
+  @supports not (overflow: clip) {
     .adversary-class-modal-content {
-      left: 5.55%;
-      width: 111.111%;
-      transform: scale(0.81);
-      transform-origin: top left;
+      overflow-x: hidden;
     }
   }
 
   .adversary-class-overall-dashboard {
     display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+    grid-template-columns: max-content minmax(420px, 1fr);
+    align-items: start;
     gap: 14px;
-    margin-top: 16px;
+    margin-top: 10px;
   }
 
   .adversary-class-overall-distribution,
@@ -1200,9 +1199,16 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-overall-distribution {
     display: grid;
-    grid-template-columns: 205px minmax(0, 1fr);
-    gap: 14px;
-    padding: 14px;
+    grid-template-columns: 170px 278px;
+    width: max-content;
+    max-width: 100%;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .adversary-class-overall-list {
+    width: 278px;
+    max-width: 100%;
   }
 
   .adversary-class-rankings-panel {
@@ -1399,13 +1405,19 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-class-overall-distribution {
-      grid-template-columns: 190px minmax(0, 1fr);
+      grid-template-columns: 150px 278px;
+      justify-self: start;
     }
   }
 
   @media (max-width: 720px) {
     .adversary-class-overall-distribution {
+      width: 100%;
       grid-template-columns: 1fr;
+    }
+
+    .adversary-class-overall-list {
+      width: 100%;
     }
 
     .adversary-class-ranking-row {
@@ -1781,9 +1793,11 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-overall-row {
     display: grid !important;
-    grid-template-columns: 40px minmax(128px, 190px) auto;
+    width: 278px !important;
+    max-width: 100%;
+    grid-template-columns: 40px 150px 72px;
     justify-content: start;
-    column-gap: 8px !important;
+    column-gap: 6px !important;
   }
 
   .adversary-class-overall-row .adversary-class-overall-name {
@@ -1802,7 +1816,8 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-class-overall-row {
-      grid-template-columns: 36px minmax(105px, 1fr) auto;
+      width: 100% !important;
+      grid-template-columns: 36px minmax(105px, 1fr) 68px;
     }
   }
 
@@ -3173,7 +3188,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const [classModalView, setClassModalView] = useState('class');
   const [classRankingMetric, setClassRankingMetric] = useState('kills');
   const [classRankingSort, setClassRankingSort] = useState({
-    key: 'overall',
+    key: 'average',
     direction: 'desc',
   });
 
@@ -4200,7 +4215,10 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                 className={`adversary-class-modal-tab ${
                   classModalView === 'overall' ? 'is-active' : ''
                 }`}
-                onClick={() => setClassModalView('overall')}
+                onClick={() => {
+                  setClassModalView('overall');
+                  setClassRankingSort({ key: 'average', direction: 'desc' });
+                }}
               >
                 Overall
               </button>
@@ -4219,9 +4237,6 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                     >
                       Guild Class Overall
                     </h2>
-                    <p className="mt-2 max-w-3xl text-sm text-slate-400">
-                      Every roster player appears in every different class they used during the last {CLASS_STATS_WINDOW_DAYS} days. Each player is counted once per class, and classes with no recorded players are hidden.
-                    </p>
                   </div>
                 </div>
 
@@ -4235,7 +4250,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       />
                     </div>
 
-                    <div className="max-h-[390px] space-y-1.5 overflow-auto pr-1">
+                    <div className="adversary-class-overall-list max-h-[390px] space-y-1.5 overflow-auto pr-1">
                       {classAnalytics.overallSlices.length > 0 ? (
                         classAnalytics.overallSlices.map((slice) => (
                           <button
@@ -4510,9 +4525,6 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
                       <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-200">
                         Class Overall Performance
                       </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Combined {selectedClass.name} statistics from the saved wars with matching Class Logs.
-                      </p>
                     </div>
                     <span className="rounded-full border border-slate-700/55 bg-slate-900/72 px-3 py-1 text-xs font-bold text-slate-400">
                       {classStats.appearances} class {classStats.appearances === 1 ? 'appearance' : 'appearances'}
