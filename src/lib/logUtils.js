@@ -2,6 +2,8 @@ const NL = String.fromCharCode(10);
 
 const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
 const SECONDARY_LOG_END = '===== ADVERSARY_SECONDARY_LOG_END =====';
+const CLASS_LOG_START = '===== ADVERSARY_CLASS_LOG_START =====';
+const CLASS_LOG_END = '===== ADVERSARY_CLASS_LOG_END =====';
 
 export const LOG_KEY = 'bdo_logs_v10';
 export const MEMBER_KEY = 'bdo_members_v10';
@@ -297,23 +299,33 @@ export function normalizeMembers(data) {
 }
 
 
+function extractMarkedSection(text, startMarker, endMarker) {
+  const startIndex = text.indexOf(startMarker);
+  const endIndex = text.indexOf(endMarker, startIndex + startMarker.length);
+
+  if (startIndex < 0 || endIndex < 0) return '';
+
+  return text.slice(startIndex + startMarker.length, endIndex).trim();
+}
+
 function splitRawLogSections(raw) {
   const text = String(raw || '');
-
-  if (!text.includes(SECONDARY_LOG_START) || !text.includes(SECONDARY_LOG_END)) {
-    return {
-      mainRaw: text,
-      secondaryRaw: '',
-    };
-  }
-
-  const mainRaw = text.split(SECONDARY_LOG_START)[0] || '';
-  const afterStart = text.split(SECONDARY_LOG_START)[1] || '';
-  const secondaryRaw = afterStart.split(SECONDARY_LOG_END)[0] || '';
+  const markerIndexes = [
+    text.indexOf(SECONDARY_LOG_START),
+    text.indexOf(CLASS_LOG_START),
+  ].filter((index) => index >= 0);
+  const firstMarkerIndex = markerIndexes.length
+    ? Math.min(...markerIndexes)
+    : text.length;
 
   return {
-    mainRaw: mainRaw.trim(),
-    secondaryRaw: secondaryRaw.trim(),
+    mainRaw: text.slice(0, firstMarkerIndex).trim(),
+    secondaryRaw: extractMarkedSection(
+      text,
+      SECONDARY_LOG_START,
+      SECONDARY_LOG_END,
+    ),
+    classRaw: extractMarkedSection(text, CLASS_LOG_START, CLASS_LOG_END),
   };
 }
 
@@ -548,6 +560,166 @@ export function parseSecondaryRows(raw) {
   return cleanLog(source)
     .split(NL)
     .map(parseSecondaryLine)
+    .filter(Boolean);
+}
+
+const CLASS_LOG_CLASS_NAMES = Object.freeze([
+  'Archer',
+  'Berserker',
+  'Corsair',
+  'Dark Knight',
+  'Deadeye',
+  'Dosa',
+  'Drakania',
+  'Guardian',
+  'Hashashin',
+  'Kunoichi',
+  'Lahn',
+  'Maegu',
+  'Maehwa',
+  'Musa',
+  'Mystic',
+  'Ninja',
+  'Nova',
+  'Ranger',
+  'Sage',
+  'Scholar',
+  'Seraph',
+  'Shai',
+  'Sorceress',
+  'Striker',
+  'Tamer',
+  'Valkyrie',
+  'Warrior',
+  'Witch',
+  'Wizard',
+  'Woosa',
+  'Wukong',
+]);
+
+const CLASS_LOG_CLASS_LOOKUP = Object.freeze(
+  CLASS_LOG_CLASS_NAMES.reduce(
+    (lookup, className) => {
+      lookup[className.toLowerCase().replace(/[^a-z0-9]/g, '')] = className;
+      return lookup;
+    },
+    {
+      berzerker: 'Berserker',
+      wizzard: 'Wizard',
+      darkknight: 'Dark Knight',
+    },
+  ),
+);
+
+function normalizeClassLogClass(value) {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+  return CLASS_LOG_CLASS_LOOKUP[key] || '';
+}
+
+function normalizeClassLogMode(value) {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+
+  if (key === 'awakening' || key === 'awakened' || key === 'awa') {
+    return 'Awakening';
+  }
+
+  if (
+    key === 'succession' ||
+    key === 'succesion' ||
+    key === 'sucession' ||
+    key === 'succ' ||
+    key === 'suc'
+  ) {
+    return 'Succession';
+  }
+
+  return '';
+}
+
+function parseClassLogLine(line, index) {
+  const text = String(line || '').trim();
+
+  if (!text) return null;
+
+  const normalizedHeader = text
+    .toLowerCase()
+    .replace(/[^a-z]+/g, ' ')
+    .trim();
+
+  if (
+    normalizedHeader === 'player class mode' ||
+    normalizedHeader === 'name class mode'
+  ) {
+    return null;
+  }
+
+  const columns = text
+    .split(/\t+|\s*\|\s*|\s*;\s*|\s{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (columns.length >= 3) {
+    const player = String(columns[0] || '').trim();
+    const className = normalizeClassLogClass(columns[1]);
+    const mode = normalizeClassLogMode(columns.at(-1));
+
+    if (player && className && mode) {
+      return {
+        player,
+        className,
+        class: className,
+        mode,
+        line: index + 1,
+      };
+    }
+  }
+
+  const parts = text.split(/\s+/).filter(Boolean);
+
+  if (parts.length < 3) return null;
+
+  const mode = normalizeClassLogMode(parts.at(-1));
+
+  if (!mode) return null;
+
+  for (const classWordCount of [2, 1]) {
+    const classStart = parts.length - 1 - classWordCount;
+
+    if (classStart < 1) continue;
+
+    const className = normalizeClassLogClass(
+      parts.slice(classStart, -1).join(' '),
+    );
+    const player = parts.slice(0, classStart).join(' ').trim();
+
+    if (!player || !className) continue;
+
+    return {
+      player,
+      className,
+      class: className,
+      mode,
+      line: index + 1,
+    };
+  }
+
+  return null;
+}
+
+export function parseClassRows(raw) {
+  const { classRaw } = splitRawLogSections(raw);
+  const source = classRaw || String(raw || '');
+
+  return cleanLog(source)
+    .split(NL)
+    .map(parseClassLogLine)
     .filter(Boolean);
 }
 
