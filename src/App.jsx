@@ -7,41 +7,42 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
 import adversaryEmblem from './assets/adversary-emblem.png?url';
-import classOrbRed from './assets/class-orbs/red-crossed-weapons.webp';
-import classOrbVioletOrange from './assets/class-orbs/violet-orange-staff.webp';
-import classOrbAngelDemon from './assets/class-orbs/red-white-sword.webp';
+import classOrbArcher from './assets/class-orbs/Archer.webp';
+import classOrbBerserker from './assets/class-orbs/Berserker.webp';
+import classOrbCorsair from './assets/class-orbs/Corsair.webp';
+import classOrbDarkKnight from './assets/class-orbs/DarkKnight.webp';
+import classOrbDeadeye from './assets/class-orbs/Deadeye.webp';
+import classOrbDosa from './assets/class-orbs/Dosa.webp';
+import classOrbDrakania from './assets/class-orbs/Drakania.webp';
+import classOrbGuardian from './assets/class-orbs/Guardian.webp';
+import classOrbHashashin from './assets/class-orbs/Hashashin.webp';
+import classOrbKunoichi from './assets/class-orbs/Kunoichi.webp';
+import classOrbLahn from './assets/class-orbs/Lahn.webp';
+import classOrbMaegu from './assets/class-orbs/Maegu.webp';
+import classOrbMaehwa from './assets/class-orbs/Maehwa.webp';
+import classOrbMusa from './assets/class-orbs/Musa.webp';
+import classOrbMystic from './assets/class-orbs/Mystic.webp';
+import classOrbNinja from './assets/class-orbs/Ninja.webp';
+import classOrbNova from './assets/class-orbs/Nova.webp';
+import classOrbRanger from './assets/class-orbs/Ranger.webp';
+import classOrbSage from './assets/class-orbs/Sage.webp';
+import classOrbScholar from './assets/class-orbs/Scholar.webp';
+import classOrbSeraph from './assets/class-orbs/Seraph.webp';
+import classOrbShai from './assets/class-orbs/Shai.webp';
+import classOrbSorceress from './assets/class-orbs/Sorceress.webp';
+import classOrbStriker from './assets/class-orbs/Striker.webp';
+import classOrbTamer from './assets/class-orbs/Tamer.webp';
+import classOrbValkyrie from './assets/class-orbs/Valkyrie.webp';
+import classOrbWarrior from './assets/class-orbs/Warrior.webp';
+import classOrbWitch from './assets/class-orbs/Witch.webp';
+import classOrbWizard from './assets/class-orbs/Wizard.webp';
+import classOrbWoosa from './assets/class-orbs/Woosa.webp';
+import classOrbWukong from './assets/class-orbs/Wukong.webp';
 import sidebarOrbHoverSound from './assets/class-orbs/orb-hover.mp3';
-import sidebarOrb01 from './assets/class-orbs/orb-01.webp';
-import sidebarOrb02 from './assets/class-orbs/orb-02.webp';
-import sidebarOrb03 from './assets/class-orbs/orb-03.webp';
-import sidebarOrb04 from './assets/class-orbs/orb-04.webp';
-import sidebarOrb05 from './assets/class-orbs/orb-05.webp';
-import sidebarOrb06 from './assets/class-orbs/orb-06.webp';
-import sidebarOrb07 from './assets/class-orbs/orb-07.webp';
-import sidebarOrb08 from './assets/class-orbs/orb-08.webp';
-import sidebarOrb09 from './assets/class-orbs/orb-09.webp';
-import sidebarOrb10 from './assets/class-orbs/orb-10.webp';
-import sidebarOrb11 from './assets/class-orbs/orb-11.webp';
-import sidebarOrb12 from './assets/class-orbs/orb-12.webp';
-import sidebarOrb13 from './assets/class-orbs/orb-13.webp';
-import sidebarOrb14 from './assets/class-orbs/orb-14.webp';
-import sidebarOrb15 from './assets/class-orbs/orb-15.webp';
-import sidebarOrb16 from './assets/class-orbs/orb-16.webp';
-import sidebarOrb17 from './assets/class-orbs/orb-17.webp';
-import sidebarOrb18 from './assets/class-orbs/orb-18.webp';
-import sidebarOrb19 from './assets/class-orbs/orb-19.webp';
-import sidebarOrb20 from './assets/class-orbs/orb-20.webp';
-import sidebarOrb21 from './assets/class-orbs/orb-21.webp';
-import sidebarOrb22 from './assets/class-orbs/orb-22.webp';
-import sidebarOrb23 from './assets/class-orbs/orb-23.webp';
-import sidebarOrb24 from './assets/class-orbs/orb-24.webp';
-import sidebarOrb25 from './assets/class-orbs/orb-25.webp';
-import sidebarOrb26 from './assets/class-orbs/orb-26.webp';
-import sidebarOrb27 from './assets/class-orbs/orb-27.webp';
-import sidebarOrb28 from './assets/class-orbs/orb-28.webp';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -870,7 +871,30 @@ const GLOBAL_PANEL_CSS = `
       scale(var(--orb-react-scale, 1));
     transform-origin: center;
     will-change: transform, opacity;
-    transition: opacity 150ms ease;
+    transition: opacity 150ms ease, filter 150ms ease;
+    pointer-events: auto;
+    cursor: pointer;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .adversary-sidebar-class-orb-shell:hover,
+  .adversary-sidebar-class-orb-shell:focus-visible {
+    opacity: 1;
+    filter: brightness(1.12);
+    outline: none;
+  }
+
+  .adversary-sidebar-class-orb-shell:focus-visible::after {
+    content: '';
+    position: absolute;
+    inset: 8%;
+    border-radius: 999px;
+    border: 1px solid rgba(250, 204, 21, 0.82);
+    box-shadow: 0 0 16px rgba(250, 204, 21, 0.48);
   }
 
   .adversary-sidebar-class-orb-shell::before {
@@ -915,6 +939,116 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-sidebar-class-orb-shell.is-red-silver {
     --orb-glow-rgb: 239, 68, 68;
+  }
+
+
+  .adversary-class-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(2, 6, 23, 0.78);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .adversary-class-modal {
+    position: relative;
+    width: min(560px, 94vw);
+    max-height: min(760px, 90vh);
+    overflow: auto;
+    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
+    border-radius: 28px;
+    padding: 24px;
+    color: #e2e8f0;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.15), transparent 38%),
+      linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+    box-shadow:
+      0 28px 90px rgba(0, 0, 0, 0.65),
+      0 0 40px rgba(var(--class-rgb, 250, 204, 21), 0.13);
+  }
+
+  .adversary-class-modal-close {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 12px;
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.78);
+    cursor: pointer;
+  }
+
+  .adversary-class-modal-close:hover {
+    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.50);
+    color: #fff;
+  }
+
+  .adversary-class-modal-orb {
+    width: 92px;
+    height: 92px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 20px rgba(var(--class-rgb, 250, 204, 21), 0.42));
+  }
+
+  .adversary-class-pie {
+    position: relative;
+    display: grid;
+    width: 180px;
+    height: 180px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 999px;
+    background: conic-gradient(
+      rgb(var(--class-rgb, 250, 204, 21)) calc(var(--class-share, 0) * 1%),
+      rgba(51, 65, 85, 0.72) 0
+    );
+    box-shadow:
+      inset 0 0 24px rgba(0, 0, 0, 0.32),
+      0 0 28px rgba(var(--class-rgb, 250, 204, 21), 0.16);
+  }
+
+  .adversary-class-pie::before {
+    content: '';
+    position: absolute;
+    inset: 24px;
+    border-radius: inherit;
+    background: rgba(2, 6, 23, 0.96);
+    box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.72);
+  }
+
+  .adversary-class-pie-value {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+  }
+
+  .adversary-class-player-list {
+    max-height: 250px;
+    overflow: auto;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 18px;
+    background: rgba(2, 6, 23, 0.44);
+  }
+
+  .adversary-class-player-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.10);
+  }
+
+  .adversary-class-player-row:last-child {
+    border-bottom: 0;
   }
 
   @keyframes adversary-sidebar-orb-breathe {
@@ -1046,36 +1180,6 @@ const GLOBAL_PANEL_CSS = `
 
 const SIDEBAR_ORB_HOVER_SOUND = sidebarOrbHoverSound;
 
-const SIDEBAR_EXTRA_ORB_SOURCES = Object.freeze([
-  sidebarOrb01,
-  sidebarOrb02,
-  sidebarOrb03,
-  sidebarOrb04,
-  sidebarOrb05,
-  sidebarOrb06,
-  sidebarOrb07,
-  sidebarOrb08,
-  sidebarOrb09,
-  sidebarOrb10,
-  sidebarOrb11,
-  sidebarOrb12,
-  sidebarOrb13,
-  sidebarOrb14,
-  sidebarOrb15,
-  sidebarOrb16,
-  sidebarOrb17,
-  sidebarOrb18,
-  sidebarOrb19,
-  sidebarOrb20,
-  sidebarOrb21,
-  sidebarOrb22,
-  sidebarOrb23,
-  sidebarOrb24,
-  sidebarOrb25,
-  sidebarOrb26,
-  sidebarOrb27,
-  sidebarOrb28,
-]);
 
 const PAGE_TITLES = {
   guild: 'Guild',
@@ -1091,8 +1195,9 @@ const SIDEBAR_STANDARD_CLASS_ORB_SIZE = 68;
 
 const SIDEBAR_CLASS_ORBS = Object.freeze([
   {
-    id: 'red-crossed-weapons',
-    src: classOrbRed,
+    id: 'archer',
+    name: 'Archer',
+    src: classOrbArcher,
     className: 'is-red',
     glow: '239, 68, 68',
     startX: 0.88,
@@ -1113,8 +1218,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 0.7,
   },
   {
-    id: 'violet-orange-staff',
-    src: classOrbVioletOrange,
+    id: 'berserker',
+    name: 'Berserker',
+    src: classOrbBerserker,
     className: 'is-violet-orange',
     glow: '217, 70, 239',
     startX: 0.10,
@@ -1135,8 +1241,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 3.2,
   },
   {
-    id: 'red-white-sword',
-    src: classOrbAngelDemon,
+    id: 'corsair',
+    name: 'Corsair',
+    src: classOrbCorsair,
     className: 'is-red-silver',
     glow: '239, 68, 68',
     startX: 0.53,
@@ -1157,8 +1264,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 5.4,
   },
   {
-    id: 'cyan-wave',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[0],
+    id: 'dark-knight',
+    name: 'Dark Knight',
+    src: classOrbDarkKnight,
     className: 'is-extra',
     glow: '34, 211, 238',
     startX: 0.06,
@@ -1179,8 +1287,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 0.9,
   },
   {
-    id: 'lime-bow',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[1],
+    id: 'deadeye',
+    name: 'Deadeye',
+    src: classOrbDeadeye,
     className: 'is-extra',
     glow: '163, 230, 53',
     startX: 0.72,
@@ -1201,8 +1310,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 2.27,
   },
   {
-    id: 'violet-crest',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[2],
+    id: 'dosa',
+    name: 'Dosa',
+    src: classOrbDosa,
     className: 'is-extra',
     glow: '168, 85, 247',
     startX: 0.27,
@@ -1223,8 +1333,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 3.64,
   },
   {
-    id: 'dual-red-blue',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[3],
+    id: 'drakania',
+    name: 'Drakania',
+    src: classOrbDrakania,
     className: 'is-extra',
     glow: '56, 189, 248',
     startX: 0.56,
@@ -1245,8 +1356,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 5.01,
   },
   {
-    id: 'rose-swirl',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[4],
+    id: 'guardian',
+    name: 'Guardian',
+    src: classOrbGuardian,
     className: 'is-extra',
     glow: '236, 72, 153',
     startX: 0.83,
@@ -1267,8 +1379,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 6.38,
   },
   {
-    id: 'ice-sun',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[5],
+    id: 'hashashin',
+    name: 'Hashashin',
+    src: classOrbHashashin,
     className: 'is-extra',
     glow: '125, 211, 252',
     startX: 0.13,
@@ -1289,8 +1402,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 7.75,
   },
   {
-    id: 'gold-triskelion',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[6],
+    id: 'kunoichi',
+    name: 'Kunoichi',
+    src: classOrbKunoichi,
     className: 'is-extra',
     glow: '245, 158, 11',
     startX: 0.41,
@@ -1311,8 +1425,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 9.12,
   },
   {
-    id: 'pink-lotus',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[7],
+    id: 'lahn',
+    name: 'Lahn',
+    src: classOrbLahn,
     className: 'is-extra',
     glow: '244, 114, 182',
     startX: 0.68,
@@ -1333,8 +1448,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 10.49,
   },
   {
-    id: 'red-crown',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[8],
+    id: 'maegu',
+    name: 'Maegu',
+    src: classOrbMaegu,
     className: 'is-extra',
     glow: '239, 68, 68',
     startX: 0.88,
@@ -1355,8 +1471,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 11.86,
   },
   {
-    id: 'fuchsia-star',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[9],
+    id: 'maehwa',
+    name: 'Maehwa',
+    src: classOrbMaehwa,
     className: 'is-extra',
     glow: '217, 70, 239',
     startX: 0.05,
@@ -1377,8 +1494,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 13.23,
   },
   {
-    id: 'sky-fist',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[10],
+    id: 'musa',
+    name: 'Musa',
+    src: classOrbMusa,
     className: 'is-extra',
     glow: '56, 189, 248',
     startX: 0.31,
@@ -1399,8 +1517,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 14.6,
   },
   {
-    id: 'orange-flame',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[11],
+    id: 'mystic',
+    name: 'Mystic',
+    src: classOrbMystic,
     className: 'is-extra',
     glow: '249, 115, 22',
     startX: 0.58,
@@ -1421,8 +1540,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 15.97,
   },
   {
-    id: 'ice-floral',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[12],
+    id: 'ninja',
+    name: 'Ninja',
+    src: classOrbNinja,
     className: 'is-extra',
     glow: '147, 197, 253',
     startX: 0.82,
@@ -1443,8 +1563,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 17.34,
   },
   {
-    id: 'green-arrow',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[13],
+    id: 'nova',
+    name: 'Nova',
+    src: classOrbNova,
     className: 'is-extra',
     glow: '34, 197, 94',
     startX: 0.12,
@@ -1465,8 +1586,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 18.71,
   },
   {
-    id: 'ice-emblem',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[14],
+    id: 'ranger',
+    name: 'Ranger',
+    src: classOrbRanger,
     className: 'is-extra',
     glow: '125, 211, 252',
     startX: 0.39,
@@ -1487,8 +1609,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 20.08,
   },
   {
-    id: 'red-star',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[15],
+    id: 'sage',
+    name: 'Sage',
+    src: classOrbSage,
     className: 'is-extra',
     glow: '239, 68, 68',
     startX: 0.67,
@@ -1509,8 +1632,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 21.45,
   },
   {
-    id: 'gold-cannon',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[16],
+    id: 'scholar',
+    name: 'Scholar',
+    src: classOrbScholar,
     className: 'is-extra',
     glow: '234, 179, 8',
     startX: 0.87,
@@ -1531,8 +1655,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 22.82,
   },
   {
-    id: 'amber-diamond',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[17],
+    id: 'seraph',
+    name: 'Seraph',
+    src: classOrbSeraph,
     className: 'is-extra',
     glow: '245, 158, 11',
     startX: 0.07,
@@ -1553,8 +1678,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 24.19,
   },
   {
-    id: 'red-hooks',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[18],
+    id: 'shai',
+    name: 'Shai',
+    src: classOrbShai,
     className: 'is-extra',
     glow: '239, 68, 68',
     startX: 0.34,
@@ -1575,8 +1701,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 25.56,
   },
   {
-    id: 'orange-fist',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[19],
+    id: 'sorceress',
+    name: 'Sorceress',
+    src: classOrbSorceress,
     className: 'is-extra',
     glow: '249, 115, 22',
     startX: 0.69,
@@ -1597,8 +1724,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 26.93,
   },
   {
-    id: 'emerald-bloom',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[20],
+    id: 'striker',
+    name: 'Striker',
+    src: classOrbStriker,
     className: 'is-extra',
     glow: '34, 197, 94',
     startX: 0.14,
@@ -1619,8 +1747,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 28.30,
   },
   {
-    id: 'violet-rune-star',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[21],
+    id: 'tamer',
+    name: 'Tamer',
+    src: classOrbTamer,
     className: 'is-extra',
     glow: '168, 85, 247',
     startX: 0.46,
@@ -1641,8 +1770,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 29.67,
   },
   {
-    id: 'frost-beast',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[22],
+    id: 'valkyrie',
+    name: 'Valkyrie',
+    src: classOrbValkyrie,
     className: 'is-extra',
     glow: '191, 219, 254',
     startX: 0.77,
@@ -1663,8 +1793,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 31.04,
   },
   {
-    id: 'violet-fan',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[23],
+    id: 'warrior',
+    name: 'Warrior',
+    src: classOrbWarrior,
     className: 'is-extra',
     glow: '196, 84, 255',
     startX: 0.25,
@@ -1685,8 +1816,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 32.41,
   },
   {
-    id: 'crimson-spearcrest',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[24],
+    id: 'witch',
+    name: 'Witch',
+    src: classOrbWitch,
     className: 'is-extra',
     glow: '239, 68, 68',
     startX: 0.58,
@@ -1707,8 +1839,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 33.78,
   },
   {
-    id: 'pearl-trident',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[25],
+    id: 'wizard',
+    name: 'Wizard',
+    src: classOrbWizard,
     className: 'is-extra',
     glow: '226, 232, 240',
     startX: 0.86,
@@ -1729,8 +1862,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 35.15,
   },
   {
-    id: 'aqua-swoosh',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[26],
+    id: 'woosa',
+    name: 'Woosa',
+    src: classOrbWoosa,
     className: 'is-extra',
     glow: '45, 212, 191',
     startX: 0.18,
@@ -1751,8 +1885,9 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     phase: 36.52,
   },
   {
-    id: 'amber-swoosh',
-    src: SIDEBAR_EXTRA_ORB_SOURCES[27],
+    id: 'wukong',
+    name: 'Wukong',
+    src: classOrbWukong,
     className: 'is-extra',
     glow: '251, 146, 60',
     startX: 0.81,
@@ -1772,7 +1907,6 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     pointerCarry: 0.052,
     phase: 37.89,
   },
-
 ]);
 
 const ORB_EDGE_PADDING = 7;
@@ -1783,7 +1917,80 @@ function clampOrb(value, minimum, maximum) {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
-function SidebarClassOrbs() {
+const CLASS_NAME_LOOKUP = Object.freeze(
+  SIDEBAR_CLASS_ORBS.reduce((lookup, orb) => {
+    const keys = [orb.id, orb.name]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+    keys.forEach((key) => {
+      lookup[key] = orb.name;
+    });
+
+    return lookup;
+  }, {
+    berzerker: 'Berserker',
+    wizzard: 'Wizard',
+  }),
+);
+
+function normalizeClassName(value) {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+  return CLASS_NAME_LOOKUP[key] || '';
+}
+
+function memberDisplayName(member, index) {
+  if (typeof member === 'string') return member.trim();
+
+  return String(
+    member?.name ||
+      member?.player ||
+      member?.playerName ||
+      member?.character ||
+      member?.family ||
+      `Player ${index + 1}`,
+  ).trim();
+}
+
+function memberClassEntries(member) {
+  if (!member || typeof member === 'string') return [];
+
+  const directValues = [
+    member.class,
+    member.className,
+    member.mainClass,
+    member.characterClass,
+  ];
+  const listValues = [
+    ...(Array.isArray(member.classes) ? member.classes : []),
+    ...(Array.isArray(member.classHistory) ? member.classHistory : []),
+    ...(Array.isArray(member.classUsage) ? member.classUsage : []),
+  ];
+
+  return [...directValues, ...listValues]
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return { className: normalizeClassName(entry), count: 1 };
+      }
+
+      const className = normalizeClassName(
+        entry?.class || entry?.className || entry?.name,
+      );
+      const count = Math.max(
+        1,
+        Number(entry?.wars || entry?.count || entry?.appearances || 1) || 1,
+      );
+
+      return { className, count };
+    })
+    .filter((entry) => entry.className);
+}
+
+function SidebarClassOrbs({ members = [] }) {
   const layerRef = useRef(null);
   const orbRefs = useRef([]);
   const physicsRef = useRef([]);
@@ -1797,6 +2004,56 @@ function SidebarClassOrbs() {
   const orbAudioRefs = useRef([]);
   const orbHoverStateRef = useRef([]);
   const orbLastSoundAtRef = useRef([]);
+  const [selectedClass, setSelectedClass] = useState(null);
+
+  const classStats = useMemo(() => {
+    if (!selectedClass) {
+      return { totalPlayers: 0, players: [], share: 0 };
+    }
+
+    const uniqueMembers = new Map();
+
+    (Array.isArray(members) ? members : []).forEach((member, index) => {
+      const name = memberDisplayName(member, index);
+      if (!name) return;
+
+      const key = name.toLowerCase();
+      const previous = uniqueMembers.get(key) || { name, entries: [] };
+      previous.entries.push(...memberClassEntries(member));
+      uniqueMembers.set(key, previous);
+    });
+
+    const players = [...uniqueMembers.values()]
+      .map((player) => ({
+        name: player.name,
+        wars: player.entries
+          .filter((entry) => entry.className === selectedClass.name)
+          .reduce((total, entry) => total + entry.count, 0),
+      }))
+      .filter((player) => player.wars > 0)
+      .sort((first, second) => second.wars - first.wars || first.name.localeCompare(second.name));
+    const totalPlayers = uniqueMembers.size;
+    const share = totalPlayers > 0 ? (players.length / totalPlayers) * 100 : 0;
+
+    return { totalPlayers, players, share };
+  }, [members, selectedClass]);
+
+  useEffect(() => {
+    if (!selectedClass) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setSelectedClass(null);
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [selectedClass]);
 
   useEffect(() => {
     const layer = layerRef.current;
@@ -2187,36 +2444,160 @@ function SidebarClassOrbs() {
     };
   }, []);
 
-  return (
-    <div
-      ref={layerRef}
-      aria-hidden="true"
-      className="adversary-sidebar-class-orbs"
-    >
-      {SIDEBAR_CLASS_ORBS.map((orb, index) => (
+  const classModal = selectedClass && typeof document !== 'undefined'
+    ? createPortal(
         <div
-          key={orb.id || `${orb.className}-${index}`}
-          ref={(element) => {
-            orbRefs.current[index] = element;
-          }}
-          className={`adversary-sidebar-class-orb-shell ${orb.className}`}
-          style={{
-            '--orb-size': `${orb.size}px`,
-            '--orb-opacity': orb.opacity,
-            '--orb-duration': orb.duration,
-            '--orb-delay': orb.delay,
-            '--orb-glow-rgb': orb.glow || '239, 68, 68',
+          className="adversary-class-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedClass(null);
           }}
         >
-          <img
-            src={orb.src}
-            alt=""
-            className="adversary-sidebar-class-orb"
-            draggable="false"
-          />
-        </div>
-      ))}
-    </div>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="adversary-class-modal-title"
+            className="adversary-class-modal"
+            style={{ '--class-rgb': selectedClass.glow || '250, 204, 21' }}
+          >
+            <button
+              type="button"
+              className="adversary-class-modal-close"
+              aria-label="Close class details"
+              onClick={() => setSelectedClass(null)}
+            >
+              ×
+            </button>
+
+            <div className="flex items-center gap-4 pr-12">
+              <img
+                src={selectedClass.src}
+                alt=""
+                className="adversary-class-modal-orb"
+                draggable="false"
+              />
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                  Class distribution
+                </p>
+                <h2
+                  id="adversary-class-modal-title"
+                  className="mt-1 text-3xl font-black text-white"
+                >
+                  {selectedClass.name}
+                </h2>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col items-center gap-6 rounded-[22px] border border-slate-700/55 bg-slate-950/48 p-5 sm:flex-row">
+              <div
+                className="adversary-class-pie"
+                style={{ '--class-share': Math.min(100, classStats.share) }}
+                aria-label={`${classStats.share.toFixed(2)} percent of players use ${selectedClass.name}`}
+              >
+                <div className="adversary-class-pie-value">
+                  <div className="text-3xl font-black text-white">
+                    {classStats.share.toFixed(2)}%
+                  </div>
+                  <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    Guild share
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="rounded-2xl border border-slate-700/45 bg-slate-900/56 p-4">
+                  <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+                    Players
+                  </div>
+                  <div className="mt-1 text-2xl font-black text-white">
+                    {classStats.players.length}
+                    <span className="ml-2 text-sm font-bold text-slate-400">
+                      of {classStats.totalPlayers}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ background: `rgb(${selectedClass.glow || '250, 204, 21'})` }}
+                  />
+                  {selectedClass.name}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <span className="h-3 w-3 rounded-full bg-slate-600" />
+                  Other guild players
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-slate-300">
+                  Players using {selectedClass.name}
+                </h3>
+                <span className="rounded-full border border-slate-700/55 bg-slate-900/72 px-3 py-1 text-xs font-bold text-slate-400">
+                  {classStats.players.length}
+                </span>
+              </div>
+
+              {classStats.players.length > 0 ? (
+                <div className="adversary-class-player-list">
+                  {classStats.players.map((player) => (
+                    <div key={player.name} className="adversary-class-player-row">
+                      <span className="font-bold text-slate-100">{player.name}</span>
+                      <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                        {player.wars} {player.wars === 1 ? 'war' : 'wars'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[18px] border border-dashed border-slate-700/65 bg-slate-950/42 p-5 text-center text-sm text-slate-400">
+                  No player class assignments are stored yet. The popup is ready and will calculate the chart automatically once class data is added to the guild members.
+                </div>
+              )}
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <>
+      <div ref={layerRef} className="adversary-sidebar-class-orbs">
+        {SIDEBAR_CLASS_ORBS.map((orb, index) => (
+          <button
+            type="button"
+            key={orb.id || `${orb.className}-${index}`}
+            ref={(element) => {
+              orbRefs.current[index] = element;
+            }}
+            className={`adversary-sidebar-class-orb-shell ${orb.className}`}
+            title={orb.name}
+            aria-label={`Open ${orb.name} class distribution`}
+            onClick={() => setSelectedClass(orb)}
+            style={{
+              '--orb-size': `${orb.size}px`,
+              '--orb-opacity': orb.opacity,
+              '--orb-duration': orb.duration,
+              '--orb-delay': orb.delay,
+              '--orb-glow-rgb': orb.glow || '239, 68, 68',
+            }}
+          >
+            <img
+              src={orb.src}
+              alt=""
+              aria-hidden="true"
+              className="adversary-sidebar-class-orb"
+              draggable="false"
+            />
+          </button>
+        ))}
+      </div>
+      {classModal}
+    </>
   );
 }
 
@@ -3193,7 +3574,7 @@ export default function App() {
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
-          <SidebarClassOrbs />
+          <SidebarClassOrbs members={members} />
 
           <h1 className="relative z-10 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
             Adversary
