@@ -265,7 +265,6 @@ export default function RawLog({
   deleteLog,
 }) {
   const [secondaryRaw, setSecondaryRaw] = useState("");
-  const [classRaw, setClassRaw] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
 
@@ -285,8 +284,8 @@ export default function RawLog({
   const mainRawOnly = useMemo(() => getMainLogOnly(raw), [raw]);
 
   const combinedPreview = useMemo(
-    () => buildCombinedRawLog(mainRawOnly, secondaryRaw, classRaw),
-    [mainRawOnly, secondaryRaw, classRaw],
+    () => buildCombinedRawLog(mainRawOnly, secondaryRaw, ""),
+    [mainRawOnly, secondaryRaw],
   );
 
   const mainLines = useMemo(() => countLines(mainRawOnly), [mainRawOnly]);
@@ -294,14 +293,13 @@ export default function RawLog({
     () => countLines(secondaryRaw),
     [secondaryRaw],
   );
-  const classLines = useMemo(() => countLines(classRaw), [classRaw]);
   const secondaryRows = useMemo(
     () => parseSecondaryRows(secondaryRaw),
     [secondaryRaw],
   );
   const classRows = useMemo(
-    () => parseClassRows(buildCombinedRawLog("", secondaryRaw, classRaw)),
-    [secondaryRaw, classRaw],
+    () => parseClassRows(buildCombinedRawLog("", secondaryRaw, "")),
+    [secondaryRaw],
   );
   const secondaryTotals = useMemo(
     () => getSecondaryTotals(secondaryRows),
@@ -330,7 +328,7 @@ export default function RawLog({
     const rawToSave = buildCombinedRawLog(
       mainRawOnly,
       secondaryRaw,
-      classRaw,
+      "",
     );
 
     try {
@@ -354,10 +352,6 @@ export default function RawLog({
     setSecondaryRaw("");
   }
 
-  function clearClassRaw() {
-    setClassRaw("");
-  }
-
   function loadSavedLogIntoEditor(log) {
     const savedMain = getMainLogOnly(log.raw);
     const savedSecondary = getSecondaryLog(log.raw);
@@ -365,8 +359,9 @@ export default function RawLog({
 
     setDate(dateOf(log));
     setRaw(savedMain);
-    setSecondaryRaw(savedSecondary);
-    setClassRaw(savedClass);
+    // Legacy standalone Class Log rows are migrated into the single
+    // Stats + Class editor when an older saved log is loaded.
+    setSecondaryRaw([savedSecondary, savedClass].filter(Boolean).join("\n"));
     setEditingLogId(log.id);
 
     window.scrollTo({
@@ -472,7 +467,7 @@ export default function RawLog({
               </p>
             )}
 
-            <div className="grid gap-4 xl:grid-cols-3">
+            <div className="grid gap-4 xl:grid-cols-2">
               <div>
                 <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-900 p-4">
                   <span className="block text-sm font-black text-white">
@@ -617,58 +612,9 @@ export default function RawLog({
                   </p>
                 )}
               </div>
-
-              <div>
-                <div className="mb-4 rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4">
-                  <span className="block text-sm font-black text-violet-100">
-                    Class Log
-                  </span>
-
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-violet-100">
-                      Lines: {classLines}
-                    </span>
-
-                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-violet-100">
-                      Players: {classRows.length}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-400">
-                    Class Log
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={clearClassRaw}
-                    disabled={!classRaw}
-                    className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-bold text-slate-300 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Clear
-                  </button>
-                </div>
-
-                <textarea
-                  value={classRaw}
-                  onChange={(event) => setClassRaw(event.target.value)}
-                  placeholder={
-                    "Player            Class        Mode\nDevilKittenSins   Maegu        Succession\nHamsti            Corsair      Awakening"
-                  }
-                  className="h-96 w-full rounded-2xl border border-violet-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-violet-400"
-                />
-
-                {classRaw.trim() && (
-                  <p className="mt-2 text-xs text-violet-200/80">
-                    Parsed {classRows.length} valid player assignment{classRows.length === 1 ? "" : "s"}.
-                    Succession spelling mistakes such as “Succesion” are accepted automatically.
-                  </p>
-                )}
-              </div>
             </div>
 
-            {(secondaryRaw.trim() || classRaw.trim()) && (
+            {secondaryRaw.trim() && (
               <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-slate-950 p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
@@ -676,7 +622,7 @@ export default function RawLog({
                   </p>
 
                   <p className="text-xs text-slate-400">
-                    Save supports old Stats/Class logs and the new combined Stats + Class format.
+                    Old standalone Class Log rows are accepted here and are migrated into this combined log when updated.
                   </p>
                 </div>
 
@@ -716,40 +662,25 @@ export default function RawLog({
                         <p className="mt-1 text-xs text-slate-500">
                           {dateOf(log)}
                           {log.localOnly ? " · local only" : ""}
-                          {savedStats.secondaryRaw
-                            ? ` · stats ${savedStats.secondaryLines} lines`
-                            : ""}
-                          {savedStats.classRaw
-                            ? ` · classes ${savedStats.classLines} lines`
+                          {savedStats.secondaryRaw || savedStats.classRaw
+                            ? ` · stats/class ${savedStats.secondaryLines + savedStats.classLines} lines`
                             : ""}
                         </p>
                       </div>
                     </div>
 
-                    {savedStats.secondaryRaw && (
+                    {(savedStats.secondaryRaw || savedStats.classRaw) && (
                       <details className="mt-3 rounded-lg border border-emerald-500/20 bg-slate-950 p-2">
                         <summary className="cursor-pointer text-xs font-bold text-emerald-200">
-                          View secondary log
+                          View Stats + Class log
                         </summary>
 
                         <pre
                           className={`mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400 ${scrollCls}`}
                         >
-                          {savedStats.secondaryRaw}
-                        </pre>
-                      </details>
-                    )}
-
-                    {savedStats.classRaw && (
-                      <details className="mt-3 rounded-lg border border-violet-500/20 bg-slate-950 p-2">
-                        <summary className="cursor-pointer text-xs font-bold text-violet-200">
-                          View class log
-                        </summary>
-
-                        <pre
-                          className={`mt-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400 ${scrollCls}`}
-                        >
-                          {savedStats.classRaw}
+                          {[savedStats.secondaryRaw, savedStats.classRaw]
+                            .filter(Boolean)
+                            .join("\n")}
                         </pre>
                       </details>
                     )}
