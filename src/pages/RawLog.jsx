@@ -299,7 +299,10 @@ export default function RawLog({
     () => parseSecondaryRows(secondaryRaw),
     [secondaryRaw],
   );
-  const classRows = useMemo(() => parseClassRows(classRaw), [classRaw]);
+  const classRows = useMemo(
+    () => parseClassRows(buildCombinedRawLog("", secondaryRaw, classRaw)),
+    [secondaryRaw, classRaw],
+  );
   const secondaryTotals = useMemo(
     () => getSecondaryTotals(secondaryRows),
     [secondaryRows],
@@ -520,7 +523,7 @@ export default function RawLog({
               <div>
                 <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
                   <span className="block text-sm font-black text-emerald-100">
-                    Stats log
+                    Stats + Class log
                   </span>
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -537,6 +540,10 @@ export default function RawLog({
                     </span>
 
                     <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
+                      Classes: {secondaryRows.filter((row) => row.className).length}
+                    </span>
+
+                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
                       Total: {combinedLines}
                     </span>
                   </div>
@@ -544,7 +551,7 @@ export default function RawLog({
 
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">
-                    Stats Log
+                    Stats + Class Log
                   </p>
 
                   <button
@@ -560,7 +567,9 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder=""
+                  placeholder={
+                    "Player Class Spec Kills Deaths KillStreak DamageDealt DamageTaken CCHits Heal AllyProtection FortDamage\nGoldFireNOR Nova Succession 26 13 2 908.3K 611.0K 185 525.5K 292.5K 6.6M"
+                  }
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
 
@@ -667,7 +676,7 @@ export default function RawLog({
                   </p>
 
                   <p className="text-xs text-slate-400">
-                    Save stores Combat Log, Stats Log and Class Log together in the same war.
+                    Save supports old Stats/Class logs and the new combined Stats + Class format.
                   </p>
                 </div>
 
