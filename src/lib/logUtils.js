@@ -470,6 +470,51 @@ function normalizeSecondaryPlayerName(parts) {
   return name;
 }
 
+function parseSecondaryIdentity(parts) {
+  const tokens = parts
+    .flatMap((part) => String(part || '').trim().split(/\s+/))
+    .filter(Boolean);
+
+  if (tokens.length < 3) {
+    return {
+      player: normalizeSecondaryPlayerName(parts),
+      className: '',
+      mode: '',
+    };
+  }
+
+  const mode = normalizeClassLogMode(tokens.at(-1));
+
+  if (!mode) {
+    return {
+      player: normalizeSecondaryPlayerName(parts),
+      className: '',
+      mode: '',
+    };
+  }
+
+  for (const classWordCount of [2, 1]) {
+    const classStart = tokens.length - 1 - classWordCount;
+
+    if (classStart < 1) continue;
+
+    const className = normalizeClassLogClass(
+      tokens.slice(classStart, -1).join(' '),
+    );
+    const player = normalizeSecondaryPlayerName(tokens.slice(0, classStart));
+
+    if (player && className) {
+      return { player, className, mode };
+    }
+  }
+
+  return {
+    player: normalizeSecondaryPlayerName(parts),
+    className: '',
+    mode: '',
+  };
+}
+
 function parseSecondaryLine(line, index) {
   let columns = splitSecondaryColumns(line);
   columns = expandPackedSecondaryNumberColumns(columns);
@@ -484,7 +529,8 @@ function parseSecondaryLine(line, index) {
 
   if (numericColumns.length < 2) return null;
 
-  const player = normalizeSecondaryPlayerName(columns.slice(0, firstNumberIndex));
+  const identity = parseSecondaryIdentity(columns.slice(0, firstNumberIndex));
+  const { player, className, mode } = identity;
   const kills = Math.round(parseSecondaryNumber(numericColumns[0]));
   const deaths = Math.round(parseSecondaryNumber(numericColumns[1]));
 
@@ -492,39 +538,43 @@ function parseSecondaryLine(line, index) {
   const thirdNumber = parseSecondaryNumber(thirdColumn);
   const looksLikeKdColumn =
     player &&
+    !className &&
     numericColumns.length >= 9 &&
     /[.,]/.test(thirdColumn) &&
     thirdNumber >= 0 &&
     thirdNumber <= 50;
 
+  const killFeedIndex = looksLikeKdColumn ? 4 : 2;
+  const damageDealtIndex = looksLikeKdColumn ? 5 : 3;
+  const damageTakenIndex = looksLikeKdColumn ? 6 : 4;
+  const ccHitsIndex = looksLikeKdColumn ? 7 : 5;
+
   const killFeed = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[4] : numericColumns[2],
-    ),
+    parseSecondaryNumber(numericColumns[killFeedIndex]),
   );
-
   const damageDealt = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[5] : numericColumns[3],
-    ),
+    parseSecondaryNumber(numericColumns[damageDealtIndex]),
   );
-
   const damageTaken = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[6] : numericColumns[4],
-    ),
+    parseSecondaryNumber(numericColumns[damageTakenIndex]),
   );
-
   const ccHits = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[7] : numericColumns[5],
-    ),
+    parseSecondaryNumber(numericColumns[ccHitsIndex]),
   );
 
+  // New combined rows contain Heal and Ally Protection before Fort Damage.
+  // Old rows remain supported because Fort Damage is still read from the
+  // final numeric column when nine or more numeric columns are present.
+  const hasExtendedSupportColumns = !looksLikeKdColumn && numericColumns.length >= 9;
+  const heal = hasExtendedSupportColumns
+    ? Math.round(parseSecondaryNumber(numericColumns[6]))
+    : 0;
+  const allyProtection = hasExtendedSupportColumns
+    ? Math.round(parseSecondaryNumber(numericColumns[7]))
+    : 0;
+  const fortDamageIndex = numericColumns.length >= 9 ? 8 : numericColumns.length - 1;
   const fortDamage = Math.round(
-    parseSecondaryNumber(
-      looksLikeKdColumn ? numericColumns[8] : numericColumns[8],
-    ),
+    parseSecondaryNumber(numericColumns[fortDamageIndex]),
   );
 
   if (
@@ -542,13 +592,31 @@ function parseSecondaryLine(line, index) {
 
   return {
     player,
+    ...(className
+      ? {
+          className,
+          class: className,
+          mode,
+        }
+      : {}),
     kills,
     deaths,
     killFeed,
     damageDealt,
     damageTaken,
     ccHits,
+    heal,
+    allyProtection,
     fortDamage,
+    has_kills: numericColumns.length > 0,
+    has_deaths: numericColumns.length > 1,
+    has_kill_feed: numericColumns.length > killFeedIndex,
+    has_damage_dealt: numericColumns.length > damageDealtIndex,
+    has_damage_taken: numericColumns.length > damageTakenIndex,
+    has_cc_hits: numericColumns.length > ccHitsIndex,
+    has_heal: hasExtendedSupportColumns,
+    has_ally_protection: hasExtendedSupportColumns,
+    has_fort_damage: numericColumns.length > fortDamageIndex,
     line: index + 1,
   };
 }
@@ -635,7 +703,9 @@ function normalizeClassLogMode(value) {
     key === 'succesion' ||
     key === 'sucession' ||
     key === 'succ' ||
-    key === 'suc'
+    key === 'suc' ||
+    key === 'talent' ||
+    key === 'ascension'
   ) {
     return 'Succession';
   }
@@ -714,13 +784,42 @@ function parseClassLogLine(line, index) {
 }
 
 export function parseClassRows(raw) {
-  const { classRaw } = splitRawLogSections(raw);
-  const source = classRaw || String(raw || '');
+  const { secondaryRaw, classRaw } = splitRawLogSections(raw);
+  const sources = [];
 
-  return cleanLog(source)
-    .split(NL)
-    .map(parseClassLogLine)
-    .filter(Boolean);
+  // Combined Stats + Class rows are valid class assignments too.
+  if (secondaryRaw) sources.push(secondaryRaw);
+  if (classRaw) sources.push(classRaw);
+  if (!sources.length) sources.push(String(raw || ''));
+
+  const byPlayer = new Map();
+
+  sources.forEach((source) => {
+    cleanLog(source)
+      .split(NL)
+      .forEach((line, index) => {
+        const directClassRow = parseClassLogLine(line, index);
+
+        if (directClassRow) {
+          byPlayer.set(directClassRow.player, directClassRow);
+          return;
+        }
+
+        const combinedRow = parseSecondaryLine(line, index);
+
+        if (combinedRow?.player && combinedRow.className && combinedRow.mode) {
+          byPlayer.set(combinedRow.player, {
+            player: combinedRow.player,
+            className: combinedRow.className,
+            class: combinedRow.className,
+            mode: combinedRow.mode,
+            line: index + 1,
+          });
+        }
+      });
+  });
+
+  return Array.from(byPlayer.values());
 }
 
 function secondaryRowsTotals(rows) {
