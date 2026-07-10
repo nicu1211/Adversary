@@ -572,10 +572,15 @@ function parseSecondaryLine(line, index) {
   const allyProtection = hasExtendedSupportColumns
     ? Math.round(parseSecondaryNumber(numericColumns[7]))
     : 0;
+  // Fort Damage is not present in short legacy rows such as
+  // `Name Kills Deaths`. Only treat the final value as Fort Damage when the
+  // row has the full legacy metric set (7+ numeric values) or the new
+  // extended combined layout (9 numeric values).
+  const hasFortDamageColumn = numericColumns.length >= 7;
   const fortDamageIndex = numericColumns.length >= 9 ? 8 : numericColumns.length - 1;
-  const fortDamage = Math.round(
-    parseSecondaryNumber(numericColumns[fortDamageIndex]),
-  );
+  const fortDamage = hasFortDamageColumn
+    ? Math.round(parseSecondaryNumber(numericColumns[fortDamageIndex]))
+    : 0;
 
   if (
     !player &&
@@ -616,7 +621,7 @@ function parseSecondaryLine(line, index) {
     has_cc_hits: numericColumns.length > ccHitsIndex,
     has_heal: hasExtendedSupportColumns,
     has_ally_protection: hasExtendedSupportColumns,
-    has_fort_damage: numericColumns.length > fortDamageIndex,
+    has_fort_damage: hasFortDamageColumn,
     line: index + 1,
   };
 }
