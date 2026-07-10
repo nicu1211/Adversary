@@ -518,7 +518,7 @@ export default function RawLog({
               <div>
                 <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
                   <span className="block text-sm font-black text-emerald-100">
-                    Stats + Class log
+                    Stats log
                   </span>
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -546,7 +546,7 @@ export default function RawLog({
 
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">
-                    Stats + Class Log
+                    Stats Log
                   </p>
 
                   <button
@@ -562,9 +562,7 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder={
-                    "Player Class Spec Kills Deaths KillStreak DamageDealt DamageTaken CCHits Heal AllyProtection FortDamage\nGoldFireNOR Nova Succession 26 13 2 908.3K 611.0K 185 525.5K 292.5K 6.6M"
-                  }
+                  placeholder=""
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
 
@@ -663,7 +661,7 @@ export default function RawLog({
                           {dateOf(log)}
                           {log.localOnly ? " · local only" : ""}
                           {savedStats.secondaryRaw || savedStats.classRaw
-                            ? ` · stats/class ${savedStats.secondaryLines + savedStats.classLines} lines`
+                            ? ` · stats ${savedStats.secondaryLines + savedStats.classLines} lines`
                             : ""}
                         </p>
                       </div>
@@ -672,7 +670,7 @@ export default function RawLog({
                     {(savedStats.secondaryRaw || savedStats.classRaw) && (
                       <details className="mt-3 rounded-lg border border-emerald-500/20 bg-slate-950 p-2">
                         <summary className="cursor-pointer text-xs font-bold text-emerald-200">
-                          View Stats + Class log
+                          View Stats log
                         </summary>
 
                         <pre
