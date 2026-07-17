@@ -66,8 +66,6 @@ const GUILD_ROSTER = Object.freeze([
   'MrOutlAw',
   'SpeedDrawFenix',
   'Dante_Senpai',
-  'Jaxce',
-  'Spilborghs',
   'Raizel',
   'AesirKing',
   'ARC',
@@ -109,7 +107,6 @@ const GUILD_ROSTER = Object.freeze([
   'Craifall',
   'Fweeky',
   'OAP',
-  'Pandanotfound',
   'Flamingfred',
   'Ya_Ya',
   'Ellevest',
@@ -141,6 +138,15 @@ const GUILD_ROSTER = Object.freeze([
   'Dovah',
   'Potetmos',
   'Jeung',
+  'Gandolfini',
+  'Alneim',
+  'Telvanis',
+  'Scarmartem',
+  'Shizzai',
+  'Karabela69',
+  'HAZEKUSH',
+  'INoGameNoLife',
+  'Nyks',
 ]);
 
 const Overview = lazy(() => import('./pages/Overview'));
