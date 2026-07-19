@@ -3344,6 +3344,12 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
   },
 ]);
 
+const PLAYER_CLASS_ICON_BY_NAME = Object.freeze(
+  Object.fromEntries(
+    SIDEBAR_CLASS_ORBS.map(({ name, src }) => [name, src]),
+  ),
+);
+
 const ORB_EDGE_PADDING = 7;
 const ORB_BOUNCE = 0.94;
 const ORB_AIR_DRAG = 0.9992;
@@ -3616,6 +3622,71 @@ function buildOverviewPlayerClassMap(logs) {
         className: assignment.className,
         mode: assignment.mode,
       },
+    ]),
+  );
+}
+
+function buildMonthlyPlayerClassMap(logs) {
+  const classOrbByName = new Map(
+    SIDEBAR_CLASS_ORBS.map((orb) => [orb.name, orb]),
+  );
+  const players = new Map();
+
+  (Array.isArray(logs) ? logs : []).forEach((log, logIndex) => {
+    const date = String(dateOf(log) || '').trim();
+    const chronology = `${date || '0000-00-00'}@@${String(logIndex).padStart(6, '0')}`;
+
+    classRowsForLog(log).forEach((row, rowIndex) => {
+      const playerKey = normalizeRosterPlayerKey(row.player);
+      const className = normalizeClassName(row.className || row.class);
+      const orb = classOrbByName.get(className);
+
+      if (!playerKey || !orb) return;
+
+      if (!players.has(playerKey)) {
+        players.set(playerKey, new Map());
+      }
+
+      const byClass = players.get(playerKey);
+      const rowChronology = `${chronology}@@${String(rowIndex).padStart(6, '0')}`;
+      const current = byClass.get(className);
+
+      if (!current) {
+        byClass.set(className, {
+          src: orb.src,
+          className,
+          mode: row.mode === 'Awakening' ? 'Awakening' : 'Succession',
+          count: 1,
+          chronology: rowChronology,
+        });
+        return;
+      }
+
+      current.count += 1;
+
+      if (rowChronology >= current.chronology) {
+        current.mode =
+          row.mode === 'Awakening' ? 'Awakening' : 'Succession';
+        current.chronology = rowChronology;
+      }
+    });
+  });
+
+  return Object.fromEntries(
+    [...players.entries()].map(([playerKey, byClass]) => [
+      playerKey,
+      [...byClass.values()]
+        .sort(
+          (a, b) =>
+            b.count - a.count ||
+            String(b.chronology).localeCompare(String(a.chronology)) ||
+            a.className.localeCompare(b.className),
+        )
+        .map(({ src, className, mode }) => ({
+          src,
+          className,
+          mode,
+        })),
     ]),
   );
 }
@@ -6133,6 +6204,14 @@ export default function App() {
     [activeLogs],
   );
 
+  const monthlyPlayerClassMap = useMemo(
+    () =>
+      buildMonthlyPlayerClassMap(
+        Array.isArray(allLogs) ? allLogs : [],
+      ),
+    [allLogs],
+  );
+
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
   const allTimeStats = useMemo(() => {
@@ -6674,6 +6753,7 @@ export default function App() {
               ) : (
                 <MonthlyRecap
                   logs={Array.isArray(allLogs) ? allLogs : []}
+                  playerClassMap={monthlyPlayerClassMap}
                   onOpenMatchOverview={openMatchOverviewFromMonthlyRecap}
                 />
               )}
@@ -6687,6 +6767,9 @@ export default function App() {
               ) : (
                 <PlayerStats
                   stats={allTimeStats}
+                  logs={Array.isArray(allLogs) ? allLogs : []}
+                  classIconByName={PLAYER_CLASS_ICON_BY_NAME}
+                  getClassRowsForLog={classRowsForLog}
                   onOpenMatchOverview={openMatchOverviewFromPlayerStats}
                 />
               )}
