@@ -1,11 +1,215 @@
 import React, { useMemo, useState } from 'react';
 import { AveragePerformanceChart } from '../components/Charts';
-import {
-  PlayerClassIcons,
-  buildMatchPlayerClassMap,
-  getMatchPlayerClassAssignments,
-} from '../components/ClassIcon';
-import { add, scrollCls } from '../lib/logUtils';
+import { add, dateOf, scrollCls } from '../lib/logUtils';
+
+function normalizeClassPlayerKey(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function classAssignmentTitle(assignment) {
+  const modes = assignment?.modes?.length
+    ? assignment.modes
+    : assignment?.mode
+      ? [assignment.mode]
+      : [];
+
+  return [assignment?.className, modes.join(' / ')]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function MatchClassIcons({
+  assignments = [],
+  classIconByName = {},
+}) {
+  const visibleAssignments = (assignments || []).filter(
+    (assignment) => classIconByName?.[assignment?.className],
+  );
+
+  if (!visibleAssignments.length) return null;
+
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1">
+      {visibleAssignments.map((assignment, index) => (
+        <img
+          key={`${assignment.className}-${index}`}
+          src={classIconByName[assignment.className]}
+          alt=""
+          aria-hidden="true"
+          title={classAssignmentTitle(assignment)}
+          className="inline-block h-9 w-9 shrink-0 object-contain drop-shadow-[0_0_9px_rgba(255,255,255,.16)]"
+        />
+      ))}
+    </span>
+  );
+}
+
+function finalizeClassRecords(records) {
+  return [...records.values()]
+    .map((record) => ({
+      className: record.className,
+      mode: record.mode,
+      modes: [...record.modes],
+      count: record.count,
+      latestChronology: record.latestChronology,
+    }))
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        String(b.latestChronology).localeCompare(
+          String(a.latestChronology),
+        ) ||
+        a.className.localeCompare(b.className),
+    );
+}
+
+function addClassAssignment(records, assignment, chronology) {
+  const className = String(
+    assignment?.className || assignment?.class || '',
+  ).trim();
+
+  if (!className) return;
+
+  if (!records.has(className)) {
+    records.set(className, {
+      className,
+      modes: new Set(),
+      count: 0,
+      mode: assignment?.mode || 'Succession',
+      latestChronology: chronology,
+    });
+  }
+
+  const record = records.get(className);
+  record.count += 1;
+  record.modes.add(assignment?.mode || 'Succession');
+
+  if (chronology >= record.latestChronology) {
+    record.mode = assignment?.mode || 'Succession';
+    record.latestChronology = chronology;
+  }
+}
+
+function buildMatchPlayerClassMap(logs, getClassRowsForLog) {
+  const byWarId = {};
+  const byDate = {};
+
+  function mergeAssignments(target, playerKey, assignments) {
+    const records = new Map(
+      (target[playerKey] || []).map((assignment) => [
+        assignment.className,
+        {
+          className: assignment.className,
+          modes: new Set(assignment.modes || [assignment.mode]),
+          count: Number(assignment.count) || 0,
+          mode: assignment.mode,
+          latestChronology: assignment.latestChronology || '',
+        },
+      ]),
+    );
+
+    assignments.forEach((assignment) => {
+      addClassAssignment(
+        records,
+        assignment,
+        assignment.latestChronology || '',
+      );
+    });
+
+    target[playerKey] = finalizeClassRecords(records);
+  }
+
+  (logs || []).forEach((log, logIndex) => {
+    const date = String(dateOf(log) || '').trim();
+    const chronology = `${date || '0000-00-00'}@@${String(logIndex).padStart(6, '0')}`;
+    const players = new Map();
+    const rows = typeof getClassRowsForLog === 'function'
+      ? getClassRowsForLog(log)
+      : [];
+
+    (rows || []).forEach((row, rowIndex) => {
+      const playerKey = normalizeClassPlayerKey(row?.player);
+
+      if (!playerKey) return;
+      if (!players.has(playerKey)) players.set(playerKey, new Map());
+
+      addClassAssignment(
+        players.get(playerKey),
+        row,
+        `${chronology}@@${String(rowIndex).padStart(6, '0')}`,
+      );
+    });
+
+    if (!players.size) return;
+
+    const finalizedPlayers = Object.fromEntries(
+      [...players.entries()].map(([playerKey, records]) => [
+        playerKey,
+        finalizeClassRecords(records),
+      ]),
+    );
+    const sourceLog = log?._src || {};
+    const idCandidates = [
+      log?.id,
+      log?.apiId,
+      sourceLog?.id,
+      sourceLog?._id,
+      sourceLog?.log_id,
+      sourceLog?.key,
+      sourceLog?.filename,
+      sourceLog?.fileName,
+    ]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean);
+
+    idCandidates.forEach((id) => {
+      byWarId[id] ||= {};
+
+      Object.entries(finalizedPlayers).forEach(
+        ([playerKey, assignments]) => {
+          mergeAssignments(byWarId[id], playerKey, assignments);
+        },
+      );
+    });
+
+    if (date) {
+      byDate[date] ||= {};
+
+      Object.entries(finalizedPlayers).forEach(
+        ([playerKey, assignments]) => {
+          mergeAssignments(byDate[date], playerKey, assignments);
+        },
+      );
+    }
+  });
+
+  return { byWarId, byDate };
+}
+
+function getMatchPlayerClassAssignments(
+  matchPlayerClassMap,
+  match,
+  playerName,
+) {
+  const playerKey = normalizeClassPlayerKey(playerName);
+  const idCandidates = [match?.warId, match?.id, match?.war]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean);
+
+  for (const id of idCandidates) {
+    const assignments = matchPlayerClassMap?.byWarId?.[id]?.[playerKey];
+
+    if (assignments?.length) return assignments;
+  }
+
+  const date = String(match?.date || '').trim();
+  return matchPlayerClassMap?.byDate?.[date]?.[playerKey] || [];
+}
 
 
 const PLAYER_STATS_GUILD_CSS = `
@@ -4065,10 +4269,9 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
                   <p className="min-w-0 truncate text-sm font-black text-slate-100">
                     {match.date || '—'}
                   </p>
-                  <PlayerClassIcons
+                  <MatchClassIcons
                     assignments={match.classAssignments}
-                    sizeClass="h-9 w-9"
-                    className="drop-shadow-[0_0_9px_rgba(255,255,255,.16)]"
+                    classIconByName={classIconByName}
                   />
                 </div>
 
@@ -4137,6 +4340,8 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
 export default function PlayerStats({
   stats,
   logs = [],
+  classIconByName = {},
+  getClassRowsForLog = () => [],
   onOpenMatchOverview,
 }) {
   const [player, setPlayer] = useState('');
@@ -4158,8 +4363,8 @@ export default function PlayerStats({
   );
 
   const matchPlayerClassMap = useMemo(
-    () => buildMatchPlayerClassMap(logs),
-    [logs],
+    () => buildMatchPlayerClassMap(logs, getClassRowsForLog),
+    [logs, getClassRowsForLog],
   );
 
   const comparisonEnabled = comparedPlayerNames.length > 0;
