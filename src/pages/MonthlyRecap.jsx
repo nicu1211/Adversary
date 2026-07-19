@@ -23,7 +23,6 @@ import {
   calculateStats,
   calculateStreaks,
   dateOf,
-  parseClassRows,
   scrollCls,
 } from '../lib/logUtils';
 
@@ -36,65 +35,16 @@ function normalizeClassPlayerKey(value) {
     .replace(/[^a-z0-9]/g, '');
 }
 
-function normalizeClassNameKey(value) {
-  return String(value || '')
-    .normalize('NFKC')
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function normalizeClassMode(value) {
-  const key = String(value || '')
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[^a-z]/g, '');
-
-  return key.startsWith('awak') || key === 'awa'
-    ? 'Awakening'
-    : 'Succession';
-}
-
-function resolveClassIcon(classIconByName, className) {
-  if (!classIconByName || !className) return '';
-
-  const direct = classIconByName[className];
-
-  if (direct) return direct;
-
-  const wantedKey = normalizeClassNameKey(className);
-  const matchingEntry = Object.entries(classIconByName).find(
-    ([name]) => normalizeClassNameKey(name) === wantedKey,
-  );
-
-  return matchingEntry?.[1] || '';
-}
-
 function classAssignmentTitle(assignment) {
-  const modes = assignment?.modes?.length
-    ? assignment.modes
-    : assignment?.mode
-      ? [assignment.mode]
-      : [];
-
-  return [assignment?.className, modes.join(' / ')]
+  return [assignment?.className, assignment?.mode]
     .filter(Boolean)
     .join(' · ');
 }
 
-function MonthlyPlayerClassIcons({
-  assignments = [],
-  classIconByName = {},
-}) {
-  const visibleAssignments = (assignments || [])
-    .map((assignment) => ({
-      ...assignment,
-      iconSrc: resolveClassIcon(
-        classIconByName,
-        assignment?.className,
-      ),
-    }))
-    .filter((assignment) => assignment.iconSrc);
+function MonthlyPlayerClassIcons({ assignments = [] }) {
+  const visibleAssignments = (assignments || []).filter(
+    (assignment) => assignment?.src,
+  );
 
   if (!visibleAssignments.length) return null;
 
@@ -103,178 +53,15 @@ function MonthlyPlayerClassIcons({
       {visibleAssignments.map((assignment, index) => (
         <img
           key={`${assignment.className}-${index}`}
-          src={assignment.iconSrc}
+          src={assignment.src}
           alt=""
           aria-hidden="true"
           title={classAssignmentTitle(assignment)}
-          className="inline-block h-8 w-8 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,.14)]"
+          className="inline-block h-8 w-8 shrink-0 rounded-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,.14)]"
         />
       ))}
     </span>
   );
-}
-
-function collectClassRowsForLog(log, getClassRowsForLog) {
-  const rows = [];
-
-  if (typeof getClassRowsForLog === 'function') {
-    try {
-      const externalRows = getClassRowsForLog(log);
-
-      if (Array.isArray(externalRows)) {
-        rows.push(...externalRows);
-      }
-    } catch {
-      // Keep Monthly Recap working even when an older App.jsx supplies
-      // a class-row helper with a different log shape.
-    }
-  }
-
-  [
-    log?.classRows,
-    log?.classes,
-    log?.summary?.classRows,
-    log?.summary?.classes,
-    log?._src?.classRows,
-    log?._src?.classes,
-    log?._src?.summary?.classRows,
-    log?._src?.summary?.classes,
-  ]
-    .filter(Array.isArray)
-    .forEach((directRows) => rows.push(...directRows));
-
-  const rawSources = [
-    log?.raw,
-    log?.rawLog,
-    log?.raw_log,
-    log?.log,
-    log?.content,
-    log?.classRaw,
-    log?.classLog,
-    log?.class_log,
-    log?.summary?.classRaw,
-    log?.summary?.classLog,
-    log?._src?.raw,
-    log?._src?.rawLog,
-    log?._src?.raw_log,
-    log?._src?.log,
-    log?._src?.content,
-    log?._src?.classRaw,
-    log?._src?.classLog,
-    log?._src?.class_log,
-    log?._src?.summary?.classRaw,
-    log?._src?.summary?.classLog,
-  ].filter((value) => typeof value === 'string' && value.trim());
-
-  rawSources.forEach((source) => {
-    try {
-      rows.push(...parseClassRows(source));
-    } catch {
-      // Ignore malformed legacy raw logs and continue with the other logs.
-    }
-  });
-
-  const seen = new Set();
-
-  return rows
-    .map((row) => ({
-      player:
-        row?.player ||
-        row?.name ||
-        row?.playerName ||
-        row?.character ||
-        '',
-      className:
-        row?.className ||
-        row?.class ||
-        row?.characterClass ||
-        row?.character_class ||
-        '',
-      mode: normalizeClassMode(
-        row?.mode ||
-          row?.spec ||
-          row?.specialization ||
-          row?.specialisation,
-      ),
-    }))
-    .filter((row) => {
-      const playerKey = normalizeClassPlayerKey(row.player);
-      const classKey = normalizeClassNameKey(row.className);
-      const key = `${playerKey}@@${classKey}@@${row.mode}`;
-
-      if (!playerKey || !classKey || seen.has(key)) return false;
-
-      seen.add(key);
-      return true;
-    });
-}
-
-function buildPlayerClassHistoryMap(logs, getClassRowsForLog) {
-  const players = new Map();
-
-  (logs || []).forEach((log, logIndex) => {
-    const date = String(dateOf(log) || '').trim();
-    const chronology = `${date || '0000-00-00'}@@${String(logIndex).padStart(6, '0')}`;
-    const rows = collectClassRowsForLog(log, getClassRowsForLog);
-
-    (rows || []).forEach((row, rowIndex) => {
-      const playerKey = normalizeClassPlayerKey(row?.player);
-      const className = String(row?.className || row?.class || '').trim();
-      const classKey = normalizeClassNameKey(className);
-
-      if (!playerKey || !classKey) return;
-      if (!players.has(playerKey)) players.set(playerKey, new Map());
-
-      const records = players.get(playerKey);
-      const rowChronology = `${chronology}@@${String(rowIndex).padStart(6, '0')}`;
-
-      if (!records.has(classKey)) {
-        records.set(classKey, {
-          className,
-          modes: new Set(),
-          count: 0,
-          mode: row?.mode || 'Succession',
-          latestChronology: rowChronology,
-        });
-      }
-
-      const record = records.get(classKey);
-      record.count += 1;
-      record.modes.add(row?.mode || 'Succession');
-
-      if (rowChronology >= record.latestChronology) {
-        record.className = className;
-        record.mode = row?.mode || 'Succession';
-        record.latestChronology = rowChronology;
-      }
-    });
-  });
-
-  return Object.fromEntries(
-    [...players.entries()].map(([playerKey, records]) => [
-      playerKey,
-      [...records.values()]
-        .map((record) => ({
-          className: record.className,
-          mode: record.mode,
-          modes: [...record.modes],
-          count: record.count,
-          latestChronology: record.latestChronology,
-        }))
-        .sort(
-          (a, b) =>
-            b.count - a.count ||
-            String(b.latestChronology).localeCompare(
-              String(a.latestChronology),
-            ) ||
-            a.className.localeCompare(b.className),
-        ),
-    ]),
-  );
-}
-
-function getPlayerClassAssignments(playerClassMap, playerName) {
-  return playerClassMap?.[normalizeClassPlayerKey(playerName)] || [];
 }
 
 const MIN_MONTH = '2026-05';
@@ -3959,7 +3746,7 @@ function PerformanceMetricCell({
   );
 }
 
-function PlayersTable({ players, classIconByName = {} }) {
+function PlayersTable({ players }) {
   const [viewMode, setViewMode] = useState('average');
   const [overallWeights, setOverallWeights] = useState(
     () => ({ ...DEFAULT_OVERALL_WEIGHTS }),
@@ -4334,7 +4121,6 @@ function PlayersTable({ players, classIconByName = {} }) {
 
                     <MonthlyPlayerClassIcons
                       assignments={player.classAssignments}
-                      classIconByName={classIconByName}
                     />
 
                     {inactive && (
@@ -4564,8 +4350,7 @@ function EnemyGuildReport({ enemies }) {
 
 export default function MonthlyRecap({
   logs = [],
-  classIconByName = {},
-  getClassRowsForLog = () => [],
+  playerClassMap = {},
   onOpenMatchOverview = () => {},
 }) {
   const months = useMemo(() => {
@@ -4637,59 +4422,16 @@ export default function MonthlyRecap({
     featuredWars,
   } = review;
 
-  const activeClassLogs = useMemo(
-    () =>
-      (logs || []).filter((log) =>
-        dateIsInWindow(dateOf(log), activeDateWindow),
-      ),
-    [logs, activeDateWindow],
-  );
-
-  const playerClassHistory = useMemo(
-    () =>
-      buildPlayerClassHistoryMap(
-        activeClassLogs,
-        getClassRowsForLog,
-      ),
-    [activeClassLogs, getClassRowsForLog],
-  );
-
-  // Some older saved records keep their class rows in a companion log whose
-  // date is missing or stored differently. Prefer classes found in the active
-  // recap period, then fall back to the player's known class history so the
-  // icon never silently disappears.
-  const allPlayerClassHistory = useMemo(
-    () =>
-      buildPlayerClassHistoryMap(
-        logs,
-        getClassRowsForLog,
-      ),
-    [logs, getClassRowsForLog],
-  );
-
   const players = useMemo(
     () =>
-      (reviewPlayers || []).map((player) => {
-        const activeAssignments = getPlayerClassAssignments(
-          playerClassHistory,
-          player.name,
-        );
-
-        return {
-          ...player,
-          classAssignments: activeAssignments.length
-            ? activeAssignments
-            : getPlayerClassAssignments(
-                allPlayerClassHistory,
-                player.name,
-              ),
-        };
-      }),
-    [
-      reviewPlayers,
-      playerClassHistory,
-      allPlayerClassHistory,
-    ],
+      (reviewPlayers || []).map((player) => ({
+        ...player,
+        classAssignments:
+          playerClassMap?.[
+            normalizeClassPlayerKey(player.name)
+          ] || [],
+      })),
+    [reviewPlayers, playerClassMap],
   );
 
   return (
@@ -5040,7 +4782,7 @@ export default function MonthlyRecap({
       </SectionShell>
 
       <SectionShell icon={Activity} title="Players Performance" accent="cyan" subtle>
-        <PlayersTable players={players} classIconByName={classIconByName} />
+        <PlayersTable players={players} />
       </SectionShell>
 
     </div>
