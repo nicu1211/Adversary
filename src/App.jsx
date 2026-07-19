@@ -146,7 +146,6 @@ const GUILD_ROSTER = Object.freeze([
   'Karabela69',
   'HAZEKUSH',
   'INoGameNoLife',
-  'Nyks',
 ]);
 
 const Overview = lazy(() => import('./pages/Overview'));
