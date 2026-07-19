@@ -4081,7 +4081,11 @@ function MatchHistoryValue({ children, color, prefix = null, icon = null }) {
   );
 }
 
-function MatchHistoryList({ matches, onOpenMatchOverview }) {
+function MatchHistoryList({
+  matches,
+  onOpenMatchOverview,
+  classIconByName = {},
+}) {
   const [sort, setSort] = useState({
     key: 'date',
     dir: 'desc',
@@ -5205,6 +5209,7 @@ export default function PlayerStats({
           <div className="mt-4 player-stats-section-shell">
             <MatchHistoryList
               matches={selectedStats.matchList}
+              classIconByName={classIconByName}
               onOpenMatchOverview={onOpenMatchOverview}
             />
           </div>
