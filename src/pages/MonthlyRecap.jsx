@@ -299,7 +299,6 @@ const GUILD_ROSTER = Object.freeze([
   'Karabela69',
   'HAZEKUSH',
   'INoGameNoLife',
-  'Nyks',
 ]);
 
 function num(value) {
