@@ -25,6 +25,11 @@ import {
   dateOf,
   scrollCls,
 } from '../lib/logUtils';
+import {
+  PlayerClassIcons,
+  buildPlayerClassHistoryMap,
+  getPlayerClassAssignments,
+} from '../components/ClassIcon';
 
 const MIN_MONTH = '2026-05';
 const ALL_HISTORY_MONTH = 'all';
@@ -2739,7 +2744,16 @@ function buildReview(
     stats,
     monthLogs,
   );
-  const players = buildRosterPerformancePlayers(activePlayers);
+  const playerClassHistory = buildPlayerClassHistoryMap(monthLogs);
+  const players = buildRosterPerformancePlayers(activePlayers).map(
+    (player) => ({
+      ...player,
+      classAssignments: getPlayerClassAssignments(
+        playerClassHistory,
+        player.name,
+      ),
+    }),
+  );
   const {
     topFragger,
     bestKd,
@@ -4058,7 +4072,7 @@ function PlayersTable({ players }) {
               return (
                 <div
                   key={player.name}
-                  className={`grid ${gridColumns} items-center gap-1 px-2 py-2 text-[12px] transition hover:bg-white/[.02] ${
+                  className={`grid min-h-[38px] ${gridColumns} items-center gap-1 px-2 py-0.5 text-[12px] transition hover:bg-white/[.02] ${
                     inactive ? 'bg-slate-950/16' : ''
                   }`}
                 >
@@ -4080,6 +4094,12 @@ function PlayersTable({ players }) {
                     >
                       {player.name}
                     </span>
+
+                    <PlayerClassIcons
+                      assignments={player.classAssignments}
+                      sizeClass="h-8 w-8"
+                      className="drop-shadow-[0_0_8px_rgba(255,255,255,.14)]"
+                    />
 
                     {inactive && (
                       <span className="shrink-0 rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.04em] text-rose-400">
