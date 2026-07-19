@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { AveragePerformanceChart } from '../components/Charts';
+import {
+  PlayerClassIcons,
+  buildMatchPlayerClassMap,
+  getMatchPlayerClassAssignments,
+} from '../components/ClassIcon';
 import { add, scrollCls } from '../lib/logUtils';
 
 
@@ -4046,7 +4051,7 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
                 type="button"
                 key={`${match.warId}-${match.date}-${index}`}
                 onClick={() => onOpenMatchOverview?.(match)}
-                className={`player-stats-match-row grid ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-2.5 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                className={`player-stats-match-row grid min-h-[44px] ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-1 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
                 style={{ '--player-row-rgb': positive ? '59, 130, 246' : '244, 63, 94' }}
                 title="Open this match in Overview"
               >
@@ -4056,9 +4061,16 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
                 </span>
 
                 {/* Date / war name */}
-                <p className="truncate text-sm font-black text-slate-100">
-                  {match.date || '—'}
-                </p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="min-w-0 truncate text-sm font-black text-slate-100">
+                    {match.date || '—'}
+                  </p>
+                  <PlayerClassIcons
+                    assignments={match.classAssignments}
+                    sizeClass="h-9 w-9"
+                    className="drop-shadow-[0_0_9px_rgba(255,255,255,.16)]"
+                  />
+                </div>
 
                 {/* Kills */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.kills} icon="kills">
@@ -4122,7 +4134,11 @@ function MatchHistoryList({ matches, onOpenMatchOverview }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function PlayerStats({ stats, onOpenMatchOverview }) {
+export default function PlayerStats({
+  stats,
+  logs = [],
+  onOpenMatchOverview,
+}) {
   const [player, setPlayer] = useState('');
   const [comparedPlayerNames, setComparedPlayerNames] = useState([]);
   const [compareDaysAgo, setCompareDaysAgo] = useState(30);
@@ -4139,6 +4155,11 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
   const averageRankTable = useMemo(
     () => (player ? buildBestOverallAverageRankTable(stats) : {}),
     [player, stats],
+  );
+
+  const matchPlayerClassMap = useMemo(
+    () => buildMatchPlayerClassMap(logs),
+    [logs],
   );
 
   const comparisonEnabled = comparedPlayerNames.length > 0;
@@ -4789,9 +4810,18 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       };
     });
 
-    const matchList = Object.values(matchMap).sort((a, b) =>
-      String(b.date).localeCompare(String(a.date)),
-    );
+    const matchList = Object.values(matchMap)
+      .map((match) => ({
+        ...match,
+        classAssignments: getMatchPlayerClassAssignments(
+          matchPlayerClassMap,
+          match,
+          player,
+        ),
+      }))
+      .sort((a, b) =>
+        String(b.date).localeCompare(String(a.date)),
+      );
 
     const enemyGuildRows = Object.values(enemyGuilds)
       .map((guild) => {
@@ -4876,7 +4906,7 @@ export default function PlayerStats({ stats, onOpenMatchOverview }) {
       streakItems,
       feedItems,
     };
-  }, [player, stats, averageRankTable]);
+  }, [player, stats, averageRankTable, matchPlayerClassMap]);
 
   return (
     <div className="player-stats-page player-stats-guild-style player-stats-root-transparent p-4">
