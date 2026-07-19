@@ -25,11 +25,121 @@ import {
   dateOf,
   scrollCls,
 } from '../lib/logUtils';
-import {
-  PlayerClassIcons,
-  buildPlayerClassHistoryMap,
-  getPlayerClassAssignments,
-} from '../components/ClassIcon';
+
+function normalizeClassPlayerKey(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function classAssignmentTitle(assignment) {
+  const modes = assignment?.modes?.length
+    ? assignment.modes
+    : assignment?.mode
+      ? [assignment.mode]
+      : [];
+
+  return [assignment?.className, modes.join(' / ')]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function MonthlyPlayerClassIcons({
+  assignments = [],
+  classIconByName = {},
+}) {
+  const visibleAssignments = (assignments || []).filter(
+    (assignment) => classIconByName?.[assignment?.className],
+  );
+
+  if (!visibleAssignments.length) return null;
+
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1">
+      {visibleAssignments.map((assignment, index) => (
+        <img
+          key={`${assignment.className}-${index}`}
+          src={classIconByName[assignment.className]}
+          alt=""
+          aria-hidden="true"
+          title={classAssignmentTitle(assignment)}
+          className="inline-block h-8 w-8 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,.14)]"
+        />
+      ))}
+    </span>
+  );
+}
+
+function buildPlayerClassHistoryMap(logs, getClassRowsForLog) {
+  const players = new Map();
+
+  (logs || []).forEach((log, logIndex) => {
+    const date = String(dateOf(log) || '').trim();
+    const chronology = `${date || '0000-00-00'}@@${String(logIndex).padStart(6, '0')}`;
+    const rows = typeof getClassRowsForLog === 'function'
+      ? getClassRowsForLog(log)
+      : [];
+
+    (rows || []).forEach((row, rowIndex) => {
+      const playerKey = normalizeClassPlayerKey(row?.player);
+      const className = String(row?.className || row?.class || '').trim();
+
+      if (!playerKey || !className) return;
+      if (!players.has(playerKey)) players.set(playerKey, new Map());
+
+      const records = players.get(playerKey);
+      const rowChronology = `${chronology}@@${String(rowIndex).padStart(6, '0')}`;
+
+      if (!records.has(className)) {
+        records.set(className, {
+          className,
+          modes: new Set(),
+          count: 0,
+          mode: row?.mode || 'Succession',
+          latestChronology: rowChronology,
+        });
+      }
+
+      const record = records.get(className);
+      record.count += 1;
+      record.modes.add(row?.mode || 'Succession');
+
+      if (rowChronology >= record.latestChronology) {
+        record.mode = row?.mode || 'Succession';
+        record.latestChronology = rowChronology;
+      }
+    });
+  });
+
+  return Object.fromEntries(
+    [...players.entries()].map(([playerKey, records]) => [
+      playerKey,
+      [...records.values()]
+        .map((record) => ({
+          className: record.className,
+          mode: record.mode,
+          modes: [...record.modes],
+          count: record.count,
+          latestChronology: record.latestChronology,
+        }))
+        .sort(
+          (a, b) =>
+            b.count - a.count ||
+            String(b.latestChronology).localeCompare(
+              String(a.latestChronology),
+            ) ||
+            a.className.localeCompare(b.className),
+        ),
+    ]),
+  );
+}
+
+function getPlayerClassAssignments(playerClassMap, playerName) {
+  return playerClassMap?.[normalizeClassPlayerKey(playerName)] || [];
+}
 
 const MIN_MONTH = '2026-05';
 const ALL_HISTORY_MONTH = 'all';
@@ -2744,16 +2854,7 @@ function buildReview(
     stats,
     monthLogs,
   );
-  const playerClassHistory = buildPlayerClassHistoryMap(monthLogs);
-  const players = buildRosterPerformancePlayers(activePlayers).map(
-    (player) => ({
-      ...player,
-      classAssignments: getPlayerClassAssignments(
-        playerClassHistory,
-        player.name,
-      ),
-    }),
-  );
+  const players = buildRosterPerformancePlayers(activePlayers);
   const {
     topFragger,
     bestKd,
@@ -4095,10 +4196,9 @@ function PlayersTable({ players }) {
                       {player.name}
                     </span>
 
-                    <PlayerClassIcons
+                    <MonthlyPlayerClassIcons
                       assignments={player.classAssignments}
-                      sizeClass="h-8 w-8"
-                      className="drop-shadow-[0_0_8px_rgba(255,255,255,.14)]"
+                      classIconByName={classIconByName}
                     />
 
                     {inactive && (
@@ -4328,6 +4428,8 @@ function EnemyGuildReport({ enemies }) {
 
 export default function MonthlyRecap({
   logs = [],
+  classIconByName = {},
+  getClassRowsForLog = () => [],
   onOpenMatchOverview = () => {},
 }) {
   const months = useMemo(() => {
@@ -4385,7 +4487,7 @@ export default function MonthlyRecap({
     previousMonth,
     totals,
     previousTotals,
-    players,
+    players: reviewPlayers,
     topFragger,
     bestKd,
     damageLeader,
@@ -4398,6 +4500,35 @@ export default function MonthlyRecap({
     toughestMatchup,
     featuredWars,
   } = review;
+
+  const activeClassLogs = useMemo(
+    () =>
+      (logs || []).filter((log) =>
+        dateIsInWindow(dateOf(log), activeDateWindow),
+      ),
+    [logs, activeDateWindow],
+  );
+
+  const playerClassHistory = useMemo(
+    () =>
+      buildPlayerClassHistoryMap(
+        activeClassLogs,
+        getClassRowsForLog,
+      ),
+    [activeClassLogs, getClassRowsForLog],
+  );
+
+  const players = useMemo(
+    () =>
+      (reviewPlayers || []).map((player) => ({
+        ...player,
+        classAssignments: getPlayerClassAssignments(
+          playerClassHistory,
+          player.name,
+        ),
+      })),
+    [reviewPlayers, playerClassHistory],
+  );
 
   return (
     <div className="monthly-recap-guild-style space-y-2.5 bg-transparent text-white">
