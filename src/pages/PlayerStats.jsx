@@ -26,6 +26,7 @@ function classAssignmentTitle(assignment) {
 function MatchClassIcons({
   assignments = [],
   classIconByName = {},
+  iconClassName = 'h-9 w-9',
 }) {
   const visibleAssignments = (assignments || []).filter(
     (assignment) => classIconByName?.[assignment?.className],
@@ -42,7 +43,7 @@ function MatchClassIcons({
           alt=""
           aria-hidden="true"
           title={classAssignmentTitle(assignment)}
-          className="inline-block h-9 w-9 shrink-0 object-contain drop-shadow-[0_0_9px_rgba(255,255,255,.16)]"
+          className={`inline-block ${iconClassName} shrink-0 object-contain drop-shadow-[0_0_9px_rgba(255,255,255,.16)]`}
         />
       ))}
     </span>
@@ -209,6 +210,45 @@ function getMatchPlayerClassAssignments(
 
   const date = String(match?.date || '').trim();
   return matchPlayerClassMap?.byDate?.[date]?.[playerKey] || [];
+}
+
+
+function buildPlayerClassHistoryMap(logs, getClassRowsForLog) {
+  const players = new Map();
+
+  (logs || []).forEach((log, logIndex) => {
+    const date = String(dateOf(log) || '').trim();
+    const chronology = `${date || '0000-00-00'}@@${String(logIndex).padStart(6, '0')}`;
+    const rows = typeof getClassRowsForLog === 'function'
+      ? getClassRowsForLog(log)
+      : [];
+
+    (rows || []).forEach((row, rowIndex) => {
+      const playerKey = normalizeClassPlayerKey(row?.player);
+
+      if (!playerKey) return;
+      if (!players.has(playerKey)) players.set(playerKey, new Map());
+
+      addClassAssignment(
+        players.get(playerKey),
+        row,
+        `${chronology}@@${String(rowIndex).padStart(6, '0')}`,
+      );
+    });
+  });
+
+  return Object.fromEntries(
+    [...players.entries()].map(([playerKey, records]) => [
+      playerKey,
+      finalizeClassRecords(records),
+    ]),
+  );
+}
+
+function getPlayerClassAssignments(playerClassHistoryMap, playerName) {
+  return (
+    playerClassHistoryMap?.[normalizeClassPlayerKey(playerName)] || []
+  );
 }
 
 
@@ -563,11 +603,21 @@ const PLAYER_STATS_GUILD_CSS = `
   }
 `;
 
-function PlayerSelect({ players, value, onChange }) {
+function PlayerSelect({
+  players,
+  value,
+  onChange,
+  playerClassHistoryMap = {},
+  classIconByName = {},
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   const selected = players.find((player) => samePlayerName(player.name, value));
+  const selectedClassAssignments = getPlayerClassAssignments(
+    playerClassHistoryMap,
+    selected?.name || value,
+  );
 
   const list = players.filter((player) =>
     `${player.name} ${player.family || ''}`
@@ -582,13 +632,24 @@ function PlayerSelect({ players, value, onChange }) {
         onClick={() => setOpen((state) => !state)}
         className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-left shadow-lg backdrop-blur-xl transition hover:border-blue-300/50 hover:bg-white/10"
       >
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Selected player
           </p>
-          <p className="truncate text-sm font-black">
-            {selected ? selected.name : 'Select player'}
-          </p>
+
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+            <p className="min-w-0 truncate text-sm font-black">
+              {selected ? selected.name : 'Select player'}
+            </p>
+
+            {selected && (
+              <MatchClassIcons
+                assignments={selectedClassAssignments}
+                classIconByName={classIconByName}
+                iconClassName="h-8 w-8"
+              />
+            )}
+          </div>
         </div>
 
         <span
@@ -631,24 +692,39 @@ function PlayerSelect({ players, value, onChange }) {
                   Select player
                 </button>
 
-                {list.map((player) => (
-                  <button
-                    type="button"
-                    key={player.name}
-                    onClick={() => {
-                      onChange(player.name);
-                      setOpen(false);
-                      setQuery('');
-                    }}
-                    className={`mb-1 flex w-full rounded-xl px-3 py-2 text-left text-sm ${
-                      samePlayerName(value, player.name)
-                        ? 'bg-blue-500/25 text-blue-100'
-                        : 'text-slate-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="truncate font-bold">{player.name}</span>
-                  </button>
-                ))}
+                {list.map((player) => {
+                  const classAssignments = getPlayerClassAssignments(
+                    playerClassHistoryMap,
+                    player.name,
+                  );
+
+                  return (
+                    <button
+                      type="button"
+                      key={player.name}
+                      onClick={() => {
+                        onChange(player.name);
+                        setOpen(false);
+                        setQuery('');
+                      }}
+                      className={`mb-1 flex w-full flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ${
+                        samePlayerName(value, player.name)
+                          ? 'bg-blue-500/25 text-blue-100'
+                          : 'text-slate-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="min-w-0 truncate font-bold">
+                        {player.name}
+                      </span>
+
+                      <MatchClassIcons
+                        assignments={classAssignments}
+                        classIconByName={classIconByName}
+                        iconClassName="h-7 w-7"
+                      />
+                    </button>
+                  );
+                })}
               </>
             )}
           </div>
@@ -4371,6 +4447,11 @@ export default function PlayerStats({
     [logs, getClassRowsForLog],
   );
 
+  const playerClassHistoryMap = useMemo(
+    () => buildPlayerClassHistoryMap(logs, getClassRowsForLog),
+    [logs, getClassRowsForLog],
+  );
+
   const comparisonEnabled = comparedPlayerNames.length > 0;
 
   const comparisonPopulation = useMemo(() => {
@@ -5127,6 +5208,8 @@ export default function PlayerStats({
           players={sortedPlayers}
           value={player}
           onChange={setPlayer}
+          playerClassHistoryMap={playerClassHistoryMap}
+          classIconByName={classIconByName}
         />
 
         <ComparePlayersSelect
