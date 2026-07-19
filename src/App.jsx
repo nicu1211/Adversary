@@ -3577,6 +3577,49 @@ function classRowsForLog(log) {
   });
 }
 
+function buildOverviewPlayerClassMap(logs) {
+  const classOrbByName = new Map(
+    SIDEBAR_CLASS_ORBS.map((orb) => [orb.name, orb]),
+  );
+  const assignments = new Map();
+
+  (Array.isArray(logs) ? logs : []).forEach((log, logIndex) => {
+    const date = String(dateOf(log) || '').trim();
+    const chronology = `${date || '0000-00-00'}@@${String(logIndex).padStart(6, '0')}`;
+
+    classRowsForLog(log).forEach((row, rowIndex) => {
+      const playerKey = normalizeRosterPlayerKey(row.player);
+      const className = normalizeClassName(row.className || row.class);
+      const orb = classOrbByName.get(className);
+
+      if (!playerKey || !orb) return;
+
+      const rowChronology = `${chronology}@@${String(rowIndex).padStart(6, '0')}`;
+      const previous = assignments.get(playerKey);
+
+      if (!previous || rowChronology >= previous.chronology) {
+        assignments.set(playerKey, {
+          src: orb.src,
+          className,
+          mode: row.mode === 'Awakening' ? 'Awakening' : 'Succession',
+          chronology: rowChronology,
+        });
+      }
+    });
+  });
+
+  return Object.fromEntries(
+    [...assignments.entries()].map(([playerKey, assignment]) => [
+      playerKey,
+      {
+        src: assignment.src,
+        className: assignment.className,
+        mode: assignment.mode,
+      },
+    ]),
+  );
+}
+
 function classStatsDateValue(log) {
   const value = String(dateOf(log) || '').trim();
   const parsed = new Date(`${value}T00:00:00`);
@@ -6085,6 +6128,11 @@ export default function App() {
     raw,
   ]);
 
+  const overviewPlayerClassMap = useMemo(
+    () => buildOverviewPlayerClassMap(activeLogs),
+    [activeLogs],
+  );
+
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
 
   const allTimeStats = useMemo(() => {
@@ -6611,6 +6659,7 @@ export default function App() {
                   selectedLogs={activeLogs}
                   lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
                   loadLifetimeLogs={loadAllLogs}
+                  playerClassMap={overviewPlayerClassMap}
                 />
               )}
             </Suspense>
