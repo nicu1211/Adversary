@@ -29,7 +29,11 @@ function normalizeOverviewPlayerKey(value) {
     .replace(/[^a-z0-9]/g, '');
 }
 
-function OverviewPlayerClassIcon({ playerName, playerClassMap }) {
+function OverviewPlayerClassIcon({
+  playerName,
+  playerClassMap,
+  className = 'h-8 w-8',
+}) {
   const assignment = playerClassMap?.[normalizeOverviewPlayerKey(playerName)];
 
   if (!assignment?.src) return null;
@@ -40,7 +44,7 @@ function OverviewPlayerClassIcon({ playerName, playerClassMap }) {
       alt=""
       aria-hidden="true"
       title={[assignment.className, assignment.mode].filter(Boolean).join(' · ')}
-      className="inline-block h-[1em] w-[1em] shrink-0 object-contain align-[-0.12em]"
+      className={`inline-block shrink-0 rounded-full object-contain ${className}`}
     />
   );
 }
@@ -127,6 +131,42 @@ const OVERVIEW_GUILD_PANEL_CSS = `
 
   .overview-guild-page .overview-accent-orange {
     --overview-panel-accent-rgb: 249, 115, 22;
+  }
+
+  .overview-guild-page .overview-player-rank-unified {
+    --overview-panel-accent-rgb: 6, 182, 212;
+    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-image:
+      radial-gradient(
+        ellipse at 10% 0%,
+        rgba(139, 92, 246, 0.22) 0%,
+        rgba(139, 92, 246, 0.08) 38%,
+        transparent 66%
+      ),
+      radial-gradient(
+        ellipse at 88% 0%,
+        rgba(6, 182, 212, 0.20) 0%,
+        rgba(6, 182, 212, 0.075) 42%,
+        transparent 70%
+      ),
+      linear-gradient(145deg, rgba(15, 23, 42, 0.58), rgba(2, 6, 23, 0.72)) !important;
+  }
+
+  .overview-guild-page .overview-player-rank-unified:hover {
+    background-image:
+      radial-gradient(
+        ellipse at 10% 0%,
+        rgba(139, 92, 246, 0.28) 0%,
+        rgba(139, 92, 246, 0.11) 40%,
+        transparent 68%
+      ),
+      radial-gradient(
+        ellipse at 88% 0%,
+        rgba(6, 182, 212, 0.26) 0%,
+        rgba(6, 182, 212, 0.10) 44%,
+        transparent 72%
+      ),
+      linear-gradient(145deg, rgba(15, 23, 42, 0.55), rgba(2, 6, 23, 0.69)) !important;
   }
 
   .overview-guild-page .overview-summary-panel > div:last-child > div,
@@ -1318,6 +1358,35 @@ function majorityGuildForKillFeed(feed, events = []) {
   return majorityGuild || cleanGuild(feed.guild) || cleanGuild(feed.war) || '-';
 }
 
+function OverviewPlayerAnalyticsPane({
+  embedded = false,
+  accent = 'blue',
+  side = 'left',
+  children,
+}) {
+  if (embedded) {
+    return (
+      <div
+        className={`overview-accent-${accent} min-w-0 h-[680px] p-3 sm:p-5 ${
+          side === 'right'
+            ? 'border-t border-white/10 xl:border-l xl:border-t-0'
+            : ''
+        }`}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <Panel
+      cls={`overview-guild-panel overview-panel-transparent overview-accent-${accent} h-[680px]`}
+    >
+      {children}
+    </Panel>
+  );
+}
+
 function AverageRank({
   players,
   members,
@@ -1326,6 +1395,7 @@ function AverageRank({
   events,
   selectedLogs,
   playerClassMap,
+  embedded = false,
 }) {
   const [query, setQuery] = useState('');
 
@@ -2506,7 +2576,11 @@ function AverageRank({
   }
 
   return (
-    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-violet h-[680px]">
+    <OverviewPlayerAnalyticsPane
+      embedded={embedded}
+      accent="violet"
+      side="left"
+    >
       <div className="flex h-full flex-col">
         <div className="overview-section-header overview-header-violet mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -2547,12 +2621,15 @@ function AverageRank({
                     <span className="w-6 shrink-0 text-center text-xs font-black text-slate-600">
                       {index + 1}
                     </span>
-                    <span className="overview-player-name-chip inline-flex min-w-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black">
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <span className="overview-player-name-chip inline-flex h-7 min-w-0 items-center rounded-full px-2.5 text-xs font-black">
+                        <span className="min-w-0 truncate">{player.name}</span>
+                      </span>
                       <OverviewPlayerClassIcon
                         playerName={player.name}
                         playerClassMap={playerClassMap}
+                        className="h-7 w-7"
                       />
-                      <span className="min-w-0 truncate">{player.name}</span>
                     </span>
                     <span className="shrink-0 text-[10px] font-bold text-slate-500">
                       {player.matches} wars
@@ -2642,7 +2719,7 @@ function AverageRank({
           </div>
         )}
       </div>
-    </Panel>
+    </OverviewPlayerAnalyticsPane>
   );
 }
 
@@ -2857,9 +2934,9 @@ function PlayerPerformanceModal({
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="flex min-w-0 items-center gap-1.5 text-lg font-black text-white sm:text-xl">
-                  {titleIcon}
+                <h3 className="flex min-w-0 items-center gap-2 text-lg font-black text-white sm:text-xl">
                   <span className="min-w-0 truncate">{title}</span>
+                  {titleIcon}
                 </h3>
 
                 <span className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-200">
@@ -2902,6 +2979,7 @@ function PlayerOverview({
   lifetimeLogs,
   loadLifetimeLogs,
   playerClassMap,
+  embedded = false,
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState(['kills', 'desc']);
@@ -3912,7 +3990,11 @@ function PlayerOverview({
     };
   }, [selected, lifetimeLogs]);
   return (
-    <Panel cls="overview-guild-panel overview-panel-transparent overview-accent-cyan h-[680px]">
+    <OverviewPlayerAnalyticsPane
+      embedded={embedded}
+      accent="cyan"
+      side="right"
+    >
       <div className="flex h-full flex-col">
         <div className="overview-section-header overview-header-cyan mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -3934,22 +4016,26 @@ function PlayerOverview({
           <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
             <table className="w-full table-fixed text-xs">
               <colgroup>
-                <col className="w-[13%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
-                <col className="w-[9.666%]" />
+                <col className="w-[14%]" />
+                <col className="w-[5%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
               </colgroup>
               <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
                   <Header id="name" className="pl-4 text-left">
                     Family
                   </Header>
+                  <th className="px-1 py-3 text-center text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                    Class
+                  </th>
                   <Header id="kills" className="text-center">
                     Kills
                   </Header>
@@ -3989,13 +4075,24 @@ function PlayerOverview({
                     <td className="py-2 pl-3">
                       <button
                         onClick={() => openPlayerDetails(player)}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
+                        className="inline-flex h-8 max-w-full items-center rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 font-bold text-cyan-300 transition hover:border-cyan-300 hover:bg-cyan-500/20"
+                      >
+                        <span className="min-w-0 truncate">{player.name}</span>
+                      </button>
+                    </td>
+
+                    <td className="py-1 text-center">
+                      <button
+                        type="button"
+                        onClick={() => openPlayerDetails(player)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
+                        aria-label={`Open ${player.name} war performance`}
                       >
                         <OverviewPlayerClassIcon
                           playerName={player.name}
                           playerClassMap={playerClassMap}
+                          className="h-8 w-8"
                         />
-                        <span className="min-w-0 truncate">{player.name}</span>
                       </button>
                     </td>
 
@@ -4349,7 +4446,7 @@ function PlayerOverview({
           document.body,
         )}
       </div>
-    </Panel>
+    </OverviewPlayerAnalyticsPane>
   );
 }
 
@@ -5218,14 +5315,17 @@ function KillFeedPanel({ killFeeds, events, playerClassMap }) {
                   }}
                 >
                   <div className="mb-0.5 flex items-center justify-between gap-2">
-                    <b className="overview-player-name-chip inline-flex min-w-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[13px]">
-                      <span className="shrink-0">{index + 1}.</span>
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <b className="overview-player-name-chip inline-flex h-7 min-w-0 items-center gap-1 rounded-full px-2.5 text-[13px]">
+                        <span className="shrink-0">{index + 1}.</span>
+                        <span className="min-w-0 truncate">{feed.name}</span>
+                      </b>
                       <OverviewPlayerClassIcon
                         playerName={feed.name}
                         playerClassMap={playerClassMap}
+                        className="h-7 w-7"
                       />
-                      <span className="min-w-0 truncate">{feed.name}</span>
-                    </b>
+                    </span>
 
                     <b className="shrink-0 text-sm text-orange-300">
                       🔥 {Number(feed.count) || 0}
@@ -5471,26 +5571,30 @@ export default function OverviewPage({
         />
       </div>
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-[520px_minmax(0,1fr)]">
-        <AverageRank
-          players={stats.players}
-          members={members}
-          streaks={stats.st}
-          feeds={stats.fd}
-          events={stats.ev}
-          selectedLogs={selectedLogs}
-          playerClassMap={playerClassMap}
-        />
+      <section className="overview-guild-panel overview-player-rank-unified overflow-hidden rounded-3xl border border-transparent">
+        <div className="grid items-stretch xl:grid-cols-[520px_minmax(0,1fr)]">
+          <AverageRank
+            players={stats.players}
+            members={members}
+            streaks={stats.st}
+            feeds={stats.fd}
+            events={stats.ev}
+            selectedLogs={selectedLogs}
+            playerClassMap={playerClassMap}
+            embedded
+          />
 
-        <PlayerOverview
-          players={stats.players}
-          streaks={stats.st}
-          feeds={stats.fd}
-          events={stats.ev}
-          lifetimeLogs={lifetimeLogs}
-          loadLifetimeLogs={loadLifetimeLogs}
-          playerClassMap={playerClassMap}
-        />
+          <PlayerOverview
+            players={stats.players}
+            streaks={stats.st}
+            feeds={stats.fd}
+            events={stats.ev}
+            lifetimeLogs={lifetimeLogs}
+            loadLifetimeLogs={loadLifetimeLogs}
+            playerClassMap={playerClassMap}
+            embedded
+          />
+        </div>
       </section>
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
