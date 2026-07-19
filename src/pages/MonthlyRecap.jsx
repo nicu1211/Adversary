@@ -3823,7 +3823,7 @@ function PerformanceMetricCell({
   );
 }
 
-function PlayersTable({ players }) {
+function PlayersTable({ players, classIconByName = {} }) {
   const [viewMode, setViewMode] = useState('average');
   const [overallWeights, setOverallWeights] = useState(
     () => ({ ...DEFAULT_OVERALL_WEIGHTS }),
@@ -4878,7 +4878,7 @@ export default function MonthlyRecap({
       </SectionShell>
 
       <SectionShell icon={Activity} title="Players Performance" accent="cyan" subtle>
-        <PlayersTable players={players} />
+        <PlayersTable players={players} classIconByName={classIconByName} />
       </SectionShell>
 
     </div>
