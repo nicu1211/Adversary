@@ -20,6 +20,31 @@ import {
 
 ChartJS.register(LinearScale, PointElement, ChartTooltip, Legend);
 
+function normalizeOverviewPlayerKey(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function OverviewPlayerClassIcon({ playerName, playerClassMap }) {
+  const assignment = playerClassMap?.[normalizeOverviewPlayerKey(playerName)];
+
+  if (!assignment?.src) return null;
+
+  return (
+    <img
+      src={assignment.src}
+      alt=""
+      aria-hidden="true"
+      title={[assignment.className, assignment.mode].filter(Boolean).join(' · ')}
+      className="inline-block h-[1em] w-[1em] shrink-0 object-contain align-[-0.12em]"
+    />
+  );
+}
+
 
 const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-guild-page {
@@ -1300,6 +1325,7 @@ function AverageRank({
   feeds,
   events,
   selectedLogs,
+  playerClassMap,
 }) {
   const [query, setQuery] = useState('');
 
@@ -2521,8 +2547,12 @@ function AverageRank({
                     <span className="w-6 shrink-0 text-center text-xs font-black text-slate-600">
                       {index + 1}
                     </span>
-                    <span className="overview-player-name-chip min-w-0 truncate rounded-full px-2.5 py-1 text-xs font-black">
-                      {player.name}
+                    <span className="overview-player-name-chip inline-flex min-w-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black">
+                      <OverviewPlayerClassIcon
+                        playerName={player.name}
+                        playerClassMap={playerClassMap}
+                      />
+                      <span className="min-w-0 truncate">{player.name}</span>
                     </span>
                     <span className="shrink-0 text-[10px] font-bold text-slate-500">
                       {player.matches} wars
@@ -2780,6 +2810,7 @@ function PlayerAverageComparisonCard({
 
 function PlayerPerformanceModal({
   title,
+  titleIcon = null,
   subtitle,
   close,
   children,
@@ -2826,8 +2857,9 @@ function PlayerPerformanceModal({
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="truncate text-lg font-black text-white sm:text-xl">
-                  {title}
+                <h3 className="flex min-w-0 items-center gap-1.5 text-lg font-black text-white sm:text-xl">
+                  {titleIcon}
+                  <span className="min-w-0 truncate">{title}</span>
                 </h3>
 
                 <span className="rounded-lg border border-violet-400/20 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-violet-200">
@@ -2862,7 +2894,15 @@ function PlayerPerformanceModal({
   );
 }
 
-function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLifetimeLogs }) {
+function PlayerOverview({
+  players,
+  streaks,
+  feeds,
+  events,
+  lifetimeLogs,
+  loadLifetimeLogs,
+  playerClassMap,
+}) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState(['kills', 'desc']);
   const [selected, setSelected] = useState(null);
@@ -3949,9 +3989,13 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
                     <td className="py-2 pl-3">
                       <button
                         onClick={() => openPlayerDetails(player)}
-                        className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
+                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 font-bold text-cyan-300 hover:border-cyan-300 hover:bg-cyan-500/20"
                       >
-                        {player.name}
+                        <OverviewPlayerClassIcon
+                          playerName={player.name}
+                          playerClassMap={playerClassMap}
+                        />
+                        <span className="min-w-0 truncate">{player.name}</span>
                       </button>
                     </td>
 
@@ -4024,6 +4068,12 @@ function PlayerOverview({ players, streaks, feeds, events, lifetimeLogs, loadLif
           createPortal(
           <PlayerPerformanceModal
             title={selected.name}
+            titleIcon={
+              <OverviewPlayerClassIcon
+                playerName={selected.name}
+                playerClassMap={playerClassMap}
+              />
+            }
             subtitle="Selected war compared with full lifetime per-war averages"
             close={() => setSelected(null)}
           >
@@ -5121,7 +5171,7 @@ function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
   );
 }
 
-function KillFeedPanel({ killFeeds, events }) {
+function KillFeedPanel({ killFeeds, events, playerClassMap }) {
   const rows = [...(killFeeds || [])]
     .sort(
       (a, b) =>
@@ -5168,8 +5218,13 @@ function KillFeedPanel({ killFeeds, events }) {
                   }}
                 >
                   <div className="mb-0.5 flex items-center justify-between gap-2">
-                    <b className="overview-player-name-chip min-w-0 truncate rounded-full px-2.5 py-0.5 text-[13px]">
-                      {index + 1}. {feed.name}
+                    <b className="overview-player-name-chip inline-flex min-w-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[13px]">
+                      <span className="shrink-0">{index + 1}.</span>
+                      <OverviewPlayerClassIcon
+                        playerName={feed.name}
+                        playerClassMap={playerClassMap}
+                      />
+                      <span className="min-w-0 truncate">{feed.name}</span>
                     </b>
 
                     <b className="shrink-0 text-sm text-orange-300">
@@ -5201,6 +5256,7 @@ export default function OverviewPage({
   selectedLogs,
   lifetimeLogs = [],
   loadLifetimeLogs,
+  playerClassMap = {},
 }) {
   const timelineKillFeeds = calculateKillFeed(
     stats.ev,
@@ -5423,6 +5479,7 @@ export default function OverviewPage({
           feeds={stats.fd}
           events={stats.ev}
           selectedLogs={selectedLogs}
+          playerClassMap={playerClassMap}
         />
 
         <PlayerOverview
@@ -5432,13 +5489,18 @@ export default function OverviewPage({
           events={stats.ev}
           lifetimeLogs={lifetimeLogs}
           loadLifetimeLogs={loadLifetimeLogs}
+          playerClassMap={playerClassMap}
         />
       </section>
 
       <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
 
-        <KillFeedPanel killFeeds={panelKillFeeds} events={stats.ev} />
+        <KillFeedPanel
+          killFeeds={panelKillFeeds}
+          events={stats.ev}
+          playerClassMap={playerClassMap}
+        />
       </section>
     </div>
   );
