@@ -41,6 +41,111 @@ function classAssignmentTitle(assignment) {
     .join(' · ');
 }
 
+function normalizeClassIdentity(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function readMonthlyClassAssignment(row) {
+  const player = String(
+    row?.player ||
+      row?.name ||
+      row?.guildPlayer ||
+      row?.character ||
+      '',
+  ).trim();
+  const className = String(
+    row?.className ||
+      row?.class ||
+      row?.playerClass ||
+      row?.characterClass ||
+      '',
+  ).trim();
+  const mode = String(
+    row?.mode ||
+      row?.spec ||
+      row?.specialization ||
+      row?.talent ||
+      '',
+  ).trim();
+
+  if (!player || !className) return null;
+
+  return {
+    player,
+    className,
+    mode,
+    src: row?.src || row?.icon || row?.classIcon || '',
+  };
+}
+
+function buildWindowPlayerClassMap(
+  logs,
+  window,
+  fallbackPlayerClassMap = {},
+) {
+  const result = {};
+
+  function addAssignment(candidate) {
+    const assignment = readMonthlyClassAssignment(candidate);
+
+    if (!assignment) return;
+
+    const playerKey = normalizeClassPlayerKey(assignment.player);
+    const classKey = normalizeClassIdentity(assignment.className);
+    const modeKey = normalizeClassIdentity(assignment.mode);
+    const fallbackAssignments =
+      fallbackPlayerClassMap?.[playerKey] || [];
+    const fallback = fallbackAssignments.find((item) => {
+      const sameClass =
+        normalizeClassIdentity(item?.className) === classKey;
+      const itemMode = normalizeClassIdentity(item?.mode);
+
+      return sameClass && (!modeKey || !itemMode || itemMode === modeKey);
+    });
+    const resolved = {
+      ...fallback,
+      ...assignment,
+      src: assignment.src || fallback?.src || '',
+    };
+    const identity = `${classKey}::${modeKey}`;
+
+    result[playerKey] ||= [];
+
+    if (
+      !result[playerKey].some(
+        (item) =>
+          `${normalizeClassIdentity(item?.className)}::${normalizeClassIdentity(
+            item?.mode,
+          )}` === identity,
+      )
+    ) {
+      result[playerKey].push(resolved);
+    }
+  }
+
+  (logs || [])
+    .filter((log) => dateIsInWindow(dateOf(log), window))
+    .forEach((log) => {
+      const oneStats = calculateStats([log]);
+      const summary = log?.summary || log?.stats || log?.analytics || {};
+      const candidates = [
+        ...(oneStats?.secondary?.rows || []),
+        ...(oneStats?.players || []),
+        ...(summary?.secondary?.rows || []),
+        ...(summary?.players || []),
+        ...(Array.isArray(log?.players) ? log.players : []),
+      ];
+
+      candidates.forEach(addAssignment);
+    });
+
+  return result;
+}
+
 function MonthlyPlayerClassIcons({ assignments = [] }) {
   const visibleAssignments = (assignments || []).filter(
     (assignment) => assignment?.src,
@@ -4420,16 +4525,26 @@ export default function MonthlyRecap({
     featuredWars,
   } = review;
 
+  const windowPlayerClassMap = useMemo(
+    () =>
+      buildWindowPlayerClassMap(
+        logs,
+        activeDateWindow,
+        playerClassMap,
+      ),
+    [logs, activeDateWindow, playerClassMap],
+  );
+
   const players = useMemo(
     () =>
       (reviewPlayers || []).map((player) => ({
         ...player,
         classAssignments:
-          playerClassMap?.[
+          windowPlayerClassMap?.[
             normalizeClassPlayerKey(player.name)
           ] || [],
       })),
-    [reviewPlayers, playerClassMap],
+    [reviewPlayers, windowPlayerClassMap],
   );
 
   return (
