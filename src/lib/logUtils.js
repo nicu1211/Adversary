@@ -461,6 +461,9 @@ function normalizeSecondaryPlayerName(parts) {
     'damage to fort',
     'cc hits',
     'cc',
+    'role',
+    'main',
+    'utility',
   ]);
 
   if (headerWords.has(normalized)) {
@@ -468,6 +471,18 @@ function normalizeSecondaryPlayerName(parts) {
   }
 
   return name;
+}
+
+function normalizeStatsRole(value) {
+  const key = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+
+  if (key === 'main') return 'Main';
+  if (key === 'utility' || key === 'util') return 'Utility';
+
+  return '';
 }
 
 function parseSecondaryIdentity(parts) {
@@ -520,6 +535,40 @@ function parseSecondaryLine(line, index) {
   columns = expandPackedSecondaryNumberColumns(columns);
 
   if (columns.length < 2) return null;
+
+  // Role is stored as one Stats Log field (`Main` or `Utility`).
+  // Prefer the final column, but scan the full row as a fallback because
+  // spreadsheet pastes can attach irregular spacing or move the role token
+  // into a neighbouring parsed column. Old rows without Role default to Main.
+  let role = '';
+  let roleColumnIndex = -1;
+
+  for (let columnIndex = columns.length - 1; columnIndex >= 0; columnIndex -= 1) {
+    const columnTokens = String(columns[columnIndex] || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    for (let tokenIndex = columnTokens.length - 1; tokenIndex >= 0; tokenIndex -= 1) {
+      const normalizedRole = normalizeStatsRole(columnTokens[tokenIndex]);
+
+      if (!normalizedRole) continue;
+
+      role = normalizedRole;
+      roleColumnIndex = columnIndex;
+      columnTokens.splice(tokenIndex, 1);
+
+      if (columnTokens.length) {
+        columns[columnIndex] = columnTokens.join(' ');
+      } else {
+        columns.splice(columnIndex, 1);
+      }
+
+      break;
+    }
+
+    if (roleColumnIndex >= 0) break;
+  }
 
   const firstNumberIndex = columns.findIndex(isSecondaryNumber);
 
@@ -604,6 +653,7 @@ function parseSecondaryLine(line, index) {
           mode,
         }
       : {}),
+    role: role || 'Main',
     kills,
     deaths,
     killFeed,
@@ -629,11 +679,26 @@ function parseSecondaryLine(line, index) {
 export function parseSecondaryRows(raw) {
   const { secondaryRaw } = splitRawLogSections(raw);
   const source = secondaryRaw || String(raw || '');
+  const rows = [];
 
-  return cleanLog(source)
+  cleanLog(source)
     .split(NL)
-    .map(parseSecondaryLine)
-    .filter(Boolean);
+    .forEach((line, index) => {
+      const standaloneRole = normalizeStatsRole(line);
+
+      // Some spreadsheet/browser pastes put the final Role value on its own
+      // physical line. In that case it belongs to the previously parsed row.
+      if (standaloneRole && rows.length) {
+        rows[rows.length - 1].role = standaloneRole;
+        return;
+      }
+
+      const parsed = parseSecondaryLine(line, index);
+
+      if (parsed) rows.push(parsed);
+    });
+
+  return rows;
 }
 
 const CLASS_LOG_CLASS_NAMES = Object.freeze([
@@ -730,7 +795,9 @@ function parseClassLogLine(line, index) {
 
   if (
     normalizedHeader === 'player class mode' ||
-    normalizedHeader === 'name class mode'
+    normalizedHeader === 'name class mode' ||
+    normalizedHeader === 'player class mode role' ||
+    normalizedHeader === 'name class mode role'
   ) {
     return null;
   }
@@ -741,9 +808,11 @@ function parseClassLogLine(line, index) {
     .filter(Boolean);
 
   if (columns.length >= 3) {
+    const role = normalizeStatsRole(columns.at(-1));
+    const modeIndex = role ? -2 : -1;
     const player = String(columns[0] || '').trim();
     const className = normalizeClassLogClass(columns[1]);
-    const mode = normalizeClassLogMode(columns.at(-1));
+    const mode = normalizeClassLogMode(columns.at(modeIndex));
 
     if (player && className && mode) {
       return {
@@ -751,14 +820,19 @@ function parseClassLogLine(line, index) {
         className,
         class: className,
         mode,
+        role: role || 'Main',
         line: index + 1,
       };
     }
   }
 
-  const parts = text.split(/\s+/).filter(Boolean);
+  let parts = text.split(/\s+/).filter(Boolean);
 
   if (parts.length < 3) return null;
+
+  const role = normalizeStatsRole(parts.at(-1));
+
+  if (role) parts = parts.slice(0, -1);
 
   const mode = normalizeClassLogMode(parts.at(-1));
 
@@ -781,6 +855,7 @@ function parseClassLogLine(line, index) {
       className,
       class: className,
       mode,
+      role: role || 'Main',
       line: index + 1,
     };
   }
@@ -818,6 +893,7 @@ export function parseClassRows(raw) {
             className: combinedRow.className,
             class: combinedRow.className,
             mode: combinedRow.mode,
+            role: combinedRow.role || 'Main',
             line: index + 1,
           });
         }
