@@ -5597,7 +5597,7 @@ export default function OverviewPage({
         </div>
       </section>
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="grid items-stretch gap-4 xl:grid-cols-[0.78fr_1.22fr]">
         <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel
