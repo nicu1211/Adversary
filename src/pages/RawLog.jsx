@@ -539,11 +539,9 @@ export default function RawLog({
                     </span>
 
                     <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
-                      Main: {secondaryRows.filter((row) => row.role !== 'Utility').length}
-                    </span>
-
-                    <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-amber-100">
-                      Utility: {secondaryRows.filter((row) => row.role === 'Utility').length}
+                      Role: Main {secondaryRows.filter((row) => row.role !== 'Utility').length}
+                      {" · "}
+                      Utility {secondaryRows.filter((row) => row.role === 'Utility').length}
                     </span>
 
                     <span className="rounded-lg bg-slate-950/70 px-2 py-1 text-xs text-emerald-100">
@@ -570,7 +568,7 @@ export default function RawLog({
                 <textarea
                   value={secondaryRaw}
                   onChange={(event) => setSecondaryRaw(event.target.value)}
-                  placeholder="Player  Class  Spec  Kills  Deaths  KillFeed  DamageDealt  DamageTaken  CCHits  Heal  AllyProtection  FortDamage  Role\nExamplePlayer  Ranger  Succession  20  5  4  1200000  450000  18  0  0  25000  Main"
+                  placeholder="Player  Class  Spec  Kills  Deaths  KillFeed  DamageDealt  DamageTaken  CCHits  Heal  AllyProtection  FortDamage  Role\nExampleMain  Ranger  Succession  20  5  4  1200000  450000  18  0  0  25000  Main\nExampleUtility  Shai  Talent  2  10  1  400000  900000  30  500000  800000  0  Utility"
                   className="h-96 w-full rounded-2xl border border-emerald-500/30 bg-slate-950 p-4 font-mono text-sm outline-none focus:border-emerald-400"
                 />
 
