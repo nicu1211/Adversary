@@ -296,7 +296,7 @@ const GUILD_ROSTER = Object.freeze([
   'HAZEKUSH',
   'INoGameNoLife',
   'RXJ'
-  'ItsPretense' ,
+  'ItsPretense',
   'McPero'
 ]);
 
