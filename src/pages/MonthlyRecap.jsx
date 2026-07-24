@@ -1367,7 +1367,7 @@ function buildPlayerChronology(stats) {
 }
 
 
-function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
+function buildPlayerStatsCompatiblePlayers(stats, logs = [], mainOnly = false) {
   const events = Array.isArray(stats?.ev) ? stats.ev : [];
   const secondaryRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
@@ -1415,6 +1415,7 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
         damageTaken: 0,
         ccHits: 0,
         fortDamage: 0,
+        role: 'Main',
         firstAppearanceTime: Number.POSITIVE_INFINITY,
         firstAppearanceOrder: Number.POSITIVE_INFINITY,
         __has: {
@@ -1526,6 +1527,10 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
     );
 
     if (!match) return;
+
+    match.role = String(row?.role || 'Main').toLowerCase() === 'utility'
+      ? 'Utility'
+      : 'Main';
 
     const rowPresence =
       metricPresenceByWar.get(warId) ||
@@ -1681,7 +1686,9 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = []) {
 
   return [...matchesByPlayer.values()]
     .map((player) => {
-      const matches = [...player.matches.values()];
+      const matches = [...player.matches.values()].filter(
+        (match) => !mainOnly || match.role !== 'Utility',
+      );
       const killsValues = metricValues(matches, 'kills');
       const deathsValues = metricValues(matches, 'deaths');
       const kdValues = matches
@@ -2879,8 +2886,17 @@ function buildReview(
   const activePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
     monthLogs,
+    false,
+  );
+  const mainRoleActivePlayers = buildPlayerStatsCompatiblePlayers(
+    stats,
+    monthLogs,
+    true,
   );
   const players = buildRosterPerformancePlayers(activePlayers);
+  const mainRolePlayers = buildRosterPerformancePlayers(
+    mainRoleActivePlayers,
+  );
   const {
     topFragger,
     bestKd,
@@ -2967,6 +2983,7 @@ function buildReview(
     totals,
     previousTotals,
     players,
+    mainRolePlayers,
     topFragger,
     bestKd,
     damageLeader,
@@ -3849,8 +3866,9 @@ function PerformanceMetricCell({
   );
 }
 
-function PlayersTable({ players }) {
+function PlayersTable({ players, mainRolePlayers = [] }) {
   const [viewMode, setViewMode] = useState('average');
+  const [mainOnly, setMainOnly] = useState(false);
   const [overallWeights, setOverallWeights] = useState(
     () => ({ ...DEFAULT_OVERALL_WEIGHTS }),
   );
@@ -3859,14 +3877,16 @@ function PlayersTable({ players }) {
     direction: 'desc',
   });
 
+  const displayedPlayers = mainOnly ? mainRolePlayers : players;
+
   const playersWithImpact = useMemo(
     () =>
       addImpactScores(
-        players || [],
+        displayedPlayers || [],
         overallWeights,
         viewMode,
       ),
-    [players, overallWeights, viewMode],
+    [displayedPlayers, overallWeights, viewMode],
   );
 
   const rows = useMemo(() => {
@@ -4006,6 +4026,20 @@ function PlayersTable({ players }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMainOnly((current) => !current)}
+              aria-pressed={mainOnly}
+              title="Exclude wars where the player was assigned the Utility role"
+              className={`rounded-md border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
+                mainOnly
+                  ? 'border-emerald-400/70 bg-emerald-500/15 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,.16)]'
+                  : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-emerald-400/60 hover:text-white'
+              }`}
+            >
+              Main only: {mainOnly ? 'On' : 'Off'}
+            </button>
+
             <div className="rounded-md border border-[#263c59] bg-slate-950/22 px-2.5 py-1.5 text-[9px] font-black text-slate-400">
               Weight pool:{' '}
               <span className="text-white">
@@ -4512,6 +4546,7 @@ export default function MonthlyRecap({
     totals,
     previousTotals,
     players: reviewPlayers,
+    mainRolePlayers: reviewMainRolePlayers,
     topFragger,
     bestKd,
     damageLeader,
@@ -4545,6 +4580,18 @@ export default function MonthlyRecap({
           ] || [],
       })),
     [reviewPlayers, windowPlayerClassMap],
+  );
+
+  const mainRolePlayers = useMemo(
+    () =>
+      (reviewMainRolePlayers || []).map((player) => ({
+        ...player,
+        classAssignments:
+          windowPlayerClassMap?.[
+            normalizeClassPlayerKey(player.name)
+          ] || [],
+      })),
+    [reviewMainRolePlayers, windowPlayerClassMap],
   );
 
   return (
@@ -4895,7 +4942,7 @@ export default function MonthlyRecap({
       </SectionShell>
 
       <SectionShell icon={Activity} title="Players Performance" accent="cyan" subtle>
-        <PlayersTable players={players} />
+        <PlayersTable players={players} mainRolePlayers={mainRolePlayers} />
       </SectionShell>
 
     </div>
