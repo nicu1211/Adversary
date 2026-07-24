@@ -360,13 +360,15 @@ const OVERVIEW_GUILD_PANEL_CSS = `
 
   .overview-guild-page .overview-kill-feed-panel .overview-player-name-chip {
     display: inline-flex;
+    flex: 1 1 auto;
+    min-width: 0;
     min-height: 24px;
-    max-width: calc(100% - 54px);
+    max-width: none;
     align-items: center;
-    overflow: hidden;
+    overflow: visible;
     line-height: 1.2 !important;
     white-space: nowrap;
-    text-overflow: ellipsis;
+    text-overflow: clip;
   }
 
   .overview-guild-page .overview-average-rank-row,
@@ -2617,7 +2619,7 @@ function AverageRank({
                 }}
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     <span className="w-6 shrink-0 text-center text-xs font-black text-slate-600">
                       {index + 1}
                     </span>
@@ -5597,7 +5599,7 @@ export default function OverviewPage({
         </div>
       </section>
 
-      <section className="grid items-stretch gap-4 xl:grid-cols-[0.78fr_1.22fr]">
+      <section className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(420px,0.82fr)]">
         <EnemyGuilds guilds={stats.guilds} events={stats.ev} />
 
         <KillFeedPanel
