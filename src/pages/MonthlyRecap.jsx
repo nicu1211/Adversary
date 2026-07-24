@@ -228,8 +228,6 @@ const GUILD_ROSTER = Object.freeze([
   'Kimezi',
   'Nkys',
   'Form',
-  'MokrySpren',
-  'Emotionz',
   'Emphonia',
   'EHASZz',
   'MrDethsTV',
@@ -244,7 +242,6 @@ const GUILD_ROSTER = Object.freeze([
   'Baskona',
   'Sarres',
   'Gorz',
-  'Working',
   'Bertoweed',
   'Mahikkii',
   'Facetasm',
@@ -296,10 +293,11 @@ const GUILD_ROSTER = Object.freeze([
   'Telvanis',
   'Scarmartem',
   'Shizzai',
-  'Karabela69',
   'HAZEKUSH',
   'INoGameNoLife',
   'RXJ'
+  'ItsPretense' ,
+  'McPero'
 ]);
 
 function num(value) {
