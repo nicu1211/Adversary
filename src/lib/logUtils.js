@@ -463,6 +463,7 @@ function normalizeSecondaryPlayerName(parts) {
     'cc',
     'role',
     'main',
+    'flex',
     'utility',
   ]);
 
@@ -480,6 +481,7 @@ function normalizeStatsRole(value) {
     .replace(/[^a-z]/g, '');
 
   if (key === 'main') return 'Main';
+  if (key === 'flex') return 'Flex';
   if (key === 'utility' || key === 'util') return 'Utility';
 
   return '';
@@ -536,7 +538,7 @@ function parseSecondaryLine(line, index) {
 
   if (columns.length < 2) return null;
 
-  // Role is stored as one Stats Log field (`Main` or `Utility`).
+  // Role is stored as one Stats Log field (`Main`, `Flex`, or `Utility`).
   // Prefer the final column, but scan the full row as a fallback because
   // spreadsheet pastes can attach irregular spacing or move the role token
   // into a neighbouring parsed column. Old rows without Role default to Main.
