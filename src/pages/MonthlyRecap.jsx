@@ -1419,6 +1419,8 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
         ccHits: 0,
         fortDamage: 0,
         role: 'Main',
+        className: '',
+        mode: '',
         firstAppearanceTime: Number.POSITIVE_INFINITY,
         firstAppearanceOrder: Number.POSITIVE_INFINITY,
         __has: {
@@ -1537,6 +1539,12 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
       : normalizedRole === 'flex'
         ? 'Flex'
         : 'Main';
+    match.className = String(
+      row?.className || row?.class || row?.playerClass || row?.characterClass || '',
+    ).trim();
+    match.mode = String(
+      row?.mode || row?.spec || row?.specialization || row?.talent || '',
+    ).trim();
 
     const rowPresence =
       metricPresenceByWar.get(warId) ||
@@ -1741,6 +1749,10 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
         averageDamageTaken: average(damageTakenValues),
         averageCcHits: average(ccValues),
         averageFortDamage: average(fortValues),
+        matches: matches.map((match) => ({
+          ...match,
+          __has: { ...match.__has },
+        })),
         statWarCounts: {
           kills: killsValues.length,
           deaths: deathsValues.length,
@@ -3405,13 +3417,13 @@ function SortHeader({
 const DEFAULT_OVERALL_WEIGHTS = Object.freeze({
   kills: 0,
   deaths: 0,
-  kd: 10,
+  kd: 30,
   killStreak: 0,
   killFeed: 0,
   damageDealt: 40,
   damageTaken: 0,
-  ccHits: 20,
-  fortDamage: 30,
+  ccHits: 10,
+  fortDamage: 20,
 });
 
 const OVERALL_WEIGHT_CONTROLS = Object.freeze([
@@ -3890,6 +3902,72 @@ function PerformanceMetricCell({
   );
 }
 
+function rebuildPlayerForClass(player, className) {
+  const targetClass = normalizeClassIdentity(className);
+  const matches = (player?.matches || []).filter(
+    (match) => normalizeClassIdentity(match?.className) === targetClass,
+  );
+
+  const metricValues = (key) => matches
+    .filter((match) => Boolean(match?.__has?.[key]))
+    .map((match) => num(match?.[key]));
+  const sum = (values) => values.reduce((total, value) => total + num(value), 0);
+  const average = (values) => values.length ? sum(values) / values.length : 0;
+  const killsValues = metricValues('kills');
+  const deathsValues = metricValues('deaths');
+  const kdValues = matches
+    .filter((match) => Boolean(match?.__has?.kd))
+    .map((match) => ratio(match.kills, match.deaths));
+  const streakValues = metricValues('killStreak');
+  const feedValues = metricValues('killFeed');
+  const damageValues = metricValues('damageDealt');
+  const damageTakenValues = metricValues('damageTaken');
+  const ccValues = metricValues('ccHits');
+  const fortValues = metricValues('fortDamage');
+  const kills = sum(killsValues);
+  const deaths = sum(deathsValues);
+  const firstMatch = [...matches].sort((a, b) => chronologicalCompare(a, b))[0];
+
+  return {
+    ...player,
+    wars: matches.length,
+    matches,
+    firstAppearanceTime: firstMatch?.firstAppearanceTime ?? Number.POSITIVE_INFINITY,
+    firstAppearanceOrder: firstMatch?.firstAppearanceOrder ?? Number.POSITIVE_INFINITY,
+    kills,
+    deaths,
+    kd: ratio(kills, deaths),
+    averageKills: average(killsValues),
+    averageDeaths: average(deathsValues),
+    averageKd: average(kdValues),
+    killStreak: sum(streakValues),
+    averageKillStreak: average(streakValues),
+    longestKillStreak: streakValues.length ? Math.max(...streakValues) : 0,
+    killFeed: sum(feedValues),
+    bestKillFeed: feedValues.length ? Math.max(...feedValues) : 0,
+    averageKillFeed: average(feedValues),
+    damageDealt: sum(damageValues),
+    damageTaken: sum(damageTakenValues),
+    ccHits: sum(ccValues),
+    fortDamage: sum(fortValues),
+    averageDamageDealt: average(damageValues),
+    averageDamageTaken: average(damageTakenValues),
+    averageCcHits: average(ccValues),
+    averageFortDamage: average(fortValues),
+    statWarCounts: {
+      kills: killsValues.length,
+      deaths: deathsValues.length,
+      kd: kdValues.length,
+      killStreak: streakValues.length,
+      killFeed: feedValues.length,
+      damageDealt: damageValues.length,
+      damageTaken: damageTakenValues.length,
+      ccHits: ccValues.length,
+      fortDamage: fortValues.length,
+    },
+  };
+}
+
 function PlayersTable({
   players,
   mainRolePlayers = [],
@@ -3928,9 +4006,9 @@ function PlayersTable({
   }, [availableClasses, classFilter]);
 
   const displayedPlayers = classFilter
-    ? (rolePlayers || []).filter((player) =>
-        (player.classAssignments || []).some((assignment) => assignment.className === classFilter),
-      )
+    ? (rolePlayers || [])
+        .map((player) => rebuildPlayerForClass(player, classFilter))
+        .filter((player) => num(player.wars) > 0)
     : rolePlayers;
 
   const playersWithImpact = useMemo(
