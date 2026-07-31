@@ -86,10 +86,17 @@ function buildWindowPlayerClassMap(
   logs,
   window,
   fallbackPlayerClassMap = {},
+  roleFilter = '',
 ) {
   const result = {};
 
   function addAssignment(candidate) {
+    const candidateRole = ['Main', 'Flex', 'Utility'].includes(candidate?.role)
+      ? candidate.role
+      : 'Main';
+
+    if (roleFilter && candidateRole !== roleFilter) return;
+
     const assignment = readMonthlyClassAssignment(candidate);
 
     if (!assignment) return;
@@ -1363,7 +1370,7 @@ function buildPlayerChronology(stats) {
 }
 
 
-function buildPlayerStatsCompatiblePlayers(stats, logs = [], mainOnly = false) {
+function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
   const events = Array.isArray(stats?.ev) ? stats.ev : [];
   const secondaryRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
@@ -1524,9 +1531,12 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], mainOnly = false) {
 
     if (!match) return;
 
-    match.role = String(row?.role || 'Main').toLowerCase() === 'utility'
+    const normalizedRole = String(row?.role || 'Main').trim().toLowerCase();
+    match.role = normalizedRole === 'utility'
       ? 'Utility'
-      : 'Main';
+      : normalizedRole === 'flex'
+        ? 'Flex'
+        : 'Main';
 
     const rowPresence =
       metricPresenceByWar.get(warId) ||
@@ -1683,7 +1693,7 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], mainOnly = false) {
   return [...matchesByPlayer.values()]
     .map((player) => {
       const matches = [...player.matches.values()].filter(
-        (match) => !mainOnly || match.role !== 'Utility',
+        (match) => !roleFilter || match.role === roleFilter,
       );
       const killsValues = metricValues(matches, 'kills');
       const deathsValues = metricValues(matches, 'deaths');
@@ -2887,11 +2897,27 @@ function buildReview(
   const mainRoleActivePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
     monthLogs,
-    true,
+    'Main',
+  );
+  const flexRoleActivePlayers = buildPlayerStatsCompatiblePlayers(
+    stats,
+    monthLogs,
+    'Flex',
+  );
+  const utilityRoleActivePlayers = buildPlayerStatsCompatiblePlayers(
+    stats,
+    monthLogs,
+    'Utility',
   );
   const players = buildRosterPerformancePlayers(activePlayers);
   const mainRolePlayers = buildRosterPerformancePlayers(
     mainRoleActivePlayers,
+  );
+  const flexRolePlayers = buildRosterPerformancePlayers(
+    flexRoleActivePlayers,
+  );
+  const utilityRolePlayers = buildRosterPerformancePlayers(
+    utilityRoleActivePlayers,
   );
   const {
     topFragger,
@@ -2980,6 +3006,8 @@ function buildReview(
     previousTotals,
     players,
     mainRolePlayers,
+    flexRolePlayers,
+    utilityRolePlayers,
     topFragger,
     bestKd,
     damageLeader,
@@ -3862,9 +3890,15 @@ function PerformanceMetricCell({
   );
 }
 
-function PlayersTable({ players, mainRolePlayers = [] }) {
+function PlayersTable({
+  players,
+  mainRolePlayers = [],
+  flexRolePlayers = [],
+  utilityRolePlayers = [],
+}) {
   const [viewMode, setViewMode] = useState('average');
-  const [mainOnly, setMainOnly] = useState(false);
+  const [roleFilter, setRoleFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
   const [overallWeights, setOverallWeights] = useState(
     () => ({ ...DEFAULT_OVERALL_WEIGHTS }),
   );
@@ -3873,7 +3907,31 @@ function PlayersTable({ players, mainRolePlayers = [] }) {
     direction: 'desc',
   });
 
-  const displayedPlayers = mainOnly ? mainRolePlayers : players;
+  const rolePlayers = roleFilter === 'Main'
+    ? mainRolePlayers
+    : roleFilter === 'Flex'
+      ? flexRolePlayers
+      : roleFilter === 'Utility'
+        ? utilityRolePlayers
+        : players;
+
+  const availableClasses = useMemo(() =>
+    [...new Set((rolePlayers || []).flatMap((player) =>
+      (player.classAssignments || []).map((assignment) => assignment.className).filter(Boolean),
+    ))].sort((a, b) => a.localeCompare(b)),
+  [rolePlayers]);
+
+  useEffect(() => {
+    if (classFilter && !availableClasses.includes(classFilter)) {
+      setClassFilter('');
+    }
+  }, [availableClasses, classFilter]);
+
+  const displayedPlayers = classFilter
+    ? (rolePlayers || []).filter((player) =>
+        (player.classAssignments || []).some((assignment) => assignment.className === classFilter),
+      )
+    : rolePlayers;
 
   const playersWithImpact = useMemo(
     () =>
@@ -3996,9 +4054,6 @@ function PlayersTable({ players, mainRolePlayers = [] }) {
     });
   }
 
-  if (!rows.length) {
-    return <p className="p-5 text-sm text-slate-500">No player data.</p>;
-  }
 
   const gridColumns =
     'grid-cols-[28px_minmax(170px,1.45fr)_minmax(92px,.72fr)_minmax(48px,.42fr)_minmax(72px,.58fr)_minmax(72px,.58fr)_minmax(62px,.5fr)_minmax(82px,.66fr)_minmax(80px,.64fr)_minmax(98px,.82fr)_minmax(98px,.82fr)_minmax(74px,.6fr)_minmax(100px,.84fr)]';
@@ -4022,19 +4077,34 @@ function PlayersTable({ players, mainRolePlayers = [] }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMainOnly((current) => !current)}
-              aria-pressed={mainOnly}
-              title="Exclude wars where the player was assigned the Utility role"
-              className={`rounded-md border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
-                mainOnly
-                  ? 'border-emerald-400/70 bg-emerald-500/15 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,.16)]'
-                  : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-emerald-400/60 hover:text-white'
-              }`}
+            {['Main', 'Flex', 'Utility'].map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setRoleFilter((current) => current === role ? '' : role)}
+                aria-pressed={roleFilter === role}
+                title={`Show only wars where the player was assigned the ${role} role`}
+                className={`rounded-md border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
+                  roleFilter === role
+                    ? 'border-emerald-400/70 bg-emerald-500/15 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,.16)]'
+                    : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-emerald-400/60 hover:text-white'
+                }`}
+              >
+                {role} only: {roleFilter === role ? 'On' : 'Off'}
+              </button>
+            ))}
+
+            <select
+              value={classFilter}
+              onChange={(event) => setClassFilter(event.target.value)}
+              className="rounded-md border border-[#263c59] bg-slate-950/80 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-slate-300 outline-none transition hover:border-[#4ea1ff]"
+              title="Filter players by classes played in the selected role and period"
             >
-              Main only: {mainOnly ? 'On' : 'Off'}
-            </button>
+              <option value="">All classes</option>
+              {availableClasses.map((className) => (
+                <option key={className} value={className}>{className}</option>
+              ))}
+            </select>
 
             <div className="rounded-md border border-[#263c59] bg-slate-950/22 px-2.5 py-1.5 text-[9px] font-black text-slate-400">
               Weight pool:{' '}
@@ -4223,6 +4293,11 @@ function PlayersTable({ players, mainRolePlayers = [] }) {
           </div>
 
           <div className="relative z-0 divide-y divide-[#28405f]/45">
+            {!rows.length && (
+              <p className="p-5 text-sm text-slate-500">
+                No player data for the selected role and class.
+              </p>
+            )}
             {rows.map((player, index) => {
               const inactive = player.inactive;
 
@@ -4543,6 +4618,8 @@ export default function MonthlyRecap({
     previousTotals,
     players: reviewPlayers,
     mainRolePlayers: reviewMainRolePlayers,
+    flexRolePlayers: reviewFlexRolePlayers,
+    utilityRolePlayers: reviewUtilityRolePlayers,
     topFragger,
     bestKd,
     damageLeader,
@@ -4557,12 +4634,19 @@ export default function MonthlyRecap({
   } = review;
 
   const windowPlayerClassMap = useMemo(
-    () =>
-      buildWindowPlayerClassMap(
-        logs,
-        activeDateWindow,
-        playerClassMap,
-      ),
+    () => buildWindowPlayerClassMap(logs, activeDateWindow, playerClassMap),
+    [logs, activeDateWindow, playerClassMap],
+  );
+  const mainWindowPlayerClassMap = useMemo(
+    () => buildWindowPlayerClassMap(logs, activeDateWindow, playerClassMap, 'Main'),
+    [logs, activeDateWindow, playerClassMap],
+  );
+  const flexWindowPlayerClassMap = useMemo(
+    () => buildWindowPlayerClassMap(logs, activeDateWindow, playerClassMap, 'Flex'),
+    [logs, activeDateWindow, playerClassMap],
+  );
+  const utilityWindowPlayerClassMap = useMemo(
+    () => buildWindowPlayerClassMap(logs, activeDateWindow, playerClassMap, 'Utility'),
     [logs, activeDateWindow, playerClassMap],
   );
 
@@ -4583,11 +4667,31 @@ export default function MonthlyRecap({
       (reviewMainRolePlayers || []).map((player) => ({
         ...player,
         classAssignments:
-          windowPlayerClassMap?.[
+          mainWindowPlayerClassMap?.[
             normalizeClassPlayerKey(player.name)
           ] || [],
       })),
-    [reviewMainRolePlayers, windowPlayerClassMap],
+    [reviewMainRolePlayers, mainWindowPlayerClassMap],
+  );
+
+  const flexRolePlayers = useMemo(
+    () =>
+      (reviewFlexRolePlayers || []).map((player) => ({
+        ...player,
+        classAssignments:
+          flexWindowPlayerClassMap?.[normalizeClassPlayerKey(player.name)] || [],
+      })),
+    [reviewFlexRolePlayers, flexWindowPlayerClassMap],
+  );
+
+  const utilityRolePlayers = useMemo(
+    () =>
+      (reviewUtilityRolePlayers || []).map((player) => ({
+        ...player,
+        classAssignments:
+          utilityWindowPlayerClassMap?.[normalizeClassPlayerKey(player.name)] || [],
+      })),
+    [reviewUtilityRolePlayers, utilityWindowPlayerClassMap],
   );
 
   return (
@@ -4938,7 +5042,12 @@ export default function MonthlyRecap({
       </SectionShell>
 
       <SectionShell icon={Activity} title="Players Performance" accent="cyan" subtle>
-        <PlayersTable players={players} mainRolePlayers={mainRolePlayers} />
+        <PlayersTable
+          players={players}
+          mainRolePlayers={mainRolePlayers}
+          flexRolePlayers={flexRolePlayers}
+          utilityRolePlayers={utilityRolePlayers}
+        />
       </SectionShell>
 
     </div>
