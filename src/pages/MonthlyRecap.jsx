@@ -3474,21 +3474,23 @@ const OVERALL_WEIGHT_CONTROLS = Object.freeze([
 function averageBaselineScore(value, average, lowerIsBetter = false) {
   const playerValue = num(value);
   const baseline = num(average);
+  const clampScore = (score) => Math.min(100, Math.max(0, num(score)));
 
-  // With no usable baseline, a zero value is neutral while a recorded
-  // positive value is treated as above the empty baseline.
+  // The current filtered average is always worth 50 points.
+  // Twice the average reaches the maximum score of 100.
   if (baseline <= 0) {
-    return playerValue <= 0 ? 100 : lowerIsBetter ? 0 : 200;
+    if (playerValue <= 0) return 50;
+    return lowerIsBetter ? 0 : 100;
   }
 
   if (lowerIsBetter) {
-    // For metrics such as deaths and damage taken, matching the average is
-    // 100 and lower values score above 100.
-    if (playerValue <= 0) return 200;
-    return (baseline / playerValue) * 100;
+    // For deaths and damage taken, half the average reaches 100 while
+    // twice the average falls to 25. A recorded zero receives the maximum.
+    if (playerValue <= 0) return 100;
+    return clampScore((baseline / playerValue) * 50);
   }
 
-  return (playerValue / baseline) * 100;
+  return clampScore((playerValue / baseline) * 50);
 }
 
 function weightedImpactPart(parts) {
@@ -4057,7 +4059,7 @@ function PlayersTable({
               </span>
             </div>
             <p className="mt-1 text-[9px] font-bold text-slate-500">
-              100 equals the current filtered average · Class selection uses that class average · All Classes uses the all-class average · Deaths and DMG Taken reward lower values
+              50 equals the current filtered average · 100 is the maximum · Class selection uses that class average · All Classes uses the all-class average · Deaths and DMG Taken reward lower values
             </p>
           </div>
 
