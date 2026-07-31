@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
 import adversaryEmblem from './assets/adversary-emblem.png?url';
+import classOrbAgent from './assets/class-orbs/Agent.webp';
 import classOrbArcher from './assets/class-orbs/Archer.webp';
 import classOrbBerserker from './assets/class-orbs/Berserker.webp';
 import classOrbCorsair from './assets/class-orbs/Corsair.webp';
@@ -3084,6 +3085,30 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     className: 'is-extra',
     glow: '245, 158, 11',
     accent: '146, 38, 40',
+    startX: 0.07,
+    startY: 0.87,
+    size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
+    opacity: 0.56,
+    duration: '8.65s',
+    delay: '-6.14s',
+    velocityX: 0.29,
+    velocityY: -0.22,
+    gravity: 0.0010,
+    drift: 0.0097,
+    driftSpeed: 0.000735,
+    maxSpeed: 1.76,
+    pointerRadius: 163,
+    pointerForce: 0.505,
+    pointerCarry: 0.046,
+    phase: 24.19,
+  },
+  {
+    id: 'agent',
+    name: 'Agent',
+    src: classOrbAgent,
+    className: 'is-extra',
+    glow: '168, 85, 247',
+    accent: '255, 215, 0',
     startX: 0.07,
     startY: 0.87,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
