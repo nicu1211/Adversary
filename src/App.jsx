@@ -11,7 +11,6 @@ import { createPortal } from 'react-dom';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
 import adversaryEmblem from './assets/adversary-emblem.png?url';
-import classOrbAgent from './assets/class-orbs/Agent.webp';
 import classOrbArcher from './assets/class-orbs/Archer.webp';
 import classOrbBerserker from './assets/class-orbs/Berserker.webp';
 import classOrbCorsair from './assets/class-orbs/Corsair.webp';
@@ -32,6 +31,7 @@ import classOrbNova from './assets/class-orbs/Nova.webp';
 import classOrbRanger from './assets/class-orbs/Ranger.webp';
 import classOrbSage from './assets/class-orbs/Sage.webp';
 import classOrbScholar from './assets/class-orbs/Scholar.webp';
+import classOrbAgent from './assets/class-orbs/Agent.webp';
 import classOrbSeraph from './assets/class-orbs/Seraph.webp';
 import classOrbShai from './assets/class-orbs/Shai.webp';
 import classOrbSorceress from './assets/class-orbs/Sorceress.webp';
@@ -3107,24 +3107,24 @@ const SIDEBAR_CLASS_ORBS = Object.freeze([
     name: 'Agent',
     src: classOrbAgent,
     className: 'is-extra',
-    glow: '168, 85, 247',
-    accent: '255, 215, 0',
-    startX: 0.07,
-    startY: 0.87,
+    glow: '99, 102, 241',
+    accent: '236, 72, 153',
+    startX: 0.20,
+    startY: 0.89,
     size: SIDEBAR_STANDARD_CLASS_ORB_SIZE,
-    opacity: 0.56,
-    duration: '8.65s',
-    delay: '-6.14s',
-    velocityX: 0.29,
-    velocityY: -0.22,
-    gravity: 0.0010,
-    drift: 0.0097,
-    driftSpeed: 0.000735,
-    maxSpeed: 1.76,
-    pointerRadius: 163,
-    pointerForce: 0.505,
-    pointerCarry: 0.046,
-    phase: 24.19,
+    opacity: 0.60,
+    duration: '8.95s',
+    delay: '-6.75s',
+    velocityX: -0.25,
+    velocityY: -0.20,
+    gravity: 0.0011,
+    drift: 0.0092,
+    driftSpeed: 0.000710,
+    maxSpeed: 1.82,
+    pointerRadius: 160,
+    pointerForce: 0.52,
+    pointerCarry: 0.045,
+    phase: 24.88,
   },
   {
     id: 'shai',
