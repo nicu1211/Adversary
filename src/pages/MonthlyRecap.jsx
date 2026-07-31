@@ -1419,8 +1419,6 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
         ccHits: 0,
         fortDamage: 0,
         role: 'Main',
-        className: '',
-        mode: '',
         firstAppearanceTime: Number.POSITIVE_INFINITY,
         firstAppearanceOrder: Number.POSITIVE_INFINITY,
         __has: {
@@ -1539,12 +1537,6 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
       : normalizedRole === 'flex'
         ? 'Flex'
         : 'Main';
-    match.className = String(
-      row?.className || row?.class || row?.playerClass || row?.characterClass || '',
-    ).trim();
-    match.mode = String(
-      row?.mode || row?.spec || row?.specialization || row?.talent || '',
-    ).trim();
 
     const rowPresence =
       metricPresenceByWar.get(warId) ||
@@ -1749,10 +1741,6 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
         averageDamageTaken: average(damageTakenValues),
         averageCcHits: average(ccValues),
         averageFortDamage: average(fortValues),
-        matches: matches.map((match) => ({
-          ...match,
-          __has: { ...match.__has },
-        })),
         statWarCounts: {
           kills: killsValues.length,
           deaths: deathsValues.length,
@@ -3483,38 +3471,24 @@ const OVERALL_WEIGHT_CONTROLS = Object.freeze([
   },
 ]);
 
-function percentileScore(
-  player,
-  entries,
-  lowerIsBetter = false,
-) {
-  const ranked = [...(entries || [])].sort((a, b) => {
-    const aValue = num(a?.value);
-    const bValue = num(b?.value);
-    const valueDifference = lowerIsBetter
-      ? aValue - bValue
-      : bValue - aValue;
+function averageBaselineScore(value, average, lowerIsBetter = false) {
+  const playerValue = num(value);
+  const baseline = num(average);
 
-    return (
-      valueDifference ||
-      chronologicalCompare(a?.player, b?.player)
-    );
-  });
+  // With no usable baseline, a zero value is neutral while a recorded
+  // positive value is treated as above the empty baseline.
+  if (baseline <= 0) {
+    return playerValue <= 0 ? 100 : lowerIsBetter ? 0 : 200;
+  }
 
-  if (!ranked.length) return 50;
-  if (ranked.length === 1) return 100;
+  if (lowerIsBetter) {
+    // For metrics such as deaths and damage taken, matching the average is
+    // 100 and lower values score above 100.
+    if (playerValue <= 0) return 200;
+    return (baseline / playerValue) * 100;
+  }
 
-  const index = ranked.findIndex(
-    (entry) => entry?.player === player,
-  );
-
-  if (index < 0) return 50;
-
-  return (
-    ((ranked.length - 1 - index) /
-      (ranked.length - 1)) *
-    100
-  );
+  return (playerValue / baseline) * 100;
 }
 
 function weightedImpactPart(parts) {
@@ -3618,18 +3592,17 @@ function addImpactScores(
     }));
   }
 
-  const metricEntries = Object.fromEntries(
-    activeControls.map(({ key }) => [
-      key,
-      activePlayers.map((player) => ({
-        player,
-        value: overallMetricValue(
-          player,
-          key,
-          viewMode,
-        ),
-      })),
-    ]),
+  const metricAverages = Object.fromEntries(
+    activeControls.map(({ key }) => {
+      const values = activePlayers.map((player) =>
+        overallMetricValue(player, key, viewMode),
+      );
+      const average = values.length
+        ? values.reduce((sum, value) => sum + num(value), 0) / values.length
+        : 0;
+
+      return [key, average];
+    }),
   );
 
   return (players || []).map((player) => {
@@ -3641,9 +3614,9 @@ function addImpactScores(
     }
 
     const parts = activeControls.map(({ key }) => ({
-      score: percentileScore(
-        player,
-        metricEntries[key],
+      score: averageBaselineScore(
+        overallMetricValue(player, key, viewMode),
+        metricAverages[key],
         key === 'deaths' || key === 'damageTaken',
       ),
       weight: num(weights?.[key]),
@@ -3655,7 +3628,7 @@ function addImpactScores(
       ...player,
       // Keep the full calculated impact value. Formatting is handled only
       // when the value is rendered, so no precision is lost here.
-      impact: Math.max(0, Math.min(100, impact)),
+      impact: Math.max(0, impact),
     };
   });
 }
@@ -3902,72 +3875,6 @@ function PerformanceMetricCell({
   );
 }
 
-function rebuildPlayerForClass(player, className) {
-  const targetClass = normalizeClassIdentity(className);
-  const matches = (player?.matches || []).filter(
-    (match) => normalizeClassIdentity(match?.className) === targetClass,
-  );
-
-  const metricValues = (key) => matches
-    .filter((match) => Boolean(match?.__has?.[key]))
-    .map((match) => num(match?.[key]));
-  const sum = (values) => values.reduce((total, value) => total + num(value), 0);
-  const average = (values) => values.length ? sum(values) / values.length : 0;
-  const killsValues = metricValues('kills');
-  const deathsValues = metricValues('deaths');
-  const kdValues = matches
-    .filter((match) => Boolean(match?.__has?.kd))
-    .map((match) => ratio(match.kills, match.deaths));
-  const streakValues = metricValues('killStreak');
-  const feedValues = metricValues('killFeed');
-  const damageValues = metricValues('damageDealt');
-  const damageTakenValues = metricValues('damageTaken');
-  const ccValues = metricValues('ccHits');
-  const fortValues = metricValues('fortDamage');
-  const kills = sum(killsValues);
-  const deaths = sum(deathsValues);
-  const firstMatch = [...matches].sort((a, b) => chronologicalCompare(a, b))[0];
-
-  return {
-    ...player,
-    wars: matches.length,
-    matches,
-    firstAppearanceTime: firstMatch?.firstAppearanceTime ?? Number.POSITIVE_INFINITY,
-    firstAppearanceOrder: firstMatch?.firstAppearanceOrder ?? Number.POSITIVE_INFINITY,
-    kills,
-    deaths,
-    kd: ratio(kills, deaths),
-    averageKills: average(killsValues),
-    averageDeaths: average(deathsValues),
-    averageKd: average(kdValues),
-    killStreak: sum(streakValues),
-    averageKillStreak: average(streakValues),
-    longestKillStreak: streakValues.length ? Math.max(...streakValues) : 0,
-    killFeed: sum(feedValues),
-    bestKillFeed: feedValues.length ? Math.max(...feedValues) : 0,
-    averageKillFeed: average(feedValues),
-    damageDealt: sum(damageValues),
-    damageTaken: sum(damageTakenValues),
-    ccHits: sum(ccValues),
-    fortDamage: sum(fortValues),
-    averageDamageDealt: average(damageValues),
-    averageDamageTaken: average(damageTakenValues),
-    averageCcHits: average(ccValues),
-    averageFortDamage: average(fortValues),
-    statWarCounts: {
-      kills: killsValues.length,
-      deaths: deathsValues.length,
-      kd: kdValues.length,
-      killStreak: streakValues.length,
-      killFeed: feedValues.length,
-      damageDealt: damageValues.length,
-      damageTaken: damageTakenValues.length,
-      ccHits: ccValues.length,
-      fortDamage: fortValues.length,
-    },
-  };
-}
-
 function PlayersTable({
   players,
   mainRolePlayers = [],
@@ -4006,9 +3913,9 @@ function PlayersTable({
   }, [availableClasses, classFilter]);
 
   const displayedPlayers = classFilter
-    ? (rolePlayers || [])
-        .map((player) => rebuildPlayerForClass(player, classFilter))
-        .filter((player) => num(player.wars) > 0)
+    ? (rolePlayers || []).filter((player) =>
+        (player.classAssignments || []).some((assignment) => assignment.className === classFilter),
+      )
     : rolePlayers;
 
   const playersWithImpact = useMemo(
@@ -4150,7 +4057,7 @@ function PlayersTable({
               </span>
             </div>
             <p className="mt-1 text-[9px] font-bold text-slate-500">
-              Only slider weights affect Overall · Total and Average rank independently · Deaths and DMG Taken reward lower values
+              100 equals the current filtered average · Class selection uses that class average · All Classes uses the all-class average · Deaths and DMG Taken reward lower values
             </p>
           </div>
 
