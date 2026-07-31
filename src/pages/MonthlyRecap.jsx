@@ -1375,12 +1375,14 @@ function buildPlayerStatsCompatiblePlayers(
   logs = [],
   roleFilter = '',
   classFilter = '',
+  metricPresenceByWarOverride = null,
 ) {
   const events = Array.isArray(stats?.ev) ? stats.ev : [];
   const secondaryRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
     : [];
-  const metricPresenceByWar = buildStatsMetricPresenceByWar(logs);
+  const metricPresenceByWar =
+    metricPresenceByWarOverride || buildStatsMetricPresenceByWar(logs);
   const eventsByWar = new Map();
   const matchesByPlayer = new Map();
 
@@ -2859,6 +2861,7 @@ function buildReview(
   }
 
   const stats = calculateStats(monthLogs);
+  const metricPresenceByWar = buildStatsMetricPresenceByWar(monthLogs);
   const warCounts = buildPlayerWarCounts(stats);
 
   const totals = {
@@ -2911,22 +2914,30 @@ function buildReview(
   const activePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
     monthLogs,
-    false,
+    '',
+    '',
+    metricPresenceByWar,
   );
   const mainRoleActivePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
     monthLogs,
     'Main',
+    '',
+    metricPresenceByWar,
   );
   const flexRoleActivePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
     monthLogs,
     'Flex',
+    '',
+    metricPresenceByWar,
   );
   const utilityRoleActivePlayers = buildPlayerStatsCompatiblePlayers(
     stats,
     monthLogs,
     'Utility',
+    '',
+    metricPresenceByWar,
   );
   const players = buildRosterPerformancePlayers(activePlayers);
   const mainRolePlayers = buildRosterPerformancePlayers(
@@ -2939,30 +2950,10 @@ function buildReview(
     utilityRoleActivePlayers,
   );
 
-  const performanceClassNames = [...new Set(
-    (stats?.secondary?.rows || [])
-      .map((row) => readMonthlyClassAssignment(row)?.className)
-      .filter(Boolean),
-  )].sort((a, b) => a.localeCompare(b));
+  // Class-specific player stats are calculated lazily in PlayersTable.
+  // This avoids rebuilding the full combat/stat dataset for every
+  // class and role whenever Monthly Recap opens.
 
-  const classPlayersByRole = {
-    all: {},
-    Main: {},
-    Flex: {},
-    Utility: {},
-  };
-
-  performanceClassNames.forEach((className) => {
-    classPlayersByRole.all[className] = buildRosterPerformancePlayers(
-      buildPlayerStatsCompatiblePlayers(stats, monthLogs, '', className),
-    );
-
-    ['Main', 'Flex', 'Utility'].forEach((role) => {
-      classPlayersByRole[role][className] = buildRosterPerformancePlayers(
-        buildPlayerStatsCompatiblePlayers(stats, monthLogs, role, className),
-      );
-    });
-  });
   const {
     topFragger,
     bestKd,
@@ -3052,7 +3043,9 @@ function buildReview(
     mainRolePlayers,
     flexRolePlayers,
     utilityRolePlayers,
-    classPlayersByRole,
+    performanceStats: stats,
+    performanceLogs: monthLogs,
+    performanceMetricPresenceByWar: metricPresenceByWar,
     topFragger,
     bestKd,
     damageLeader,
@@ -3927,7 +3920,9 @@ function PlayersTable({
   mainRolePlayers = [],
   flexRolePlayers = [],
   utilityRolePlayers = [],
-  classPlayersByRole = {},
+  performanceStats = null,
+  performanceLogs = [],
+  performanceMetricPresenceByWar = null,
 }) {
   const [viewMode, setViewMode] = useState('average');
   const [roleFilter, setRoleFilter] = useState('');
@@ -3960,25 +3955,49 @@ function PlayersTable({
     }
   }, [availableClasses, classFilter]);
 
-  const selectedRoleKey = roleFilter || 'all';
-  const classSpecificPlayers = classFilter
-    ? classPlayersByRole?.[selectedRoleKey]?.[classFilter] || []
-    : null;
+  const classSpecificPlayers = useMemo(() => {
+    if (!classFilter || !performanceStats) return null;
 
-  const displayedPlayers = classFilter
-    ? (classSpecificPlayers || []).map((player) => {
-        const sourcePlayer = (rolePlayers || []).find(
-          (candidate) => normalizePlayerName(candidate?.name) === normalizePlayerName(player?.name),
-        );
+    return buildRosterPerformancePlayers(
+      buildPlayerStatsCompatiblePlayers(
+        performanceStats,
+        performanceLogs,
+        roleFilter,
+        classFilter,
+        performanceMetricPresenceByWar,
+      ),
+    );
+  }, [
+    classFilter,
+    roleFilter,
+    performanceStats,
+    performanceLogs,
+    performanceMetricPresenceByWar,
+  ]);
 
-        return {
-          ...player,
-          classAssignments: (sourcePlayer?.classAssignments || []).filter(
-            (assignment) => assignment.className === classFilter,
-          ),
-        };
-      })
-    : rolePlayers;
+  const displayedPlayers = useMemo(() => {
+    if (!classFilter) return rolePlayers;
+
+    const sourceByName = new Map(
+      (rolePlayers || []).map((player) => [
+        normalizePlayerName(player?.name),
+        player,
+      ]),
+    );
+
+    return (classSpecificPlayers || []).map((player) => {
+      const sourcePlayer = sourceByName.get(
+        normalizePlayerName(player?.name),
+      );
+
+      return {
+        ...player,
+        classAssignments: (sourcePlayer?.classAssignments || []).filter(
+          (assignment) => assignment.className === classFilter,
+        ),
+      };
+    });
+  }, [classFilter, classSpecificPlayers, rolePlayers]);
 
   const playersWithImpact = useMemo(
     () =>
@@ -4667,7 +4686,9 @@ export default function MonthlyRecap({
     mainRolePlayers: reviewMainRolePlayers,
     flexRolePlayers: reviewFlexRolePlayers,
     utilityRolePlayers: reviewUtilityRolePlayers,
-    classPlayersByRole: reviewClassPlayersByRole,
+    performanceStats,
+    performanceLogs,
+    performanceMetricPresenceByWar,
     topFragger,
     bestKd,
     damageLeader,
@@ -5095,7 +5116,9 @@ export default function MonthlyRecap({
           mainRolePlayers={mainRolePlayers}
           flexRolePlayers={flexRolePlayers}
           utilityRolePlayers={utilityRolePlayers}
-          classPlayersByRole={reviewClassPlayersByRole}
+          performanceStats={performanceStats}
+          performanceLogs={performanceLogs}
+          performanceMetricPresenceByWar={performanceMetricPresenceByWar}
         />
       </SectionShell>
 
