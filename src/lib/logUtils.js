@@ -725,6 +725,7 @@ const CLASS_LOG_CLASS_NAMES = Object.freeze([
   'Sage',
   'Scholar',
   'Seraph',
+  'Agent',
   'Shai',
   'Sorceress',
   'Striker',
