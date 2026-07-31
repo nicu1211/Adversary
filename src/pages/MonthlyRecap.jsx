@@ -1370,7 +1370,12 @@ function buildPlayerChronology(stats) {
 }
 
 
-function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
+function buildPlayerStatsCompatiblePlayers(
+  stats,
+  logs = [],
+  roleFilter = '',
+  classFilter = '',
+) {
   const events = Array.isArray(stats?.ev) ? stats.ev : [];
   const secondaryRows = Array.isArray(stats?.secondary?.rows)
     ? stats.secondary.rows
@@ -1419,6 +1424,7 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
         ccHits: 0,
         fortDamage: 0,
         role: 'Main',
+        className: '',
         firstAppearanceTime: Number.POSITIVE_INFINITY,
         firstAppearanceOrder: Number.POSITIVE_INFINITY,
         __has: {
@@ -1537,6 +1543,11 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
       : normalizedRole === 'flex'
         ? 'Flex'
         : 'Main';
+
+    const assignment = readMonthlyClassAssignment(row);
+    if (assignment?.className) {
+      match.className = assignment.className;
+    }
 
     const rowPresence =
       metricPresenceByWar.get(warId) ||
@@ -1692,9 +1703,17 @@ function buildPlayerStatsCompatiblePlayers(stats, logs = [], roleFilter = '') {
 
   return [...matchesByPlayer.values()]
     .map((player) => {
-      const matches = [...player.matches.values()].filter(
-        (match) => !roleFilter || match.role === roleFilter,
-      );
+      const normalizedClassFilter = normalizeClassIdentity(classFilter);
+      const matches = [...player.matches.values()].filter((match) => {
+        if (roleFilter && match.role !== roleFilter) return false;
+        if (
+          normalizedClassFilter &&
+          normalizeClassIdentity(match.className) !== normalizedClassFilter
+        ) {
+          return false;
+        }
+        return true;
+      });
       const killsValues = metricValues(matches, 'kills');
       const deathsValues = metricValues(matches, 'deaths');
       const kdValues = matches
@@ -2919,6 +2938,31 @@ function buildReview(
   const utilityRolePlayers = buildRosterPerformancePlayers(
     utilityRoleActivePlayers,
   );
+
+  const performanceClassNames = [...new Set(
+    (stats?.secondary?.rows || [])
+      .map((row) => readMonthlyClassAssignment(row)?.className)
+      .filter(Boolean),
+  )].sort((a, b) => a.localeCompare(b));
+
+  const classPlayersByRole = {
+    all: {},
+    Main: {},
+    Flex: {},
+    Utility: {},
+  };
+
+  performanceClassNames.forEach((className) => {
+    classPlayersByRole.all[className] = buildRosterPerformancePlayers(
+      buildPlayerStatsCompatiblePlayers(stats, monthLogs, '', className),
+    );
+
+    ['Main', 'Flex', 'Utility'].forEach((role) => {
+      classPlayersByRole[role][className] = buildRosterPerformancePlayers(
+        buildPlayerStatsCompatiblePlayers(stats, monthLogs, role, className),
+      );
+    });
+  });
   const {
     topFragger,
     bestKd,
@@ -3008,6 +3052,7 @@ function buildReview(
     mainRolePlayers,
     flexRolePlayers,
     utilityRolePlayers,
+    classPlayersByRole,
     topFragger,
     bestKd,
     damageLeader,
@@ -3882,6 +3927,7 @@ function PlayersTable({
   mainRolePlayers = [],
   flexRolePlayers = [],
   utilityRolePlayers = [],
+  classPlayersByRole = {},
 }) {
   const [viewMode, setViewMode] = useState('average');
   const [roleFilter, setRoleFilter] = useState('');
@@ -3914,10 +3960,24 @@ function PlayersTable({
     }
   }, [availableClasses, classFilter]);
 
+  const selectedRoleKey = roleFilter || 'all';
+  const classSpecificPlayers = classFilter
+    ? classPlayersByRole?.[selectedRoleKey]?.[classFilter] || []
+    : null;
+
   const displayedPlayers = classFilter
-    ? (rolePlayers || []).filter((player) =>
-        (player.classAssignments || []).some((assignment) => assignment.className === classFilter),
-      )
+    ? (classSpecificPlayers || []).map((player) => {
+        const sourcePlayer = (rolePlayers || []).find(
+          (candidate) => normalizePlayerName(candidate?.name) === normalizePlayerName(player?.name),
+        );
+
+        return {
+          ...player,
+          classAssignments: (sourcePlayer?.classAssignments || []).filter(
+            (assignment) => assignment.className === classFilter,
+          ),
+        };
+      })
     : rolePlayers;
 
   const playersWithImpact = useMemo(
@@ -4607,6 +4667,7 @@ export default function MonthlyRecap({
     mainRolePlayers: reviewMainRolePlayers,
     flexRolePlayers: reviewFlexRolePlayers,
     utilityRolePlayers: reviewUtilityRolePlayers,
+    classPlayersByRole: reviewClassPlayersByRole,
     topFragger,
     bestKd,
     damageLeader,
@@ -5034,6 +5095,7 @@ export default function MonthlyRecap({
           mainRolePlayers={mainRolePlayers}
           flexRolePlayers={flexRolePlayers}
           utilityRolePlayers={utilityRolePlayers}
+          classPlayersByRole={reviewClassPlayersByRole}
         />
       </SectionShell>
 
