@@ -325,6 +325,8 @@ const MONTHLY_GUILD_PANEL_CSS = `
 `;
 
 const GUILD_ROSTER = Object.freeze([
+  'Paddies',
+  'Challenger_ADC',
   'Melifluous',
   'Aspeen',
   'MrOutlAw',
@@ -351,7 +353,7 @@ const GUILD_ROSTER = Object.freeze([
   'Kiriva',
   'Baskona',
   'Sarres',
-  'Gorz',
+  'Alexvale',
   'Bertoweed',
   'Facetasm',
   'Wallmann',
