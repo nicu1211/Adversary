@@ -335,7 +335,7 @@ const GUILD_ROSTER = Object.freeze([
   'Raizel',
   'AesirKing',
   'ARC',
-  'URIZEN',
+  'Unavailable',
   'IllIlllIllIlllIl',
   'Winterious',
   'Kimezi',
