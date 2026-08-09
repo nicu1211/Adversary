@@ -328,7 +328,7 @@ const GUILD_ROSTER = Object.freeze([
   'Paddies',
   'Challenger_ADC',
   'Melifluous',
-  'Aspeen',
+  'Pinkity',
   'MrOutlAw',
   'SpeedDrawFenix',
   'Dante_Senpai',
@@ -338,7 +338,7 @@ const GUILD_ROSTER = Object.freeze([
   'Unavailable',
   'IllIlllIllIlllIl',
   'Winterious',
-  'JEMM',
+  'Gorz',
   'Nkys',
   'Form',
   'Emphonia',
@@ -350,7 +350,7 @@ const GUILD_ROSTER = Object.freeze([
   'HotDoggyWater',
   'CelestialElixir',
   'TaeHeeBaek',
-  'Kiriva',
+  'Sakunae',
   'Baskona',
   'Sarres',
   'Alexvale',
@@ -406,6 +406,9 @@ const GUILD_ROSTER = Object.freeze([
   'INoGameNoLife',
   'RXJ',
   'ItsPretense',
+  'SirNicholas',
+  'Skaiga',
+  'TheMidgets',
   'McPero'
 ]);
 
