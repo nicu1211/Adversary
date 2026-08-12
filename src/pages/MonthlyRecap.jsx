@@ -325,10 +325,16 @@ const MONTHLY_GUILD_PANEL_CSS = `
 `;
 
 const GUILD_ROSTER = Object.freeze([
+  'BoboDaFilthy',
+  'Kacp12',
+  'AstrilTrinity',
+  'Archimedas',
+  'Asidius',
+  'GamblingProblem',
+  'XamaraX',
   'Paddies',
   'Challenger_ADC',
   'Melifluous',
-  'Pinkity',
   'MrOutlAw',
   'SpeedDrawFenix',
   'Dante_Senpai',
@@ -347,7 +353,6 @@ const GUILD_ROSTER = Object.freeze([
   'Joeshot',
   'SexyCupquake',
   'FarewelI',
-  'HotDoggyWater',
   'CelestialElixir',
   'TaeHeeBaek',
   'Sakunae',
