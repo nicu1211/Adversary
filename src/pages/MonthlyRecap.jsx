@@ -325,7 +325,7 @@ const MONTHLY_GUILD_PANEL_CSS = `
 `;
 
 const GUILD_ROSTER = Object.freeze([
-  'BoboDaFilthy',
+  'TwinDsclplNs',
   'Kacp12',
   'AstrilTrinity',
   'Revekk',
@@ -370,7 +370,7 @@ const GUILD_ROSTER = Object.freeze([
   'Staier',
   'Eviria',
   'Fweeky',
-  'OAP',
+  'Sakunae',
   'Flamingfred',
   'Ya_Ya',
   'Ellevest',
@@ -422,6 +422,7 @@ const GUILD_ROSTER = Object.freeze([
   'Zaweh',
   'TheChills',
   'Archimedas',
+  'Ferz',
   'McPero'
 ]);
 
