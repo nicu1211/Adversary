@@ -18,6 +18,8 @@ import {
 
 const nf = new Intl.NumberFormat('en-US');
 const MIN_HALL_WARS = 50;
+const MIN_HALL_STATS_LOG_APPEARANCES = 10;
+const HALL_OF_FAME_EXCLUDED_PLAYERS = new Set(['chokoladnomleko']);
 
 function num(value) {
   return Number(value) || 0;
@@ -160,7 +162,7 @@ function hallHashArraySample(items, readItem) {
   return `${rows.length}:${hash >>> 0}`;
 }
 
-function hallStatsSignature(stats, minimumWars) {
+function hallStatsSignature(stats, minimumStatsLogAppearances) {
   const safe = stats?.players?.length ? stats : demoStats;
   const players = Array.isArray(safe?.players)
     ? safe.players
@@ -241,7 +243,8 @@ function hallStatsSignature(stats, minimumWars) {
   );
 
   return [
-    minimumWars,
+    MIN_HALL_WARS,
+    minimumStatsLogAppearances,
     safe?.version,
     safe?.updatedAt,
     safe?.kills,
@@ -270,7 +273,7 @@ function rememberHallData(signature, data) {
   }
 }
 
-function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
+function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_APPEARANCES) {
   const safe = stats?.players?.length ? stats : demoStats;
   const events = safe.ev || [];
   const secondaryRows =
@@ -291,6 +294,26 @@ function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
   function secondaryWarId(row, index = 0) {
     return String(row?.id || row?.date || row?.war || `secondary-${index}`);
   }
+
+  // Hall of Fame eligibility is based strictly on Stats Log appearances.
+  // Count a player only once per Stats Log / war, even if duplicate rows exist.
+  const statsLogAppearancesByPlayer = {};
+  const statsLogAppearanceKeys = new Set();
+
+  (Array.isArray(secondaryRows) ? secondaryRows : []).forEach((row, index) => {
+    const nameKey = String(
+      row?.player || row?.name || row?.family || row?.playerName ||
+      row?.Player || row?.Name || row?.Family || '',
+    ).trim().toLowerCase();
+
+    if (!nameKey) return;
+
+    const appearanceKey = `${nameKey}::${secondaryWarId(row, index)}`;
+    if (statsLogAppearanceKeys.has(appearanceKey)) return;
+
+    statsLogAppearanceKeys.add(appearanceKey);
+    statsLogAppearancesByPlayer[nameKey] = (statsLogAppearancesByPlayer[nameKey] || 0) + 1;
+  });
 
   function eventSortKey(event) {
     return [
@@ -1928,6 +1951,8 @@ function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
         getOverviewFormulaAverageRank(player.name);
       const averageRankMatchCount =
         getOverviewFormulaAverageRankMatchCount(player.name);
+      const statsLogAppearances =
+        statsLogAppearancesByPlayer[String(player.name || '').trim().toLowerCase()] || 0;
       const chronologyKey = getPlayerChronologyKey(player.name);
       const score = Math.max(
         0,
@@ -1982,6 +2007,7 @@ function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
         consecutiveWars,
         averageRank,
         averageRankMatchCount,
+        statsLogAppearances,
         chronologyKey,
         score,
         title,
@@ -1993,7 +2019,15 @@ function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
         compareChronology(a, b),
     );
 
-  const leaderboardRows = rows.filter((row) => row.wars >= minimumWars);
+  const leaderboardRows = rows.filter((row) => {
+    const nameKey = String(row.name || '').trim().toLowerCase();
+
+    return (
+      !HALL_OF_FAME_EXCLUDED_PLAYERS.has(nameKey) &&
+      row.wars >= MIN_HALL_WARS &&
+      row.statsLogAppearances >= minimumStatsLogAppearances
+    );
+  });
   const eligiblePlayerNames = new Set(leaderboardRows.map((row) => row.name));
 
   const bestKd =
@@ -2097,9 +2131,9 @@ function computeHallData(stats, minimumWars = MIN_HALL_WARS) {
   };
 }
 
-function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
+function buildHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_APPEARANCES) {
   const safe = stats?.players?.length ? stats : demoStats;
-  const signature = hallStatsSignature(safe, minimumWars);
+  const signature = hallStatsSignature(safe, minimumStatsLogAppearances);
 
   if (safe && typeof safe === 'object') {
     const objectEntry = hallDataObjectCache.get(safe);
@@ -2130,7 +2164,7 @@ function buildHallData(stats, minimumWars = MIN_HALL_WARS) {
     return signatureEntry;
   }
 
-  const data = computeHallData(safe, minimumWars);
+  const data = computeHallData(safe, minimumStatsLogAppearances);
 
   rememberHallData(signature, data);
 
@@ -2651,7 +2685,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           icon={Swords}
           title="Kills"
           value={nf.format(totalEligibleKills)}
-          sub={`Min ${MIN_HALL_WARS} wars`}
+          sub={`Min ${MIN_HALL_WARS} Wars · ${MIN_HALL_STATS_LOG_APPEARANCES} Stats Logs`}
           tone="blueRoyal"
           active={activeTab === 'kills'}
           onClick={() => onTabChange('kills')}
@@ -2671,7 +2705,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           icon={BarChart3}
           title="Damage"
           value={shortNum(totalEligibleDamage)}
-          sub={`Min ${MIN_HALL_WARS} wars`}
+          sub={`Min ${MIN_HALL_WARS} Wars · ${MIN_HALL_STATS_LOG_APPEARANCES} Stats Logs`}
           tone="yellowGold"
           active={activeTab === 'damage'}
           onClick={() => onTabChange('damage')}
@@ -2681,7 +2715,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           icon={CalendarDays}
           title="Node Wars"
           value={shortNum(data.totals.wars)}
-          sub={`Min ${MIN_HALL_WARS} wars`}
+          sub={`Min ${MIN_HALL_WARS} Wars · ${MIN_HALL_STATS_LOG_APPEARANCES} Stats Logs`}
           tone="redDeep"
           active={activeTab === 'nodeWars'}
           onClick={() => onTabChange('nodeWars')}
@@ -2741,7 +2775,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 Node Wars and 10 Stats Log appearances yet.</p>
           )}
         </div>
 
@@ -2759,7 +2793,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 Node Wars and 10 Stats Log appearances yet.</p>
           )}
         </div>
 
@@ -2777,7 +2811,7 @@ function CombatOutputPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 wars yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible players with at least 50 Node Wars and 10 Stats Log appearances yet.</p>
           )}
         </div>
       </div>
@@ -3409,7 +3443,7 @@ export default function HallOfFame({ stats, allTimeStats } = {}) {
     () =>
       buildHallData(
         allTimeStats?.players?.length ? allTimeStats : stats,
-        MIN_HALL_WARS,
+        MIN_HALL_STATS_LOG_APPEARANCES,
       ),
     [stats, allTimeStats],
   );
