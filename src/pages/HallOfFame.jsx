@@ -929,6 +929,19 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     warList.map((war, index) => [war.id, index]),
   );
 
+  // DPS leaderboards use the elapsed Node War time from the Combat Log.
+  // event.sec is treated as seconds since the start of the war, so the
+  // largest timestamp is the tracked duration for that Node War.
+  const warDurationSecondsById = Object.fromEntries(
+    warList.map((war) => [
+      war.id,
+      Math.max(
+        0,
+        ...(war.events || []).map((event) => Number(event?.sec) || 0),
+      ),
+    ]),
+  );
+
   // Build chronology once. This avoids repeatedly scanning and sorting the
   // complete Combat Log inside every player and leaderboard calculation.
   const firstCombatKeyByPlayer = {};
@@ -1944,6 +1957,28 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       );
       const avgDamageDealtPerMatch = getPlayerAvgDamageDealt(player.name);
       const avgDamageDealtMatchCount = damageMatchValues.length;
+      const dpsMatchValues = damageMatchValues
+        .map((match) => {
+          const durationSeconds = Number(warDurationSecondsById[match.warId]) || 0;
+
+          if (durationSeconds <= 0) return null;
+
+          return {
+            ...match,
+            durationSeconds,
+            dps: (Number(match.damageDealt) || 0) / durationSeconds,
+          };
+        })
+        .filter(Boolean);
+      const dpsMatchCount = dpsMatchValues.length;
+      const maxMatchDps = Math.max(
+        0,
+        ...dpsMatchValues.map((match) => Number(match.dps) || 0),
+      );
+      const avgDpsPerMatch = dpsMatchValues.length
+        ? dpsMatchValues.reduce((sum, match) => sum + (Number(match.dps) || 0), 0) /
+          dpsMatchValues.length
+        : null;
       const fortDamageMatchCount = fortDamageMatchValues.length;
       const avgCcHitsPerMatch = getPlayerAvgCcHits(player.name);
       const avgCcHitsMatchCount = ccHitsMatchValues.length;
@@ -2003,6 +2038,9 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         maxMatchCcHits,
         avgDamageDealtPerMatch,
         avgDamageDealtMatchCount,
+        maxMatchDps,
+        avgDpsPerMatch,
+        dpsMatchCount,
         fortDamageMatchCount,
         avgCcHitsPerMatch,
         avgCcHitsMatchCount,
@@ -3180,6 +3218,32 @@ function DamageRecordsPanel({ data }) {
     )
     .slice(0, 10);
 
+  const topHighestDpsPerNodeWar = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.dpsMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number(player.maxMatchDps) > 0,
+    )
+    .sort(
+      (a, b) =>
+        b.maxMatchDps - a.maxMatchDps ||
+        compareChronology(a, b),
+    )
+    .slice(0, 10);
+
+  const topAverageDps = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.dpsMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number.isFinite(Number(player.avgDpsPerMatch)),
+    )
+    .sort(
+      (a, b) =>
+        b.avgDpsPerMatch - a.avgDpsPerMatch ||
+        compareChronology(a, b),
+    )
+    .slice(0, 10);
+
   const topSingleGameFortDamage = [...data.rows]
     .filter((player) => player.fortDamageMatchCount >= MIN_HALL_METRIC_GAMES && player.maxMatchFortDamage > 0)
     .sort(
@@ -3213,6 +3277,8 @@ function DamageRecordsPanel({ data }) {
 
   const maxSingleGameDamageDealt = Math.max(1, ...topSingleGameDamageDealt.map((player) => player.maxMatchDamageDealt));
   const maxAverageDamageDealt = Math.max(1, ...topAverageDamageDealt.map((player) => player.avgDamageDealtPerMatch));
+  const maxHighestDpsPerNodeWar = Math.max(1, ...topHighestDpsPerNodeWar.map((player) => player.maxMatchDps));
+  const maxAverageDps = Math.max(1, ...topAverageDps.map((player) => player.avgDpsPerMatch));
   const maxSingleGameFortDamage = Math.max(1, ...topSingleGameFortDamage.map((player) => player.maxMatchFortDamage));
   const maxSingleGameCcHits = Math.max(1, ...topSingleGameCcHits.map((player) => player.maxMatchCcHits));
   const maxAverageCcHits = Math.max(1, ...topAverageCcHits.map((player) => player.avgCcHitsPerMatch));
@@ -3220,7 +3286,7 @@ function DamageRecordsPanel({ data }) {
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={BarChart3} title="Damage" />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
         <div>
           <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game</p>
           {topSingleGameDamageDealt.length ? (
@@ -3254,6 +3320,42 @@ function DamageRecordsPanel({ data }) {
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average damage dealt data with at least 10 games containing Damage Dealt yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest DPS / NW</p>
+          {topHighestDpsPerNodeWar.length ? (
+            topHighestDpsPerNodeWar.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.maxMatchDps}
+                max={maxHighestDpsPerNodeWar}
+                right={`${shortNum(player.maxMatchDps)}/s`}
+                tone="yellowGold"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible DPS data with at least 10 games containing Damage Dealt and a tracked Node War duration yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DPS</p>
+          {topAverageDps.length ? (
+            topAverageDps.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.avgDpsPerMatch}
+                max={maxAverageDps}
+                right={`${shortNum(player.avgDpsPerMatch)}/s`}
+                tone="yellowAmber"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average DPS data with at least 10 games containing Damage Dealt and a tracked Node War duration yet.</p>
           )}
         </div>
 
