@@ -3141,7 +3141,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Ally Protection</p>
+          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Healing</p>
           {topHighestAllyProtection.length ? (
             topHighestAllyProtection.map((player, index) => (
               <HallProgressRow
@@ -3159,7 +3159,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">AVG Ally Protection</p>
+          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">AVG Healing</p>
           {topAverageAllyProtection.length ? (
             topAverageAllyProtection.map((player, index) => (
               <HallProgressRow
@@ -3175,7 +3175,9 @@ function CombatRecordsPanel({ data }) {
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average Ally Protection data yet.</p>
           )}
         </div>
+      </div>
 
+      <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <div>
           <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Best Average Rank</p>
           {topAverageRank.length ? (
@@ -3231,24 +3233,6 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">First Bloods</p>
-          {topFirstBloods.length ? (
-            topFirstBloods.map((player, index) => (
-              <HallProgressRow
-                key={player.name}
-                label={`${index + 1}. ${player.name}`}
-                value={player.firstBloods}
-                max={maxFirstBloods}
-                right={shortNum(player.firstBloods)}
-                tone="greenMint"
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible First Blood data yet.</p>
-          )}
-        </div>
-
-        <div>
           <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">50+ Kills in Wars</p>
           {topFiftyPlusKillWars.length ? (
             topFiftyPlusKillWars.map((player, index) => (
@@ -3263,6 +3247,24 @@ function CombatRecordsPanel({ data }) {
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible 50+ kills wars data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">First Bloods</p>
+          {topFirstBloods.length ? (
+            topFirstBloods.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.firstBloods}
+                max={maxFirstBloods}
+                right={shortNum(player.firstBloods)}
+                tone="greenMint"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible First Blood data yet.</p>
           )}
         </div>
       </div>
