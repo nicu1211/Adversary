@@ -778,6 +778,14 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     return getSecondaryMetricNumber(row, 'damageDealt', 0);
   }
 
+  function hasSecondaryDamageTaken(row, warPresence = {}) {
+    return getSecondaryMetricExists(row, 'damageTaken', warPresence);
+  }
+
+  function getSecondaryDamageTaken(row) {
+    return getSecondaryMetricNumber(row, 'damageTaken', 0);
+  }
+
   function hasSecondaryFortDamage(row, warPresence = {}) {
     return getSecondaryMetricExists(row, 'fortDamage', warPresence);
   }
@@ -836,11 +844,13 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       kills: 0,
       deaths: 0,
       damageDealt: 0,
+      damageTaken: 0,
       fortDamage: 0,
       ccHits: 0,
       hasKills: false,
       hasDeaths: false,
       hasDamageDealt: false,
+      hasDamageTaken: false,
       hasFortDamage: false,
       hasCcHits: false,
     };
@@ -908,6 +918,11 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     if (hasSecondaryDamageDealt(row, warPresence)) {
       match.damageDealt = getSecondaryDamageDealt(row);
       match.hasDamageDealt = true;
+    }
+
+    if (hasSecondaryDamageTaken(row, warPresence)) {
+      match.damageTaken = getSecondaryDamageTaken(row);
+      match.hasDamageTaken = true;
     }
 
     if (hasSecondaryFortDamage(row, warPresence)) {
@@ -1941,12 +1956,16 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
           match.hasKills ||
           match.hasDeaths ||
           match.hasDamageDealt ||
+          match.hasDamageTaken ||
           match.hasFortDamage ||
           match.hasCcHits,
       );
       const hallMatchCount = allTrackedMatchValues.length;
       const damageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
         (match) => match.hasDamageDealt,
+      );
+      const damageTakenDeathMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) => match.hasDamageTaken && match.hasDeaths,
       );
       const fortDamageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
         (match) => match.hasFortDamage,
@@ -1968,7 +1987,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       );
       const avgDamageDealtPerMatch = getPlayerAvgDamageDealt(player.name);
       const avgDamageDealtMatchCount = damageMatchValues.length;
-      const dpsMatchValues = damageMatchValues
+      const dpmMatchValues = damageMatchValues
         .map((match) => {
           const durationSeconds = Number(warDurationSecondsById[match.warId]) || 0;
 
@@ -1977,18 +1996,30 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
           return {
             ...match,
             durationSeconds,
-            dps: (Number(match.damageDealt) || 0) / durationSeconds,
+            dpm: ((Number(match.damageDealt) || 0) / durationSeconds) * 60,
           };
         })
         .filter(Boolean);
-      const dpsMatchCount = dpsMatchValues.length;
-      const maxMatchDps = Math.max(
+      const dpmMatchCount = dpmMatchValues.length;
+      const maxMatchDpm = Math.max(
         0,
-        ...dpsMatchValues.map((match) => Number(match.dps) || 0),
+        ...dpmMatchValues.map((match) => Number(match.dpm) || 0),
       );
-      const avgDpsPerMatch = dpsMatchValues.length
-        ? dpsMatchValues.reduce((sum, match) => sum + (Number(match.dps) || 0), 0) /
-          dpsMatchValues.length
+      const avgDpmPerMatch = dpmMatchValues.length
+        ? dpmMatchValues.reduce((sum, match) => sum + (Number(match.dpm) || 0), 0) /
+          dpmMatchValues.length
+        : null;
+      const damageTakenDeathMatchCount = damageTakenDeathMatchValues.length;
+      const damageTakenAcrossEligibleMatches = damageTakenDeathMatchValues.reduce(
+        (sum, match) => sum + (Number(match.damageTaken) || 0),
+        0,
+      );
+      const deathsAcrossDamageTakenMatches = damageTakenDeathMatchValues.reduce(
+        (sum, match) => sum + (Number(match.deaths) || 0),
+        0,
+      );
+      const damageTakenPerDeath = deathsAcrossDamageTakenMatches > 0
+        ? damageTakenAcrossEligibleMatches / deathsAcrossDamageTakenMatches
         : null;
       const fortDamageMatchCount = fortDamageMatchValues.length;
       const avgCcHitsPerMatch = getPlayerAvgCcHits(player.name);
@@ -2049,9 +2080,11 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         maxMatchCcHits,
         avgDamageDealtPerMatch,
         avgDamageDealtMatchCount,
-        maxMatchDps,
-        avgDpsPerMatch,
-        dpsMatchCount,
+        maxMatchDpm,
+        avgDpmPerMatch,
+        dpmMatchCount,
+        damageTakenPerDeath,
+        damageTakenDeathMatchCount,
         fortDamageMatchCount,
         avgCcHitsPerMatch,
         avgCcHitsMatchCount,
@@ -3229,28 +3262,28 @@ function DamageRecordsPanel({ data }) {
     )
     .slice(0, 10);
 
-  const topHighestDpsPerNodeWar = [...data.rows]
+  const topHighestDpmPerNodeWar = [...data.rows]
     .filter(
       (player) =>
-        Number(player.dpsMatchCount) >= MIN_HALL_METRIC_GAMES &&
-        Number(player.maxMatchDps) > 0,
+        Number(player.dpmMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number(player.maxMatchDpm) > 0,
     )
     .sort(
       (a, b) =>
-        b.maxMatchDps - a.maxMatchDps ||
+        b.maxMatchDpm - a.maxMatchDpm ||
         compareChronology(a, b),
     )
     .slice(0, 10);
 
-  const topAverageDps = [...data.rows]
+  const topAverageDpm = [...data.rows]
     .filter(
       (player) =>
-        Number(player.dpsMatchCount) >= MIN_HALL_METRIC_GAMES &&
-        Number.isFinite(Number(player.avgDpsPerMatch)),
+        Number(player.dpmMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number.isFinite(Number(player.avgDpmPerMatch)),
     )
     .sort(
       (a, b) =>
-        b.avgDpsPerMatch - a.avgDpsPerMatch ||
+        b.avgDpmPerMatch - a.avgDpmPerMatch ||
         compareChronology(a, b),
     )
     .slice(0, 10);
@@ -3286,20 +3319,35 @@ function DamageRecordsPanel({ data }) {
     )
     .slice(0, 10);
 
+  const topDamageTakenPerDeath = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.damageTakenDeathMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number.isFinite(Number(player.damageTakenPerDeath)) &&
+        Number(player.damageTakenPerDeath) > 0,
+    )
+    .sort(
+      (a, b) =>
+        b.damageTakenPerDeath - a.damageTakenPerDeath ||
+        compareChronology(a, b),
+    )
+    .slice(0, 10);
+
   const maxSingleGameDamageDealt = Math.max(1, ...topSingleGameDamageDealt.map((player) => player.maxMatchDamageDealt));
   const maxAverageDamageDealt = Math.max(1, ...topAverageDamageDealt.map((player) => player.avgDamageDealtPerMatch));
-  const maxHighestDpsPerNodeWar = Math.max(1, ...topHighestDpsPerNodeWar.map((player) => player.maxMatchDps));
-  const maxAverageDps = Math.max(1, ...topAverageDps.map((player) => player.avgDpsPerMatch));
+  const maxHighestDpmPerNodeWar = Math.max(1, ...topHighestDpmPerNodeWar.map((player) => player.maxMatchDpm));
+  const maxAverageDpm = Math.max(1, ...topAverageDpm.map((player) => player.avgDpmPerMatch));
   const maxSingleGameFortDamage = Math.max(1, ...topSingleGameFortDamage.map((player) => player.maxMatchFortDamage));
   const maxSingleGameCcHits = Math.max(1, ...topSingleGameCcHits.map((player) => player.maxMatchCcHits));
   const maxAverageCcHits = Math.max(1, ...topAverageCcHits.map((player) => player.avgCcHitsPerMatch));
+  const maxDamageTakenPerDeath = Math.max(1, ...topDamageTakenPerDeath.map((player) => player.damageTakenPerDeath));
 
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={BarChart3} title="Damage" />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Dealt in 1 Game</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top DMG</p>
           {topSingleGameDamageDealt.length ? (
             topSingleGameDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -3335,43 +3383,43 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest DPS / NW</p>
-          {topHighestDpsPerNodeWar.length ? (
-            topHighestDpsPerNodeWar.map((player, index) => (
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest DPM / NW</p>
+          {topHighestDpmPerNodeWar.length ? (
+            topHighestDpmPerNodeWar.map((player, index) => (
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.maxMatchDps}
-                max={maxHighestDpsPerNodeWar}
-                right={`${shortNum(player.maxMatchDps)}/s`}
+                value={player.maxMatchDpm}
+                max={maxHighestDpmPerNodeWar}
+                right={`${shortNum(player.maxMatchDpm)}/min`}
                 tone="yellowGold"
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible DPS data with at least 10 games containing Damage Dealt and a tracked Node War duration yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible DPM data with at least 10 games containing Damage Dealt and a tracked Node War duration yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DPS</p>
-          {topAverageDps.length ? (
-            topAverageDps.map((player, index) => (
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DPM</p>
+          {topAverageDpm.length ? (
+            topAverageDpm.map((player, index) => (
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
-                value={player.avgDpsPerMatch}
-                max={maxAverageDps}
-                right={`${shortNum(player.avgDpsPerMatch)}/s`}
+                value={player.avgDpmPerMatch}
+                max={maxAverageDpm}
+                right={`${shortNum(player.avgDpmPerMatch)}/min`}
                 tone="yellowAmber"
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average DPS data with at least 10 games containing Damage Dealt and a tracked Node War duration yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average DPM data with at least 10 games containing Damage Dealt and a tracked Node War duration yet.</p>
           )}
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Fort Damage in 1 Game</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fort DMG</p>
           {topSingleGameFortDamage.length ? (
             topSingleGameFortDamage.map((player, index) => (
               <HallProgressRow
@@ -3421,6 +3469,24 @@ function DamageRecordsPanel({ data }) {
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average CC data with at least 10 games containing CC Hits yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Taken / Death</p>
+          {topDamageTakenPerDeath.length ? (
+            topDamageTakenPerDeath.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.damageTakenPerDeath}
+                max={maxDamageTakenPerDeath}
+                right={shortNum(player.damageTakenPerDeath)}
+                tone="yellowHoney"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible DMG Taken / Death data with at least 10 games containing Damage Taken and death data yet.</p>
           )}
         </div>
       </div>
