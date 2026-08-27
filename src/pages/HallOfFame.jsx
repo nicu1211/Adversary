@@ -229,6 +229,7 @@ function hallStatsSignature(stats, minimumStatsLogAppearances) {
         row?.damageDealt,
         row?.damageTaken,
         row?.ccHits,
+        row?.allyProtection,
         row?.fortDamage,
         row?.damageToFort,
       ].join('|'),
@@ -445,6 +446,13 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     'dmgTaken',
     'dmg taken',
   ];
+  const secondaryAllyProtectionKeys = [
+    'allyProtection',
+    'ally_protection',
+    'ally protection',
+    'Ally Protection',
+    'AllyProtection',
+  ];
   const secondaryFortDamageKeys = [
     'fortDamage',
     'damageToFort',
@@ -477,6 +485,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     feed: secondaryFeedKeys,
     damageDealt: secondaryDamageDealtKeys,
     damageTaken: secondaryDamageTakenKeys,
+    allyProtection: secondaryAllyProtectionKeys,
     fortDamage: secondaryFortDamageKeys,
     ccHits: secondaryCcHitsKeys,
   };
@@ -486,6 +495,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     'feed',
     'damageDealt',
     'damageTaken',
+    'allyProtection',
     'fortDamage',
     'ccHits',
   ];
@@ -786,6 +796,14 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     return getSecondaryMetricNumber(row, 'damageTaken', 0);
   }
 
+  function hasSecondaryAllyProtection(row, warPresence = {}) {
+    return getSecondaryMetricExists(row, 'allyProtection', warPresence);
+  }
+
+  function getSecondaryAllyProtection(row) {
+    return getSecondaryMetricNumber(row, 'allyProtection', 0);
+  }
+
   function hasSecondaryFortDamage(row, warPresence = {}) {
     return getSecondaryMetricExists(row, 'fortDamage', warPresence);
   }
@@ -845,12 +863,14 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       deaths: 0,
       damageDealt: 0,
       damageTaken: 0,
+      allyProtection: 0,
       fortDamage: 0,
       ccHits: 0,
       hasKills: false,
       hasDeaths: false,
       hasDamageDealt: false,
       hasDamageTaken: false,
+      hasAllyProtection: false,
       hasFortDamage: false,
       hasCcHits: false,
     };
@@ -923,6 +943,11 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     if (hasSecondaryDamageTaken(row, warPresence)) {
       match.damageTaken = getSecondaryDamageTaken(row);
       match.hasDamageTaken = true;
+    }
+
+    if (hasSecondaryAllyProtection(row, warPresence)) {
+      match.allyProtection = getSecondaryAllyProtection(row);
+      match.hasAllyProtection = true;
     }
 
     if (hasSecondaryFortDamage(row, warPresence)) {
@@ -1944,6 +1969,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       const damageDealt = num(player.damageDealt);
       const damageTaken = num(player.damageTaken);
       const ccHits = num(player.ccHits);
+      const allyProtection = num(player.allyProtection);
       const fortDamage = num(player.fortDamage);
       const matchValues = getPlayerMatchValues(player.name);
       const avgKillsMatchCount = matchValues.length;
@@ -1979,6 +2005,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
           match.hasDeaths ||
           match.hasDamageDealt ||
           match.hasDamageTaken ||
+          match.hasAllyProtection ||
           match.hasFortDamage ||
           match.hasCcHits,
       );
@@ -1988,6 +2015,9 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       );
       const damageTakenDeathMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
         (match) => match.hasDamageTaken && match.hasDeaths,
+      );
+      const allyProtectionMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
+        (match) => match.hasAllyProtection,
       );
       const fortDamageMatchValues = Object.values(playerMatchMap[player.name] || {}).filter(
         (match) => match.hasFortDamage,
@@ -1999,6 +2029,17 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         0,
         ...damageMatchValues.map((match) => Number(match.damageDealt) || 0),
       );
+      const maxMatchAllyProtection = Math.max(
+        0,
+        ...allyProtectionMatchValues.map((match) => Number(match.allyProtection) || 0),
+      );
+      const avgAllyProtectionPerMatch = allyProtectionMatchValues.length
+        ? allyProtectionMatchValues.reduce(
+            (sum, match) => sum + (Number(match.allyProtection) || 0),
+            0,
+          ) / allyProtectionMatchValues.length
+        : null;
+      const allyProtectionMatchCount = allyProtectionMatchValues.length;
       const maxMatchFortDamage = Math.max(
         0,
         ...fortDamageMatchValues.map((match) => Number(match.fortDamage) || 0),
@@ -2089,6 +2130,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         damageDealt,
         damageTaken,
         ccHits,
+        allyProtection,
         fortDamage,
         maxMatchKills,
         fiftyPlusKillWars,
@@ -2099,6 +2141,9 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         avgKdPerMatch,
         avgKdMatchCount,
         maxMatchDamageDealt,
+        maxMatchAllyProtection,
+        avgAllyProtectionPerMatch,
+        allyProtectionMatchCount,
         maxMatchFortDamage,
         maxMatchCcHits,
         avgDamageDealtPerMatch,
@@ -2961,6 +3006,32 @@ function CombatRecordsPanel({ data }) {
     )
     .slice(0, 10);
 
+  const topHighestAllyProtection = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.allyProtectionMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number.isFinite(Number(player.maxMatchAllyProtection)),
+    )
+    .sort(
+      (a, b) =>
+        b.maxMatchAllyProtection - a.maxMatchAllyProtection ||
+        compareChronology(a, b),
+    )
+    .slice(0, 10);
+
+  const topAverageAllyProtection = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.allyProtectionMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number.isFinite(Number(player.avgAllyProtectionPerMatch)),
+    )
+    .sort(
+      (a, b) =>
+        b.avgAllyProtectionPerMatch - a.avgAllyProtectionPerMatch ||
+        compareChronology(a, b),
+    )
+    .slice(0, 10);
+
   const topAverageRank = [...data.rows]
     .filter(
       (player) =>
@@ -3012,6 +3083,14 @@ function CombatRecordsPanel({ data }) {
 
   const maxAverageKd = Math.max(1, ...topAverageKd.map((player) => player.avgKdPerMatch));
   const maxHighestMatchKd = Math.max(1, ...topHighestMatchKd.map((player) => player.maxMatchKd));
+  const maxHighestAllyProtection = Math.max(
+    1,
+    ...topHighestAllyProtection.map((player) => player.maxMatchAllyProtection),
+  );
+  const maxAverageAllyProtection = Math.max(
+    1,
+    ...topAverageAllyProtection.map((player) => player.avgAllyProtectionPerMatch),
+  );
   const maxAverageRank = Math.max(1, ...topAverageRank.map((player) => player.averageRank));
   const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
   const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
@@ -3062,6 +3141,42 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
+          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Ally Protection</p>
+          {topHighestAllyProtection.length ? (
+            topHighestAllyProtection.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.maxMatchAllyProtection}
+                max={maxHighestAllyProtection}
+                right={shortNum(player.maxMatchAllyProtection)}
+                tone="greenMint"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible Ally Protection data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">AVG Ally Protection</p>
+          {topAverageAllyProtection.length ? (
+            topAverageAllyProtection.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.avgAllyProtectionPerMatch}
+                max={maxAverageAllyProtection}
+                right={shortNum(player.avgAllyProtectionPerMatch)}
+                tone="greenTeal"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average Ally Protection data yet.</p>
+          )}
+        </div>
+
+        <div>
           <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Best Average Rank</p>
           {topAverageRank.length ? (
             topAverageRank.map((player, index) => (
@@ -3078,8 +3193,6 @@ function CombatRecordsPanel({ data }) {
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average rank data yet.</p>
           )}
         </div>
-
-        <div className="hidden xl:block" />
 
         <div>
           <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Kill Streak</p>
