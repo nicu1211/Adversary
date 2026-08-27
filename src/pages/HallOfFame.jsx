@@ -1912,6 +1912,28 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     return Number(averageRankTable[playerKey]?.matches) || 0;
   }
 
+  // First Bloods: count the guild player responsible for the first valid kill
+  // in each Combat Log / Node War. If the first kill belongs to an enemy, no guild
+  // player receives a First Blood for that war.
+  const firstBloodsByPlayer = {};
+
+  warList.forEach((war) => {
+    const firstKillEvent = getWarEventsSorted(war.events || []).find(
+      (event) =>
+        event?.hasTimestamp !== false &&
+        event?.source !== 'summary' &&
+        event?.type === 'kill',
+    );
+
+    if (!firstKillEvent) return;
+
+    const firstBloodPlayer = getGuildKillPlayer(firstKillEvent);
+    if (!firstBloodPlayer) return;
+
+    firstBloodsByPlayer[firstBloodPlayer] =
+      (firstBloodsByPlayer[firstBloodPlayer] || 0) + 1;
+  });
+
   const rows = (safe.players || [])
     .map((player) => {
       const kills = num(player.kills);
@@ -2030,6 +2052,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         getOverviewFormulaAverageRank(player.name);
       const averageRankMatchCount =
         getOverviewFormulaAverageRankMatchCount(player.name);
+      const firstBloods = Number(firstBloodsByPlayer[player.name]) || 0;
       const statsLogAppearances =
         statsLogAppearancesByPlayer[String(player.name || '').trim().toLowerCase()] || 0;
       const chronologyKey = getPlayerChronologyKey(player.name);
@@ -2092,6 +2115,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         consecutiveWars,
         averageRank,
         averageRankMatchCount,
+        firstBloods,
         statsLogAppearances,
         chronologyKey,
         score,
@@ -2960,6 +2984,19 @@ function CombatRecordsPanel({ data }) {
     .sort((a, b) => b.feed - a.feed || compareChronology(a, b))
     .slice(0, 10);
 
+  const topFirstBloods = [...data.rows]
+    .filter(
+      (player) =>
+        Number(player.avgKdMatchCount) >= MIN_HALL_METRIC_GAMES &&
+        Number(player.firstBloods) > 0,
+    )
+    .sort(
+      (a, b) =>
+        b.firstBloods - a.firstBloods ||
+        compareChronology(a, b),
+    )
+    .slice(0, 10);
+
   const topFiftyPlusKillWars = [...data.rows]
     .filter(
       (player) =>
@@ -2978,6 +3015,7 @@ function CombatRecordsPanel({ data }) {
   const maxAverageRank = Math.max(1, ...topAverageRank.map((player) => player.averageRank));
   const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
   const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
+  const maxFirstBloods = Math.max(1, ...topFirstBloods.map((player) => player.firstBloods));
   const maxFiftyPlusKillWars = Math.max(
     1,
     ...topFiftyPlusKillWars.map((player) => player.fiftyPlusKillWars),
@@ -2986,7 +3024,7 @@ function CombatRecordsPanel({ data }) {
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={Target} title="Highlights" />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
           <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Best Average K/D</p>
           {topAverageKd.length ? (
@@ -3006,7 +3044,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest K/D · Single Match</p>
+          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest K/D</p>
           {topHighestMatchKd.length ? (
             topHighestMatchKd.map((player, index) => (
               <HallProgressRow
@@ -3041,6 +3079,8 @@ function CombatRecordsPanel({ data }) {
           )}
         </div>
 
+        <div className="hidden xl:block" />
+
         <div>
           <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Kill Streak</p>
           {topStreaks.length ? (
@@ -3074,6 +3114,24 @@ function CombatRecordsPanel({ data }) {
             ))
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible kill feed data yet.</p>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">First Bloods</p>
+          {topFirstBloods.length ? (
+            topFirstBloods.map((player, index) => (
+              <HallProgressRow
+                key={player.name}
+                label={`${index + 1}. ${player.name}`}
+                value={player.firstBloods}
+                max={maxFirstBloods}
+                right={shortNum(player.firstBloods)}
+                tone="greenMint"
+              />
+            ))
+          ) : (
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible First Blood data yet.</p>
           )}
         </div>
 
@@ -3437,7 +3495,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most CC Hits in 1 Game</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top CC Hits</p>
           {topSingleGameCcHits.length ? (
             topSingleGameCcHits.map((player, index) => (
               <HallProgressRow
@@ -3473,7 +3531,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">DMG Taken / Death</p>
+          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG DMG Taken / Death</p>
           {topDamageTakenPerDeath.length ? (
             topDamageTakenPerDeath.map((player, index) => (
               <HallProgressRow
@@ -3486,7 +3544,7 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible DMG Taken / Death data with at least 10 games containing Damage Taken and death data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible AVG DMG Taken / Death data with at least 10 games containing Damage Taken and death data yet.</p>
           )}
         </div>
       </div>
