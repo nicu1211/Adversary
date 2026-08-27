@@ -19,6 +19,7 @@ import {
 const nf = new Intl.NumberFormat('en-US');
 const MIN_HALL_WARS = 50;
 const MIN_HALL_STATS_LOG_APPEARANCES = 10;
+const MIN_HALL_METRIC_GAMES = 10;
 const HALL_OF_FAME_EXCLUDED_PLAYERS = new Set(['chokoladnomleko']);
 
 function num(value) {
@@ -1943,6 +1944,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       );
       const avgDamageDealtPerMatch = getPlayerAvgDamageDealt(player.name);
       const avgDamageDealtMatchCount = damageMatchValues.length;
+      const fortDamageMatchCount = fortDamageMatchValues.length;
       const avgCcHitsPerMatch = getPlayerAvgCcHits(player.name);
       const avgCcHitsMatchCount = ccHitsMatchValues.length;
       const joinParticipation = getJoinParticipation(player.name);
@@ -2001,6 +2003,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         maxMatchCcHits,
         avgDamageDealtPerMatch,
         avgDamageDealtMatchCount,
+        fortDamageMatchCount,
         avgCcHitsPerMatch,
         avgCcHitsMatchCount,
         joinParticipation,
@@ -2032,24 +2035,29 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
 
   const bestKd =
     [...leaderboardRows]
-      .filter((row) => row.kills >= 5)
-      .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0] ||
-    leaderboardRows[0];
+      .filter((row) => row.avgKdMatchCount >= MIN_HALL_METRIC_GAMES && row.kills >= 5)
+      .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0];
 
   const topKills =
-    [...leaderboardRows].sort(
-      (a, b) => b.kills - a.kills || compareChronology(a, b),
-    )[0] || leaderboardRows[0];
+    [...leaderboardRows]
+      .filter((row) => row.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES)
+      .sort(
+        (a, b) => b.kills - a.kills || compareChronology(a, b),
+      )[0];
 
   const topStreak =
-    [...leaderboardRows].sort(
-      (a, b) => b.streak - a.streak || compareChronology(a, b),
-    )[0] || leaderboardRows[0];
+    [...leaderboardRows]
+      .filter((row) => row.avgKdMatchCount >= MIN_HALL_METRIC_GAMES)
+      .sort(
+        (a, b) => b.streak - a.streak || compareChronology(a, b),
+      )[0];
 
   const topFeed =
-    [...leaderboardRows].sort(
-      (a, b) => b.feed - a.feed || compareChronology(a, b),
-    )[0] || leaderboardRows[0];
+    [...leaderboardRows]
+      .filter((row) => row.avgKdMatchCount >= MIN_HALL_METRIC_GAMES)
+      .sort(
+        (a, b) => b.feed - a.feed || compareChronology(a, b),
+      )[0];
 
   const topWars =
     [...leaderboardRows].sort(
@@ -2112,11 +2120,11 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     months,
     thresholdLeaderboards,
     topKillers: [...leaderboardRows]
-      .filter((row) => row.kills > 0)
+      .filter((row) => row.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES && row.kills > 0)
       .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
       .slice(0, 10),
     topDamagePlayers: [...leaderboardRows]
-      .filter((row) => row.damageDealt > 0)
+      .filter((row) => row.avgDamageDealtMatchCount >= MIN_HALL_METRIC_GAMES && row.damageDealt > 0)
       .sort((a, b) => b.damageDealt - a.damageDealt || compareChronology(a, b))
       .slice(0, 10),
     totals: {
@@ -2727,14 +2735,14 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
 function CombatOutputPanel({ data }) {
   const topTotalKills = [...data.rows]
-    .filter((player) => player.kills > 0)
+    .filter((player) => player.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES && player.kills > 0)
     .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
     .filter(
       (player) =>
-        Number(player.avgKillsMatchCount) > 0 &&
+        Number(player.avgKillsMatchCount) >= MIN_HALL_METRIC_GAMES &&
         Number.isFinite(Number(player.avgKillsPerMatch)),
     )
     .sort(
@@ -2747,7 +2755,7 @@ function CombatOutputPanel({ data }) {
   const topFraggers = [...data.rows]
     .filter(
       (player) =>
-        Number(player.avgKillsMatchCount) > 0 &&
+        Number(player.avgKillsMatchCount) >= MIN_HALL_METRIC_GAMES &&
         player.maxMatchKills > 0,
     )
     .sort((a, b) => b.maxMatchKills - a.maxMatchKills || compareChronology(a, b))
@@ -2823,7 +2831,7 @@ function CombatRecordsPanel({ data }) {
   const topAverageKd = [...data.rows]
     .filter(
       (player) =>
-        Number(player.avgKdMatchCount) > 0 &&
+        Number(player.avgKdMatchCount) >= MIN_HALL_METRIC_GAMES &&
         Number.isFinite(Number(player.avgKdPerMatch)),
     )
     .sort(
@@ -2836,6 +2844,7 @@ function CombatRecordsPanel({ data }) {
   const topHighestMatchKd = [...data.rows]
     .filter(
       (player) =>
+        Number(player.avgKdMatchCount) >= MIN_HALL_METRIC_GAMES &&
         Number(player.maxMatchKd) > 0 &&
         Number.isFinite(Number(player.maxMatchKd)),
     )
@@ -2849,7 +2858,7 @@ function CombatRecordsPanel({ data }) {
   const topAverageRank = [...data.rows]
     .filter(
       (player) =>
-        Number(player.averageRankMatchCount) > 0 &&
+        Number(player.averageRankMatchCount) >= MIN_HALL_METRIC_GAMES &&
         Number.isFinite(Number(player.averageRank)),
     )
     .sort(
@@ -2860,18 +2869,19 @@ function CombatRecordsPanel({ data }) {
     .slice(0, 10);
 
   const topStreaks = [...data.rows]
-    .filter((player) => player.streak > 0)
+    .filter((player) => player.avgKdMatchCount >= MIN_HALL_METRIC_GAMES && player.streak > 0)
     .sort((a, b) => b.streak - a.streak || compareChronology(a, b))
     .slice(0, 10);
 
   const topFeeds = [...data.rows]
-    .filter((player) => player.feed > 0)
+    .filter((player) => player.avgKdMatchCount >= MIN_HALL_METRIC_GAMES && player.feed > 0)
     .sort((a, b) => b.feed - a.feed || compareChronology(a, b))
     .slice(0, 10);
 
   const topFiftyPlusKillWars = [...data.rows]
     .filter(
       (player) =>
+        Number(player.avgKillsMatchCount) >= MIN_HALL_METRIC_GAMES &&
         Number(player.fiftyPlusKillWars) > 0,
     )
     .sort(
@@ -3149,7 +3159,7 @@ function ArsenalOutputPanel({ data }) {
 
 function DamageRecordsPanel({ data }) {
   const topSingleGameDamageDealt = [...data.rows]
-    .filter((player) => player.maxMatchDamageDealt > 0)
+    .filter((player) => player.avgDamageDealtMatchCount >= MIN_HALL_METRIC_GAMES && player.maxMatchDamageDealt > 0)
     .sort(
       (a, b) =>
         b.maxMatchDamageDealt - a.maxMatchDamageDealt ||
@@ -3160,7 +3170,7 @@ function DamageRecordsPanel({ data }) {
   const topAverageDamageDealt = [...data.rows]
     .filter(
       (player) =>
-        Number(player.avgDamageDealtMatchCount) > 0 &&
+        Number(player.avgDamageDealtMatchCount) >= MIN_HALL_METRIC_GAMES &&
         Number.isFinite(Number(player.avgDamageDealtPerMatch)),
     )
     .sort(
@@ -3171,7 +3181,7 @@ function DamageRecordsPanel({ data }) {
     .slice(0, 10);
 
   const topSingleGameFortDamage = [...data.rows]
-    .filter((player) => player.maxMatchFortDamage > 0)
+    .filter((player) => player.fortDamageMatchCount >= MIN_HALL_METRIC_GAMES && player.maxMatchFortDamage > 0)
     .sort(
       (a, b) =>
         b.maxMatchFortDamage - a.maxMatchFortDamage ||
@@ -3180,7 +3190,7 @@ function DamageRecordsPanel({ data }) {
     .slice(0, 10);
 
   const topSingleGameCcHits = [...data.rows]
-    .filter((player) => player.maxMatchCcHits > 0)
+    .filter((player) => player.avgCcHitsMatchCount >= MIN_HALL_METRIC_GAMES && player.maxMatchCcHits > 0)
     .sort(
       (a, b) =>
         b.maxMatchCcHits - a.maxMatchCcHits ||
@@ -3191,7 +3201,7 @@ function DamageRecordsPanel({ data }) {
   const topAverageCcHits = [...data.rows]
     .filter(
       (player) =>
-        Number(player.avgCcHitsMatchCount) > 0 &&
+        Number(player.avgCcHitsMatchCount) >= MIN_HALL_METRIC_GAMES &&
         Number.isFinite(Number(player.avgCcHitsPerMatch)),
     )
     .sort(
@@ -3225,7 +3235,7 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game damage dealt data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible damage data with at least 10 games containing Damage Dealt yet.</p>
           )}
         </div>
 
@@ -3243,7 +3253,7 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average damage dealt data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average damage dealt data with at least 10 games containing Damage Dealt yet.</p>
           )}
         </div>
 
@@ -3261,7 +3271,7 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game fort damage data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible fort damage data with at least 10 games containing Fort Damage yet.</p>
           )}
         </div>
 
@@ -3279,7 +3289,7 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible single-game CC hits data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible CC data with at least 10 games containing CC Hits yet.</p>
           )}
         </div>
 
@@ -3297,7 +3307,7 @@ function DamageRecordsPanel({ data }) {
               />
             ))
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average CC hits data yet.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">No eligible average CC data with at least 10 games containing CC Hits yet.</p>
           )}
         </div>
       </div>
