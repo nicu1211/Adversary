@@ -929,17 +929,28 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     warList.map((war, index) => [war.id, index]),
   );
 
-  // DPS leaderboards use the elapsed Node War time from the Combat Log.
-  // event.sec is treated as seconds since the start of the war, so the
-  // largest timestamp is the tracked duration for that Node War.
+  // DPS leaderboards pair Stats Log damage with the elapsed time covered by
+  // that same Node War's Combat Log. `event.sec` is a timestamp/time-of-day
+  // value, not the duration itself, so duration must be LAST - FIRST.
   const warDurationSecondsById = Object.fromEntries(
-    warList.map((war) => [
-      war.id,
-      Math.max(
-        0,
-        ...(war.events || []).map((event) => Number(event?.sec) || 0),
-      ),
-    ]),
+    warList.map((war) => {
+      const combatSeconds = (war.events || [])
+        .filter(
+          (event) =>
+            event?.hasTimestamp !== false &&
+            event?.source !== 'summary' &&
+            Number.isFinite(Number(event?.sec)),
+        )
+        .map((event) => Number(event.sec))
+        .sort((a, b) => a - b);
+
+      const durationSeconds =
+        combatSeconds.length >= 2
+          ? Math.max(0, combatSeconds[combatSeconds.length - 1] - combatSeconds[0])
+          : 0;
+
+      return [war.id, durationSeconds];
+    }),
   );
 
   // Build chronology once. This avoids repeatedly scanning and sorting the
