@@ -2586,6 +2586,7 @@ const SIDEBAR_ORB_HOVER_SOUND = sidebarOrbHoverSound;
 
 
 const PAGE_TITLES = {
+  home: 'Adversary',
   guild: 'Guild',
   monthly: 'Monthly Recap',
   nodewars: 'Node Wars',
@@ -5623,15 +5624,16 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
 
 const EMBLEM_NAV_ZONES = Object.freeze([
-  { id: 'nodewars', title: 'Match History', kicker: 'Recorded wars & battles', x: 50, y: 13, path: 'M 50 14 L 50 31 L 67 31 L 82 23' },
-  { id: 'monthly', title: 'Monthly Recap', kicker: 'Monthly performance overview', x: 25, y: 32, path: 'M 25 32 L 37 32 L 44 43 L 74 43' },
-  { id: 'players', title: 'Player Stats', kicker: 'Individual player performance', x: 75, y: 32, path: 'M 75 32 L 63 32 L 56 43 L 82 43' },
-  { id: 'overview', title: 'Overview', kicker: 'Selected-war battle analytics', x: 50, y: 50, path: 'M 50 50 L 65 50 L 74 50' },
-  { id: 'hall', title: 'Hall of Fame', kicker: 'Best performers & records', x: 29, y: 71, path: 'M 29 71 L 40 71 L 47 60 L 76 60' },
-  { id: 'guild', title: 'Guild', kicker: 'Roster & enemy intelligence', x: 71, y: 71, path: 'M 71 71 L 60 71 L 53 60 L 82 60' },
+  { id: 'nodewars', title: 'Match History', kicker: 'Recorded wars & battles', x: 50, y: 14, labelX: 50, labelY: 7, anchor: 'top', path: 'M 50 14 L 50 8' },
+  { id: 'monthly', title: 'Monthly Recap', kicker: 'Monthly performance overview', x: 24, y: 31, labelX: 8, labelY: 26, anchor: 'left', path: 'M 24 31 L 16 31 L 10 26' },
+  { id: 'players', title: 'Player Stats', kicker: 'Individual player performance', x: 76, y: 31, labelX: 92, labelY: 26, anchor: 'right', path: 'M 76 31 L 84 31 L 90 26' },
+  { id: 'overview', title: 'Overview', kicker: 'Selected-war battle analytics', x: 50, y: 49, labelX: 82, labelY: 49, anchor: 'right', path: 'M 50 49 L 66 49 L 80 49' },
+  { id: 'hall', title: 'Hall of Fame', kicker: 'Best performers & records', x: 27, y: 69, labelX: 9, labelY: 74, anchor: 'left', path: 'M 27 69 L 17 69 L 10 74' },
+  { id: 'guild', title: 'Guild', kicker: 'Roster & guild intelligence', x: 73, y: 69, labelX: 91, labelY: 74, anchor: 'right', path: 'M 73 69 L 83 69 L 90 74' },
+  { id: 'raw', title: 'Raw Logs', kicker: 'Combat and stats log management', x: 50, y: 86, labelX: 50, labelY: 94, anchor: 'bottom', path: 'M 50 86 L 50 92' },
 ]);
 
-function InteractiveEmblemNav({ page, onNavigate }) {
+function InteractiveEmblemNav({ onNavigate }) {
   const [hovered, setHovered] = useState(null);
   const [charged, setCharged] = useState(null);
   const chargeTimer = useRef(null);
@@ -5644,7 +5646,7 @@ function InteractiveEmblemNav({ page, onNavigate }) {
     window.clearTimeout(chargeTimer.current);
     setHovered(zone.id);
     setCharged(null);
-    chargeTimer.current = window.setTimeout(() => setCharged(zone.id), 720);
+    chargeTimer.current = window.setTimeout(() => setCharged(zone.id), 620);
   };
 
   const endHover = () => {
@@ -5652,7 +5654,7 @@ function InteractiveEmblemNav({ page, onNavigate }) {
     leaveTimer.current = window.setTimeout(() => {
       setHovered(null);
       setCharged(null);
-    }, 150);
+    }, 130);
   };
 
   useEffect(() => () => {
@@ -5661,236 +5663,276 @@ function InteractiveEmblemNav({ page, onNavigate }) {
   }, []);
 
   return (
-    <div className="adversary-emblem-nav" onMouseLeave={endHover}>
+    <section className="adversary-emblem-home" onMouseLeave={endHover}>
       <style>{`
-        .adversary-emblem-nav {
+        .adversary-emblem-home {
           position: relative;
-          z-index: 60;
           width: 100%;
-          margin: 0 auto 18px;
-          overflow: visible;
-        }
-        .adversary-emblem-stage {
-          position: relative;
-          width: 218px;
-          aspect-ratio: 1;
-          margin: 0 auto;
+          min-height: 100vh;
+          overflow: hidden;
           isolation: isolate;
-          filter: drop-shadow(0 18px 34px rgba(0,0,0,.52));
+          background: #020306;
         }
-        .adversary-emblem-stage::before {
+        .adversary-emblem-home::before {
           content: '';
           position: absolute;
-          inset: 8%;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(250,204,21,.10), rgba(245,158,11,.035) 38%, transparent 72%);
-          filter: blur(18px);
-          opacity: .65;
-          transition: opacity .35s ease, transform .35s ease;
+          inset: -5%;
+          z-index: -3;
+          background: url("${adversaryEmblem}") center/cover no-repeat;
+          filter: blur(44px) brightness(.32) saturate(.85);
+          transform: scale(1.08);
+          opacity: .82;
         }
-        .adversary-emblem-stage.is-awake::before { opacity: 1; transform: scale(1.08); }
-        .adversary-emblem-image {
+        .adversary-emblem-home::after {
+          content: '';
           position: absolute;
-          inset: 4%;
-          width: 92%;
-          height: 92%;
-          object-fit: contain;
-          user-select: none;
+          inset: 0;
+          z-index: -1;
           pointer-events: none;
-          transition: filter .25s ease, transform .32s cubic-bezier(.2,.8,.2,1), opacity .25s ease;
-          filter: saturate(.95) brightness(.82) contrast(1.05);
+          background:
+            radial-gradient(circle at 50% 48%, transparent 18%, rgba(0,0,0,.08) 54%, rgba(0,0,0,.68) 100%),
+            linear-gradient(180deg, rgba(0,0,0,.20), transparent 18%, transparent 78%, rgba(0,0,0,.36));
         }
-        .adversary-emblem-stage.is-awake .adversary-emblem-image {
-          filter: saturate(1.22) brightness(1.06) contrast(1.08) drop-shadow(0 0 10px rgba(250,204,21,.30));
-          transform: scale(1.015);
+        .adversary-emblem-canvas {
+          position: absolute;
+          inset: 0;
+          display: grid;
+          place-items: center;
         }
-        .adversary-emblem-stage.is-charged .adversary-emblem-image {
-          filter: saturate(1.35) brightness(1.14) contrast(1.08) drop-shadow(0 0 16px rgba(250,204,21,.47));
+        .adversary-emblem-stage-v2 {
+          position: relative;
+          width: min(96vw, 96vh);
+          aspect-ratio: 1;
+          isolation: isolate;
+          user-select: none;
         }
-        .adversary-emblem-circuit {
+        .adversary-emblem-image-v2 {
           position: absolute;
           inset: 0;
           width: 100%;
           height: 100%;
+          object-fit: contain;
+          pointer-events: none;
+          filter: brightness(.90) saturate(1.03) contrast(1.04) drop-shadow(0 22px 48px rgba(0,0,0,.70));
+          transition: filter .28s ease, transform .38s cubic-bezier(.16,1,.3,1);
+        }
+        .adversary-emblem-stage-v2.is-awake .adversary-emblem-image-v2 {
+          filter: brightness(1.00) saturate(1.14) contrast(1.06) drop-shadow(0 0 20px rgba(250,204,21,.13)) drop-shadow(0 24px 48px rgba(0,0,0,.72));
+          transform: scale(1.006);
+        }
+        .adversary-emblem-stage-v2.is-charged .adversary-emblem-image-v2 {
+          filter: brightness(1.05) saturate(1.22) contrast(1.08) drop-shadow(0 0 30px rgba(250,204,21,.22)) drop-shadow(0 24px 48px rgba(0,0,0,.75));
+        }
+        .adversary-emblem-circuit-v2 {
+          position: absolute;
+          inset: 0;
+          z-index: 4;
+          width: 100%;
+          height: 100%;
           overflow: visible;
           pointer-events: none;
-          z-index: 3;
         }
-        .adversary-emblem-circuit-base {
+        .adversary-emblem-circuit-base-v2,
+        .adversary-emblem-circuit-live-v2 {
           fill: none;
-          stroke: rgba(250,204,21,.14);
-          stroke-width: .7;
-          vector-effect: non-scaling-stroke;
-        }
-        .adversary-emblem-circuit-live {
-          fill: none;
-          stroke: #fde047;
-          stroke-width: 1.2;
           vector-effect: non-scaling-stroke;
           stroke-linecap: round;
           stroke-linejoin: round;
-          filter: drop-shadow(0 0 3px rgba(250,204,21,.95)) drop-shadow(0 0 8px rgba(245,158,11,.65));
-          stroke-dasharray: 160;
-          stroke-dashoffset: 160;
         }
-        .adversary-emblem-stage.is-awake .adversary-emblem-circuit-live {
-          animation: adversaryCircuitCharge .74s cubic-bezier(.2,.75,.2,1) forwards;
+        .adversary-emblem-circuit-base-v2 {
+          stroke: rgba(250,204,21,.18);
+          stroke-width: 1.1;
         }
-        @keyframes adversaryCircuitCharge { to { stroke-dashoffset: 0; } }
-        .adversary-emblem-pulse {
-          fill: #fff7ae;
+        .adversary-emblem-circuit-live-v2 {
+          stroke: #ffe85a;
+          stroke-width: 2.15;
+          stroke-dasharray: 180;
+          stroke-dashoffset: 180;
+          filter: drop-shadow(0 0 3px #fff2a8) drop-shadow(0 0 9px #facc15) drop-shadow(0 0 18px rgba(245,158,11,.68));
+        }
+        .adversary-emblem-stage-v2.is-awake .adversary-emblem-circuit-live-v2 {
+          animation: adversaryCircuitChargeV2 .64s cubic-bezier(.2,.76,.18,1) forwards;
+        }
+        @keyframes adversaryCircuitChargeV2 { to { stroke-dashoffset: 0; } }
+        .adversary-emblem-node-v2 {
+          fill: #fff8bf;
           stroke: #fde047;
-          stroke-width: .7;
-          filter: drop-shadow(0 0 3px #fde047) drop-shadow(0 0 9px #f59e0b);
+          stroke-width: .65;
+          filter: drop-shadow(0 0 4px #fde047) drop-shadow(0 0 13px #f59e0b);
+          animation: adversaryNodePulseV2 .8s ease-in-out infinite alternate;
           transform-box: fill-box;
           transform-origin: center;
-          animation: adversaryCircuitNode .95s ease-in-out infinite alternate;
         }
-        @keyframes adversaryCircuitNode { from { opacity:.55; transform:scale(.72); } to { opacity:1; transform:scale(1.35); } }
-        .adversary-emblem-zone {
+        @keyframes adversaryNodePulseV2 { from { opacity:.60; transform:scale(.72); } to { opacity:1; transform:scale(1.45); } }
+        .adversary-emblem-zone-v2 {
           position: absolute;
-          z-index: 6;
-          width: 26%;
-          height: 23%;
+          z-index: 8;
+          width: 24%;
+          height: 20%;
           transform: translate(-50%, -50%);
           border: 0;
-          padding: 0;
-          border-radius: 48%;
+          border-radius: 42%;
           background: transparent;
           cursor: pointer;
           outline: none;
         }
-        .adversary-emblem-zone::before {
+        .adversary-emblem-zone-v2::before {
           content: '';
           position: absolute;
           inset: 18%;
           border-radius: 50%;
-          background: radial-gradient(circle, rgba(254,240,138,.30), rgba(250,204,21,.08) 42%, transparent 72%);
           opacity: 0;
-          transform: scale(.55);
-          transition: opacity .22s ease, transform .32s ease;
-          filter: blur(5px);
+          transform: scale(.45);
+          background: radial-gradient(circle, rgba(255,247,174,.44), rgba(250,204,21,.10) 38%, transparent 72%);
+          filter: blur(7px);
+          transition: opacity .18s ease, transform .34s cubic-bezier(.16,1,.3,1);
         }
-        .adversary-emblem-zone:hover::before,
-        .adversary-emblem-zone:focus-visible::before { opacity: 1; transform: scale(1.2); }
-        .adversary-emblem-zone.is-current::after {
-          content: '';
-          position:absolute;
-          left:50%; top:50%;
-          width:5px; height:5px;
-          border-radius:999px;
-          background:#fde047;
-          box-shadow:0 0 9px #fde047, 0 0 18px rgba(245,158,11,.8);
-          transform:translate(-50%,-50%);
-          opacity:.72;
+        .adversary-emblem-zone-v2:hover::before,
+        .adversary-emblem-zone-v2:focus-visible::before {
+          opacity: 1;
+          transform: scale(1.25);
         }
-        .adversary-emblem-popup {
+        .adversary-emblem-label-v2 {
           position: absolute;
-          z-index: 100;
-          left: calc(100% + 12px);
-          top: 46px;
-          width: 288px;
-          min-height: 132px;
-          pointer-events: none;
+          z-index: 12;
+          min-width: 190px;
+          max-width: 260px;
           opacity: 0;
-          transform: translateX(-18px) scale(.94);
-          transform-origin: left center;
-          transition: opacity .22s ease, transform .34s cubic-bezier(.16,1,.3,1);
+          pointer-events: none;
+          transform: translate(-50%, -50%) scale(.90);
+          transition: opacity .18s ease, transform .34s cubic-bezier(.16,1,.3,1);
         }
-        .adversary-emblem-popup.is-visible { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
-        .adversary-emblem-popup::before {
-          content:'';
-          position:absolute;
-          inset:-1px;
-          clip-path: polygon(8% 0, 94% 0, 100% 14%, 100% 84%, 93% 100%, 7% 100%, 0 84%, 0 16%);
-          background: linear-gradient(120deg, rgba(253,224,71,.92), rgba(245,158,11,.28) 25%, rgba(250,204,21,.82) 51%, rgba(245,158,11,.22) 75%, rgba(253,224,71,.9));
-          filter: drop-shadow(0 0 10px rgba(250,204,21,.25));
+        .adversary-emblem-label-v2.is-visible {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translate(-50%, -50%) scale(1);
         }
-        .adversary-emblem-popup-inner {
-          position:relative;
-          margin:1px;
-          min-height:130px;
-          padding:18px 20px 17px;
-          clip-path: polygon(8% 0, 94% 0, 100% 14%, 100% 84%, 93% 100%, 7% 100%, 0 84%, 0 16%);
+        .adversary-emblem-label-v2::before {
+          content: '';
+          position: absolute;
+          inset: -1px;
+          clip-path: polygon(8% 0, 93% 0, 100% 20%, 100% 80%, 93% 100%, 7% 100%, 0 80%, 0 20%);
+          background: linear-gradient(120deg, #fde047, rgba(245,158,11,.24) 28%, rgba(250,204,21,.75) 64%, #fde047);
+          filter: drop-shadow(0 0 12px rgba(250,204,21,.30));
+        }
+        .adversary-emblem-label-inner-v2 {
+          position: relative;
+          margin: 1px;
+          padding: 14px 17px 13px;
+          overflow: hidden;
+          clip-path: polygon(8% 0, 93% 0, 100% 20%, 100% 80%, 93% 100%, 7% 100%, 0 80%, 0 20%);
           background:
-            linear-gradient(30deg, rgba(250,204,21,.032) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.032) 87.5%),
-            linear-gradient(150deg, rgba(250,204,21,.032) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.032) 87.5%),
-            radial-gradient(circle at 12% 10%, rgba(250,204,21,.12), transparent 30%),
-            rgba(3,7,18,.96);
-          border:1px solid rgba(255,255,255,.035);
-          box-shadow: inset 0 0 36px rgba(0,0,0,.72);
-          overflow:hidden;
+            radial-gradient(circle at 12% 8%, rgba(250,204,21,.14), transparent 34%),
+            linear-gradient(135deg, rgba(250,204,21,.035), transparent 48%),
+            rgba(3,7,15,.95);
+          box-shadow: inset 0 0 34px rgba(0,0,0,.68);
         }
-        .adversary-emblem-popup-inner::after {
-          content:'';
-          position:absolute;
-          inset:0;
-          opacity:.22;
-          background-image: linear-gradient(rgba(250,204,21,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,21,.08) 1px, transparent 1px);
-          background-size:22px 22px;
-          mask-image: linear-gradient(90deg,#000,transparent 72%);
-          pointer-events:none;
+        .adversary-emblem-label-title-v2 {
+          position: relative;
+          z-index: 2;
+          color: #fff;
+          font-size: clamp(13px, 1.25vw, 20px);
+          line-height: 1;
+          font-weight: 1000;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+          text-shadow: 0 0 18px rgba(250,204,21,.23);
+          white-space: nowrap;
         }
-        .adversary-emblem-popup-kicker { position:relative; z-index:2; color:#fef08a; font-size:9px; font-weight:900; letter-spacing:.21em; text-transform:uppercase; }
-        .adversary-emblem-popup-title { position:relative; z-index:2; margin-top:4px; color:white; font-size:20px; font-weight:1000; letter-spacing:.02em; text-transform:uppercase; text-shadow:0 0 16px rgba(250,204,21,.18); }
-        .adversary-emblem-popup-line { position:relative; z-index:2; width:78%; height:1px; margin:10px 0 10px; background:linear-gradient(90deg,#fde047,rgba(250,204,21,.18),transparent); box-shadow:0 0 8px rgba(250,204,21,.35); }
-        .adversary-emblem-popup-copy { position:relative; z-index:2; color:#94a3b8; font-size:11px; line-height:1.45; }
-        .adversary-emblem-popup-action { position:relative; z-index:2; margin-top:12px; display:inline-flex; align-items:center; gap:7px; color:#fde047; font-size:10px; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
-        .adversary-emblem-popup-action span { transition:transform .2s ease; }
-        .adversary-emblem-popup.is-visible:hover .adversary-emblem-popup-action span { transform:translateX(3px); }
-        .adversary-emblem-readout { margin: 2px auto 0; text-align:center; color:rgba(226,232,240,.45); font-size:9px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
-        .adversary-emblem-readout strong { color:#fde047; font-weight:900; }
-        @media (max-width: 1279px) { .adversary-emblem-popup { width:248px; } }
+        .adversary-emblem-label-kicker-v2 {
+          position: relative;
+          z-index: 2;
+          margin-top: 7px;
+          color: rgba(226,232,240,.62);
+          font-size: clamp(8px, .72vw, 11px);
+          font-weight: 700;
+          letter-spacing: .08em;
+          white-space: nowrap;
+        }
+        .adversary-emblem-label-charge-v2 {
+          position: relative;
+          z-index: 2;
+          height: 1px;
+          margin-top: 10px;
+          overflow: hidden;
+          background: rgba(250,204,21,.14);
+        }
+        .adversary-emblem-label-charge-v2::after {
+          content: '';
+          display: block;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg,#fde047,#f59e0b);
+          box-shadow: 0 0 9px #facc15;
+          transform-origin: left;
+          animation: adversaryLabelChargeV2 .64s linear both;
+        }
+        @keyframes adversaryLabelChargeV2 { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+        .adversary-emblem-label-v2.is-charged .adversary-emblem-label-inner-v2 {
+          box-shadow: inset 0 0 34px rgba(0,0,0,.68), 0 0 22px rgba(250,204,21,.08);
+        }
+        .adversary-emblem-label-v2.is-charged .adversary-emblem-label-title-v2 { color:#fff8c5; }
+        @media (max-width: 760px) {
+          .adversary-emblem-stage-v2 { width: min(108vw, 92vh); }
+          .adversary-emblem-label-v2 { min-width: 132px; max-width: 160px; }
+          .adversary-emblem-label-kicker-v2 { display:none; }
+          .adversary-emblem-label-inner-v2 { padding:11px 13px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .adversary-emblem-circuit-live-v2 { stroke-dashoffset: 0 !important; animation:none !important; }
+          .adversary-emblem-node-v2, .adversary-emblem-label-charge-v2::after { animation:none !important; }
+        }
       `}</style>
 
-      <div className={`adversary-emblem-stage ${hovered ? 'is-awake' : ''} ${charged ? 'is-charged' : ''}`}>
-        <img className="adversary-emblem-image" src={adversaryEmblem} alt="Adversary navigation emblem" draggable="false" />
-
-        <svg className="adversary-emblem-circuit" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          {activeZone && <path className="adversary-emblem-circuit-base" d={activeZone.path} />}
-          {activeZone && <path key={activeZone.id} className="adversary-emblem-circuit-live" d={activeZone.path} />}
-          {activeZone && <circle className="adversary-emblem-pulse" cx={activeZone.x} cy={activeZone.y} r="1.2" />}
-          {charged && <circle className="adversary-emblem-pulse" cx="82" cy={activeZone?.id === 'nodewars' ? '23' : activeZone?.id === 'overview' ? '50' : activeZone?.id === 'hall' || activeZone?.id === 'guild' ? '60' : '43'} r="1.05" />}
-        </svg>
-
-        {EMBLEM_NAV_ZONES.map((zone) => (
-          <button
-            key={zone.id}
-            type="button"
-            className={`adversary-emblem-zone ${page === zone.id ? 'is-current' : ''}`}
-            style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
-            aria-label={`${zone.title}: ${zone.kicker}`}
-            title={zone.title}
-            onMouseEnter={() => beginHover(zone)}
-            onFocus={() => beginHover(zone)}
-            onBlur={endHover}
-            onClick={() => onNavigate(zone.id)}
+      <div className="adversary-emblem-canvas">
+        <div className={`adversary-emblem-stage-v2 ${hovered ? 'is-awake' : ''} ${charged ? 'is-charged' : ''}`}>
+          <img
+            className="adversary-emblem-image-v2"
+            src={adversaryEmblem}
+            alt="Adversary navigation emblem"
+            draggable="false"
           />
-        ))}
 
-        <button
-          type="button"
-          className={`adversary-emblem-popup ${charged ? 'is-visible' : ''}`}
-          aria-hidden={!charged}
-          tabIndex={charged ? 0 : -1}
-          onMouseEnter={() => window.clearTimeout(leaveTimer.current)}
-          onMouseLeave={endHover}
-          onClick={() => activeZone && onNavigate(activeZone.id)}
-        >
-          <div className="adversary-emblem-popup-inner">
-            <div className="adversary-emblem-popup-kicker">Circuit link established</div>
-            <div className="adversary-emblem-popup-title">{activeZone?.title}</div>
-            <div className="adversary-emblem-popup-line" />
-            <div className="adversary-emblem-popup-copy">{activeZone?.kicker}</div>
-            <div className="adversary-emblem-popup-action">Open interface <span>›</span></div>
-          </div>
-        </button>
-      </div>
+          <svg className="adversary-emblem-circuit-v2" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {activeZone && <path className="adversary-emblem-circuit-base-v2" d={activeZone.path} />}
+            {activeZone && <path key={activeZone.id} className="adversary-emblem-circuit-live-v2" d={activeZone.path} />}
+            {activeZone && <circle className="adversary-emblem-node-v2" cx={activeZone.x} cy={activeZone.y} r=".9" />}
+            {charged && activeZone && <circle className="adversary-emblem-node-v2" cx={activeZone.labelX} cy={activeZone.labelY} r=".75" />}
+          </svg>
 
-      <div className="adversary-emblem-readout">
-        {hovered ? (charged ? <><strong>Charged</strong> · click to open</> : <><strong>Charging</strong> circuit…</>) : 'Hover a section of the emblem'}
+          {EMBLEM_NAV_ZONES.map((zone) => (
+            <button
+              key={zone.id}
+              type="button"
+              className="adversary-emblem-zone-v2"
+              style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
+              aria-label={zone.title}
+              onMouseEnter={() => beginHover(zone)}
+              onFocus={() => beginHover(zone)}
+              onBlur={endHover}
+              onClick={() => onNavigate(zone.id)}
+            />
+          ))}
+
+          {activeZone && (
+            <button
+              type="button"
+              className={`adversary-emblem-label-v2 is-visible ${charged ? 'is-charged' : ''}`}
+              style={{ left: `${activeZone.labelX}%`, top: `${activeZone.labelY}%` }}
+              onMouseEnter={() => window.clearTimeout(leaveTimer.current)}
+              onMouseLeave={endHover}
+              onClick={() => onNavigate(activeZone.id)}
+            >
+              <div className="adversary-emblem-label-inner-v2">
+                <div className="adversary-emblem-label-title-v2">{activeZone.title}</div>
+                <div className="adversary-emblem-label-kicker-v2">{activeZone.kicker}</div>
+                <div className="adversary-emblem-label-charge-v2" />
+              </div>
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -5930,7 +5972,7 @@ function ActivePageBrand({ page }) {
 }
 
 export default function App() {
-  const [page, setPage] = useState('nodewars');
+  const [page, setPage] = useState('home');
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -6777,344 +6819,156 @@ export default function App() {
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
-    <div className="adversary-app relative min-h-screen overflow-x-hidden text-slate-100">
+    <div className={`adversary-app relative min-h-screen overflow-x-hidden text-slate-100 ${page === 'home' ? 'is-emblem-home' : ''}`}>
       <style>{GLOBAL_PANEL_CSS}</style>
-      <div
-        aria-hidden="true"
-        className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-slate-950" />
 
-        {/* A very soft enlarged copy of the same artwork supplies the exact
-            edge colours. This replaces most of the artificial yellow smoke
-            and prevents a visible seam where the main image ends. */}
-        <div
-          className="absolute -inset-[6%] bg-cover bg-center bg-no-repeat opacity-[0.13]"
-          style={{
-            backgroundImage: `url("${adversaryEmblem}")`,
-            filter: 'blur(44px) saturate(.88) brightness(.52)',
-            transform: 'scale(1.08)',
-          }}
+      {page === 'home' ? (
+        <InteractiveEmblemNav
+          onNavigate={(id) => (id === 'overview' ? openOverviewFromMenu() : openPage(id))}
         />
-
-        <div
-          className="absolute inset-0 opacity-[0.34]"
-          style={{
-            backgroundImage: [
-              'radial-gradient(ellipse 42% 78% at 0% 49%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
-              'radial-gradient(ellipse 42% 78% at 100% 51%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
-              'radial-gradient(ellipse 28% 46% at 11% 19%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
-              'radial-gradient(ellipse 28% 46% at 89% 81%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
-            ].join(', '),
-            filter: 'blur(30px)',
-            transform: 'scale(1.03)',
-          }}
-        />
-
-        <div className="adversary-site-artwork absolute inset-0 opacity-[0.30]">
-          <img
-            src={adversaryEmblem}
-            alt=""
+      ) : (
+        <>
+          <div
             aria-hidden="true"
-            style={{
-              filter: 'saturate(1.18) contrast(1.06)',
-              WebkitMaskImage:
-                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
-              maskImage:
-                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
-            }}
-          />
-        </div>
-
-        {/* Keep only a faint, darker amber haze over the image edges. The
-            colour now follows the artwork instead of adding bright yellow. */}
-        <div
-          className="absolute -inset-[4%] opacity-[0.28]"
-          style={{
-            backgroundImage: [
-              'radial-gradient(ellipse 46% 90% at 7% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
-              'radial-gradient(ellipse 46% 90% at 93% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
-            ].join(', '),
-            filter: 'blur(34px) saturate(.94)',
-            transform: 'scale(1.025)',
-          }}
-        />
-
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.13)_0%,rgba(250,204,21,.06)_32%,rgba(180,83,9,.04)_56%,transparent_76%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_38%,rgba(120,53,15,.10)_66%,rgba(2,6,23,.74)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.34),rgba(120,53,15,.035)_28%,rgba(120,53,15,.055)_68%,rgba(2,6,23,.66))]" />
-      </div>
-      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 backdrop-blur-xl lg:hidden">
-        <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
-          Adversary
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {menu.map(([id, title]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => openPage(id)}
-              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
-                isMenuActive(id) ? 'is-active' : ''
-              }`}
+            className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-slate-950" />
+            <div
+              className="absolute -inset-[7%] bg-cover bg-center bg-no-repeat opacity-[0.12]"
               style={{
-                '--adversary-menu-rgb':
-                  MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
+                backgroundImage: `url("${adversaryEmblem}")`,
+                filter: 'blur(52px) saturate(.82) brightness(.42)',
+                transform: 'scale(1.10)',
               }}
-            >
-              <span className="flex items-center justify-center gap-2">
-                {id === 'guild' && (
-                  <img
-                    src={adversaryEmblem}
-                    alt=""
-                    aria-hidden="true"
-                    className="h-5 w-5 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(250,204,21,.28)]"
+            />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.08)_0%,rgba(2,6,23,.30)_52%,rgba(2,6,23,.90)_100%)]" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPage('home')}
+            className="fixed left-4 top-4 z-[200] h-12 w-12 overflow-hidden rounded-full border border-amber-300/25 bg-black/55 p-1.5 shadow-[0_0_24px_rgba(250,204,21,.13)] backdrop-blur-xl transition hover:scale-105 hover:border-amber-300/55 focus:outline-none focus:ring-2 focus:ring-amber-300/60"
+            aria-label="Return to emblem navigation"
+            title="Return to emblem"
+          >
+            <img src={adversaryEmblem} alt="" aria-hidden="true" className="h-full w-full object-cover rounded-full" />
+          </button>
+
+          <main className={`adversary-content adversary-page-${page} relative z-10 min-w-0 p-3 pt-20 sm:p-5 sm:pt-20 lg:p-6 lg:pt-20`}>
+            {page === 'guild' && (
+              <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
+                {!guildReady || loadingAllLogs ? (
+                  <PageLoader text="Loading all logs for Guild..." />
+                ) : (
+                  <Guild stats={allTimeStats} logs={Array.isArray(allLogs) ? allLogs : []} />
+                )}
+              </Suspense>
+            )}
+
+            {page === 'nodewars' && (
+              <NodeWars
+                logs={nodeLogs}
+                loading={loadingNodeLogs}
+                periodDays={periodDays}
+                onPeriodChange={changePeriod}
+                setPage={setPage}
+                setSelectedDays={setSelectedDays}
+                setSelectedWars={setSelectedWars}
+                selectedWars={selectedWars}
+                matchHistoryDateFilter={matchHistoryDateFilter}
+                externalWarning={nodeWarsWarning}
+                clearExternalWarning={() => setNodeWarsWarning('')}
+              />
+            )}
+
+            {page === 'overview' && (
+              <Suspense fallback={<PageLoader text="Loading overview..." />}>
+                {loadingOverviewLogs ? (
+                  <PageLoader text="Loading selected raw logs for overview..." />
+                ) : (
+                  <Overview
+                    stats={stats}
+                    label={label}
+                    members={members}
+                    selectedLogs={activeLogs}
+                    lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
+                    loadLifetimeLogs={loadAllLogs}
+                    playerClassMap={overviewPlayerClassMap}
                   />
                 )}
-                <span>{title}</span>
-              </span>
-            </button>
-          ))}
-        </div>
+              </Suspense>
+            )}
 
-        {(page === 'nodewars' || page === 'overview') && (
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => openPage('nodewars')}
-              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
-                page === 'nodewars' ? 'is-active' : ''
-              }`}
-              style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
-            >
-              Match History
-            </button>
+            {page === 'monthly' && (
+              <Suspense fallback={<PageLoader text="Loading Monthly Recap..." />}>
+                {!monthlyRecapReady || loadingAllLogs ? (
+                  <PageLoader text="Loading all logs for Monthly Recap..." />
+                ) : (
+                  <MonthlyRecap
+                    logs={Array.isArray(allLogs) ? allLogs : []}
+                    playerClassMap={monthlyPlayerClassMap}
+                    onOpenMatchOverview={openMatchOverviewFromMonthlyRecap}
+                  />
+                )}
+              </Suspense>
+            )}
 
-            <button
-              type="button"
-              onClick={openOverviewFromMenu}
-              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
-                page === 'overview' ? 'is-active' : ''
-              }`}
-              style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
-            >
-              Overview
-            </button>
-          </div>
-        )}
-      </div>
+            {page === 'players' && (
+              <Suspense fallback={<PageLoader text="Loading player stats..." />}>
+                {!playerStatsReady || loadingAllLogs ? (
+                  <PageLoader text="Loading all logs for Player Stats..." />
+                ) : (
+                  <PlayerStats
+                    stats={allTimeStats}
+                    logs={Array.isArray(allLogs) ? allLogs : []}
+                    classIconByName={PLAYER_CLASS_ICON_BY_NAME}
+                    getClassRowsForLog={classRowsForLog}
+                    onOpenMatchOverview={openMatchOverviewFromPlayerStats}
+                  />
+                )}
+              </Suspense>
+            )}
 
-      <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="relative hidden min-h-screen flex-col overflow-visible border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
-          <SidebarClassOrbs
-            members={members}
-            logs={Array.isArray(allLogs) ? allLogs : nodeLogs}
-            loadLogs={loadAllLogs}
-          />
+            {page === 'hall' && (
+              <Suspense fallback={<PageLoader text="Loading Hall of Fame..." />}>
+                {!hallOfFameReady || loadingAllLogs ? (
+                  <PageLoader text="Loading all logs for Hall of Fame..." />
+                ) : (
+                  <HallOfFame stats={stats} allTimeStats={allTimeStats} />
+                )}
+              </Suspense>
+            )}
 
-          <h1 className="pointer-events-none relative z-30 mb-4 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
-            Adversary
-          </h1>
-
-          <InteractiveEmblemNav page={page} onNavigate={(id) => id === 'overview' ? openOverviewFromMenu() : openPage(id)} />
-
-          <nav className="pointer-events-none relative z-30 flex-1">
-            {menu
-              .filter(([id]) => id !== 'raw')
-              .map(([id, title]) => {
-                const isNodeWars = id === 'nodewars';
-
-                return (
-                  <div key={id} className="mb-2">
-                    <button
-                      type="button"
-                      onClick={() => openPage(id)}
-                      className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
-                        isMenuActive(id) ? 'is-active' : ''
-                      }`}
-                      style={{
-                        '--adversary-menu-rgb':
-                          MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
-                      }}
-                    >
-                      <span className="flex items-center gap-3">
-                        {id === 'guild' && (
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30">
-                            <img
-                              src={adversaryEmblem}
-                              alt=""
-                              aria-hidden="true"
-                              className="h-7 w-7 object-contain drop-shadow-[0_0_10px_rgba(250,204,21,.26)]"
-                            />
-                          </span>
-                        )}
-                        <span>{title}</span>
-                      </span>
-                    </button>
-
-                    {isNodeWars && (
-                      <div className="ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
-                        <button
-                          type="button"
-                          onClick={() => openPage('nodewars')}
-                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
-                            page === 'nodewars' ? 'is-active' : ''
-                          }`}
-                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
-                        >
-                          Match History
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={openOverviewFromMenu}
-                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
-                            page === 'overview' ? 'is-active' : ''
-                          }`}
-                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
-                        >
-                          Overview
-                        </button>
-                      </div>
-                    )}
+            {page === 'raw' && (
+              <>
+                {loadingAllLogs && !allLogs && (
+                  <div className="mb-4">
+                    <PageLoader text="Loading full log history..." />
                   </div>
-                );
-              })}
-          </nav>
-
-          <div className="pointer-events-none relative z-30 pt-4">
-            <button
-              type="button"
-              onClick={() => openPage('raw')}
-              className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
-                isMenuActive('raw') ? 'is-active' : ''
-              }`}
-              style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
-            >
-              Raw Logs
-            </button>
-          </div>
-        </aside>
-
-        <main className={`adversary-content adversary-page-${page} relative min-w-0 p-3 sm:p-5 lg:p-6`}>
-          <ActivePageBrand page={page} />
-          {page === 'guild' && (
-            <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
-              {!guildReady || loadingAllLogs ? (
-                <PageLoader text="Loading all logs for Guild..." />
-              ) : (
-                <Guild stats={allTimeStats} logs={Array.isArray(allLogs) ? allLogs : []} />
-              )}
-            </Suspense>
-          )}
-
-          {page === 'nodewars' && (
-            <NodeWars
-              logs={nodeLogs}
-              loading={loadingNodeLogs}
-              periodDays={periodDays}
-              onPeriodChange={changePeriod}
-              setPage={setPage}
-              setSelectedDays={setSelectedDays}
-              setSelectedWars={setSelectedWars}
-              selectedWars={selectedWars}
-              matchHistoryDateFilter={matchHistoryDateFilter}
-              externalWarning={nodeWarsWarning}
-              clearExternalWarning={() => setNodeWarsWarning('')}
-            />
-          )}
-
-          {page === 'overview' && (
-            <Suspense fallback={<PageLoader text="Loading overview..." />}>
-              {loadingOverviewLogs ? (
-                <PageLoader text="Loading selected raw logs for overview..." />
-              ) : (
-                <Overview
-                  stats={stats}
-                  label={label}
-                  members={members}
-                  selectedLogs={activeLogs}
-                  lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
-                  loadLifetimeLogs={loadAllLogs}
-                  playerClassMap={overviewPlayerClassMap}
+                )}
+                <RawLog
+                  raw={raw}
+                  setRaw={setRaw}
+                  date={date}
+                  setDate={setDate}
+                  logs={rawHistoryLogs}
+                  message={message}
+                  saveLog={saveLog}
+                  rawMonth={rawMonth}
+                  setRawMonth={setRawMonth}
+                  calendarOpen={calendarOpen}
+                  setCalendarOpen={setCalendarOpen}
+                  markedDates={markedDates}
+                  deleteTarget={deleteTarget}
+                  setDeleteTarget={setDeleteTarget}
+                  deleting={deleting}
+                  deleteLog={deleteLog}
                 />
-              )}
-            </Suspense>
-          )}
-
-          {page === 'monthly' && (
-            <Suspense
-              fallback={<PageLoader text="Loading Monthly Recap..." />}
-            >
-              {!monthlyRecapReady || loadingAllLogs ? (
-                <PageLoader text="Loading all logs for Monthly Recap..." />
-              ) : (
-                <MonthlyRecap
-                  logs={Array.isArray(allLogs) ? allLogs : []}
-                  playerClassMap={monthlyPlayerClassMap}
-                  onOpenMatchOverview={openMatchOverviewFromMonthlyRecap}
-                />
-              )}
-            </Suspense>
-          )}
-
-          {page === 'players' && (
-            <Suspense fallback={<PageLoader text="Loading player stats..." />}>
-              {!playerStatsReady || loadingAllLogs ? (
-                <PageLoader text="Loading all logs for Player Stats..." />
-              ) : (
-                <PlayerStats
-                  stats={allTimeStats}
-                  logs={Array.isArray(allLogs) ? allLogs : []}
-                  classIconByName={PLAYER_CLASS_ICON_BY_NAME}
-                  getClassRowsForLog={classRowsForLog}
-                  onOpenMatchOverview={openMatchOverviewFromPlayerStats}
-                />
-              )}
-            </Suspense>
-          )}
-
-          {page === 'hall' && (
-            <Suspense fallback={<PageLoader text="Loading Hall of Fame..." />}>
-              {!hallOfFameReady || loadingAllLogs ? (
-                <PageLoader text="Loading all logs for Hall of Fame..." />
-              ) : (
-                <HallOfFame stats={stats} allTimeStats={allTimeStats} />
-              )}
-            </Suspense>
-          )}
-
-          {page === 'raw' && (
-            <>
-              {loadingAllLogs && !allLogs && (
-                <div className="mb-4">
-                  <PageLoader text="Loading full log history..." />
-                </div>
-              )}
-
-              <RawLog
-                raw={raw}
-                setRaw={setRaw}
-                date={date}
-                setDate={setDate}
-                logs={rawHistoryLogs}
-                message={message}
-                saveLog={saveLog}
-                rawMonth={rawMonth}
-                setRawMonth={setRawMonth}
-                calendarOpen={calendarOpen}
-                setCalendarOpen={setCalendarOpen}
-                markedDates={markedDates}
-                deleteTarget={deleteTarget}
-                setDeleteTarget={setDeleteTarget}
-                deleting={deleting}
-                deleteLog={deleteLog}
-              />
-            </>
-          )}
-        </main>
-      </div>
+              </>
+            )}
+          </main>
+        </>
+      )}
     </div>
   );
 }
