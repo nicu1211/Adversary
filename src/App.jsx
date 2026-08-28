@@ -987,57 +987,6 @@ const GLOBAL_PANEL_CSS = `
     height: 2px;
   }
 
-  /* Desktop sidebar only: lightly tint each page label with its existing
-     accent colour and centre the label inside its button. Nothing outside
-     the left sidebar is affected. */
-  @media (min-width: 1024px) {
-    aside .adversary-menu-button {
-      background-color: rgba(2, 6, 23, 0.72) !important;
-      background-image: linear-gradient(
-        90deg,
-        rgba(var(--adversary-menu-rgb), 0.06) 0%,
-        rgba(var(--adversary-menu-rgb), 0.22) 10%,
-        rgba(var(--adversary-menu-rgb), 0.40) 28%,
-        rgba(var(--adversary-menu-rgb), 0.40) 72%,
-        rgba(var(--adversary-menu-rgb), 0.22) 90%,
-        rgba(var(--adversary-menu-rgb), 0.06) 100%
-      ) !important;
-      border-color: rgba(var(--adversary-menu-rgb), 0.30) !important;
-      text-align: center !important;
-      font-size: 17px !important;
-    }
-
-    aside .adversary-menu-button > span {
-      justify-content: center !important;
-    }
-
-    aside .adversary-menu-button:hover {
-      background-color: rgba(2, 6, 23, 0.76) !important;
-      background-image: linear-gradient(
-        90deg,
-        rgba(var(--adversary-menu-rgb), 0.08) 0%,
-        rgba(var(--adversary-menu-rgb), 0.28) 10%,
-        rgba(var(--adversary-menu-rgb), 0.48) 28%,
-        rgba(var(--adversary-menu-rgb), 0.48) 72%,
-        rgba(var(--adversary-menu-rgb), 0.28) 90%,
-        rgba(var(--adversary-menu-rgb), 0.08) 100%
-      ) !important;
-    }
-
-    aside .adversary-menu-button.is-active {
-      background-color: rgba(2, 6, 23, 0.80) !important;
-      background-image: linear-gradient(
-        90deg,
-        rgba(var(--adversary-menu-rgb), 0.10) 0%,
-        rgba(var(--adversary-menu-rgb), 0.34) 10%,
-        rgba(var(--adversary-menu-rgb), 0.56) 28%,
-        rgba(var(--adversary-menu-rgb), 0.56) 72%,
-        rgba(var(--adversary-menu-rgb), 0.34) 90%,
-        rgba(var(--adversary-menu-rgb), 0.10) 100%
-      ) !important;
-    }
-  }
-
   /* Floating class orbs live behind the desktop navigation. Their movement is
      handled by a small low-gravity physics loop: they drift across the full
      sidebar, bounce softly from its edges, nudge one another, and are pushed
