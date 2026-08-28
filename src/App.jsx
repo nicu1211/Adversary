@@ -992,10 +992,19 @@ const GLOBAL_PANEL_CSS = `
      the left sidebar is affected. */
   @media (min-width: 1024px) {
     aside .adversary-menu-button {
-      background-color: rgba(var(--adversary-menu-rgb), 0.14) !important;
-      background-image: none !important;
+      background-color: transparent !important;
+      background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--adversary-menu-rgb), 0.08) 10%,
+        rgba(var(--adversary-menu-rgb), 0.16) 28%,
+        rgba(var(--adversary-menu-rgb), 0.16) 72%,
+        rgba(var(--adversary-menu-rgb), 0.08) 90%,
+        transparent 100%
+      ) !important;
       border-color: rgba(var(--adversary-menu-rgb), 0.30) !important;
       text-align: center !important;
+      font-size: 17px !important;
     }
 
     aside .adversary-menu-button > span {
@@ -1003,13 +1012,29 @@ const GLOBAL_PANEL_CSS = `
     }
 
     aside .adversary-menu-button:hover {
-      background-color: rgba(var(--adversary-menu-rgb), 0.20) !important;
-      background-image: none !important;
+      background-color: transparent !important;
+      background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--adversary-menu-rgb), 0.12) 10%,
+        rgba(var(--adversary-menu-rgb), 0.22) 28%,
+        rgba(var(--adversary-menu-rgb), 0.22) 72%,
+        rgba(var(--adversary-menu-rgb), 0.12) 90%,
+        transparent 100%
+      ) !important;
     }
 
     aside .adversary-menu-button.is-active {
-      background-color: rgba(var(--adversary-menu-rgb), 0.26) !important;
-      background-image: none !important;
+      background-color: transparent !important;
+      background-image: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--adversary-menu-rgb), 0.15) 10%,
+        rgba(var(--adversary-menu-rgb), 0.28) 28%,
+        rgba(var(--adversary-menu-rgb), 0.28) 72%,
+        rgba(var(--adversary-menu-rgb), 0.15) 90%,
+        transparent 100%
+      ) !important;
     }
   }
 
