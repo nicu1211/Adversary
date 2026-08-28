@@ -2579,6 +2579,83 @@ const GLOBAL_PANEL_CSS = `
     backdrop-filter: blur(16px) !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42) !important;
   }
+  /* ================================================================
+     EMBLEM UI THEME — page panels use the same black / electric-gold
+     material language as the interactive emblem navigation.
+     ================================================================ */
+  .adversary-content {
+    --adversary-panel-accent-rgb: 250, 204, 21;
+    --adversary-panel-bg-top: rgba(12, 11, 5, 0.92);
+    --adversary-panel-bg-bottom: rgba(2, 3, 6, 0.88);
+    --adversary-panel-border: rgba(250, 204, 21, 0.34);
+  }
+
+  .adversary-content .adversary-color-panel,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel,
+  .adversary-content .adversary-stat-panel,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-stat-panel {
+    --adversary-panel-accent-rgb: 250, 204, 21 !important;
+    --player-stats-panel-rgb: 250, 204, 21 !important;
+    --monthly-panel-accent-rgb: 250, 204, 21 !important;
+    position: relative;
+    background-color: rgba(3, 4, 6, 0.88) !important;
+    background-image:
+      radial-gradient(circle at 14% 4%, rgba(250, 204, 21, 0.12), transparent 28%),
+      linear-gradient(135deg, rgba(250, 204, 21, 0.065) 0%, rgba(2, 3, 6, 0.90) 38%, rgba(0, 0, 0, 0.94) 100%),
+      repeating-linear-gradient(60deg, rgba(250, 204, 21, 0.018) 0 1px, transparent 1px 18px),
+      repeating-linear-gradient(-60deg, rgba(250, 204, 21, 0.014) 0 1px, transparent 1px 18px) !important;
+    border-color: rgba(250, 204, 21, 0.38) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 245, 170, 0.07),
+      inset 0 0 30px rgba(250, 204, 21, 0.035),
+      0 0 0 1px rgba(250, 204, 21, 0.025),
+      0 14px 34px rgba(0, 0, 0, 0.35) !important;
+    -webkit-backdrop-filter: blur(9px) saturate(118%);
+    backdrop-filter: blur(9px) saturate(118%);
+  }
+
+  .adversary-content .adversary-color-panel:hover,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover,
+  .adversary-content .adversary-stat-panel:hover {
+    background-color: rgba(4, 5, 7, 0.90) !important;
+    background-image:
+      radial-gradient(circle at 14% 4%, rgba(250, 204, 21, 0.19), transparent 31%),
+      linear-gradient(135deg, rgba(250, 204, 21, 0.095) 0%, rgba(2, 3, 6, 0.88) 40%, rgba(0, 0, 0, 0.94) 100%),
+      repeating-linear-gradient(60deg, rgba(250, 204, 21, 0.024) 0 1px, transparent 1px 18px),
+      repeating-linear-gradient(-60deg, rgba(250, 204, 21, 0.019) 0 1px, transparent 1px 18px) !important;
+    border-color: rgba(250, 204, 21, 0.72) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 245, 170, 0.11),
+      inset 0 0 42px rgba(250, 204, 21, 0.07),
+      0 0 0 1px rgba(250, 204, 21, 0.08),
+      0 0 18px rgba(250, 204, 21, 0.12),
+      0 18px 40px rgba(0, 0, 0, 0.38) !important;
+  }
+
+  /* Generic secondary surfaces inside pages stay darker than their parent
+     panel, but inherit the gold edge so every page reads as one system. */
+  .adversary-content :is(section, article, div)[class*="border"][class*="bg-"]:not(.adversary-color-panel) {
+    border-color: rgba(250, 204, 21, 0.18) !important;
+    background-color: rgba(2, 3, 6, 0.56) !important;
+    background-image: linear-gradient(145deg, rgba(250, 204, 21, 0.035), rgba(0, 0, 0, 0.18)) !important;
+  }
+
+  .adversary-content :is(h1, h2, h3, h4)[class*="text-amber"],
+  .adversary-content :is(h1, h2, h3, h4)[class*="text-yellow"] {
+    text-shadow: 0 0 18px rgba(250, 204, 21, 0.22);
+  }
+
+  .adversary-content button[class*="border"]:not([class*="red"]):not([class*="rose"]),
+  .adversary-content select[class*="border"],
+  .adversary-content input[class*="border"] {
+    border-color: rgba(250, 204, 21, 0.24) !important;
+  }
+
+  .adversary-content button[class*="border"]:not([class*="red"]):not([class*="rose"]):hover {
+    border-color: rgba(250, 204, 21, 0.58) !important;
+    box-shadow: 0 0 16px rgba(250, 204, 21, 0.09);
+  }
+
 `;
 
 
@@ -5675,6 +5752,46 @@ const EMBLEM_NAV_ZONES = Object.freeze([
   },
 ]);
 
+
+function HomeClassOrbs() {
+  const total = SIDEBAR_CLASS_ORBS.length;
+
+  return (
+    <div className="adversary-home-orb-field" aria-hidden="true">
+      {SIDEBAR_CLASS_ORBS.map((orb, index) => {
+        const sideIndex = Math.floor(index / 2);
+        const rowsPerSide = Math.ceil(total / 2);
+        const progress = rowsPerSide <= 1 ? 0.5 : sideIndex / (rowsPerSide - 1);
+        const isLeft = index % 2 === 0;
+        const top = 5 + progress * 90;
+        const edge = 1.2 + ((sideIndex % 3) * 1.35);
+        const size = 42 + (sideIndex % 4) * 3;
+        const driftX = isLeft ? 8 + (sideIndex % 3) * 3 : -(8 + (sideIndex % 3) * 3);
+        const driftY = ((sideIndex % 5) - 2) * 4;
+
+        return (
+          <span
+            key={`home-${orb.id}`}
+            className={`adversary-home-class-orb ${isLeft ? 'is-left' : 'is-right'}`}
+            style={{
+              '--home-orb-top': `${top}%`,
+              '--home-orb-edge': `${edge}%`,
+              '--home-orb-size': `${size}px`,
+              '--home-orb-delay': `${-(index * 0.37).toFixed(2)}s`,
+              '--home-orb-duration': `${7.5 + (index % 6) * 0.7}s`,
+              '--home-orb-drift-x': `${driftX}px`,
+              '--home-orb-drift-y': `${driftY}px`,
+              '--home-orb-glow': orb.glow || '250, 204, 21',
+            }}
+          >
+            <img src={orb.src} alt="" draggable="false" />
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function InteractiveEmblemNav({ onNavigate }) {
   const [hovered, setHovered] = useState(null);
   const [phase, setPhase] = useState('idle');
@@ -5745,6 +5862,49 @@ function InteractiveEmblemNav({ onNavigate }) {
           background:
             radial-gradient(circle at 50% 48%, transparent 22%, rgba(0,0,0,.08) 58%, rgba(0,0,0,.72) 100%),
             linear-gradient(180deg, rgba(0,0,0,.18), transparent 18%, transparent 80%, rgba(0,0,0,.38));
+        }
+        .adversary-home-orb-field {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          overflow: hidden;
+          pointer-events: none;
+        }
+        .adversary-home-class-orb {
+          position: absolute;
+          top: var(--home-orb-top);
+          width: var(--home-orb-size);
+          height: var(--home-orb-size);
+          margin-top: calc(var(--home-orb-size) * -0.5);
+          opacity: .62;
+          filter: drop-shadow(0 0 9px rgba(var(--home-orb-glow), .32)) drop-shadow(0 7px 12px rgba(0,0,0,.45));
+          animation: adversaryHomeOrbFloat var(--home-orb-duration) ease-in-out infinite alternate;
+          animation-delay: var(--home-orb-delay);
+          will-change: transform;
+        }
+        .adversary-home-class-orb.is-left { left: var(--home-orb-edge); }
+        .adversary-home-class-orb.is-right { right: var(--home-orb-edge); }
+        .adversary-home-class-orb img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          user-select: none;
+        }
+        @keyframes adversaryHomeOrbFloat {
+          0% { transform: translate3d(0, calc(var(--home-orb-drift-y) * -0.55), 0) rotate(-3deg) scale(.97); }
+          52% { transform: translate3d(calc(var(--home-orb-drift-x) * .55), 0, 0) rotate(2deg) scale(1.035); }
+          100% { transform: translate3d(var(--home-orb-drift-x), var(--home-orb-drift-y), 0) rotate(5deg) scale(1); }
+        }
+        @media (max-width: 920px) {
+          .adversary-home-class-orb {
+            width: calc(var(--home-orb-size) * .78);
+            height: calc(var(--home-orb-size) * .78);
+            opacity: .48;
+          }
+        }
+        @media (max-width: 640px) {
+          .adversary-home-class-orb { display: none; }
         }
         .adversary-emblem-canvas {
           position: absolute;
@@ -5971,6 +6131,8 @@ function InteractiveEmblemNav({ onNavigate }) {
           .adversary-emblem-label-charge-v2::after { animation:none !important; }
         }
       `}</style>
+
+      <HomeClassOrbs />
 
       <div className="adversary-emblem-canvas">
         <div className={`adversary-emblem-stage-v2 ${activeZone ? 'is-active' : ''}`}>
