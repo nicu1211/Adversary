@@ -5621,6 +5621,279 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   );
 }
 
+
+const EMBLEM_NAV_ZONES = Object.freeze([
+  { id: 'nodewars', title: 'Match History', kicker: 'Recorded wars & battles', x: 50, y: 13, path: 'M 50 14 L 50 31 L 67 31 L 82 23' },
+  { id: 'monthly', title: 'Monthly Recap', kicker: 'Monthly performance overview', x: 25, y: 32, path: 'M 25 32 L 37 32 L 44 43 L 74 43' },
+  { id: 'players', title: 'Player Stats', kicker: 'Individual player performance', x: 75, y: 32, path: 'M 75 32 L 63 32 L 56 43 L 82 43' },
+  { id: 'overview', title: 'Overview', kicker: 'Selected-war battle analytics', x: 50, y: 50, path: 'M 50 50 L 65 50 L 74 50' },
+  { id: 'hall', title: 'Hall of Fame', kicker: 'Best performers & records', x: 29, y: 71, path: 'M 29 71 L 40 71 L 47 60 L 76 60' },
+  { id: 'guild', title: 'Guild', kicker: 'Roster & enemy intelligence', x: 71, y: 71, path: 'M 71 71 L 60 71 L 53 60 L 82 60' },
+]);
+
+function InteractiveEmblemNav({ page, onNavigate }) {
+  const [hovered, setHovered] = useState(null);
+  const [charged, setCharged] = useState(null);
+  const chargeTimer = useRef(null);
+  const leaveTimer = useRef(null);
+
+  const activeZone = EMBLEM_NAV_ZONES.find((zone) => zone.id === hovered) || null;
+
+  const beginHover = (zone) => {
+    window.clearTimeout(leaveTimer.current);
+    window.clearTimeout(chargeTimer.current);
+    setHovered(zone.id);
+    setCharged(null);
+    chargeTimer.current = window.setTimeout(() => setCharged(zone.id), 720);
+  };
+
+  const endHover = () => {
+    window.clearTimeout(chargeTimer.current);
+    leaveTimer.current = window.setTimeout(() => {
+      setHovered(null);
+      setCharged(null);
+    }, 150);
+  };
+
+  useEffect(() => () => {
+    window.clearTimeout(chargeTimer.current);
+    window.clearTimeout(leaveTimer.current);
+  }, []);
+
+  return (
+    <div className="adversary-emblem-nav" onMouseLeave={endHover}>
+      <style>{`
+        .adversary-emblem-nav {
+          position: relative;
+          z-index: 60;
+          width: 100%;
+          margin: 0 auto 18px;
+          overflow: visible;
+        }
+        .adversary-emblem-stage {
+          position: relative;
+          width: 218px;
+          aspect-ratio: 1;
+          margin: 0 auto;
+          isolation: isolate;
+          filter: drop-shadow(0 18px 34px rgba(0,0,0,.52));
+        }
+        .adversary-emblem-stage::before {
+          content: '';
+          position: absolute;
+          inset: 8%;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(250,204,21,.10), rgba(245,158,11,.035) 38%, transparent 72%);
+          filter: blur(18px);
+          opacity: .65;
+          transition: opacity .35s ease, transform .35s ease;
+        }
+        .adversary-emblem-stage.is-awake::before { opacity: 1; transform: scale(1.08); }
+        .adversary-emblem-image {
+          position: absolute;
+          inset: 4%;
+          width: 92%;
+          height: 92%;
+          object-fit: contain;
+          user-select: none;
+          pointer-events: none;
+          transition: filter .25s ease, transform .32s cubic-bezier(.2,.8,.2,1), opacity .25s ease;
+          filter: saturate(.95) brightness(.82) contrast(1.05);
+        }
+        .adversary-emblem-stage.is-awake .adversary-emblem-image {
+          filter: saturate(1.22) brightness(1.06) contrast(1.08) drop-shadow(0 0 10px rgba(250,204,21,.30));
+          transform: scale(1.015);
+        }
+        .adversary-emblem-stage.is-charged .adversary-emblem-image {
+          filter: saturate(1.35) brightness(1.14) contrast(1.08) drop-shadow(0 0 16px rgba(250,204,21,.47));
+        }
+        .adversary-emblem-circuit {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          overflow: visible;
+          pointer-events: none;
+          z-index: 3;
+        }
+        .adversary-emblem-circuit-base {
+          fill: none;
+          stroke: rgba(250,204,21,.14);
+          stroke-width: .7;
+          vector-effect: non-scaling-stroke;
+        }
+        .adversary-emblem-circuit-live {
+          fill: none;
+          stroke: #fde047;
+          stroke-width: 1.2;
+          vector-effect: non-scaling-stroke;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          filter: drop-shadow(0 0 3px rgba(250,204,21,.95)) drop-shadow(0 0 8px rgba(245,158,11,.65));
+          stroke-dasharray: 160;
+          stroke-dashoffset: 160;
+        }
+        .adversary-emblem-stage.is-awake .adversary-emblem-circuit-live {
+          animation: adversaryCircuitCharge .74s cubic-bezier(.2,.75,.2,1) forwards;
+        }
+        @keyframes adversaryCircuitCharge { to { stroke-dashoffset: 0; } }
+        .adversary-emblem-pulse {
+          fill: #fff7ae;
+          stroke: #fde047;
+          stroke-width: .7;
+          filter: drop-shadow(0 0 3px #fde047) drop-shadow(0 0 9px #f59e0b);
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: adversaryCircuitNode .95s ease-in-out infinite alternate;
+        }
+        @keyframes adversaryCircuitNode { from { opacity:.55; transform:scale(.72); } to { opacity:1; transform:scale(1.35); } }
+        .adversary-emblem-zone {
+          position: absolute;
+          z-index: 6;
+          width: 26%;
+          height: 23%;
+          transform: translate(-50%, -50%);
+          border: 0;
+          padding: 0;
+          border-radius: 48%;
+          background: transparent;
+          cursor: pointer;
+          outline: none;
+        }
+        .adversary-emblem-zone::before {
+          content: '';
+          position: absolute;
+          inset: 18%;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(254,240,138,.30), rgba(250,204,21,.08) 42%, transparent 72%);
+          opacity: 0;
+          transform: scale(.55);
+          transition: opacity .22s ease, transform .32s ease;
+          filter: blur(5px);
+        }
+        .adversary-emblem-zone:hover::before,
+        .adversary-emblem-zone:focus-visible::before { opacity: 1; transform: scale(1.2); }
+        .adversary-emblem-zone.is-current::after {
+          content: '';
+          position:absolute;
+          left:50%; top:50%;
+          width:5px; height:5px;
+          border-radius:999px;
+          background:#fde047;
+          box-shadow:0 0 9px #fde047, 0 0 18px rgba(245,158,11,.8);
+          transform:translate(-50%,-50%);
+          opacity:.72;
+        }
+        .adversary-emblem-popup {
+          position: absolute;
+          z-index: 100;
+          left: calc(100% + 12px);
+          top: 46px;
+          width: 288px;
+          min-height: 132px;
+          pointer-events: none;
+          opacity: 0;
+          transform: translateX(-18px) scale(.94);
+          transform-origin: left center;
+          transition: opacity .22s ease, transform .34s cubic-bezier(.16,1,.3,1);
+        }
+        .adversary-emblem-popup.is-visible { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
+        .adversary-emblem-popup::before {
+          content:'';
+          position:absolute;
+          inset:-1px;
+          clip-path: polygon(8% 0, 94% 0, 100% 14%, 100% 84%, 93% 100%, 7% 100%, 0 84%, 0 16%);
+          background: linear-gradient(120deg, rgba(253,224,71,.92), rgba(245,158,11,.28) 25%, rgba(250,204,21,.82) 51%, rgba(245,158,11,.22) 75%, rgba(253,224,71,.9));
+          filter: drop-shadow(0 0 10px rgba(250,204,21,.25));
+        }
+        .adversary-emblem-popup-inner {
+          position:relative;
+          margin:1px;
+          min-height:130px;
+          padding:18px 20px 17px;
+          clip-path: polygon(8% 0, 94% 0, 100% 14%, 100% 84%, 93% 100%, 7% 100%, 0 84%, 0 16%);
+          background:
+            linear-gradient(30deg, rgba(250,204,21,.032) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.032) 87.5%),
+            linear-gradient(150deg, rgba(250,204,21,.032) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.032) 87.5%),
+            radial-gradient(circle at 12% 10%, rgba(250,204,21,.12), transparent 30%),
+            rgba(3,7,18,.96);
+          border:1px solid rgba(255,255,255,.035);
+          box-shadow: inset 0 0 36px rgba(0,0,0,.72);
+          overflow:hidden;
+        }
+        .adversary-emblem-popup-inner::after {
+          content:'';
+          position:absolute;
+          inset:0;
+          opacity:.22;
+          background-image: linear-gradient(rgba(250,204,21,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,21,.08) 1px, transparent 1px);
+          background-size:22px 22px;
+          mask-image: linear-gradient(90deg,#000,transparent 72%);
+          pointer-events:none;
+        }
+        .adversary-emblem-popup-kicker { position:relative; z-index:2; color:#fef08a; font-size:9px; font-weight:900; letter-spacing:.21em; text-transform:uppercase; }
+        .adversary-emblem-popup-title { position:relative; z-index:2; margin-top:4px; color:white; font-size:20px; font-weight:1000; letter-spacing:.02em; text-transform:uppercase; text-shadow:0 0 16px rgba(250,204,21,.18); }
+        .adversary-emblem-popup-line { position:relative; z-index:2; width:78%; height:1px; margin:10px 0 10px; background:linear-gradient(90deg,#fde047,rgba(250,204,21,.18),transparent); box-shadow:0 0 8px rgba(250,204,21,.35); }
+        .adversary-emblem-popup-copy { position:relative; z-index:2; color:#94a3b8; font-size:11px; line-height:1.45; }
+        .adversary-emblem-popup-action { position:relative; z-index:2; margin-top:12px; display:inline-flex; align-items:center; gap:7px; color:#fde047; font-size:10px; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
+        .adversary-emblem-popup-action span { transition:transform .2s ease; }
+        .adversary-emblem-popup.is-visible:hover .adversary-emblem-popup-action span { transform:translateX(3px); }
+        .adversary-emblem-readout { margin: 2px auto 0; text-align:center; color:rgba(226,232,240,.45); font-size:9px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+        .adversary-emblem-readout strong { color:#fde047; font-weight:900; }
+        @media (max-width: 1279px) { .adversary-emblem-popup { width:248px; } }
+      `}</style>
+
+      <div className={`adversary-emblem-stage ${hovered ? 'is-awake' : ''} ${charged ? 'is-charged' : ''}`}>
+        <img className="adversary-emblem-image" src={adversaryEmblem} alt="Adversary navigation emblem" draggable="false" />
+
+        <svg className="adversary-emblem-circuit" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {activeZone && <path className="adversary-emblem-circuit-base" d={activeZone.path} />}
+          {activeZone && <path key={activeZone.id} className="adversary-emblem-circuit-live" d={activeZone.path} />}
+          {activeZone && <circle className="adversary-emblem-pulse" cx={activeZone.x} cy={activeZone.y} r="1.2" />}
+          {charged && <circle className="adversary-emblem-pulse" cx="82" cy={activeZone?.id === 'nodewars' ? '23' : activeZone?.id === 'overview' ? '50' : activeZone?.id === 'hall' || activeZone?.id === 'guild' ? '60' : '43'} r="1.05" />}
+        </svg>
+
+        {EMBLEM_NAV_ZONES.map((zone) => (
+          <button
+            key={zone.id}
+            type="button"
+            className={`adversary-emblem-zone ${page === zone.id ? 'is-current' : ''}`}
+            style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
+            aria-label={`${zone.title}: ${zone.kicker}`}
+            title={zone.title}
+            onMouseEnter={() => beginHover(zone)}
+            onFocus={() => beginHover(zone)}
+            onBlur={endHover}
+            onClick={() => onNavigate(zone.id)}
+          />
+        ))}
+
+        <button
+          type="button"
+          className={`adversary-emblem-popup ${charged ? 'is-visible' : ''}`}
+          aria-hidden={!charged}
+          tabIndex={charged ? 0 : -1}
+          onMouseEnter={() => window.clearTimeout(leaveTimer.current)}
+          onMouseLeave={endHover}
+          onClick={() => activeZone && onNavigate(activeZone.id)}
+        >
+          <div className="adversary-emblem-popup-inner">
+            <div className="adversary-emblem-popup-kicker">Circuit link established</div>
+            <div className="adversary-emblem-popup-title">{activeZone?.title}</div>
+            <div className="adversary-emblem-popup-line" />
+            <div className="adversary-emblem-popup-copy">{activeZone?.kicker}</div>
+            <div className="adversary-emblem-popup-action">Open interface <span>›</span></div>
+          </div>
+        </button>
+      </div>
+
+      <div className="adversary-emblem-readout">
+        {hovered ? (charged ? <><strong>Charged</strong> · click to open</> : <><strong>Charging</strong> circuit…</>) : 'Hover a section of the emblem'}
+      </div>
+    </div>
+  );
+}
+
 function ActivePageBrand({ page }) {
   const title = PAGE_TITLES[page] || 'Adversary';
 
@@ -6633,16 +6906,18 @@ export default function App() {
       </div>
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
+        <aside className="relative hidden min-h-screen flex-col overflow-visible border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <SidebarClassOrbs
             members={members}
             logs={Array.isArray(allLogs) ? allLogs : nodeLogs}
             loadLogs={loadAllLogs}
           />
 
-          <h1 className="pointer-events-none relative z-30 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
+          <h1 className="pointer-events-none relative z-30 mb-4 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
             Adversary
           </h1>
+
+          <InteractiveEmblemNav page={page} onNavigate={(id) => id === 'overview' ? openOverviewFromMenu() : openPage(id)} />
 
           <nav className="pointer-events-none relative z-30 flex-1">
             {menu
