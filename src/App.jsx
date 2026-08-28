@@ -5858,6 +5858,42 @@ const EMBLEM_NAV_ZONES = Object.freeze([
 ]);
 
 
+const EMBLEM_IDLE_CIRCUITS = Object.freeze([
+  { d: 'M 50 9 L 50 18 L 43 26 L 43 40 L 50 47', duration: 2.8, delay: -0.4, width: .76 },
+  { d: 'M 50 18 L 57 26 L 57 40 L 50 47', duration: 2.5, delay: -1.1, width: .76 },
+  { d: 'M 43 26 L 36 21 L 31 17', duration: 2.3, delay: -0.8, width: .62 },
+  { d: 'M 57 26 L 64 21 L 69 17', duration: 2.2, delay: -1.4, width: .62 },
+  { d: 'M 50 47 L 40 40 L 31 35 L 23 28 L 17 20', duration: 3.2, delay: -0.1, width: .82 },
+  { d: 'M 50 47 L 60 40 L 69 35 L 77 28 L 83 20', duration: 3.1, delay: -1.0, width: .82 },
+  { d: 'M 50 47 L 43 50 L 36 47 L 30 43', duration: 2.6, delay: -0.6, width: .58 },
+  { d: 'M 50 47 L 57 50 L 64 47 L 70 43', duration: 2.7, delay: -1.5, width: .58 },
+  { d: 'M 48 59 L 41 66 L 35 73 L 35 84', duration: 2.9, delay: -0.9, width: .74 },
+  { d: 'M 52 59 L 59 66 L 65 73 L 65 84', duration: 3.0, delay: -1.7, width: .74 },
+  { d: 'M 50 68 L 50 80 L 44 86 L 50 93 L 56 86 L 50 80', duration: 2.4, delay: -0.3, width: .78 },
+]);
+
+const EMBLEM_FLOATING_HEXES = Object.freeze([
+  { x: 15, y: 18, size: 42, duration: 8.6, delay: -1.2, driftX: 10, driftY: -8, opacity: .28 },
+  { x: 22, y: 36, size: 28, duration: 6.8, delay: -0.4, driftX: 8, driftY: 6, opacity: .24 },
+  { x: 12, y: 60, size: 34, duration: 9.1, delay: -2.8, driftX: 6, driftY: -10, opacity: .22 },
+  { x: 25, y: 76, size: 22, duration: 6.1, delay: -1.7, driftX: 7, driftY: 7, opacity: .26 },
+  { x: 84, y: 20, size: 44, duration: 8.2, delay: -3.1, driftX: -10, driftY: -7, opacity: .30 },
+  { x: 78, y: 36, size: 26, duration: 6.5, delay: -0.8, driftX: -7, driftY: 6, opacity: .22 },
+  { x: 89, y: 58, size: 38, duration: 9.4, delay: -2.2, driftX: -6, driftY: -9, opacity: .24 },
+  { x: 76, y: 77, size: 24, duration: 6.3, delay: -1.5, driftX: -8, driftY: 8, opacity: .26 },
+  { x: 48, y: 9, size: 18, duration: 5.7, delay: -0.2, driftX: 0, driftY: -8, opacity: .24 },
+  { x: 52, y: 92, size: 18, duration: 5.9, delay: -2.6, driftX: 0, driftY: 8, opacity: .22 },
+]);
+
+const EMBLEM_SMOKE_PLUMES = Object.freeze([
+  { x: 50, y: 17, width: 33, height: 17, duration: 13.5, delay: -1.2, driftX: -2, driftY: -3, opacity: .36 },
+  { x: 21, y: 34, width: 27, height: 17, duration: 14.2, delay: -3.0, driftX: -4, driftY: -1, opacity: .28 },
+  { x: 79, y: 34, width: 27, height: 17, duration: 13.6, delay: -4.0, driftX: 4, driftY: -1, opacity: .28 },
+  { x: 29, y: 71, width: 26, height: 18, duration: 15.4, delay: -2.1, driftX: -3, driftY: 3, opacity: .30 },
+  { x: 71, y: 71, width: 26, height: 18, duration: 15.1, delay: -4.5, driftX: 3, driftY: 3, opacity: .30 },
+  { x: 50, y: 89, width: 30, height: 16, duration: 12.8, delay: -5.2, driftX: 1, driftY: 4, opacity: .24 },
+]);
+
 function HomeClassOrbs() {
   const fieldRef = useRef(null);
   const orbRefs = useRef([]);
@@ -6172,6 +6208,143 @@ function InteractiveEmblemNav({ onNavigate }) {
           transform-origin: center;
           user-select: none;
         }
+        .adversary-emblem-stage-v2::before {
+          content: '';
+          position: absolute;
+          inset: 13% 18%;
+          z-index: 0;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(250,204,21,.22), rgba(250,204,21,.10) 28%, rgba(245,158,11,.03) 48%, transparent 70%);
+          filter: blur(22px);
+          opacity: .78;
+          animation: adversaryCoreBreatheV6 5.2s ease-in-out infinite;
+        }
+        @keyframes adversaryCoreBreatheV6 {
+          0%, 100% { transform: scale(.94); opacity: .46; }
+          50% { transform: scale(1.08); opacity: .82; }
+        }
+        .adversary-emblem-smoke-layer,
+        .adversary-emblem-hex-layer {
+          position: absolute;
+          inset: -4%;
+          pointer-events: none;
+        }
+        .adversary-emblem-smoke-layer { z-index: 0; }
+        .adversary-emblem-hex-layer { z-index: 0; overflow: hidden; }
+        .adversary-emblem-smoke-plume {
+          position: absolute;
+          left: calc(var(--smoke-x) * 1%);
+          top: calc(var(--smoke-y) * 1%);
+          width: calc(var(--smoke-w) * 1%);
+          height: calc(var(--smoke-h) * 1%);
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 48% 45%, rgba(255,233,120,.17), transparent 30%),
+            radial-gradient(circle at 40% 55%, rgba(250,204,21,.13), transparent 42%),
+            radial-gradient(circle at 55% 50%, rgba(255,255,255,.09), transparent 25%),
+            radial-gradient(circle at 50% 50%, rgba(105,105,105,.32), transparent 70%);
+          opacity: var(--smoke-opacity);
+          mix-blend-mode: screen;
+          filter: blur(14px);
+          transform: translate(-50%, -50%);
+          animation:
+            adversarySmokeDriftV6 var(--smoke-duration) ease-in-out infinite,
+            adversarySmokePulseV6 calc(var(--smoke-duration) * .58) ease-in-out infinite;
+          animation-delay: var(--smoke-delay), calc(var(--smoke-delay) * .65);
+        }
+        @keyframes adversarySmokeDriftV6 {
+          0% {
+            transform: translate(calc(-50% + var(--smoke-dx) * -0.5px), calc(-50% + var(--smoke-dy) * -0.5px)) scale(.94) rotate(-4deg);
+          }
+          50% {
+            transform: translate(calc(-50% + var(--smoke-dx) * 0.65px), calc(-50% + var(--smoke-dy) * 0.25px)) scale(1.08) rotate(3deg);
+          }
+          100% {
+            transform: translate(calc(-50% + var(--smoke-dx) * -0.35px), calc(-50% + var(--smoke-dy) * 0.8px)) scale(.98) rotate(7deg);
+          }
+        }
+        @keyframes adversarySmokePulseV6 {
+          0%, 100% { opacity: calc(var(--smoke-opacity) * .72); }
+          50% { opacity: calc(var(--smoke-opacity) * 1.18); }
+        }
+        .adversary-floating-hex {
+          position: absolute;
+          left: calc(var(--hex-x) * 1%);
+          top: calc(var(--hex-y) * 1%);
+          width: calc(var(--hex-size) * 1px);
+          height: calc(var(--hex-size) * 1px);
+          transform: translate(-50%, -50%);
+          clip-path: polygon(25% 6%, 75% 6%, 98% 50%, 75% 94%, 25% 94%, 2% 50%);
+          border: 1px solid rgba(250,204,21,.28);
+          background:
+            radial-gradient(circle at 50% 50%, rgba(250,204,21,.12), transparent 62%),
+            linear-gradient(135deg, rgba(255,238,148,.18), rgba(250,204,21,.05));
+          box-shadow: inset 0 0 0 1px rgba(255,240,177,.08), 0 0 22px rgba(250,204,21,.08);
+          opacity: var(--hex-opacity);
+          filter: blur(.18px) drop-shadow(0 0 10px rgba(250,204,21,.10));
+          animation:
+            adversaryHexBreatheV6 var(--hex-duration) ease-in-out infinite,
+            adversaryHexDriftV6 calc(var(--hex-duration) * 1.22) ease-in-out infinite;
+          animation-delay: var(--hex-delay), calc(var(--hex-delay) * .7);
+        }
+        .adversary-floating-hex::before,
+        .adversary-floating-hex::after {
+          content: '';
+          position: absolute;
+          inset: 18%;
+          clip-path: inherit;
+          border: 1px solid rgba(255,243,184,.17);
+          opacity: .7;
+        }
+        .adversary-floating-hex::after {
+          inset: -10%;
+          border-color: rgba(250,204,21,.08);
+          opacity: .38;
+        }
+        @keyframes adversaryHexBreatheV6 {
+          0%, 100% { transform: translate(-50%, -50%) scale(.84); opacity: calc(var(--hex-opacity) * .58); }
+          50% { transform: translate(-50%, -50%) scale(1.18); opacity: calc(var(--hex-opacity) * 1.25); }
+        }
+        @keyframes adversaryHexDriftV6 {
+          0% { margin-left: calc(var(--hex-dx) * -0.45px); margin-top: calc(var(--hex-dy) * -0.45px); }
+          50% { margin-left: calc(var(--hex-dx) * 0.85px); margin-top: calc(var(--hex-dy) * 0.50px); }
+          100% { margin-left: calc(var(--hex-dx) * -0.25px); margin-top: calc(var(--hex-dy) * 0.85px); }
+        }
+        .adversary-emblem-idle-circuit-map {
+          position: absolute;
+          inset: 0;
+          z-index: 3;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          opacity: .96;
+          overflow: visible;
+        }
+        .adversary-emblem-idle-circuit-base,
+        .adversary-emblem-idle-circuit-flow {
+          fill: none;
+          vector-effect: non-scaling-stroke;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .adversary-emblem-idle-circuit-base {
+          stroke: rgba(250,204,21,.10);
+          stroke-width: .38;
+        }
+        .adversary-emblem-idle-circuit-flow {
+          stroke: rgba(255,241,152,.86);
+          stroke-width: var(--flow-width, .74);
+          stroke-dasharray: .10 .90;
+          stroke-dashoffset: 0;
+          filter: drop-shadow(0 0 2px rgba(255,247,194,.75)) drop-shadow(0 0 9px rgba(250,204,21,.58));
+          opacity: .86;
+          animation: adversaryIdleCircuitFlowV6 var(--flow-duration, 2.8s) linear infinite;
+          animation-delay: var(--flow-delay, 0s);
+        }
+        @keyframes adversaryIdleCircuitFlowV6 {
+          from { stroke-dashoffset: 0; }
+          to { stroke-dashoffset: -1; }
+        }
         .adversary-emblem-image-v2,
         .adversary-emblem-zone-glow-v3 {
           position: absolute;
@@ -6184,9 +6357,21 @@ function InteractiveEmblemNav({ onNavigate }) {
         .adversary-emblem-image-v2 {
           z-index: 1;
           filter: brightness(.83) saturate(.94) contrast(1.05) drop-shadow(0 22px 48px rgba(0,0,0,.74));
+          animation: adversaryEmblemAliveV6 6.4s ease-in-out infinite;
+          transform-origin: center;
+        }
+        @keyframes adversaryEmblemAliveV6 {
+          0%, 100% {
+            transform: translateY(0) scale(1);
+            filter: brightness(.82) saturate(.94) contrast(1.05) drop-shadow(0 22px 48px rgba(0,0,0,.74));
+          }
+          50% {
+            transform: translateY(-.35%) scale(1.008);
+            filter: brightness(.91) saturate(1.02) contrast(1.08) drop-shadow(0 26px 58px rgba(0,0,0,.78)) drop-shadow(0 0 24px rgba(250,204,21,.12));
+          }
         }
         .adversary-emblem-zone-glow-v3 {
-          z-index: 2;
+          z-index: 4;
           opacity: 0;
           clip-path: var(--zone-clip);
           filter: brightness(1.32) saturate(1.62) contrast(1.08)
@@ -6378,10 +6563,20 @@ function InteractiveEmblemNav({ onNavigate }) {
         }
         @media (prefers-reduced-motion: reduce) {
           .adversary-local-circuit-v3,
-          .adversary-route-circuit-v3 { stroke-dashoffset:0 !important; animation:none !important; }
+          .adversary-route-circuit-v3,
+          .adversary-emblem-idle-circuit-flow {
+            stroke-dashoffset:0 !important;
+            animation:none !important;
+          }
           .adversary-emblem-zone-glow-v3,
           .adversary-emblem-label-inner-v2::after,
-          .adversary-emblem-label-charge-v2::after { animation:none !important; }
+          .adversary-emblem-label-charge-v2::after,
+          .adversary-emblem-image-v2,
+          .adversary-emblem-stage-v2::before,
+          .adversary-emblem-smoke-plume,
+          .adversary-floating-hex {
+            animation:none !important;
+          }
         }
       `}</style>
 
@@ -6389,12 +6584,68 @@ function InteractiveEmblemNav({ onNavigate }) {
 
       <div className="adversary-emblem-canvas">
         <div className={`adversary-emblem-stage-v2 ${activeZone ? 'is-active' : ''}`}>
+          <div className="adversary-emblem-smoke-layer" aria-hidden="true">
+            {EMBLEM_SMOKE_PLUMES.map((plume, index) => (
+              <span
+                key={`smoke-${index}`}
+                className="adversary-emblem-smoke-plume"
+                style={{
+                  '--smoke-x': plume.x,
+                  '--smoke-y': plume.y,
+                  '--smoke-w': plume.width,
+                  '--smoke-h': plume.height,
+                  '--smoke-duration': `${plume.duration}s`,
+                  '--smoke-delay': `${plume.delay}s`,
+                  '--smoke-dx': plume.driftX,
+                  '--smoke-dy': plume.driftY,
+                  '--smoke-opacity': plume.opacity,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="adversary-emblem-hex-layer" aria-hidden="true">
+            {EMBLEM_FLOATING_HEXES.map((hex, index) => (
+              <span
+                key={`hex-${index}`}
+                className="adversary-floating-hex"
+                style={{
+                  '--hex-x': hex.x,
+                  '--hex-y': hex.y,
+                  '--hex-size': hex.size,
+                  '--hex-duration': `${hex.duration}s`,
+                  '--hex-delay': `${hex.delay}s`,
+                  '--hex-dx': hex.driftX,
+                  '--hex-dy': hex.driftY,
+                  '--hex-opacity': hex.opacity,
+                }}
+              />
+            ))}
+          </div>
+
           <img
             className="adversary-emblem-image-v2"
             src={adversaryEmblem}
             alt="Adversary navigation emblem"
             draggable="false"
           />
+
+          <svg className="adversary-emblem-idle-circuit-map" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {EMBLEM_IDLE_CIRCUITS.map((path, index) => (
+              <g key={`idle-circuit-${index}`}>
+                <path className="adversary-emblem-idle-circuit-base" d={path.d} />
+                <path
+                  className="adversary-emblem-idle-circuit-flow"
+                  d={path.d}
+                  style={{
+                    '--flow-duration': `${path.duration}s`,
+                    '--flow-delay': `${path.delay}s`,
+                    '--flow-width': path.width,
+                  }}
+                />
+              </g>
+            ))}
+          </svg>
 
           {activeZone && (
             <img
