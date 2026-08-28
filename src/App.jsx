@@ -987,6 +987,43 @@ const GLOBAL_PANEL_CSS = `
     height: 2px;
   }
 
+  /* Desktop sidebar only: give each page label a solid, opaque background
+     using its existing page accent colour. Nothing outside the left sidebar
+     is affected. */
+  @media (min-width: 1024px) {
+    aside .adversary-menu-button {
+      background-color: color-mix(
+        in srgb,
+        rgb(var(--adversary-menu-rgb)) 28%,
+        rgb(2, 6, 23) 72%
+      ) !important;
+      background-image: none !important;
+      border-color: color-mix(
+        in srgb,
+        rgb(var(--adversary-menu-rgb)) 48%,
+        rgb(2, 6, 23) 52%
+      ) !important;
+    }
+
+    aside .adversary-menu-button:hover {
+      background-color: color-mix(
+        in srgb,
+        rgb(var(--adversary-menu-rgb)) 38%,
+        rgb(2, 6, 23) 62%
+      ) !important;
+      background-image: none !important;
+    }
+
+    aside .adversary-menu-button.is-active {
+      background-color: color-mix(
+        in srgb,
+        rgb(var(--adversary-menu-rgb)) 48%,
+        rgb(2, 6, 23) 52%
+      ) !important;
+      background-image: none !important;
+    }
+  }
+
   /* Floating class orbs live behind the desktop navigation. Their movement is
      handled by a small low-gravity physics loop: they drift across the full
      sidebar, bounce softly from its edges, nudge one another, and are pushed
