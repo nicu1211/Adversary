@@ -2656,6 +2656,100 @@ const GLOBAL_PANEL_CSS = `
     box-shadow: 0 0 16px rgba(250, 204, 21, 0.09);
   }
 
+  /* V4: force the six public dashboard pages into one emblem material system.
+     This catches panels that do not get tagged by the runtime decorator too. */
+  body:is(
+    [data-adversary-page="nodewars"],
+    [data-adversary-page="players"],
+    [data-adversary-page="hall"],
+    [data-adversary-page="guild"],
+    [data-adversary-page="monthly"],
+    [data-adversary-page="overview"]
+  ) .adversary-content :is(section, article, div)[class*="rounded"][class*="border"] {
+    --adversary-panel-accent-rgb: 250, 204, 21 !important;
+    --player-stats-panel-rgb: 250, 204, 21 !important;
+    --monthly-panel-accent-rgb: 250, 204, 21 !important;
+    border-color: rgba(250, 204, 21, .34) !important;
+    border-radius: 12px !important;
+    background-color: rgba(2, 3, 5, .88) !important;
+    background-image:
+      radial-gradient(circle at 12% 0%, rgba(255, 222, 58, .12), transparent 25%),
+      linear-gradient(120deg, rgba(250, 204, 21, .075), transparent 26%, transparent 72%, rgba(250, 204, 21, .026)),
+      repeating-linear-gradient(60deg, rgba(250, 204, 21, .018) 0 1px, transparent 1px 22px),
+      repeating-linear-gradient(-60deg, rgba(250, 204, 21, .014) 0 1px, transparent 1px 22px) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 247, 187, .08),
+      inset 0 0 32px rgba(250, 204, 21, .035),
+      0 0 0 1px rgba(250, 204, 21, .025),
+      0 12px 30px rgba(0, 0, 0, .32) !important;
+    transition: border-color .22s ease, box-shadow .22s ease, background-color .22s ease, transform .22s ease !important;
+  }
+
+  body:is(
+    [data-adversary-page="nodewars"],
+    [data-adversary-page="players"],
+    [data-adversary-page="hall"],
+    [data-adversary-page="guild"],
+    [data-adversary-page="monthly"],
+    [data-adversary-page="overview"]
+  ) .adversary-content :is(section, article, div)[class*="rounded"][class*="border"]:hover {
+    border-color: rgba(250, 204, 21, .70) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 247, 187, .12),
+      inset 0 0 40px rgba(250, 204, 21, .065),
+      0 0 0 1px rgba(250, 204, 21, .055),
+      0 0 22px rgba(250, 204, 21, .11),
+      0 16px 34px rgba(0, 0, 0, .36) !important;
+  }
+
+  body:is(
+    [data-adversary-page="nodewars"],
+    [data-adversary-page="players"],
+    [data-adversary-page="hall"],
+    [data-adversary-page="guild"],
+    [data-adversary-page="monthly"],
+    [data-adversary-page="overview"]
+  ) .adversary-content :is(table, thead, tbody, tr) {
+    border-color: rgba(250, 204, 21, .13) !important;
+  }
+
+  body:is(
+    [data-adversary-page="nodewars"],
+    [data-adversary-page="players"],
+    [data-adversary-page="hall"],
+    [data-adversary-page="guild"],
+    [data-adversary-page="monthly"],
+    [data-adversary-page="overview"]
+  ) .adversary-content thead {
+    background: linear-gradient(90deg, rgba(250, 204, 21, .105), rgba(0,0,0,.72), rgba(250, 204, 21, .045)) !important;
+    color: #fff8cf !important;
+  }
+
+  body:is(
+    [data-adversary-page="nodewars"],
+    [data-adversary-page="players"],
+    [data-adversary-page="hall"],
+    [data-adversary-page="guild"],
+    [data-adversary-page="monthly"],
+    [data-adversary-page="overview"]
+  ) .adversary-content :is(input, select, textarea) {
+    background-color: rgba(1, 2, 4, .78) !important;
+    border-color: rgba(250, 204, 21, .30) !important;
+    color: #f8fafc !important;
+  }
+
+  body:is(
+    [data-adversary-page="nodewars"],
+    [data-adversary-page="players"],
+    [data-adversary-page="hall"],
+    [data-adversary-page="guild"],
+    [data-adversary-page="monthly"],
+    [data-adversary-page="overview"]
+  ) .adversary-content :is(h1, h2, h3) {
+    letter-spacing: .035em;
+    text-shadow: 0 0 20px rgba(250, 204, 21, .15);
+  }
+
 `;
 
 
@@ -5755,6 +5849,60 @@ const EMBLEM_NAV_ZONES = Object.freeze([
 
 function HomeClassOrbs() {
   const total = SIDEBAR_CLASS_ORBS.length;
+  const orbRefs = useRef([]);
+  const rafRef = useRef(0);
+
+  useEffect(() => {
+    const strength = 74;
+    const radius = 210;
+
+    const applyPointer = (clientX, clientY) => {
+      orbRefs.current.forEach((element) => {
+        if (!element) return;
+        const rect = element.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = cx - clientX;
+        const dy = cy - clientY;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+
+        if (distance >= radius) {
+          element.style.setProperty('--mouse-push-x', '0px');
+          element.style.setProperty('--mouse-push-y', '0px');
+          element.style.setProperty('--mouse-orb-scale', '1');
+          return;
+        }
+
+        const force = Math.pow(1 - distance / radius, 1.35) * strength;
+        element.style.setProperty('--mouse-push-x', `${(dx / distance) * force}px`);
+        element.style.setProperty('--mouse-push-y', `${(dy / distance) * force}px`);
+        element.style.setProperty('--mouse-orb-scale', `${1 + (1 - distance / radius) * 0.10}`);
+      });
+    };
+
+    const onPointerMove = (event) => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => applyPointer(event.clientX, event.clientY));
+    };
+
+    const onPointerLeave = () => {
+      orbRefs.current.forEach((element) => {
+        if (!element) return;
+        element.style.setProperty('--mouse-push-x', '0px');
+        element.style.setProperty('--mouse-push-y', '0px');
+        element.style.setProperty('--mouse-orb-scale', '1');
+      });
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    document.documentElement.addEventListener('mouseleave', onPointerLeave);
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      document.documentElement.removeEventListener('mouseleave', onPointerLeave);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   return (
     <div className="adversary-home-orb-field" aria-hidden="true">
@@ -5763,28 +5911,36 @@ function HomeClassOrbs() {
         const rowsPerSide = Math.ceil(total / 2);
         const progress = rowsPerSide <= 1 ? 0.5 : sideIndex / (rowsPerSide - 1);
         const isLeft = index % 2 === 0;
-        const top = 5 + progress * 90;
-        const edge = 1.2 + ((sideIndex % 3) * 1.35);
-        const size = 42 + (sideIndex % 4) * 3;
-        const driftX = isLeft ? 8 + (sideIndex % 3) * 3 : -(8 + (sideIndex % 3) * 3);
-        const driftY = ((sideIndex % 5) - 2) * 4;
+        const top = 4 + progress * 92;
+        const edge = 0.6 + ((sideIndex % 4) * 1.45);
+        const size = 46 + (sideIndex % 5) * 3;
+        const driftX = isLeft
+          ? -(18 + (sideIndex % 4) * 7)
+          : 18 + (sideIndex % 4) * 7;
+        const driftY = ((sideIndex % 7) - 3) * 11;
 
         return (
           <span
+            ref={(element) => { orbRefs.current[index] = element; }}
             key={`home-${orb.id}`}
             className={`adversary-home-class-orb ${isLeft ? 'is-left' : 'is-right'}`}
             style={{
               '--home-orb-top': `${top}%`,
               '--home-orb-edge': `${edge}%`,
               '--home-orb-size': `${size}px`,
-              '--home-orb-delay': `${-(index * 0.37).toFixed(2)}s`,
-              '--home-orb-duration': `${7.5 + (index % 6) * 0.7}s`,
+              '--home-orb-delay': `${-(index * 0.29).toFixed(2)}s`,
+              '--home-orb-duration': `${4.0 + (index % 6) * 0.48}s`,
               '--home-orb-drift-x': `${driftX}px`,
               '--home-orb-drift-y': `${driftY}px`,
               '--home-orb-glow': orb.glow || '250, 204, 21',
+              '--mouse-push-x': '0px',
+              '--mouse-push-y': '0px',
+              '--mouse-orb-scale': '1',
             }}
           >
-            <img src={orb.src} alt="" draggable="false" />
+            <span className="adversary-home-class-orb-float">
+              <img src={orb.src} alt="" draggable="false" />
+            </span>
           </span>
         );
       })}
@@ -5878,12 +6034,20 @@ function InteractiveEmblemNav({ onNavigate }) {
           margin-top: calc(var(--home-orb-size) * -0.5);
           opacity: .62;
           filter: drop-shadow(0 0 9px rgba(var(--home-orb-glow), .32)) drop-shadow(0 7px 12px rgba(0,0,0,.45));
-          animation: adversaryHomeOrbFloat var(--home-orb-duration) ease-in-out infinite alternate;
-          animation-delay: var(--home-orb-delay);
+          transform: translate3d(var(--mouse-push-x), var(--mouse-push-y), 0) scale(var(--mouse-orb-scale));
+          transition: transform 115ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, filter 180ms ease;
           will-change: transform;
         }
         .adversary-home-class-orb.is-left { left: var(--home-orb-edge); }
         .adversary-home-class-orb.is-right { right: var(--home-orb-edge); }
+        .adversary-home-class-orb-float {
+          display: block;
+          width: 100%;
+          height: 100%;
+          animation: adversaryHomeOrbFloat var(--home-orb-duration) ease-in-out infinite alternate;
+          animation-delay: var(--home-orb-delay);
+          will-change: transform;
+        }
         .adversary-home-class-orb img {
           display: block;
           width: 100%;
@@ -5892,9 +6056,10 @@ function InteractiveEmblemNav({ onNavigate }) {
           user-select: none;
         }
         @keyframes adversaryHomeOrbFloat {
-          0% { transform: translate3d(0, calc(var(--home-orb-drift-y) * -0.55), 0) rotate(-3deg) scale(.97); }
-          52% { transform: translate3d(calc(var(--home-orb-drift-x) * .55), 0, 0) rotate(2deg) scale(1.035); }
-          100% { transform: translate3d(var(--home-orb-drift-x), var(--home-orb-drift-y), 0) rotate(5deg) scale(1); }
+          0% { transform: translate3d(calc(var(--home-orb-drift-x) * -0.35), calc(var(--home-orb-drift-y) * -0.62), 0) rotate(-7deg) scale(.94); }
+          28% { transform: translate3d(calc(var(--home-orb-drift-x) * .18), calc(var(--home-orb-drift-y) * .24), 0) rotate(3deg) scale(1.04); }
+          63% { transform: translate3d(calc(var(--home-orb-drift-x) * .58), calc(var(--home-orb-drift-y) * -.18), 0) rotate(-2deg) scale(.99); }
+          100% { transform: translate3d(var(--home-orb-drift-x), var(--home-orb-drift-y), 0) rotate(8deg) scale(1.06); }
         }
         @media (max-width: 920px) {
           .adversary-home-class-orb {
@@ -5914,7 +6079,7 @@ function InteractiveEmblemNav({ onNavigate }) {
         }
         .adversary-emblem-stage-v2 {
           position: relative;
-          width: min(96vw, 96vh);
+          width: min(114vw, 108vh);
           aspect-ratio: 1;
           isolation: isolate;
           user-select: none;
@@ -6118,7 +6283,7 @@ function InteractiveEmblemNav({ onNavigate }) {
         }
         @keyframes adversaryLabelChargeV3 { from { transform:scaleX(0); } to { transform:scaleX(1); } }
         @media (max-width: 760px) {
-          .adversary-emblem-stage-v2 { width: min(108vw, 92vh); }
+          .adversary-emblem-stage-v2 { width: min(118vw, 100vh); }
           .adversary-emblem-label-v2 { min-width: 135px; max-width: 165px; }
           .adversary-emblem-label-kicker-v2 { display:none; }
           .adversary-emblem-label-inner-v2 { padding:11px 13px; }
