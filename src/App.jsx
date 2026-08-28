@@ -3914,7 +3914,7 @@ function buildOverallClassGradient(slices) {
   return `conic-gradient(${stops.join(', ')})`;
 }
 
-function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
+function SidebarClassOrbs({ members = [], logs = [], loadLogs, modalOnly = false }) {
   const layerRef = useRef(null);
   const orbRefs = useRef([]);
   const physicsRef = useRef([]);
@@ -4610,6 +4610,17 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     },
     [loadLogs],
   );
+
+  useEffect(() => {
+    const openFromHome = (event) => {
+      const orbId = String(event?.detail?.orbId || '');
+      const orb = SIDEBAR_CLASS_ORBS.find((item) => item.id === orbId);
+      if (orb) openClassDetails(orb);
+    };
+
+    window.addEventListener('adversary-open-class-orb', openFromHome);
+    return () => window.removeEventListener('adversary-open-class-orb', openFromHome);
+  }, [openClassDetails]);
 
   useEffect(() => {
     if (!selectedClass) return undefined;
@@ -5754,7 +5765,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
   return (
     <>
-      <div ref={layerRef} className="adversary-sidebar-class-orbs">
+      {!modalOnly && <div ref={layerRef} className="adversary-sidebar-class-orbs">
         {SIDEBAR_CLASS_ORBS.map((orb, index) => (
           <button
             type="button"
@@ -5787,7 +5798,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             />
           </button>
         ))}
-      </div>
+      </div>}
       {classModal}
     </>
   );
@@ -5848,100 +5859,169 @@ const EMBLEM_NAV_ZONES = Object.freeze([
 
 
 function HomeClassOrbs() {
-  const total = SIDEBAR_CLASS_ORBS.length;
+  const fieldRef = useRef(null);
   const orbRefs = useRef([]);
+  const bodiesRef = useRef([]);
+  const pointerRef = useRef({ x: -10000, y: -10000, active: false });
   const rafRef = useRef(0);
 
   useEffect(() => {
-    const strength = 74;
-    const radius = 210;
+    const field = fieldRef.current;
+    if (!field) return undefined;
 
-    const applyPointer = (clientX, clientY) => {
-      orbRefs.current.forEach((element) => {
-        if (!element) return;
-        const rect = element.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const dx = cx - clientX;
-        const dy = cy - clientY;
-        const distance = Math.max(1, Math.hypot(dx, dy));
+    const makeBodies = () => {
+      const rect = field.getBoundingClientRect();
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
 
-        if (distance >= radius) {
-          element.style.setProperty('--mouse-push-x', '0px');
-          element.style.setProperty('--mouse-push-y', '0px');
-          element.style.setProperty('--mouse-orb-scale', '1');
-          return;
+      bodiesRef.current = SIDEBAR_CLASS_ORBS.map((orb, index) => {
+        const angle = (index * 2.399963229728653) % (Math.PI * 2);
+        const ring = 0.36 + ((index * 37) % 48) / 100;
+        const rx = width * (0.39 + ring * 0.10);
+        const ry = height * (0.34 + ring * 0.11);
+        const x = width / 2 + Math.cos(angle) * rx;
+        const y = height / 2 + Math.sin(angle) * ry;
+        const speed = 0.42 + (index % 7) * 0.055;
+        const direction = angle + Math.PI / 2 + ((index % 3) - 1) * 0.48;
+
+        return {
+          x: Math.max(28, Math.min(width - 28, x)),
+          y: Math.max(28, Math.min(height - 28, y)),
+          vx: Math.cos(direction) * speed,
+          vy: Math.sin(direction) * speed,
+          size: 42 + (index % 5) * 3,
+          wobble: index * 0.71,
+        };
+      });
+    };
+
+    makeBodies();
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(makeBodies)
+      : null;
+    resizeObserver?.observe(field);
+
+    let previous = performance.now();
+    const tick = (now) => {
+      const rect = field.getBoundingClientRect();
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
+      const dt = Math.min(2.0, Math.max(0.4, (now - previous) / 16.667));
+      previous = now;
+      const cx = width / 2;
+      const cy = height / 2;
+      const avoidRx = Math.min(width * 0.30, height * 0.42);
+      const avoidRy = height * 0.44;
+      const pointer = pointerRef.current;
+
+      bodiesRef.current.forEach((body, index) => {
+        const element = orbRefs.current[index];
+        if (!element || !body) return;
+
+        body.wobble += 0.012 * dt;
+        body.vx += Math.cos(body.wobble * 0.83 + index) * 0.006 * dt;
+        body.vy += Math.sin(body.wobble * 0.67 + index * 0.43) * 0.006 * dt;
+
+        // Keep a large clear ellipse over the emblem while allowing free travel around it.
+        const nx = (body.x - cx) / avoidRx;
+        const ny = (body.y - cy) / avoidRy;
+        const ellipse = nx * nx + ny * ny;
+        if (ellipse < 1.12) {
+          const length = Math.max(0.001, Math.hypot(nx, ny));
+          const force = (1.12 - ellipse) * 0.19 * dt;
+          body.vx += (nx / length) * force * (avoidRx / Math.max(avoidRy, 1));
+          body.vy += (ny / length) * force;
         }
 
-        const force = Math.pow(1 - distance / radius, 1.35) * strength;
-        element.style.setProperty('--mouse-push-x', `${(dx / distance) * force}px`);
-        element.style.setProperty('--mouse-push-y', `${(dy / distance) * force}px`);
-        element.style.setProperty('--mouse-orb-scale', `${1 + (1 - distance / radius) * 0.10}`);
+        if (pointer.active) {
+          const px = rect.left + body.x;
+          const py = rect.top + body.y;
+          const dx = px - pointer.x;
+          const dy = py - pointer.y;
+          const distance = Math.max(1, Math.hypot(dx, dy));
+          const radius = 190;
+          if (distance < radius) {
+            const force = Math.pow(1 - distance / radius, 1.55) * 0.72 * dt;
+            body.vx += (dx / distance) * force;
+            body.vy += (dy / distance) * force;
+          }
+        }
+
+        const maxSpeed = 1.85;
+        const speed = Math.hypot(body.vx, body.vy);
+        if (speed > maxSpeed) {
+          body.vx = (body.vx / speed) * maxSpeed;
+          body.vy = (body.vy / speed) * maxSpeed;
+        }
+        if (speed < 0.28) {
+          body.vx += Math.cos(body.wobble + index) * 0.028;
+          body.vy += Math.sin(body.wobble + index) * 0.028;
+        }
+
+        body.x += body.vx * dt;
+        body.y += body.vy * dt;
+
+        const pad = body.size * 0.58;
+        if (body.x < pad) { body.x = pad; body.vx = Math.abs(body.vx) * 0.94; }
+        if (body.x > width - pad) { body.x = width - pad; body.vx = -Math.abs(body.vx) * 0.94; }
+        if (body.y < pad) { body.y = pad; body.vy = Math.abs(body.vy) * 0.94; }
+        if (body.y > height - pad) { body.y = height - pad; body.vy = -Math.abs(body.vy) * 0.94; }
+
+        const tilt = Math.max(-12, Math.min(12, body.vx * 5.2));
+        element.style.transform = `translate3d(${body.x - body.size / 2}px, ${body.y - body.size / 2}px, 0) rotate(${tilt}deg)`;
       });
+
+      rafRef.current = requestAnimationFrame(tick);
     };
 
     const onPointerMove = (event) => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => applyPointer(event.clientX, event.clientY));
+      pointerRef.current = { x: event.clientX, y: event.clientY, active: true };
     };
-
     const onPointerLeave = () => {
-      orbRefs.current.forEach((element) => {
-        if (!element) return;
-        element.style.setProperty('--mouse-push-x', '0px');
-        element.style.setProperty('--mouse-push-y', '0px');
-        element.style.setProperty('--mouse-orb-scale', '1');
-      });
+      pointerRef.current.active = false;
     };
 
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     document.documentElement.addEventListener('mouseleave', onPointerLeave);
+    rafRef.current = requestAnimationFrame(tick);
 
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
       document.documentElement.removeEventListener('mouseleave', onPointerLeave);
+      resizeObserver?.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
-  return (
-    <div className="adversary-home-orb-field" aria-hidden="true">
-      {SIDEBAR_CLASS_ORBS.map((orb, index) => {
-        const sideIndex = Math.floor(index / 2);
-        const rowsPerSide = Math.ceil(total / 2);
-        const progress = rowsPerSide <= 1 ? 0.5 : sideIndex / (rowsPerSide - 1);
-        const isLeft = index % 2 === 0;
-        const top = 4 + progress * 92;
-        const edge = 0.6 + ((sideIndex % 4) * 1.45);
-        const size = 46 + (sideIndex % 5) * 3;
-        const driftX = isLeft
-          ? -(18 + (sideIndex % 4) * 7)
-          : 18 + (sideIndex % 4) * 7;
-        const driftY = ((sideIndex % 7) - 3) * 11;
+  const openOrb = (orb) => {
+    window.dispatchEvent(new CustomEvent('adversary-open-class-orb', {
+      detail: { orbId: orb.id },
+    }));
+  };
 
+  return (
+    <div ref={fieldRef} className="adversary-home-orb-field">
+      {SIDEBAR_CLASS_ORBS.map((orb, index) => {
+        const size = 42 + (index % 5) * 3;
         return (
-          <span
+          <button
             ref={(element) => { orbRefs.current[index] = element; }}
             key={`home-${orb.id}`}
-            className={`adversary-home-class-orb ${isLeft ? 'is-left' : 'is-right'}`}
+            type="button"
+            className="adversary-home-class-orb"
+            title={`${orb.name} — open class stats`}
+            aria-label={`Open ${orb.name} class statistics`}
+            onClick={(event) => {
+              event.stopPropagation();
+              openOrb(orb);
+            }}
             style={{
-              '--home-orb-top': `${top}%`,
-              '--home-orb-edge': `${edge}%`,
               '--home-orb-size': `${size}px`,
-              '--home-orb-delay': `${-(index * 0.29).toFixed(2)}s`,
-              '--home-orb-duration': `${4.0 + (index % 6) * 0.48}s`,
-              '--home-orb-drift-x': `${driftX}px`,
-              '--home-orb-drift-y': `${driftY}px`,
               '--home-orb-glow': orb.glow || '250, 204, 21',
-              '--mouse-push-x': '0px',
-              '--mouse-push-y': '0px',
-              '--mouse-orb-scale': '1',
             }}
           >
-            <span className="adversary-home-class-orb-float">
-              <img src={orb.src} alt="" draggable="false" />
-            </span>
-          </span>
+            <img src={orb.src} alt="" aria-hidden="true" draggable="false" />
+          </button>
         );
       })}
     </div>
@@ -6022,31 +6102,46 @@ function InteractiveEmblemNav({ onNavigate }) {
         .adversary-home-orb-field {
           position: absolute;
           inset: 0;
-          z-index: 0;
+          z-index: 4;
           overflow: hidden;
           pointer-events: none;
         }
         .adversary-home-class-orb {
           position: absolute;
-          top: var(--home-orb-top);
+          left: 0;
+          top: 0;
           width: var(--home-orb-size);
           height: var(--home-orb-size);
-          margin-top: calc(var(--home-orb-size) * -0.5);
-          opacity: .62;
-          filter: drop-shadow(0 0 9px rgba(var(--home-orb-glow), .32)) drop-shadow(0 7px 12px rgba(0,0,0,.45));
-          transform: translate3d(var(--mouse-push-x), var(--mouse-push-y), 0) scale(var(--mouse-orb-scale));
-          transition: transform 115ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, filter 180ms ease;
+          padding: 0;
+          border: 0;
+          border-radius: 999px;
+          background: transparent;
+          opacity: .76;
+          cursor: pointer;
+          pointer-events: auto;
+          filter: drop-shadow(0 0 9px rgba(var(--home-orb-glow), .32)) drop-shadow(0 8px 13px rgba(0,0,0,.52));
+          transition: opacity .18s ease, filter .18s ease;
           will-change: transform;
         }
-        .adversary-home-class-orb.is-left { left: var(--home-orb-edge); }
-        .adversary-home-class-orb.is-right { right: var(--home-orb-edge); }
-        .adversary-home-class-orb-float {
-          display: block;
-          width: 100%;
-          height: 100%;
-          animation: adversaryHomeOrbFloat var(--home-orb-duration) ease-in-out infinite alternate;
-          animation-delay: var(--home-orb-delay);
-          will-change: transform;
+        .adversary-home-class-orb::after {
+          content: '';
+          position: absolute;
+          inset: -5px;
+          border-radius: inherit;
+          border: 1px solid transparent;
+          transition: border-color .18s ease, box-shadow .18s ease;
+        }
+        .adversary-home-class-orb:hover,
+        .adversary-home-class-orb:focus-visible {
+          z-index: 20;
+          opacity: 1;
+          outline: none;
+          filter: drop-shadow(0 0 8px rgba(var(--home-orb-glow), .68)) drop-shadow(0 0 22px rgba(var(--home-orb-glow), .35)) drop-shadow(0 8px 13px rgba(0,0,0,.62));
+        }
+        .adversary-home-class-orb:hover::after,
+        .adversary-home-class-orb:focus-visible::after {
+          border-color: rgba(253,224,71,.55);
+          box-shadow: 0 0 16px rgba(250,204,21,.20);
         }
         .adversary-home-class-orb img {
           display: block;
@@ -6054,22 +6149,13 @@ function InteractiveEmblemNav({ onNavigate }) {
           height: 100%;
           object-fit: contain;
           user-select: none;
-        }
-        @keyframes adversaryHomeOrbFloat {
-          0% { transform: translate3d(calc(var(--home-orb-drift-x) * -0.35), calc(var(--home-orb-drift-y) * -0.62), 0) rotate(-7deg) scale(.94); }
-          28% { transform: translate3d(calc(var(--home-orb-drift-x) * .18), calc(var(--home-orb-drift-y) * .24), 0) rotate(3deg) scale(1.04); }
-          63% { transform: translate3d(calc(var(--home-orb-drift-x) * .58), calc(var(--home-orb-drift-y) * -.18), 0) rotate(-2deg) scale(.99); }
-          100% { transform: translate3d(var(--home-orb-drift-x), var(--home-orb-drift-y), 0) rotate(8deg) scale(1.06); }
+          pointer-events: none;
         }
         @media (max-width: 920px) {
-          .adversary-home-class-orb {
-            width: calc(var(--home-orb-size) * .78);
-            height: calc(var(--home-orb-size) * .78);
-            opacity: .48;
-          }
+          .adversary-home-class-orb { opacity: .62; }
         }
         @media (max-width: 640px) {
-          .adversary-home-class-orb { display: none; }
+          .adversary-home-class-orb { width: 38px; height: 38px; }
         }
         .adversary-emblem-canvas {
           position: absolute;
@@ -6079,9 +6165,11 @@ function InteractiveEmblemNav({ onNavigate }) {
         }
         .adversary-emblem-stage-v2 {
           position: relative;
-          width: min(114vw, 108vh);
+          width: min(126vw, 116vh);
           aspect-ratio: 1;
           isolation: isolate;
+          transform: scaleX(1.16);
+          transform-origin: center;
           user-select: none;
         }
         .adversary-emblem-image-v2,
@@ -6283,7 +6371,7 @@ function InteractiveEmblemNav({ onNavigate }) {
         }
         @keyframes adversaryLabelChargeV3 { from { transform:scaleX(0); } to { transform:scaleX(1); } }
         @media (max-width: 760px) {
-          .adversary-emblem-stage-v2 { width: min(118vw, 100vh); }
+          .adversary-emblem-stage-v2 { width: min(132vw, 105vh); transform: scaleX(1.10); }
           .adversary-emblem-label-v2 { min-width: 135px; max-width: 165px; }
           .adversary-emblem-label-kicker-v2 { display:none; }
           .adversary-emblem-label-inner-v2 { padding:11px 13px; }
@@ -7257,9 +7345,17 @@ export default function App() {
       <style>{GLOBAL_PANEL_CSS}</style>
 
       {page === 'home' ? (
-        <InteractiveEmblemNav
-          onNavigate={(id) => (id === 'overview' ? openOverviewFromMenu() : openPage(id))}
-        />
+        <>
+          <InteractiveEmblemNav
+            onNavigate={(id) => (id === 'overview' ? openOverviewFromMenu() : openPage(id))}
+          />
+          <SidebarClassOrbs
+            members={members}
+            logs={Array.isArray(allLogs) && allLogs.length ? allLogs : nodeLogs}
+            loadLogs={loadAllLogs}
+            modalOnly
+          />
+        </>
       ) : (
         <>
           <div
