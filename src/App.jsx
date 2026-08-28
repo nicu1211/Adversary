@@ -987,39 +987,28 @@ const GLOBAL_PANEL_CSS = `
     height: 2px;
   }
 
-  /* Desktop sidebar only: give each page label a solid, opaque background
-     using its existing page accent colour. Nothing outside the left sidebar
-     is affected. */
+  /* Desktop sidebar only: lightly tint each page label with its existing
+     accent colour and centre the label inside its button. Nothing outside
+     the left sidebar is affected. */
   @media (min-width: 1024px) {
     aside .adversary-menu-button {
-      background-color: color-mix(
-        in srgb,
-        rgb(var(--adversary-menu-rgb)) 28%,
-        rgb(2, 6, 23) 72%
-      ) !important;
+      background-color: rgba(var(--adversary-menu-rgb), 0.14) !important;
       background-image: none !important;
-      border-color: color-mix(
-        in srgb,
-        rgb(var(--adversary-menu-rgb)) 48%,
-        rgb(2, 6, 23) 52%
-      ) !important;
+      border-color: rgba(var(--adversary-menu-rgb), 0.30) !important;
+      text-align: center !important;
+    }
+
+    aside .adversary-menu-button > span {
+      justify-content: center !important;
     }
 
     aside .adversary-menu-button:hover {
-      background-color: color-mix(
-        in srgb,
-        rgb(var(--adversary-menu-rgb)) 38%,
-        rgb(2, 6, 23) 62%
-      ) !important;
+      background-color: rgba(var(--adversary-menu-rgb), 0.20) !important;
       background-image: none !important;
     }
 
     aside .adversary-menu-button.is-active {
-      background-color: color-mix(
-        in srgb,
-        rgb(var(--adversary-menu-rgb)) 48%,
-        rgb(2, 6, 23) 52%
-      ) !important;
+      background-color: rgba(var(--adversary-menu-rgb), 0.26) !important;
       background-image: none !important;
     }
   }
