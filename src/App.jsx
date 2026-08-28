@@ -992,15 +992,15 @@ const GLOBAL_PANEL_CSS = `
      the left sidebar is affected. */
   @media (min-width: 1024px) {
     aside .adversary-menu-button {
-      background-color: transparent !important;
+      background-color: rgba(2, 6, 23, 0.72) !important;
       background-image: linear-gradient(
         90deg,
-        transparent 0%,
-        rgba(var(--adversary-menu-rgb), 0.08) 10%,
-        rgba(var(--adversary-menu-rgb), 0.16) 28%,
-        rgba(var(--adversary-menu-rgb), 0.16) 72%,
-        rgba(var(--adversary-menu-rgb), 0.08) 90%,
-        transparent 100%
+        rgba(var(--adversary-menu-rgb), 0.06) 0%,
+        rgba(var(--adversary-menu-rgb), 0.22) 10%,
+        rgba(var(--adversary-menu-rgb), 0.40) 28%,
+        rgba(var(--adversary-menu-rgb), 0.40) 72%,
+        rgba(var(--adversary-menu-rgb), 0.22) 90%,
+        rgba(var(--adversary-menu-rgb), 0.06) 100%
       ) !important;
       border-color: rgba(var(--adversary-menu-rgb), 0.30) !important;
       text-align: center !important;
@@ -1012,28 +1012,28 @@ const GLOBAL_PANEL_CSS = `
     }
 
     aside .adversary-menu-button:hover {
-      background-color: transparent !important;
+      background-color: rgba(2, 6, 23, 0.76) !important;
       background-image: linear-gradient(
         90deg,
-        transparent 0%,
-        rgba(var(--adversary-menu-rgb), 0.12) 10%,
-        rgba(var(--adversary-menu-rgb), 0.22) 28%,
-        rgba(var(--adversary-menu-rgb), 0.22) 72%,
-        rgba(var(--adversary-menu-rgb), 0.12) 90%,
-        transparent 100%
+        rgba(var(--adversary-menu-rgb), 0.08) 0%,
+        rgba(var(--adversary-menu-rgb), 0.28) 10%,
+        rgba(var(--adversary-menu-rgb), 0.48) 28%,
+        rgba(var(--adversary-menu-rgb), 0.48) 72%,
+        rgba(var(--adversary-menu-rgb), 0.28) 90%,
+        rgba(var(--adversary-menu-rgb), 0.08) 100%
       ) !important;
     }
 
     aside .adversary-menu-button.is-active {
-      background-color: transparent !important;
+      background-color: rgba(2, 6, 23, 0.80) !important;
       background-image: linear-gradient(
         90deg,
-        transparent 0%,
-        rgba(var(--adversary-menu-rgb), 0.15) 10%,
-        rgba(var(--adversary-menu-rgb), 0.28) 28%,
-        rgba(var(--adversary-menu-rgb), 0.28) 72%,
-        rgba(var(--adversary-menu-rgb), 0.15) 90%,
-        transparent 100%
+        rgba(var(--adversary-menu-rgb), 0.10) 0%,
+        rgba(var(--adversary-menu-rgb), 0.34) 10%,
+        rgba(var(--adversary-menu-rgb), 0.56) 28%,
+        rgba(var(--adversary-menu-rgb), 0.56) 72%,
+        rgba(var(--adversary-menu-rgb), 0.34) 90%,
+        rgba(var(--adversary-menu-rgb), 0.10) 100%
       ) !important;
     }
   }
