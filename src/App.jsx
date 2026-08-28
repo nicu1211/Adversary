@@ -2579,177 +2579,6 @@ const GLOBAL_PANEL_CSS = `
     backdrop-filter: blur(16px) !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42) !important;
   }
-  /* ================================================================
-     EMBLEM UI THEME — page panels use the same black / electric-gold
-     material language as the interactive emblem navigation.
-     ================================================================ */
-  .adversary-content {
-    --adversary-panel-accent-rgb: 250, 204, 21;
-    --adversary-panel-bg-top: rgba(12, 11, 5, 0.92);
-    --adversary-panel-bg-bottom: rgba(2, 3, 6, 0.88);
-    --adversary-panel-border: rgba(250, 204, 21, 0.34);
-  }
-
-  .adversary-content .adversary-color-panel,
-  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel,
-  .adversary-content .adversary-stat-panel,
-  body[data-adversary-page="guild"] .adversary-page-guild .adversary-stat-panel {
-    --adversary-panel-accent-rgb: 250, 204, 21 !important;
-    --player-stats-panel-rgb: 250, 204, 21 !important;
-    --monthly-panel-accent-rgb: 250, 204, 21 !important;
-    position: relative;
-    background-color: rgba(3, 4, 6, 0.88) !important;
-    background-image:
-      radial-gradient(circle at 14% 4%, rgba(250, 204, 21, 0.12), transparent 28%),
-      linear-gradient(135deg, rgba(250, 204, 21, 0.065) 0%, rgba(2, 3, 6, 0.90) 38%, rgba(0, 0, 0, 0.94) 100%),
-      repeating-linear-gradient(60deg, rgba(250, 204, 21, 0.018) 0 1px, transparent 1px 18px),
-      repeating-linear-gradient(-60deg, rgba(250, 204, 21, 0.014) 0 1px, transparent 1px 18px) !important;
-    border-color: rgba(250, 204, 21, 0.38) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 245, 170, 0.07),
-      inset 0 0 30px rgba(250, 204, 21, 0.035),
-      0 0 0 1px rgba(250, 204, 21, 0.025),
-      0 14px 34px rgba(0, 0, 0, 0.35) !important;
-    -webkit-backdrop-filter: blur(9px) saturate(118%);
-    backdrop-filter: blur(9px) saturate(118%);
-  }
-
-  .adversary-content .adversary-color-panel:hover,
-  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover,
-  .adversary-content .adversary-stat-panel:hover {
-    background-color: rgba(4, 5, 7, 0.90) !important;
-    background-image:
-      radial-gradient(circle at 14% 4%, rgba(250, 204, 21, 0.19), transparent 31%),
-      linear-gradient(135deg, rgba(250, 204, 21, 0.095) 0%, rgba(2, 3, 6, 0.88) 40%, rgba(0, 0, 0, 0.94) 100%),
-      repeating-linear-gradient(60deg, rgba(250, 204, 21, 0.024) 0 1px, transparent 1px 18px),
-      repeating-linear-gradient(-60deg, rgba(250, 204, 21, 0.019) 0 1px, transparent 1px 18px) !important;
-    border-color: rgba(250, 204, 21, 0.72) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 245, 170, 0.11),
-      inset 0 0 42px rgba(250, 204, 21, 0.07),
-      0 0 0 1px rgba(250, 204, 21, 0.08),
-      0 0 18px rgba(250, 204, 21, 0.12),
-      0 18px 40px rgba(0, 0, 0, 0.38) !important;
-  }
-
-  /* Generic secondary surfaces inside pages stay darker than their parent
-     panel, but inherit the gold edge so every page reads as one system. */
-  .adversary-content :is(section, article, div)[class*="border"][class*="bg-"]:not(.adversary-color-panel) {
-    border-color: rgba(250, 204, 21, 0.18) !important;
-    background-color: rgba(2, 3, 6, 0.56) !important;
-    background-image: linear-gradient(145deg, rgba(250, 204, 21, 0.035), rgba(0, 0, 0, 0.18)) !important;
-  }
-
-  .adversary-content :is(h1, h2, h3, h4)[class*="text-amber"],
-  .adversary-content :is(h1, h2, h3, h4)[class*="text-yellow"] {
-    text-shadow: 0 0 18px rgba(250, 204, 21, 0.22);
-  }
-
-  .adversary-content button[class*="border"]:not([class*="red"]):not([class*="rose"]),
-  .adversary-content select[class*="border"],
-  .adversary-content input[class*="border"] {
-    border-color: rgba(250, 204, 21, 0.24) !important;
-  }
-
-  .adversary-content button[class*="border"]:not([class*="red"]):not([class*="rose"]):hover {
-    border-color: rgba(250, 204, 21, 0.58) !important;
-    box-shadow: 0 0 16px rgba(250, 204, 21, 0.09);
-  }
-
-  /* V4: force the six public dashboard pages into one emblem material system.
-     This catches panels that do not get tagged by the runtime decorator too. */
-  body:is(
-    [data-adversary-page="nodewars"],
-    [data-adversary-page="players"],
-    [data-adversary-page="hall"],
-    [data-adversary-page="guild"],
-    [data-adversary-page="monthly"],
-    [data-adversary-page="overview"]
-  ) .adversary-content :is(section, article, div)[class*="rounded"][class*="border"] {
-    --adversary-panel-accent-rgb: 250, 204, 21 !important;
-    --player-stats-panel-rgb: 250, 204, 21 !important;
-    --monthly-panel-accent-rgb: 250, 204, 21 !important;
-    border-color: rgba(250, 204, 21, .34) !important;
-    border-radius: 12px !important;
-    background-color: rgba(2, 3, 5, .88) !important;
-    background-image:
-      radial-gradient(circle at 12% 0%, rgba(255, 222, 58, .12), transparent 25%),
-      linear-gradient(120deg, rgba(250, 204, 21, .075), transparent 26%, transparent 72%, rgba(250, 204, 21, .026)),
-      repeating-linear-gradient(60deg, rgba(250, 204, 21, .018) 0 1px, transparent 1px 22px),
-      repeating-linear-gradient(-60deg, rgba(250, 204, 21, .014) 0 1px, transparent 1px 22px) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 247, 187, .08),
-      inset 0 0 32px rgba(250, 204, 21, .035),
-      0 0 0 1px rgba(250, 204, 21, .025),
-      0 12px 30px rgba(0, 0, 0, .32) !important;
-    transition: border-color .22s ease, box-shadow .22s ease, background-color .22s ease, transform .22s ease !important;
-  }
-
-  body:is(
-    [data-adversary-page="nodewars"],
-    [data-adversary-page="players"],
-    [data-adversary-page="hall"],
-    [data-adversary-page="guild"],
-    [data-adversary-page="monthly"],
-    [data-adversary-page="overview"]
-  ) .adversary-content :is(section, article, div)[class*="rounded"][class*="border"]:hover {
-    border-color: rgba(250, 204, 21, .70) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 247, 187, .12),
-      inset 0 0 40px rgba(250, 204, 21, .065),
-      0 0 0 1px rgba(250, 204, 21, .055),
-      0 0 22px rgba(250, 204, 21, .11),
-      0 16px 34px rgba(0, 0, 0, .36) !important;
-  }
-
-  body:is(
-    [data-adversary-page="nodewars"],
-    [data-adversary-page="players"],
-    [data-adversary-page="hall"],
-    [data-adversary-page="guild"],
-    [data-adversary-page="monthly"],
-    [data-adversary-page="overview"]
-  ) .adversary-content :is(table, thead, tbody, tr) {
-    border-color: rgba(250, 204, 21, .13) !important;
-  }
-
-  body:is(
-    [data-adversary-page="nodewars"],
-    [data-adversary-page="players"],
-    [data-adversary-page="hall"],
-    [data-adversary-page="guild"],
-    [data-adversary-page="monthly"],
-    [data-adversary-page="overview"]
-  ) .adversary-content thead {
-    background: linear-gradient(90deg, rgba(250, 204, 21, .105), rgba(0,0,0,.72), rgba(250, 204, 21, .045)) !important;
-    color: #fff8cf !important;
-  }
-
-  body:is(
-    [data-adversary-page="nodewars"],
-    [data-adversary-page="players"],
-    [data-adversary-page="hall"],
-    [data-adversary-page="guild"],
-    [data-adversary-page="monthly"],
-    [data-adversary-page="overview"]
-  ) .adversary-content :is(input, select, textarea) {
-    background-color: rgba(1, 2, 4, .78) !important;
-    border-color: rgba(250, 204, 21, .30) !important;
-    color: #f8fafc !important;
-  }
-
-  body:is(
-    [data-adversary-page="nodewars"],
-    [data-adversary-page="players"],
-    [data-adversary-page="hall"],
-    [data-adversary-page="guild"],
-    [data-adversary-page="monthly"],
-    [data-adversary-page="overview"]
-  ) .adversary-content :is(h1, h2, h3) {
-    letter-spacing: .035em;
-    text-shadow: 0 0 20px rgba(250, 204, 21, .15);
-  }
-
 `;
 
 
@@ -2757,7 +2586,6 @@ const SIDEBAR_ORB_HOVER_SOUND = sidebarOrbHoverSound;
 
 
 const PAGE_TITLES = {
-  home: 'Adversary',
   guild: 'Guild',
   monthly: 'Monthly Recap',
   nodewars: 'Node Wars',
@@ -3914,7 +3742,7 @@ function buildOverallClassGradient(slices) {
   return `conic-gradient(${stops.join(', ')})`;
 }
 
-function SidebarClassOrbs({ members = [], logs = [], loadLogs, modalOnly = false }) {
+function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const layerRef = useRef(null);
   const orbRefs = useRef([]);
   const physicsRef = useRef([]);
@@ -4610,17 +4438,6 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs, modalOnly = false
     },
     [loadLogs],
   );
-
-  useEffect(() => {
-    const openFromHome = (event) => {
-      const orbId = String(event?.detail?.orbId || '');
-      const orb = SIDEBAR_CLASS_ORBS.find((item) => item.id === orbId);
-      if (orb) openClassDetails(orb);
-    };
-
-    window.addEventListener('adversary-open-class-orb', openFromHome);
-    return () => window.removeEventListener('adversary-open-class-orb', openFromHome);
-  }, [openClassDetails]);
 
   useEffect(() => {
     if (!selectedClass) return undefined;
@@ -5765,7 +5582,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs, modalOnly = false
 
   return (
     <>
-      {!modalOnly && <div ref={layerRef} className="adversary-sidebar-class-orbs">
+      <div ref={layerRef} className="adversary-sidebar-class-orbs">
         {SIDEBAR_CLASS_ORBS.map((orb, index) => (
           <button
             type="button"
@@ -5798,914 +5615,9 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs, modalOnly = false
             />
           </button>
         ))}
-      </div>}
+      </div>
       {classModal}
     </>
-  );
-}
-
-
-const EMBLEM_NAV_ZONES = Object.freeze([
-  {
-    id: 'nodewars', title: 'Match History', kicker: 'Recorded wars & battles',
-    x: 50, y: 18, labelX: 84, labelY: 19,
-    clip: 'polygon(36% 2%, 64% 2%, 64% 40%, 50% 49%, 36% 40%)',
-    localPath: 'M 50 47 L 50 35 L 43 26 L 43 12 M 50 35 L 57 26 L 57 12 M 43 26 L 38 21 M 57 26 L 62 21',
-    connectorPath: 'M 61 20 L 69 20 L 73 17 L 80 17',
-  },
-  {
-    id: 'monthly', title: 'Monthly Recap', kicker: 'Monthly performance overview',
-    x: 25, y: 33, labelX: 13, labelY: 30,
-    clip: 'polygon(8% 7%, 40% 13%, 50% 48%, 34% 46%, 16% 31%)',
-    localPath: 'M 48 47 L 40 40 L 32 35 L 26 28 L 19 20 M 32 35 L 21 35 L 14 30 M 26 28 L 26 18',
-    connectorPath: 'M 18 29 L 12 29 L 9 26 L 4 26',
-  },
-  {
-    id: 'players', title: 'Player Stats', kicker: 'Individual player performance',
-    x: 75, y: 33, labelX: 87, labelY: 30,
-    clip: 'polygon(60% 13%, 92% 7%, 84% 31%, 66% 46%, 50% 48%)',
-    localPath: 'M 52 47 L 60 40 L 68 35 L 74 28 L 81 20 M 68 35 L 79 35 L 86 30 M 74 28 L 74 18',
-    connectorPath: 'M 82 29 L 88 29 L 91 26 L 96 26',
-  },
-  {
-    id: 'overview', title: 'Overview', kicker: 'Selected-war battle analytics',
-    x: 50, y: 51, labelX: 87, labelY: 50,
-    clip: 'polygon(34% 38%, 66% 38%, 66% 61%, 50% 69%, 34% 61%)',
-    localPath: 'M 50 66 L 50 57 L 43 50 L 50 44 L 57 50 L 50 57 M 43 50 L 36 47 M 57 50 L 64 47',
-    connectorPath: 'M 63 49 L 72 49 L 77 53 L 84 53',
-  },
-  {
-    id: 'hall', title: 'Hall of Fame', kicker: 'Best performers & records',
-    x: 31, y: 69, labelX: 12, labelY: 70,
-    clip: 'polygon(17% 44%, 49% 57%, 50% 93%, 37% 87%, 25% 68%)',
-    localPath: 'M 48 59 L 41 66 L 35 61 L 29 56 M 41 66 L 35 73 L 35 84 M 35 73 L 27 69',
-    connectorPath: 'M 28 68 L 20 68 L 16 72 L 7 72',
-  },
-  {
-    id: 'guild', title: 'Guild', kicker: 'Roster & guild intelligence',
-    x: 69, y: 69, labelX: 88, labelY: 70,
-    clip: 'polygon(51% 57%, 83% 44%, 75% 68%, 63% 87%, 50% 93%)',
-    localPath: 'M 52 59 L 59 66 L 65 61 L 71 56 M 59 66 L 65 73 L 65 84 M 65 73 L 73 69',
-    connectorPath: 'M 72 68 L 80 68 L 84 72 L 93 72',
-  },
-  {
-    id: 'raw', title: 'Raw Logs', kicker: 'Combat and stats log management',
-    x: 50, y: 86, labelX: 84, labelY: 86,
-    clip: 'polygon(38% 66%, 62% 66%, 62% 98%, 38% 98%)',
-    localPath: 'M 50 68 L 50 80 L 44 86 L 50 93 L 56 86 L 50 80',
-    connectorPath: 'M 56 86 L 67 86 L 72 82 L 80 82',
-  },
-]);
-
-
-const EMBLEM_IDLE_CIRCUITS = Object.freeze([
-  { d: 'M 50 9 L 50 18 L 43 26 L 43 40 L 50 47', duration: 2.8, delay: -0.4, width: .76 },
-  { d: 'M 50 18 L 57 26 L 57 40 L 50 47', duration: 2.5, delay: -1.1, width: .76 },
-  { d: 'M 43 26 L 36 21 L 31 17', duration: 2.3, delay: -0.8, width: .62 },
-  { d: 'M 57 26 L 64 21 L 69 17', duration: 2.2, delay: -1.4, width: .62 },
-  { d: 'M 50 47 L 40 40 L 31 35 L 23 28 L 17 20', duration: 3.2, delay: -0.1, width: .82 },
-  { d: 'M 50 47 L 60 40 L 69 35 L 77 28 L 83 20', duration: 3.1, delay: -1.0, width: .82 },
-  { d: 'M 50 47 L 43 50 L 36 47 L 30 43', duration: 2.6, delay: -0.6, width: .58 },
-  { d: 'M 50 47 L 57 50 L 64 47 L 70 43', duration: 2.7, delay: -1.5, width: .58 },
-  { d: 'M 48 59 L 41 66 L 35 73 L 35 84', duration: 2.9, delay: -0.9, width: .74 },
-  { d: 'M 52 59 L 59 66 L 65 73 L 65 84', duration: 3.0, delay: -1.7, width: .74 },
-  { d: 'M 50 68 L 50 80 L 44 86 L 50 93 L 56 86 L 50 80', duration: 2.4, delay: -0.3, width: .78 },
-]);
-
-const EMBLEM_FLOATING_HEXES = Object.freeze([
-  { x: 15, y: 18, size: 42, duration: 8.6, delay: -1.2, driftX: 10, driftY: -8, opacity: .28 },
-  { x: 22, y: 36, size: 28, duration: 6.8, delay: -0.4, driftX: 8, driftY: 6, opacity: .24 },
-  { x: 12, y: 60, size: 34, duration: 9.1, delay: -2.8, driftX: 6, driftY: -10, opacity: .22 },
-  { x: 25, y: 76, size: 22, duration: 6.1, delay: -1.7, driftX: 7, driftY: 7, opacity: .26 },
-  { x: 84, y: 20, size: 44, duration: 8.2, delay: -3.1, driftX: -10, driftY: -7, opacity: .30 },
-  { x: 78, y: 36, size: 26, duration: 6.5, delay: -0.8, driftX: -7, driftY: 6, opacity: .22 },
-  { x: 89, y: 58, size: 38, duration: 9.4, delay: -2.2, driftX: -6, driftY: -9, opacity: .24 },
-  { x: 76, y: 77, size: 24, duration: 6.3, delay: -1.5, driftX: -8, driftY: 8, opacity: .26 },
-  { x: 48, y: 9, size: 18, duration: 5.7, delay: -0.2, driftX: 0, driftY: -8, opacity: .24 },
-  { x: 52, y: 92, size: 18, duration: 5.9, delay: -2.6, driftX: 0, driftY: 8, opacity: .22 },
-]);
-
-const EMBLEM_SMOKE_PLUMES = Object.freeze([
-  { x: 50, y: 17, width: 33, height: 17, duration: 13.5, delay: -1.2, driftX: -2, driftY: -3, opacity: .36 },
-  { x: 21, y: 34, width: 27, height: 17, duration: 14.2, delay: -3.0, driftX: -4, driftY: -1, opacity: .28 },
-  { x: 79, y: 34, width: 27, height: 17, duration: 13.6, delay: -4.0, driftX: 4, driftY: -1, opacity: .28 },
-  { x: 29, y: 71, width: 26, height: 18, duration: 15.4, delay: -2.1, driftX: -3, driftY: 3, opacity: .30 },
-  { x: 71, y: 71, width: 26, height: 18, duration: 15.1, delay: -4.5, driftX: 3, driftY: 3, opacity: .30 },
-  { x: 50, y: 89, width: 30, height: 16, duration: 12.8, delay: -5.2, driftX: 1, driftY: 4, opacity: .24 },
-]);
-
-function HomeClassOrbs() {
-  const fieldRef = useRef(null);
-  const orbRefs = useRef([]);
-  const bodiesRef = useRef([]);
-  const pointerRef = useRef({ x: -10000, y: -10000, active: false });
-  const rafRef = useRef(0);
-
-  useEffect(() => {
-    const field = fieldRef.current;
-    if (!field) return undefined;
-
-    const makeBodies = () => {
-      const rect = field.getBoundingClientRect();
-      const width = Math.max(1, rect.width);
-      const height = Math.max(1, rect.height);
-
-      bodiesRef.current = SIDEBAR_CLASS_ORBS.map((orb, index) => {
-        const angle = (index * 2.399963229728653) % (Math.PI * 2);
-        const ring = 0.36 + ((index * 37) % 48) / 100;
-        const rx = width * (0.39 + ring * 0.10);
-        const ry = height * (0.34 + ring * 0.11);
-        const x = width / 2 + Math.cos(angle) * rx;
-        const y = height / 2 + Math.sin(angle) * ry;
-        const speed = 0.42 + (index % 7) * 0.055;
-        const direction = angle + Math.PI / 2 + ((index % 3) - 1) * 0.48;
-
-        return {
-          x: Math.max(28, Math.min(width - 28, x)),
-          y: Math.max(28, Math.min(height - 28, y)),
-          vx: Math.cos(direction) * speed,
-          vy: Math.sin(direction) * speed,
-          size: 42 + (index % 5) * 3,
-          wobble: index * 0.71,
-        };
-      });
-    };
-
-    makeBodies();
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(makeBodies)
-      : null;
-    resizeObserver?.observe(field);
-
-    let previous = performance.now();
-    const tick = (now) => {
-      const rect = field.getBoundingClientRect();
-      const width = Math.max(1, rect.width);
-      const height = Math.max(1, rect.height);
-      const dt = Math.min(2.0, Math.max(0.4, (now - previous) / 16.667));
-      previous = now;
-      const cx = width / 2;
-      const cy = height / 2;
-      const avoidRx = Math.min(width * 0.30, height * 0.42);
-      const avoidRy = height * 0.44;
-      const pointer = pointerRef.current;
-
-      bodiesRef.current.forEach((body, index) => {
-        const element = orbRefs.current[index];
-        if (!element || !body) return;
-
-        body.wobble += 0.012 * dt;
-        body.vx += Math.cos(body.wobble * 0.83 + index) * 0.006 * dt;
-        body.vy += Math.sin(body.wobble * 0.67 + index * 0.43) * 0.006 * dt;
-
-        // Keep a large clear ellipse over the emblem while allowing free travel around it.
-        const nx = (body.x - cx) / avoidRx;
-        const ny = (body.y - cy) / avoidRy;
-        const ellipse = nx * nx + ny * ny;
-        if (ellipse < 1.12) {
-          const length = Math.max(0.001, Math.hypot(nx, ny));
-          const force = (1.12 - ellipse) * 0.19 * dt;
-          body.vx += (nx / length) * force * (avoidRx / Math.max(avoidRy, 1));
-          body.vy += (ny / length) * force;
-        }
-
-        if (pointer.active) {
-          const px = rect.left + body.x;
-          const py = rect.top + body.y;
-          const dx = px - pointer.x;
-          const dy = py - pointer.y;
-          const distance = Math.max(1, Math.hypot(dx, dy));
-          const radius = 190;
-          if (distance < radius) {
-            const force = Math.pow(1 - distance / radius, 1.55) * 0.72 * dt;
-            body.vx += (dx / distance) * force;
-            body.vy += (dy / distance) * force;
-          }
-        }
-
-        const maxSpeed = 1.85;
-        const speed = Math.hypot(body.vx, body.vy);
-        if (speed > maxSpeed) {
-          body.vx = (body.vx / speed) * maxSpeed;
-          body.vy = (body.vy / speed) * maxSpeed;
-        }
-        if (speed < 0.28) {
-          body.vx += Math.cos(body.wobble + index) * 0.028;
-          body.vy += Math.sin(body.wobble + index) * 0.028;
-        }
-
-        body.x += body.vx * dt;
-        body.y += body.vy * dt;
-
-        const pad = body.size * 0.58;
-        if (body.x < pad) { body.x = pad; body.vx = Math.abs(body.vx) * 0.94; }
-        if (body.x > width - pad) { body.x = width - pad; body.vx = -Math.abs(body.vx) * 0.94; }
-        if (body.y < pad) { body.y = pad; body.vy = Math.abs(body.vy) * 0.94; }
-        if (body.y > height - pad) { body.y = height - pad; body.vy = -Math.abs(body.vy) * 0.94; }
-
-        const tilt = Math.max(-12, Math.min(12, body.vx * 5.2));
-        element.style.transform = `translate3d(${body.x - body.size / 2}px, ${body.y - body.size / 2}px, 0) rotate(${tilt}deg)`;
-      });
-
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
-    const onPointerMove = (event) => {
-      pointerRef.current = { x: event.clientX, y: event.clientY, active: true };
-    };
-    const onPointerLeave = () => {
-      pointerRef.current.active = false;
-    };
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    document.documentElement.addEventListener('mouseleave', onPointerLeave);
-    rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      document.documentElement.removeEventListener('mouseleave', onPointerLeave);
-      resizeObserver?.disconnect();
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
-
-  const openOrb = (orb) => {
-    window.dispatchEvent(new CustomEvent('adversary-open-class-orb', {
-      detail: { orbId: orb.id },
-    }));
-  };
-
-  return (
-    <div ref={fieldRef} className="adversary-home-orb-field">
-      {SIDEBAR_CLASS_ORBS.map((orb, index) => {
-        const size = 42 + (index % 5) * 3;
-        return (
-          <button
-            ref={(element) => { orbRefs.current[index] = element; }}
-            key={`home-${orb.id}`}
-            type="button"
-            className="adversary-home-class-orb"
-            title={`${orb.name} — open class stats`}
-            aria-label={`Open ${orb.name} class statistics`}
-            onClick={(event) => {
-              event.stopPropagation();
-              openOrb(orb);
-            }}
-            style={{
-              '--home-orb-size': `${size}px`,
-              '--home-orb-glow': orb.glow || '250, 204, 21',
-            }}
-          >
-            <img src={orb.src} alt="" aria-hidden="true" draggable="false" />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function InteractiveEmblemNav({ onNavigate }) {
-  const [hovered, setHovered] = useState(null);
-  const [phase, setPhase] = useState('idle');
-  const phaseTimers = useRef([]);
-  const leaveTimer = useRef(null);
-
-  const activeZone = EMBLEM_NAV_ZONES.find((zone) => zone.id === hovered) || null;
-
-  const clearPhaseTimers = () => {
-    phaseTimers.current.forEach((timer) => window.clearTimeout(timer));
-    phaseTimers.current = [];
-  };
-
-  const beginHover = (zone) => {
-    window.clearTimeout(leaveTimer.current);
-    clearPhaseTimers();
-    setHovered(zone.id);
-    setPhase('charging');
-
-    phaseTimers.current.push(window.setTimeout(() => setPhase('routing'), 560));
-    phaseTimers.current.push(window.setTimeout(() => setPhase('ready'), 1120));
-  };
-
-  const endHover = () => {
-    clearPhaseTimers();
-    window.clearTimeout(leaveTimer.current);
-    leaveTimer.current = window.setTimeout(() => {
-      setPhase('idle');
-      setHovered(null);
-    }, 180);
-  };
-
-  useEffect(() => () => {
-    clearPhaseTimers();
-    window.clearTimeout(leaveTimer.current);
-  }, []);
-
-  const isRouting = phase === 'routing' || phase === 'ready';
-  const isReady = phase === 'ready';
-
-  return (
-    <section className="adversary-emblem-home" onMouseLeave={endHover}>
-      <style>{`
-        .adversary-emblem-home {
-          position: relative;
-          width: 100%;
-          min-height: 100vh;
-          overflow: hidden;
-          isolation: isolate;
-          background: #020306;
-        }
-        .adversary-emblem-home::before {
-          content: '';
-          position: absolute;
-          inset: -5%;
-          z-index: -3;
-          background: url("${adversaryEmblem}") center/cover no-repeat;
-          filter: blur(44px) brightness(.27) saturate(.82);
-          transform: scale(1.08);
-          opacity: .72;
-        }
-        .adversary-emblem-home::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          z-index: -1;
-          pointer-events: none;
-          background:
-            radial-gradient(circle at 50% 48%, transparent 22%, rgba(0,0,0,.08) 58%, rgba(0,0,0,.72) 100%),
-            linear-gradient(180deg, rgba(0,0,0,.18), transparent 18%, transparent 80%, rgba(0,0,0,.38));
-        }
-        .adversary-home-orb-field {
-          position: absolute;
-          inset: 0;
-          z-index: 4;
-          overflow: hidden;
-          pointer-events: none;
-        }
-        .adversary-home-class-orb {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: var(--home-orb-size);
-          height: var(--home-orb-size);
-          padding: 0;
-          border: 0;
-          border-radius: 999px;
-          background: transparent;
-          opacity: .76;
-          cursor: pointer;
-          pointer-events: auto;
-          filter: drop-shadow(0 0 9px rgba(var(--home-orb-glow), .32)) drop-shadow(0 8px 13px rgba(0,0,0,.52));
-          transition: opacity .18s ease, filter .18s ease;
-          will-change: transform;
-        }
-        .adversary-home-class-orb::after {
-          content: '';
-          position: absolute;
-          inset: -5px;
-          border-radius: inherit;
-          border: 1px solid transparent;
-          transition: border-color .18s ease, box-shadow .18s ease;
-        }
-        .adversary-home-class-orb:hover,
-        .adversary-home-class-orb:focus-visible {
-          z-index: 20;
-          opacity: 1;
-          outline: none;
-          filter: drop-shadow(0 0 8px rgba(var(--home-orb-glow), .68)) drop-shadow(0 0 22px rgba(var(--home-orb-glow), .35)) drop-shadow(0 8px 13px rgba(0,0,0,.62));
-        }
-        .adversary-home-class-orb:hover::after,
-        .adversary-home-class-orb:focus-visible::after {
-          border-color: rgba(253,224,71,.55);
-          box-shadow: 0 0 16px rgba(250,204,21,.20);
-        }
-        .adversary-home-class-orb img {
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          user-select: none;
-          pointer-events: none;
-        }
-        @media (max-width: 920px) {
-          .adversary-home-class-orb { opacity: .62; }
-        }
-        @media (max-width: 640px) {
-          .adversary-home-class-orb { width: 38px; height: 38px; }
-        }
-        .adversary-emblem-canvas {
-          position: absolute;
-          inset: 0;
-          display: grid;
-          place-items: center;
-        }
-        .adversary-emblem-stage-v2 {
-          position: relative;
-          width: min(126vw, 116vh);
-          aspect-ratio: 1;
-          isolation: isolate;
-          transform: scaleX(1.16);
-          transform-origin: center;
-          user-select: none;
-        }
-        .adversary-emblem-stage-v2::before {
-          content: '';
-          position: absolute;
-          inset: 13% 18%;
-          z-index: 0;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(250,204,21,.22), rgba(250,204,21,.10) 28%, rgba(245,158,11,.03) 48%, transparent 70%);
-          filter: blur(22px);
-          opacity: .78;
-          animation: adversaryCoreBreatheV6 5.2s ease-in-out infinite;
-        }
-        @keyframes adversaryCoreBreatheV6 {
-          0%, 100% { transform: scale(.94); opacity: .46; }
-          50% { transform: scale(1.08); opacity: .82; }
-        }
-        .adversary-emblem-smoke-layer,
-        .adversary-emblem-hex-layer {
-          position: absolute;
-          inset: -4%;
-          pointer-events: none;
-        }
-        .adversary-emblem-smoke-layer { z-index: 0; }
-        .adversary-emblem-hex-layer { z-index: 0; overflow: hidden; }
-        .adversary-emblem-smoke-plume {
-          position: absolute;
-          left: calc(var(--smoke-x) * 1%);
-          top: calc(var(--smoke-y) * 1%);
-          width: calc(var(--smoke-w) * 1%);
-          height: calc(var(--smoke-h) * 1%);
-          border-radius: 999px;
-          background:
-            radial-gradient(circle at 48% 45%, rgba(255,233,120,.17), transparent 30%),
-            radial-gradient(circle at 40% 55%, rgba(250,204,21,.13), transparent 42%),
-            radial-gradient(circle at 55% 50%, rgba(255,255,255,.09), transparent 25%),
-            radial-gradient(circle at 50% 50%, rgba(105,105,105,.32), transparent 70%);
-          opacity: var(--smoke-opacity);
-          mix-blend-mode: screen;
-          filter: blur(14px);
-          transform: translate(-50%, -50%);
-          animation:
-            adversarySmokeDriftV6 var(--smoke-duration) ease-in-out infinite,
-            adversarySmokePulseV6 calc(var(--smoke-duration) * .58) ease-in-out infinite;
-          animation-delay: var(--smoke-delay), calc(var(--smoke-delay) * .65);
-        }
-        @keyframes adversarySmokeDriftV6 {
-          0% {
-            transform: translate(calc(-50% + var(--smoke-dx) * -0.5px), calc(-50% + var(--smoke-dy) * -0.5px)) scale(.94) rotate(-4deg);
-          }
-          50% {
-            transform: translate(calc(-50% + var(--smoke-dx) * 0.65px), calc(-50% + var(--smoke-dy) * 0.25px)) scale(1.08) rotate(3deg);
-          }
-          100% {
-            transform: translate(calc(-50% + var(--smoke-dx) * -0.35px), calc(-50% + var(--smoke-dy) * 0.8px)) scale(.98) rotate(7deg);
-          }
-        }
-        @keyframes adversarySmokePulseV6 {
-          0%, 100% { opacity: calc(var(--smoke-opacity) * .72); }
-          50% { opacity: calc(var(--smoke-opacity) * 1.18); }
-        }
-        .adversary-floating-hex {
-          position: absolute;
-          left: calc(var(--hex-x) * 1%);
-          top: calc(var(--hex-y) * 1%);
-          width: calc(var(--hex-size) * 1px);
-          height: calc(var(--hex-size) * 1px);
-          transform: translate(-50%, -50%);
-          clip-path: polygon(25% 6%, 75% 6%, 98% 50%, 75% 94%, 25% 94%, 2% 50%);
-          border: 1px solid rgba(250,204,21,.28);
-          background:
-            radial-gradient(circle at 50% 50%, rgba(250,204,21,.12), transparent 62%),
-            linear-gradient(135deg, rgba(255,238,148,.18), rgba(250,204,21,.05));
-          box-shadow: inset 0 0 0 1px rgba(255,240,177,.08), 0 0 22px rgba(250,204,21,.08);
-          opacity: var(--hex-opacity);
-          filter: blur(.18px) drop-shadow(0 0 10px rgba(250,204,21,.10));
-          animation:
-            adversaryHexBreatheV6 var(--hex-duration) ease-in-out infinite,
-            adversaryHexDriftV6 calc(var(--hex-duration) * 1.22) ease-in-out infinite;
-          animation-delay: var(--hex-delay), calc(var(--hex-delay) * .7);
-        }
-        .adversary-floating-hex::before,
-        .adversary-floating-hex::after {
-          content: '';
-          position: absolute;
-          inset: 18%;
-          clip-path: inherit;
-          border: 1px solid rgba(255,243,184,.17);
-          opacity: .7;
-        }
-        .adversary-floating-hex::after {
-          inset: -10%;
-          border-color: rgba(250,204,21,.08);
-          opacity: .38;
-        }
-        @keyframes adversaryHexBreatheV6 {
-          0%, 100% { transform: translate(-50%, -50%) scale(.84); opacity: calc(var(--hex-opacity) * .58); }
-          50% { transform: translate(-50%, -50%) scale(1.18); opacity: calc(var(--hex-opacity) * 1.25); }
-        }
-        @keyframes adversaryHexDriftV6 {
-          0% { margin-left: calc(var(--hex-dx) * -0.45px); margin-top: calc(var(--hex-dy) * -0.45px); }
-          50% { margin-left: calc(var(--hex-dx) * 0.85px); margin-top: calc(var(--hex-dy) * 0.50px); }
-          100% { margin-left: calc(var(--hex-dx) * -0.25px); margin-top: calc(var(--hex-dy) * 0.85px); }
-        }
-        .adversary-emblem-idle-circuit-map {
-          position: absolute;
-          inset: 0;
-          z-index: 3;
-          width: 100%;
-          height: 100%;
-          pointer-events: none;
-          opacity: .96;
-          overflow: visible;
-        }
-        .adversary-emblem-idle-circuit-base,
-        .adversary-emblem-idle-circuit-flow {
-          fill: none;
-          vector-effect: non-scaling-stroke;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-        }
-        .adversary-emblem-idle-circuit-base {
-          stroke: rgba(250,204,21,.10);
-          stroke-width: .38;
-        }
-        .adversary-emblem-idle-circuit-flow {
-          stroke: rgba(255,241,152,.86);
-          stroke-width: var(--flow-width, .74);
-          stroke-dasharray: .10 .90;
-          stroke-dashoffset: 0;
-          filter: drop-shadow(0 0 2px rgba(255,247,194,.75)) drop-shadow(0 0 9px rgba(250,204,21,.58));
-          opacity: .86;
-          animation: adversaryIdleCircuitFlowV6 var(--flow-duration, 2.8s) linear infinite;
-          animation-delay: var(--flow-delay, 0s);
-        }
-        @keyframes adversaryIdleCircuitFlowV6 {
-          from { stroke-dashoffset: 0; }
-          to { stroke-dashoffset: -1; }
-        }
-        .adversary-emblem-image-v2,
-        .adversary-emblem-zone-glow-v3 {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          pointer-events: none;
-        }
-        .adversary-emblem-image-v2 {
-          z-index: 1;
-          filter: brightness(.83) saturate(.94) contrast(1.05) drop-shadow(0 22px 48px rgba(0,0,0,.74));
-          animation: adversaryEmblemAliveV6 6.4s ease-in-out infinite;
-          transform-origin: center;
-        }
-        @keyframes adversaryEmblemAliveV6 {
-          0%, 100% {
-            transform: translateY(0) scale(1);
-            filter: brightness(.82) saturate(.94) contrast(1.05) drop-shadow(0 22px 48px rgba(0,0,0,.74));
-          }
-          50% {
-            transform: translateY(-.35%) scale(1.008);
-            filter: brightness(.91) saturate(1.02) contrast(1.08) drop-shadow(0 26px 58px rgba(0,0,0,.78)) drop-shadow(0 0 24px rgba(250,204,21,.12));
-          }
-        }
-        .adversary-emblem-zone-glow-v3 {
-          z-index: 4;
-          opacity: 0;
-          clip-path: var(--zone-clip);
-          filter: brightness(1.32) saturate(1.62) contrast(1.08)
-                  drop-shadow(0 0 5px rgba(255,248,171,.85))
-                  drop-shadow(0 0 16px rgba(250,204,21,.72))
-                  drop-shadow(0 0 32px rgba(245,158,11,.34));
-          transform: scale(1.003);
-          transition: opacity .18s ease;
-        }
-        .adversary-emblem-stage-v2.is-active .adversary-emblem-zone-glow-v3 {
-          opacity: 1;
-          animation: adversaryZoneChargeV3 .56s cubic-bezier(.22,.72,.16,1) both;
-        }
-        @keyframes adversaryZoneChargeV3 {
-          0% { opacity:.08; filter:brightness(.88) saturate(.98) drop-shadow(0 0 0 rgba(250,204,21,0)); }
-          46% { opacity:.48; filter:brightness(1.06) saturate(1.18) drop-shadow(0 0 8px rgba(250,204,21,.34)); }
-          100% { opacity:1; filter:brightness(1.34) saturate(1.62) contrast(1.08) drop-shadow(0 0 6px rgba(255,248,171,.86)) drop-shadow(0 0 18px rgba(250,204,21,.76)) drop-shadow(0 0 34px rgba(245,158,11,.34)); }
-        }
-        .adversary-emblem-circuit-v2 {
-          position: absolute;
-          inset: 0;
-          z-index: 5;
-          width: 100%;
-          height: 100%;
-          overflow: visible;
-          pointer-events: none;
-        }
-        .adversary-local-circuit-v3,
-        .adversary-route-circuit-v3,
-        .adversary-route-circuit-ghost-v3 {
-          fill: none;
-          vector-effect: non-scaling-stroke;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          path-length: 1;
-        }
-        .adversary-local-circuit-v3 {
-          stroke: #fff3a0;
-          stroke-width: 1.18;
-          stroke-dasharray: 1;
-          stroke-dashoffset: 1;
-          filter: drop-shadow(0 0 2px #fff6bd) drop-shadow(0 0 7px #facc15) drop-shadow(0 0 15px rgba(245,158,11,.66));
-          animation: adversaryLocalChargeV3 .56s cubic-bezier(.22,.74,.18,1) forwards;
-        }
-        @keyframes adversaryLocalChargeV3 { to { stroke-dashoffset:0; } }
-        .adversary-route-circuit-ghost-v3 {
-          stroke: rgba(250,204,21,.12);
-          stroke-width: .72;
-          opacity: 0;
-          transition: opacity .18s ease;
-        }
-        .adversary-route-circuit-ghost-v3.is-visible { opacity: 1; }
-        .adversary-route-circuit-v3 {
-          stroke: #ffe45c;
-          stroke-width: 1.15;
-          stroke-dasharray: 1;
-          stroke-dashoffset: 1;
-          opacity: 0;
-          filter: drop-shadow(0 0 2px #fff6bd) drop-shadow(0 0 8px #facc15) drop-shadow(0 0 17px rgba(245,158,11,.62));
-        }
-        .adversary-route-circuit-v3.is-routing {
-          opacity: 1;
-          animation: adversaryRouteChargeV3 .56s cubic-bezier(.2,.74,.18,1) forwards;
-        }
-        @keyframes adversaryRouteChargeV3 { to { stroke-dashoffset:0; } }
-        .adversary-emblem-node-v2 {
-          fill: #fff8bf;
-          stroke: #fde047;
-          stroke-width: .45;
-          filter: drop-shadow(0 0 4px #fde047) drop-shadow(0 0 12px #f59e0b);
-          transform-box: fill-box;
-          transform-origin: center;
-        }
-        .adversary-emblem-node-v2.is-source { animation: adversaryNodePulseV3 .72s ease-in-out infinite alternate; }
-        .adversary-emblem-node-v2.is-target { animation: adversaryTargetPopV3 .28s cubic-bezier(.16,1,.3,1) both; }
-        @keyframes adversaryNodePulseV3 { from { opacity:.55; transform:scale(.72); } to { opacity:1; transform:scale(1.35); } }
-        @keyframes adversaryTargetPopV3 { from { opacity:0; transform:scale(.25); } to { opacity:1; transform:scale(1); } }
-        .adversary-emblem-zone-v2 {
-          position: absolute;
-          z-index: 8;
-          width: 22%;
-          height: 18%;
-          transform: translate(-50%, -50%);
-          border: 0;
-          border-radius: 40%;
-          background: transparent;
-          cursor: pointer;
-          outline: none;
-        }
-        .adversary-emblem-zone-v2:focus-visible {
-          box-shadow: 0 0 0 1px rgba(253,224,71,.9), 0 0 18px rgba(250,204,21,.28);
-        }
-        .adversary-emblem-label-v2 {
-          position: absolute;
-          z-index: 12;
-          min-width: 205px;
-          max-width: 275px;
-          opacity: 0;
-          pointer-events: none;
-          transform: translate(-50%, -50%) translateX(18px) scale(.92);
-          filter: blur(3px);
-          transition:
-            opacity .26s ease,
-            transform .42s cubic-bezier(.16,1,.3,1),
-            filter .28s ease;
-        }
-        .adversary-emblem-label-v2.is-visible {
-          opacity: 1;
-          pointer-events: auto;
-          transform: translate(-50%, -50%) translateX(0) scale(1);
-          filter: blur(0);
-        }
-        .adversary-emblem-label-v2::before {
-          content: '';
-          position: absolute;
-          inset: -1px;
-          clip-path: polygon(8% 0, 93% 0, 100% 20%, 100% 80%, 93% 100%, 7% 100%, 0 80%, 0 20%);
-          background: linear-gradient(120deg, #fde047, rgba(245,158,11,.18) 30%, rgba(250,204,21,.72) 68%, #fde047);
-          filter: drop-shadow(0 0 14px rgba(250,204,21,.27));
-        }
-        .adversary-emblem-label-inner-v2 {
-          position: relative;
-          margin: 1px;
-          padding: 14px 17px 13px;
-          overflow: hidden;
-          clip-path: polygon(8% 0, 93% 0, 100% 20%, 100% 80%, 93% 100%, 7% 100%, 0 80%, 0 20%);
-          background:
-            linear-gradient(90deg, rgba(250,204,21,.08) 1px, transparent 1px) 0 0/18px 18px,
-            radial-gradient(circle at 12% 8%, rgba(250,204,21,.12), transparent 34%),
-            rgba(3,7,15,.965);
-          box-shadow: inset 0 0 38px rgba(0,0,0,.76), 0 0 28px rgba(250,204,21,.06);
-        }
-        .adversary-emblem-label-inner-v2::after {
-          content:'';
-          position:absolute;
-          inset:0;
-          pointer-events:none;
-          background:linear-gradient(105deg, transparent 0 44%, rgba(255,235,118,.10) 50%, transparent 56% 100%);
-          transform:translateX(-120%);
-          animation: adversaryPanelScanV3 1.1s .08s ease-out both;
-        }
-        @keyframes adversaryPanelScanV3 { to { transform:translateX(120%); } }
-        .adversary-emblem-label-title-v2 {
-          position: relative;
-          z-index: 2;
-          color: #fff8c5;
-          font-size: clamp(13px, 1.25vw, 20px);
-          line-height: 1;
-          font-weight: 1000;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-          text-shadow: 0 0 16px rgba(250,204,21,.24);
-          white-space: nowrap;
-        }
-        .adversary-emblem-label-kicker-v2 {
-          position: relative;
-          z-index: 2;
-          margin-top: 7px;
-          color: rgba(226,232,240,.62);
-          font-size: clamp(8px, .72vw, 11px);
-          font-weight: 700;
-          letter-spacing: .08em;
-          white-space: nowrap;
-        }
-        .adversary-emblem-label-charge-v2 {
-          position: relative;
-          z-index: 2;
-          height: 1px;
-          margin-top: 10px;
-          overflow: hidden;
-          background: rgba(250,204,21,.12);
-        }
-        .adversary-emblem-label-charge-v2::after {
-          content: '';
-          display: block;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg,#fde047,#f59e0b);
-          box-shadow: 0 0 9px #facc15;
-          transform-origin: left;
-          animation: adversaryLabelChargeV3 .45s .08s cubic-bezier(.2,.8,.2,1) both;
-        }
-        @keyframes adversaryLabelChargeV3 { from { transform:scaleX(0); } to { transform:scaleX(1); } }
-        @media (max-width: 760px) {
-          .adversary-emblem-stage-v2 { width: min(132vw, 105vh); transform: scaleX(1.10); }
-          .adversary-emblem-label-v2 { min-width: 135px; max-width: 165px; }
-          .adversary-emblem-label-kicker-v2 { display:none; }
-          .adversary-emblem-label-inner-v2 { padding:11px 13px; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .adversary-local-circuit-v3,
-          .adversary-route-circuit-v3,
-          .adversary-emblem-idle-circuit-flow {
-            stroke-dashoffset:0 !important;
-            animation:none !important;
-          }
-          .adversary-emblem-zone-glow-v3,
-          .adversary-emblem-label-inner-v2::after,
-          .adversary-emblem-label-charge-v2::after,
-          .adversary-emblem-image-v2,
-          .adversary-emblem-stage-v2::before,
-          .adversary-emblem-smoke-plume,
-          .adversary-floating-hex {
-            animation:none !important;
-          }
-        }
-      `}</style>
-
-      <HomeClassOrbs />
-
-      <div className="adversary-emblem-canvas">
-        <div className={`adversary-emblem-stage-v2 ${activeZone ? 'is-active' : ''}`}>
-          <div className="adversary-emblem-smoke-layer" aria-hidden="true">
-            {EMBLEM_SMOKE_PLUMES.map((plume, index) => (
-              <span
-                key={`smoke-${index}`}
-                className="adversary-emblem-smoke-plume"
-                style={{
-                  '--smoke-x': plume.x,
-                  '--smoke-y': plume.y,
-                  '--smoke-w': plume.width,
-                  '--smoke-h': plume.height,
-                  '--smoke-duration': `${plume.duration}s`,
-                  '--smoke-delay': `${plume.delay}s`,
-                  '--smoke-dx': plume.driftX,
-                  '--smoke-dy': plume.driftY,
-                  '--smoke-opacity': plume.opacity,
-                }}
-              />
-            ))}
-          </div>
-
-          <div className="adversary-emblem-hex-layer" aria-hidden="true">
-            {EMBLEM_FLOATING_HEXES.map((hex, index) => (
-              <span
-                key={`hex-${index}`}
-                className="adversary-floating-hex"
-                style={{
-                  '--hex-x': hex.x,
-                  '--hex-y': hex.y,
-                  '--hex-size': hex.size,
-                  '--hex-duration': `${hex.duration}s`,
-                  '--hex-delay': `${hex.delay}s`,
-                  '--hex-dx': hex.driftX,
-                  '--hex-dy': hex.driftY,
-                  '--hex-opacity': hex.opacity,
-                }}
-              />
-            ))}
-          </div>
-
-          <img
-            className="adversary-emblem-image-v2"
-            src={adversaryEmblem}
-            alt="Adversary navigation emblem"
-            draggable="false"
-          />
-
-          <svg className="adversary-emblem-idle-circuit-map" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {EMBLEM_IDLE_CIRCUITS.map((path, index) => (
-              <g key={`idle-circuit-${index}`}>
-                <path className="adversary-emblem-idle-circuit-base" d={path.d} />
-                <path
-                  className="adversary-emblem-idle-circuit-flow"
-                  d={path.d}
-                  style={{
-                    '--flow-duration': `${path.duration}s`,
-                    '--flow-delay': `${path.delay}s`,
-                    '--flow-width': path.width,
-                  }}
-                />
-              </g>
-            ))}
-          </svg>
-
-          {activeZone && (
-            <img
-              key={`glow-${activeZone.id}`}
-              className="adversary-emblem-zone-glow-v3"
-              src={adversaryEmblem}
-              alt=""
-              aria-hidden="true"
-              draggable="false"
-              style={{ '--zone-clip': activeZone.clip }}
-            />
-          )}
-
-          <svg className="adversary-emblem-circuit-v2" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {activeZone && (
-              <>
-                <path key={`local-${activeZone.id}`} pathLength="1" className="adversary-local-circuit-v3" d={activeZone.localPath} />
-                <circle className="adversary-emblem-node-v2 is-source" cx={activeZone.x} cy={activeZone.y} r=".72" />
-                <path className={`adversary-route-circuit-ghost-v3 ${isRouting ? 'is-visible' : ''}`} d={activeZone.connectorPath} />
-                <path key={`route-${activeZone.id}-${isRouting}`} pathLength="1" className={`adversary-route-circuit-v3 ${isRouting ? 'is-routing' : ''}`} d={activeZone.connectorPath} />
-                {isReady && <circle className="adversary-emblem-node-v2 is-target" cx={activeZone.labelX} cy={activeZone.labelY} r=".62" />}
-              </>
-            )}
-          </svg>
-
-          {EMBLEM_NAV_ZONES.map((zone) => (
-            <button
-              key={zone.id}
-              type="button"
-              className="adversary-emblem-zone-v2"
-              style={{ left: `${zone.x}%`, top: `${zone.y}%` }}
-              aria-label={zone.title}
-              onMouseEnter={() => beginHover(zone)}
-              onFocus={() => beginHover(zone)}
-              onBlur={endHover}
-              onClick={() => onNavigate(zone.id)}
-            />
-          ))}
-
-          {activeZone && (
-            <button
-              type="button"
-              className={`adversary-emblem-label-v2 ${isReady ? 'is-visible' : ''}`}
-              style={{ left: `${activeZone.labelX}%`, top: `${activeZone.labelY}%` }}
-              onMouseEnter={() => window.clearTimeout(leaveTimer.current)}
-              onMouseLeave={endHover}
-              onClick={() => onNavigate(activeZone.id)}
-              tabIndex={isReady ? 0 : -1}
-              aria-hidden={!isReady}
-            >
-              <div className="adversary-emblem-label-inner-v2">
-                <div className="adversary-emblem-label-title-v2">{activeZone.title}</div>
-                <div className="adversary-emblem-label-kicker-v2">{activeZone.kicker}</div>
-                <div className="adversary-emblem-label-charge-v2" />
-              </div>
-            </button>
-          )}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -6745,7 +5657,7 @@ function ActivePageBrand({ page }) {
 }
 
 export default function App() {
-  const [page, setPage] = useState('home');
+  const [page, setPage] = useState('nodewars');
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -7592,164 +6504,342 @@ export default function App() {
   const rawHistoryLogs = allLogs || nodeLogs;
 
   return (
-    <div className={`adversary-app relative min-h-screen overflow-x-hidden text-slate-100 ${page === 'home' ? 'is-emblem-home' : ''}`}>
+    <div className="adversary-app relative min-h-screen overflow-x-hidden text-slate-100">
       <style>{GLOBAL_PANEL_CSS}</style>
+      <div
+        aria-hidden="true"
+        className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-slate-950" />
 
-      {page === 'home' ? (
-        <>
-          <InteractiveEmblemNav
-            onNavigate={(id) => (id === 'overview' ? openOverviewFromMenu() : openPage(id))}
+        {/* A very soft enlarged copy of the same artwork supplies the exact
+            edge colours. This replaces most of the artificial yellow smoke
+            and prevents a visible seam where the main image ends. */}
+        <div
+          className="absolute -inset-[6%] bg-cover bg-center bg-no-repeat opacity-[0.13]"
+          style={{
+            backgroundImage: `url("${adversaryEmblem}")`,
+            filter: 'blur(44px) saturate(.88) brightness(.52)',
+            transform: 'scale(1.08)',
+          }}
+        />
+
+        <div
+          className="absolute inset-0 opacity-[0.34]"
+          style={{
+            backgroundImage: [
+              'radial-gradient(ellipse 42% 78% at 0% 49%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
+              'radial-gradient(ellipse 42% 78% at 100% 51%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
+              'radial-gradient(ellipse 28% 46% at 11% 19%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
+              'radial-gradient(ellipse 28% 46% at 89% 81%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
+            ].join(', '),
+            filter: 'blur(30px)',
+            transform: 'scale(1.03)',
+          }}
+        />
+
+        <div className="adversary-site-artwork absolute inset-0 opacity-[0.30]">
+          <img
+            src={adversaryEmblem}
+            alt=""
+            aria-hidden="true"
+            style={{
+              filter: 'saturate(1.18) contrast(1.06)',
+              WebkitMaskImage:
+                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
+              maskImage:
+                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
+            }}
           />
+        </div>
+
+        {/* Keep only a faint, darker amber haze over the image edges. The
+            colour now follows the artwork instead of adding bright yellow. */}
+        <div
+          className="absolute -inset-[4%] opacity-[0.28]"
+          style={{
+            backgroundImage: [
+              'radial-gradient(ellipse 46% 90% at 7% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
+              'radial-gradient(ellipse 46% 90% at 93% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
+            ].join(', '),
+            filter: 'blur(34px) saturate(.94)',
+            transform: 'scale(1.025)',
+          }}
+        />
+
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.13)_0%,rgba(250,204,21,.06)_32%,rgba(180,83,9,.04)_56%,transparent_76%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_38%,rgba(120,53,15,.10)_66%,rgba(2,6,23,.74)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.34),rgba(120,53,15,.035)_28%,rgba(120,53,15,.055)_68%,rgba(2,6,23,.66))]" />
+      </div>
+      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 backdrop-blur-xl lg:hidden">
+        <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
+          Adversary
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {menu.map(([id, title]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => openPage(id)}
+              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
+                isMenuActive(id) ? 'is-active' : ''
+              }`}
+              style={{
+                '--adversary-menu-rgb':
+                  MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
+              }}
+            >
+              <span className="flex items-center justify-center gap-2">
+                {id === 'guild' && (
+                  <img
+                    src={adversaryEmblem}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(250,204,21,.28)]"
+                  />
+                )}
+                <span>{title}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {(page === 'nodewars' || page === 'overview') && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => openPage('nodewars')}
+              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
+                page === 'nodewars' ? 'is-active' : ''
+              }`}
+              style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
+            >
+              Match History
+            </button>
+
+            <button
+              type="button"
+              onClick={openOverviewFromMenu}
+              className={`adversary-menu-button adversary-menu-button-mobile relative rounded-xl border px-3 py-2 text-center text-xs font-black ${
+                page === 'overview' ? 'is-active' : ''
+              }`}
+              style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
+            >
+              Overview
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
+        <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <SidebarClassOrbs
             members={members}
-            logs={Array.isArray(allLogs) && allLogs.length ? allLogs : nodeLogs}
+            logs={Array.isArray(allLogs) ? allLogs : nodeLogs}
             loadLogs={loadAllLogs}
-            modalOnly
           />
-        </>
-      ) : (
-        <>
-          <div
-            aria-hidden="true"
-            className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-slate-950" />
-            <div
-              className="absolute -inset-[7%] bg-cover bg-center bg-no-repeat opacity-[0.12]"
-              style={{
-                backgroundImage: `url("${adversaryEmblem}")`,
-                filter: 'blur(52px) saturate(.82) brightness(.42)',
-                transform: 'scale(1.10)',
-              }}
-            />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.08)_0%,rgba(2,6,23,.30)_52%,rgba(2,6,23,.90)_100%)]" />
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setPage('home')}
-            className="fixed left-4 top-4 z-[200] h-12 w-12 overflow-hidden rounded-full border border-amber-300/25 bg-black/55 p-1.5 shadow-[0_0_24px_rgba(250,204,21,.13)] backdrop-blur-xl transition hover:scale-105 hover:border-amber-300/55 focus:outline-none focus:ring-2 focus:ring-amber-300/60"
-            aria-label="Return to emblem navigation"
-            title="Return to emblem"
-          >
-            <img src={adversaryEmblem} alt="" aria-hidden="true" className="h-full w-full object-cover rounded-full" />
-          </button>
+          <h1 className="pointer-events-none relative z-30 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
+            Adversary
+          </h1>
 
-          <main className={`adversary-content adversary-page-${page} relative z-10 min-w-0 p-3 pt-20 sm:p-5 sm:pt-20 lg:p-6 lg:pt-20`}>
-            {page === 'guild' && (
-              <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
-                {!guildReady || loadingAllLogs ? (
-                  <PageLoader text="Loading all logs for Guild..." />
-                ) : (
-                  <Guild stats={allTimeStats} logs={Array.isArray(allLogs) ? allLogs : []} />
-                )}
-              </Suspense>
-            )}
+          <nav className="pointer-events-none relative z-30 flex-1">
+            {menu
+              .filter(([id]) => id !== 'raw')
+              .map(([id, title]) => {
+                const isNodeWars = id === 'nodewars';
 
-            {page === 'nodewars' && (
-              <NodeWars
-                logs={nodeLogs}
-                loading={loadingNodeLogs}
-                periodDays={periodDays}
-                onPeriodChange={changePeriod}
-                setPage={setPage}
-                setSelectedDays={setSelectedDays}
-                setSelectedWars={setSelectedWars}
-                selectedWars={selectedWars}
-                matchHistoryDateFilter={matchHistoryDateFilter}
-                externalWarning={nodeWarsWarning}
-                clearExternalWarning={() => setNodeWarsWarning('')}
-              />
-            )}
+                return (
+                  <div key={id} className="mb-2">
+                    <button
+                      type="button"
+                      onClick={() => openPage(id)}
+                      className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
+                        isMenuActive(id) ? 'is-active' : ''
+                      }`}
+                      style={{
+                        '--adversary-menu-rgb':
+                          MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
+                      }}
+                    >
+                      <span className="flex items-center gap-3">
+                        {id === 'guild' && (
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30">
+                            <img
+                              src={adversaryEmblem}
+                              alt=""
+                              aria-hidden="true"
+                              className="h-7 w-7 object-contain drop-shadow-[0_0_10px_rgba(250,204,21,.26)]"
+                            />
+                          </span>
+                        )}
+                        <span>{title}</span>
+                      </span>
+                    </button>
 
-            {page === 'overview' && (
-              <Suspense fallback={<PageLoader text="Loading overview..." />}>
-                {loadingOverviewLogs ? (
-                  <PageLoader text="Loading selected raw logs for overview..." />
-                ) : (
-                  <Overview
-                    stats={stats}
-                    label={label}
-                    members={members}
-                    selectedLogs={activeLogs}
-                    lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
-                    loadLifetimeLogs={loadAllLogs}
-                    playerClassMap={overviewPlayerClassMap}
-                  />
-                )}
-              </Suspense>
-            )}
+                    {isNodeWars && (
+                      <div className="ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
+                        <button
+                          type="button"
+                          onClick={() => openPage('nodewars')}
+                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
+                            page === 'nodewars' ? 'is-active' : ''
+                          }`}
+                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
+                        >
+                          Match History
+                        </button>
 
-            {page === 'monthly' && (
-              <Suspense fallback={<PageLoader text="Loading Monthly Recap..." />}>
-                {!monthlyRecapReady || loadingAllLogs ? (
-                  <PageLoader text="Loading all logs for Monthly Recap..." />
-                ) : (
-                  <MonthlyRecap
-                    logs={Array.isArray(allLogs) ? allLogs : []}
-                    playerClassMap={monthlyPlayerClassMap}
-                    onOpenMatchOverview={openMatchOverviewFromMonthlyRecap}
-                  />
-                )}
-              </Suspense>
-            )}
-
-            {page === 'players' && (
-              <Suspense fallback={<PageLoader text="Loading player stats..." />}>
-                {!playerStatsReady || loadingAllLogs ? (
-                  <PageLoader text="Loading all logs for Player Stats..." />
-                ) : (
-                  <PlayerStats
-                    stats={allTimeStats}
-                    logs={Array.isArray(allLogs) ? allLogs : []}
-                    classIconByName={PLAYER_CLASS_ICON_BY_NAME}
-                    getClassRowsForLog={classRowsForLog}
-                    onOpenMatchOverview={openMatchOverviewFromPlayerStats}
-                  />
-                )}
-              </Suspense>
-            )}
-
-            {page === 'hall' && (
-              <Suspense fallback={<PageLoader text="Loading Hall of Fame..." />}>
-                {!hallOfFameReady || loadingAllLogs ? (
-                  <PageLoader text="Loading all logs for Hall of Fame..." />
-                ) : (
-                  <HallOfFame stats={stats} allTimeStats={allTimeStats} />
-                )}
-              </Suspense>
-            )}
-
-            {page === 'raw' && (
-              <>
-                {loadingAllLogs && !allLogs && (
-                  <div className="mb-4">
-                    <PageLoader text="Loading full log history..." />
+                        <button
+                          type="button"
+                          onClick={openOverviewFromMenu}
+                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
+                            page === 'overview' ? 'is-active' : ''
+                          }`}
+                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
+                        >
+                          Overview
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-                <RawLog
-                  raw={raw}
-                  setRaw={setRaw}
-                  date={date}
-                  setDate={setDate}
-                  logs={rawHistoryLogs}
-                  message={message}
-                  saveLog={saveLog}
-                  rawMonth={rawMonth}
-                  setRawMonth={setRawMonth}
-                  calendarOpen={calendarOpen}
-                  setCalendarOpen={setCalendarOpen}
-                  markedDates={markedDates}
-                  deleteTarget={deleteTarget}
-                  setDeleteTarget={setDeleteTarget}
-                  deleting={deleting}
-                  deleteLog={deleteLog}
+                );
+              })}
+          </nav>
+
+          <div className="pointer-events-none relative z-30 pt-4">
+            <button
+              type="button"
+              onClick={() => openPage('raw')}
+              className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
+                isMenuActive('raw') ? 'is-active' : ''
+              }`}
+              style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
+            >
+              Raw Logs
+            </button>
+          </div>
+        </aside>
+
+        <main className={`adversary-content adversary-page-${page} relative min-w-0 p-3 sm:p-5 lg:p-6`}>
+          <ActivePageBrand page={page} />
+          {page === 'guild' && (
+            <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
+              {!guildReady || loadingAllLogs ? (
+                <PageLoader text="Loading all logs for Guild..." />
+              ) : (
+                <Guild stats={allTimeStats} logs={Array.isArray(allLogs) ? allLogs : []} />
+              )}
+            </Suspense>
+          )}
+
+          {page === 'nodewars' && (
+            <NodeWars
+              logs={nodeLogs}
+              loading={loadingNodeLogs}
+              periodDays={periodDays}
+              onPeriodChange={changePeriod}
+              setPage={setPage}
+              setSelectedDays={setSelectedDays}
+              setSelectedWars={setSelectedWars}
+              selectedWars={selectedWars}
+              matchHistoryDateFilter={matchHistoryDateFilter}
+              externalWarning={nodeWarsWarning}
+              clearExternalWarning={() => setNodeWarsWarning('')}
+            />
+          )}
+
+          {page === 'overview' && (
+            <Suspense fallback={<PageLoader text="Loading overview..." />}>
+              {loadingOverviewLogs ? (
+                <PageLoader text="Loading selected raw logs for overview..." />
+              ) : (
+                <Overview
+                  stats={stats}
+                  label={label}
+                  members={members}
+                  selectedLogs={activeLogs}
+                  lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
+                  loadLifetimeLogs={loadAllLogs}
+                  playerClassMap={overviewPlayerClassMap}
                 />
-              </>
-            )}
-          </main>
-        </>
-      )}
+              )}
+            </Suspense>
+          )}
+
+          {page === 'monthly' && (
+            <Suspense
+              fallback={<PageLoader text="Loading Monthly Recap..." />}
+            >
+              {!monthlyRecapReady || loadingAllLogs ? (
+                <PageLoader text="Loading all logs for Monthly Recap..." />
+              ) : (
+                <MonthlyRecap
+                  logs={Array.isArray(allLogs) ? allLogs : []}
+                  playerClassMap={monthlyPlayerClassMap}
+                  onOpenMatchOverview={openMatchOverviewFromMonthlyRecap}
+                />
+              )}
+            </Suspense>
+          )}
+
+          {page === 'players' && (
+            <Suspense fallback={<PageLoader text="Loading player stats..." />}>
+              {!playerStatsReady || loadingAllLogs ? (
+                <PageLoader text="Loading all logs for Player Stats..." />
+              ) : (
+                <PlayerStats
+                  stats={allTimeStats}
+                  logs={Array.isArray(allLogs) ? allLogs : []}
+                  classIconByName={PLAYER_CLASS_ICON_BY_NAME}
+                  getClassRowsForLog={classRowsForLog}
+                  onOpenMatchOverview={openMatchOverviewFromPlayerStats}
+                />
+              )}
+            </Suspense>
+          )}
+
+          {page === 'hall' && (
+            <Suspense fallback={<PageLoader text="Loading Hall of Fame..." />}>
+              {!hallOfFameReady || loadingAllLogs ? (
+                <PageLoader text="Loading all logs for Hall of Fame..." />
+              ) : (
+                <HallOfFame stats={stats} allTimeStats={allTimeStats} />
+              )}
+            </Suspense>
+          )}
+
+          {page === 'raw' && (
+            <>
+              {loadingAllLogs && !allLogs && (
+                <div className="mb-4">
+                  <PageLoader text="Loading full log history..." />
+                </div>
+              )}
+
+              <RawLog
+                raw={raw}
+                setRaw={setRaw}
+                date={date}
+                setDate={setDate}
+                logs={rawHistoryLogs}
+                message={message}
+                saveLog={saveLog}
+                rawMonth={rawMonth}
+                setRawMonth={setRawMonth}
+                calendarOpen={calendarOpen}
+                setCalendarOpen={setCalendarOpen}
+                markedDates={markedDates}
+                deleteTarget={deleteTarget}
+                setDeleteTarget={setDeleteTarget}
+                deleting={deleting}
+                deleteLog={deleteLog}
+              />
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
