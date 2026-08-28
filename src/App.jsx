@@ -5624,43 +5624,96 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
 
 const EMBLEM_NAV_ZONES = Object.freeze([
-  { id: 'nodewars', title: 'Match History', kicker: 'Recorded wars & battles', x: 50, y: 14, labelX: 50, labelY: 7, anchor: 'top', path: 'M 50 14 L 50 8' },
-  { id: 'monthly', title: 'Monthly Recap', kicker: 'Monthly performance overview', x: 24, y: 31, labelX: 8, labelY: 26, anchor: 'left', path: 'M 24 31 L 16 31 L 10 26' },
-  { id: 'players', title: 'Player Stats', kicker: 'Individual player performance', x: 76, y: 31, labelX: 92, labelY: 26, anchor: 'right', path: 'M 76 31 L 84 31 L 90 26' },
-  { id: 'overview', title: 'Overview', kicker: 'Selected-war battle analytics', x: 50, y: 49, labelX: 82, labelY: 49, anchor: 'right', path: 'M 50 49 L 66 49 L 80 49' },
-  { id: 'hall', title: 'Hall of Fame', kicker: 'Best performers & records', x: 27, y: 69, labelX: 9, labelY: 74, anchor: 'left', path: 'M 27 69 L 17 69 L 10 74' },
-  { id: 'guild', title: 'Guild', kicker: 'Roster & guild intelligence', x: 73, y: 69, labelX: 91, labelY: 74, anchor: 'right', path: 'M 73 69 L 83 69 L 90 74' },
-  { id: 'raw', title: 'Raw Logs', kicker: 'Combat and stats log management', x: 50, y: 86, labelX: 50, labelY: 94, anchor: 'bottom', path: 'M 50 86 L 50 92' },
+  {
+    id: 'nodewars', title: 'Match History', kicker: 'Recorded wars & battles',
+    x: 50, y: 18, labelX: 84, labelY: 19,
+    clip: 'polygon(36% 2%, 64% 2%, 64% 40%, 50% 49%, 36% 40%)',
+    localPath: 'M 50 47 L 50 35 L 43 26 L 43 12 M 50 35 L 57 26 L 57 12 M 43 26 L 38 21 M 57 26 L 62 21',
+    connectorPath: 'M 61 20 L 69 20 L 73 17 L 80 17',
+  },
+  {
+    id: 'monthly', title: 'Monthly Recap', kicker: 'Monthly performance overview',
+    x: 25, y: 33, labelX: 13, labelY: 30,
+    clip: 'polygon(8% 7%, 40% 13%, 50% 48%, 34% 46%, 16% 31%)',
+    localPath: 'M 48 47 L 40 40 L 32 35 L 26 28 L 19 20 M 32 35 L 21 35 L 14 30 M 26 28 L 26 18',
+    connectorPath: 'M 18 29 L 12 29 L 9 26 L 4 26',
+  },
+  {
+    id: 'players', title: 'Player Stats', kicker: 'Individual player performance',
+    x: 75, y: 33, labelX: 87, labelY: 30,
+    clip: 'polygon(60% 13%, 92% 7%, 84% 31%, 66% 46%, 50% 48%)',
+    localPath: 'M 52 47 L 60 40 L 68 35 L 74 28 L 81 20 M 68 35 L 79 35 L 86 30 M 74 28 L 74 18',
+    connectorPath: 'M 82 29 L 88 29 L 91 26 L 96 26',
+  },
+  {
+    id: 'overview', title: 'Overview', kicker: 'Selected-war battle analytics',
+    x: 50, y: 51, labelX: 87, labelY: 50,
+    clip: 'polygon(34% 38%, 66% 38%, 66% 61%, 50% 69%, 34% 61%)',
+    localPath: 'M 50 66 L 50 57 L 43 50 L 50 44 L 57 50 L 50 57 M 43 50 L 36 47 M 57 50 L 64 47',
+    connectorPath: 'M 63 49 L 72 49 L 77 53 L 84 53',
+  },
+  {
+    id: 'hall', title: 'Hall of Fame', kicker: 'Best performers & records',
+    x: 31, y: 69, labelX: 12, labelY: 70,
+    clip: 'polygon(17% 44%, 49% 57%, 50% 93%, 37% 87%, 25% 68%)',
+    localPath: 'M 48 59 L 41 66 L 35 61 L 29 56 M 41 66 L 35 73 L 35 84 M 35 73 L 27 69',
+    connectorPath: 'M 28 68 L 20 68 L 16 72 L 7 72',
+  },
+  {
+    id: 'guild', title: 'Guild', kicker: 'Roster & guild intelligence',
+    x: 69, y: 69, labelX: 88, labelY: 70,
+    clip: 'polygon(51% 57%, 83% 44%, 75% 68%, 63% 87%, 50% 93%)',
+    localPath: 'M 52 59 L 59 66 L 65 61 L 71 56 M 59 66 L 65 73 L 65 84 M 65 73 L 73 69',
+    connectorPath: 'M 72 68 L 80 68 L 84 72 L 93 72',
+  },
+  {
+    id: 'raw', title: 'Raw Logs', kicker: 'Combat and stats log management',
+    x: 50, y: 86, labelX: 84, labelY: 86,
+    clip: 'polygon(38% 66%, 62% 66%, 62% 98%, 38% 98%)',
+    localPath: 'M 50 68 L 50 80 L 44 86 L 50 93 L 56 86 L 50 80',
+    connectorPath: 'M 56 86 L 67 86 L 72 82 L 80 82',
+  },
 ]);
 
 function InteractiveEmblemNav({ onNavigate }) {
   const [hovered, setHovered] = useState(null);
-  const [charged, setCharged] = useState(null);
-  const chargeTimer = useRef(null);
+  const [phase, setPhase] = useState('idle');
+  const phaseTimers = useRef([]);
   const leaveTimer = useRef(null);
 
   const activeZone = EMBLEM_NAV_ZONES.find((zone) => zone.id === hovered) || null;
 
+  const clearPhaseTimers = () => {
+    phaseTimers.current.forEach((timer) => window.clearTimeout(timer));
+    phaseTimers.current = [];
+  };
+
   const beginHover = (zone) => {
     window.clearTimeout(leaveTimer.current);
-    window.clearTimeout(chargeTimer.current);
+    clearPhaseTimers();
     setHovered(zone.id);
-    setCharged(null);
-    chargeTimer.current = window.setTimeout(() => setCharged(zone.id), 620);
+    setPhase('charging');
+
+    phaseTimers.current.push(window.setTimeout(() => setPhase('routing'), 560));
+    phaseTimers.current.push(window.setTimeout(() => setPhase('ready'), 1120));
   };
 
   const endHover = () => {
-    window.clearTimeout(chargeTimer.current);
+    clearPhaseTimers();
+    window.clearTimeout(leaveTimer.current);
     leaveTimer.current = window.setTimeout(() => {
+      setPhase('idle');
       setHovered(null);
-      setCharged(null);
-    }, 130);
+    }, 180);
   };
 
   useEffect(() => () => {
-    window.clearTimeout(chargeTimer.current);
+    clearPhaseTimers();
     window.clearTimeout(leaveTimer.current);
   }, []);
+
+  const isRouting = phase === 'routing' || phase === 'ready';
+  const isReady = phase === 'ready';
 
   return (
     <section className="adversary-emblem-home" onMouseLeave={endHover}>
@@ -5679,9 +5732,9 @@ function InteractiveEmblemNav({ onNavigate }) {
           inset: -5%;
           z-index: -3;
           background: url("${adversaryEmblem}") center/cover no-repeat;
-          filter: blur(44px) brightness(.32) saturate(.85);
+          filter: blur(44px) brightness(.27) saturate(.82);
           transform: scale(1.08);
-          opacity: .82;
+          opacity: .72;
         }
         .adversary-emblem-home::after {
           content: '';
@@ -5690,8 +5743,8 @@ function InteractiveEmblemNav({ onNavigate }) {
           z-index: -1;
           pointer-events: none;
           background:
-            radial-gradient(circle at 50% 48%, transparent 18%, rgba(0,0,0,.08) 54%, rgba(0,0,0,.68) 100%),
-            linear-gradient(180deg, rgba(0,0,0,.20), transparent 18%, transparent 78%, rgba(0,0,0,.36));
+            radial-gradient(circle at 50% 48%, transparent 22%, rgba(0,0,0,.08) 58%, rgba(0,0,0,.72) 100%),
+            linear-gradient(180deg, rgba(0,0,0,.18), transparent 18%, transparent 80%, rgba(0,0,0,.38));
         }
         .adversary-emblem-canvas {
           position: absolute;
@@ -5706,114 +5759,140 @@ function InteractiveEmblemNav({ onNavigate }) {
           isolation: isolate;
           user-select: none;
         }
-        .adversary-emblem-image-v2 {
+        .adversary-emblem-image-v2,
+        .adversary-emblem-zone-glow-v3 {
           position: absolute;
           inset: 0;
           width: 100%;
           height: 100%;
           object-fit: contain;
           pointer-events: none;
-          filter: brightness(.90) saturate(1.03) contrast(1.04) drop-shadow(0 22px 48px rgba(0,0,0,.70));
-          transition: filter .28s ease, transform .38s cubic-bezier(.16,1,.3,1);
         }
-        .adversary-emblem-stage-v2.is-awake .adversary-emblem-image-v2 {
-          filter: brightness(1.00) saturate(1.14) contrast(1.06) drop-shadow(0 0 20px rgba(250,204,21,.13)) drop-shadow(0 24px 48px rgba(0,0,0,.72));
-          transform: scale(1.006);
+        .adversary-emblem-image-v2 {
+          z-index: 1;
+          filter: brightness(.83) saturate(.94) contrast(1.05) drop-shadow(0 22px 48px rgba(0,0,0,.74));
         }
-        .adversary-emblem-stage-v2.is-charged .adversary-emblem-image-v2 {
-          filter: brightness(1.05) saturate(1.22) contrast(1.08) drop-shadow(0 0 30px rgba(250,204,21,.22)) drop-shadow(0 24px 48px rgba(0,0,0,.75));
+        .adversary-emblem-zone-glow-v3 {
+          z-index: 2;
+          opacity: 0;
+          clip-path: var(--zone-clip);
+          filter: brightness(1.32) saturate(1.62) contrast(1.08)
+                  drop-shadow(0 0 5px rgba(255,248,171,.85))
+                  drop-shadow(0 0 16px rgba(250,204,21,.72))
+                  drop-shadow(0 0 32px rgba(245,158,11,.34));
+          transform: scale(1.003);
+          transition: opacity .18s ease;
+        }
+        .adversary-emblem-stage-v2.is-active .adversary-emblem-zone-glow-v3 {
+          opacity: 1;
+          animation: adversaryZoneChargeV3 .56s cubic-bezier(.22,.72,.16,1) both;
+        }
+        @keyframes adversaryZoneChargeV3 {
+          0% { opacity:.08; filter:brightness(.88) saturate(.98) drop-shadow(0 0 0 rgba(250,204,21,0)); }
+          46% { opacity:.48; filter:brightness(1.06) saturate(1.18) drop-shadow(0 0 8px rgba(250,204,21,.34)); }
+          100% { opacity:1; filter:brightness(1.34) saturate(1.62) contrast(1.08) drop-shadow(0 0 6px rgba(255,248,171,.86)) drop-shadow(0 0 18px rgba(250,204,21,.76)) drop-shadow(0 0 34px rgba(245,158,11,.34)); }
         }
         .adversary-emblem-circuit-v2 {
           position: absolute;
           inset: 0;
-          z-index: 4;
+          z-index: 5;
           width: 100%;
           height: 100%;
           overflow: visible;
           pointer-events: none;
         }
-        .adversary-emblem-circuit-base-v2,
-        .adversary-emblem-circuit-live-v2 {
+        .adversary-local-circuit-v3,
+        .adversary-route-circuit-v3,
+        .adversary-route-circuit-ghost-v3 {
           fill: none;
           vector-effect: non-scaling-stroke;
           stroke-linecap: round;
           stroke-linejoin: round;
+          path-length: 1;
         }
-        .adversary-emblem-circuit-base-v2 {
-          stroke: rgba(250,204,21,.18);
-          stroke-width: 1.1;
+        .adversary-local-circuit-v3 {
+          stroke: #fff3a0;
+          stroke-width: 1.18;
+          stroke-dasharray: 1;
+          stroke-dashoffset: 1;
+          filter: drop-shadow(0 0 2px #fff6bd) drop-shadow(0 0 7px #facc15) drop-shadow(0 0 15px rgba(245,158,11,.66));
+          animation: adversaryLocalChargeV3 .56s cubic-bezier(.22,.74,.18,1) forwards;
         }
-        .adversary-emblem-circuit-live-v2 {
-          stroke: #ffe85a;
-          stroke-width: 2.15;
-          stroke-dasharray: 180;
-          stroke-dashoffset: 180;
-          filter: drop-shadow(0 0 3px #fff2a8) drop-shadow(0 0 9px #facc15) drop-shadow(0 0 18px rgba(245,158,11,.68));
+        @keyframes adversaryLocalChargeV3 { to { stroke-dashoffset:0; } }
+        .adversary-route-circuit-ghost-v3 {
+          stroke: rgba(250,204,21,.12);
+          stroke-width: .72;
+          opacity: 0;
+          transition: opacity .18s ease;
         }
-        .adversary-emblem-stage-v2.is-awake .adversary-emblem-circuit-live-v2 {
-          animation: adversaryCircuitChargeV2 .64s cubic-bezier(.2,.76,.18,1) forwards;
+        .adversary-route-circuit-ghost-v3.is-visible { opacity: 1; }
+        .adversary-route-circuit-v3 {
+          stroke: #ffe45c;
+          stroke-width: 1.15;
+          stroke-dasharray: 1;
+          stroke-dashoffset: 1;
+          opacity: 0;
+          filter: drop-shadow(0 0 2px #fff6bd) drop-shadow(0 0 8px #facc15) drop-shadow(0 0 17px rgba(245,158,11,.62));
         }
-        @keyframes adversaryCircuitChargeV2 { to { stroke-dashoffset: 0; } }
+        .adversary-route-circuit-v3.is-routing {
+          opacity: 1;
+          animation: adversaryRouteChargeV3 .56s cubic-bezier(.2,.74,.18,1) forwards;
+        }
+        @keyframes adversaryRouteChargeV3 { to { stroke-dashoffset:0; } }
         .adversary-emblem-node-v2 {
           fill: #fff8bf;
           stroke: #fde047;
-          stroke-width: .65;
-          filter: drop-shadow(0 0 4px #fde047) drop-shadow(0 0 13px #f59e0b);
-          animation: adversaryNodePulseV2 .8s ease-in-out infinite alternate;
+          stroke-width: .45;
+          filter: drop-shadow(0 0 4px #fde047) drop-shadow(0 0 12px #f59e0b);
           transform-box: fill-box;
           transform-origin: center;
         }
-        @keyframes adversaryNodePulseV2 { from { opacity:.60; transform:scale(.72); } to { opacity:1; transform:scale(1.45); } }
+        .adversary-emblem-node-v2.is-source { animation: adversaryNodePulseV3 .72s ease-in-out infinite alternate; }
+        .adversary-emblem-node-v2.is-target { animation: adversaryTargetPopV3 .28s cubic-bezier(.16,1,.3,1) both; }
+        @keyframes adversaryNodePulseV3 { from { opacity:.55; transform:scale(.72); } to { opacity:1; transform:scale(1.35); } }
+        @keyframes adversaryTargetPopV3 { from { opacity:0; transform:scale(.25); } to { opacity:1; transform:scale(1); } }
         .adversary-emblem-zone-v2 {
           position: absolute;
           z-index: 8;
-          width: 24%;
-          height: 20%;
+          width: 22%;
+          height: 18%;
           transform: translate(-50%, -50%);
           border: 0;
-          border-radius: 42%;
+          border-radius: 40%;
           background: transparent;
           cursor: pointer;
           outline: none;
         }
-        .adversary-emblem-zone-v2::before {
-          content: '';
-          position: absolute;
-          inset: 18%;
-          border-radius: 50%;
-          opacity: 0;
-          transform: scale(.45);
-          background: radial-gradient(circle, rgba(255,247,174,.44), rgba(250,204,21,.10) 38%, transparent 72%);
-          filter: blur(7px);
-          transition: opacity .18s ease, transform .34s cubic-bezier(.16,1,.3,1);
-        }
-        .adversary-emblem-zone-v2:hover::before,
-        .adversary-emblem-zone-v2:focus-visible::before {
-          opacity: 1;
-          transform: scale(1.25);
+        .adversary-emblem-zone-v2:focus-visible {
+          box-shadow: 0 0 0 1px rgba(253,224,71,.9), 0 0 18px rgba(250,204,21,.28);
         }
         .adversary-emblem-label-v2 {
           position: absolute;
           z-index: 12;
-          min-width: 190px;
-          max-width: 260px;
+          min-width: 205px;
+          max-width: 275px;
           opacity: 0;
           pointer-events: none;
-          transform: translate(-50%, -50%) scale(.90);
-          transition: opacity .18s ease, transform .34s cubic-bezier(.16,1,.3,1);
+          transform: translate(-50%, -50%) translateX(18px) scale(.92);
+          filter: blur(3px);
+          transition:
+            opacity .26s ease,
+            transform .42s cubic-bezier(.16,1,.3,1),
+            filter .28s ease;
         }
         .adversary-emblem-label-v2.is-visible {
           opacity: 1;
           pointer-events: auto;
-          transform: translate(-50%, -50%) scale(1);
+          transform: translate(-50%, -50%) translateX(0) scale(1);
+          filter: blur(0);
         }
         .adversary-emblem-label-v2::before {
           content: '';
           position: absolute;
           inset: -1px;
           clip-path: polygon(8% 0, 93% 0, 100% 20%, 100% 80%, 93% 100%, 7% 100%, 0 80%, 0 20%);
-          background: linear-gradient(120deg, #fde047, rgba(245,158,11,.24) 28%, rgba(250,204,21,.75) 64%, #fde047);
-          filter: drop-shadow(0 0 12px rgba(250,204,21,.30));
+          background: linear-gradient(120deg, #fde047, rgba(245,158,11,.18) 30%, rgba(250,204,21,.72) 68%, #fde047);
+          filter: drop-shadow(0 0 14px rgba(250,204,21,.27));
         }
         .adversary-emblem-label-inner-v2 {
           position: relative;
@@ -5822,21 +5901,31 @@ function InteractiveEmblemNav({ onNavigate }) {
           overflow: hidden;
           clip-path: polygon(8% 0, 93% 0, 100% 20%, 100% 80%, 93% 100%, 7% 100%, 0 80%, 0 20%);
           background:
-            radial-gradient(circle at 12% 8%, rgba(250,204,21,.14), transparent 34%),
-            linear-gradient(135deg, rgba(250,204,21,.035), transparent 48%),
-            rgba(3,7,15,.95);
-          box-shadow: inset 0 0 34px rgba(0,0,0,.68);
+            linear-gradient(90deg, rgba(250,204,21,.08) 1px, transparent 1px) 0 0/18px 18px,
+            radial-gradient(circle at 12% 8%, rgba(250,204,21,.12), transparent 34%),
+            rgba(3,7,15,.965);
+          box-shadow: inset 0 0 38px rgba(0,0,0,.76), 0 0 28px rgba(250,204,21,.06);
         }
+        .adversary-emblem-label-inner-v2::after {
+          content:'';
+          position:absolute;
+          inset:0;
+          pointer-events:none;
+          background:linear-gradient(105deg, transparent 0 44%, rgba(255,235,118,.10) 50%, transparent 56% 100%);
+          transform:translateX(-120%);
+          animation: adversaryPanelScanV3 1.1s .08s ease-out both;
+        }
+        @keyframes adversaryPanelScanV3 { to { transform:translateX(120%); } }
         .adversary-emblem-label-title-v2 {
           position: relative;
           z-index: 2;
-          color: #fff;
+          color: #fff8c5;
           font-size: clamp(13px, 1.25vw, 20px);
           line-height: 1;
           font-weight: 1000;
           letter-spacing: .08em;
           text-transform: uppercase;
-          text-shadow: 0 0 18px rgba(250,204,21,.23);
+          text-shadow: 0 0 16px rgba(250,204,21,.24);
           white-space: nowrap;
         }
         .adversary-emblem-label-kicker-v2 {
@@ -5855,7 +5944,7 @@ function InteractiveEmblemNav({ onNavigate }) {
           height: 1px;
           margin-top: 10px;
           overflow: hidden;
-          background: rgba(250,204,21,.14);
+          background: rgba(250,204,21,.12);
         }
         .adversary-emblem-label-charge-v2::after {
           content: '';
@@ -5865,27 +5954,26 @@ function InteractiveEmblemNav({ onNavigate }) {
           background: linear-gradient(90deg,#fde047,#f59e0b);
           box-shadow: 0 0 9px #facc15;
           transform-origin: left;
-          animation: adversaryLabelChargeV2 .64s linear both;
+          animation: adversaryLabelChargeV3 .45s .08s cubic-bezier(.2,.8,.2,1) both;
         }
-        @keyframes adversaryLabelChargeV2 { from { transform:scaleX(0); } to { transform:scaleX(1); } }
-        .adversary-emblem-label-v2.is-charged .adversary-emblem-label-inner-v2 {
-          box-shadow: inset 0 0 34px rgba(0,0,0,.68), 0 0 22px rgba(250,204,21,.08);
-        }
-        .adversary-emblem-label-v2.is-charged .adversary-emblem-label-title-v2 { color:#fff8c5; }
+        @keyframes adversaryLabelChargeV3 { from { transform:scaleX(0); } to { transform:scaleX(1); } }
         @media (max-width: 760px) {
           .adversary-emblem-stage-v2 { width: min(108vw, 92vh); }
-          .adversary-emblem-label-v2 { min-width: 132px; max-width: 160px; }
+          .adversary-emblem-label-v2 { min-width: 135px; max-width: 165px; }
           .adversary-emblem-label-kicker-v2 { display:none; }
           .adversary-emblem-label-inner-v2 { padding:11px 13px; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .adversary-emblem-circuit-live-v2 { stroke-dashoffset: 0 !important; animation:none !important; }
-          .adversary-emblem-node-v2, .adversary-emblem-label-charge-v2::after { animation:none !important; }
+          .adversary-local-circuit-v3,
+          .adversary-route-circuit-v3 { stroke-dashoffset:0 !important; animation:none !important; }
+          .adversary-emblem-zone-glow-v3,
+          .adversary-emblem-label-inner-v2::after,
+          .adversary-emblem-label-charge-v2::after { animation:none !important; }
         }
       `}</style>
 
       <div className="adversary-emblem-canvas">
-        <div className={`adversary-emblem-stage-v2 ${hovered ? 'is-awake' : ''} ${charged ? 'is-charged' : ''}`}>
+        <div className={`adversary-emblem-stage-v2 ${activeZone ? 'is-active' : ''}`}>
           <img
             className="adversary-emblem-image-v2"
             src={adversaryEmblem}
@@ -5893,11 +5981,28 @@ function InteractiveEmblemNav({ onNavigate }) {
             draggable="false"
           />
 
+          {activeZone && (
+            <img
+              key={`glow-${activeZone.id}`}
+              className="adversary-emblem-zone-glow-v3"
+              src={adversaryEmblem}
+              alt=""
+              aria-hidden="true"
+              draggable="false"
+              style={{ '--zone-clip': activeZone.clip }}
+            />
+          )}
+
           <svg className="adversary-emblem-circuit-v2" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {activeZone && <path className="adversary-emblem-circuit-base-v2" d={activeZone.path} />}
-            {activeZone && <path key={activeZone.id} className="adversary-emblem-circuit-live-v2" d={activeZone.path} />}
-            {activeZone && <circle className="adversary-emblem-node-v2" cx={activeZone.x} cy={activeZone.y} r=".9" />}
-            {charged && activeZone && <circle className="adversary-emblem-node-v2" cx={activeZone.labelX} cy={activeZone.labelY} r=".75" />}
+            {activeZone && (
+              <>
+                <path key={`local-${activeZone.id}`} pathLength="1" className="adversary-local-circuit-v3" d={activeZone.localPath} />
+                <circle className="adversary-emblem-node-v2 is-source" cx={activeZone.x} cy={activeZone.y} r=".72" />
+                <path className={`adversary-route-circuit-ghost-v3 ${isRouting ? 'is-visible' : ''}`} d={activeZone.connectorPath} />
+                <path key={`route-${activeZone.id}-${isRouting}`} pathLength="1" className={`adversary-route-circuit-v3 ${isRouting ? 'is-routing' : ''}`} d={activeZone.connectorPath} />
+                {isReady && <circle className="adversary-emblem-node-v2 is-target" cx={activeZone.labelX} cy={activeZone.labelY} r=".62" />}
+              </>
+            )}
           </svg>
 
           {EMBLEM_NAV_ZONES.map((zone) => (
@@ -5917,11 +6022,13 @@ function InteractiveEmblemNav({ onNavigate }) {
           {activeZone && (
             <button
               type="button"
-              className={`adversary-emblem-label-v2 is-visible ${charged ? 'is-charged' : ''}`}
+              className={`adversary-emblem-label-v2 ${isReady ? 'is-visible' : ''}`}
               style={{ left: `${activeZone.labelX}%`, top: `${activeZone.labelY}%` }}
               onMouseEnter={() => window.clearTimeout(leaveTimer.current)}
               onMouseLeave={endHover}
               onClick={() => onNavigate(activeZone.id)}
+              tabIndex={isReady ? 0 : -1}
+              aria-hidden={!isReady}
             >
               <div className="adversary-emblem-label-inner-v2">
                 <div className="adversary-emblem-label-title-v2">{activeZone.title}</div>
