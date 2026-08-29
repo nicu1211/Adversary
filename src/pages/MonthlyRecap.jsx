@@ -4782,7 +4782,7 @@ export default function MonthlyRecap({
   );
 
   return (
-    <div className="adversary-tech-page adversary-tech-monthly-page monthly-recap-guild-style space-y-2.5 bg-transparent text-white">
+    <div className="monthly-recap-guild-style space-y-2.5 bg-transparent text-white">
       <style>{MONTHLY_GUILD_PANEL_CSS}</style>
       <div className="flex flex-col gap-3 pb-1 lg:flex-row lg:items-start lg:justify-between">
         <div>
