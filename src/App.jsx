@@ -2927,7 +2927,7 @@ const GLOBAL_PANEL_CSS = `
       flex-direction: column;
       align-items: center;
       flex: 0 0 auto !important;
-      gap: 8px;
+      gap: 5px;
       padding-top: 0;
       z-index: 30;
     }
@@ -2946,8 +2946,8 @@ const GLOBAL_PANEL_CSS = `
     .adversary-sidebar .adversary-menu-button {
       width: 176px !important;
       min-width: 176px !important;
-      min-height: 74px !important;
-      padding: 8px 8px 9px !important;
+      min-height: 58px !important;
+      padding: 5px 8px 6px !important;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -2965,8 +2965,8 @@ const GLOBAL_PANEL_CSS = `
     .adversary-sidebar-nav-zone > div:first-child .adversary-menu-button {
       width: 176px !important;
       min-width: 176px !important;
-      min-height: 86px !important;
-      margin-bottom: 10px;
+      min-height: 70px !important;
+      margin-bottom: 6px;
       border-radius: 16px !important;
       border-color: rgba(246,201,21,.52) !important;
       background:
@@ -3032,8 +3032,8 @@ const GLOBAL_PANEL_CSS = `
       display: flex !important;
       align-items: center;
       justify-content: center;
-      width: 38px !important;
-      height: 38px !important;
+      width: 32px !important;
+      height: 32px !important;
       border: 0 !important;
       background: transparent !important;
       color: currentColor;
@@ -3041,13 +3041,13 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon {
-      width: 48px !important;
-      height: 48px !important;
+      width: 42px !important;
+      height: 42px !important;
     }
 
     .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon img {
-      width: 46px !important;
-      height: 46px !important;
+      width: 40px !important;
+      height: 40px !important;
       filter: saturate(1.10) contrast(1.05) drop-shadow(0 0 8px rgba(246,201,21,.20));
     }
 
@@ -3055,8 +3055,8 @@ const GLOBAL_PANEL_CSS = `
       display: block !important;
       width: 100%;
       text-align: center;
-      font-size: 11.5px;
-      line-height: 1.15;
+      font-size: 11px;
+      line-height: 1.05;
       font-weight: 850;
       letter-spacing: .035em;
       text-shadow: 0 1px 8px rgba(0,0,0,.78);
@@ -3080,7 +3080,7 @@ const GLOBAL_PANEL_CSS = `
     .adversary-sidebar > .adversary-rail-bottom .adversary-menu-button {
       width: 176px !important;
       min-width: 176px !important;
-      min-height: 70px !important;
+      min-height: 56px !important;
       color: rgba(246,201,21,.72) !important;
       background: rgba(1,3,5,.72) !important;
     }
@@ -3447,29 +3447,30 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
   /* Hall of Fame top tabs keep the old semantic colour identity inside the
      new black/gold techno shell instead of being flattened to neutral black. */
   body[data-adversary-page="hall"] .adversary-content .hall-header-card {
-    border-color: rgba(var(--hall-accent-rgb), .42) !important;
-    background-color: rgba(var(--hall-accent-rgb), .085) !important;
+    border-color: rgba(var(--hall-accent-rgb), .54) !important;
+    background-color: rgba(var(--hall-accent-rgb), .16) !important;
     background-image:
-      radial-gradient(ellipse at 16% 0%, rgba(var(--hall-accent-rgb), .26), transparent 58%),
-      radial-gradient(ellipse at 86% 118%, rgba(var(--hall-accent-rgb), .09), transparent 46%),
+      radial-gradient(ellipse at 14% -8%, rgba(var(--hall-accent-rgb), .48), transparent 56%),
+      radial-gradient(ellipse at 88% 118%, rgba(var(--hall-accent-rgb), .20), transparent 48%),
       var(--adversary-tech-art),
-      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .10), rgba(3,5,6,.78) 54%, rgba(2,4,5,.84)) !important;
+      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .24), rgba(3,5,6,.62) 56%, rgba(2,4,5,.70)) !important;
     background-size: 100% 100%, 100% 100%, 380px 150px, 100% 100% !important;
     background-position: center, center, 12% 50%, center !important;
     background-repeat: no-repeat, no-repeat, repeat, no-repeat !important;
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.035),
-      inset 0 0 28px rgba(var(--hall-accent-rgb), .065),
-      0 8px 20px rgba(0,0,0,.24) !important;
+      inset 0 1px 0 rgba(255,255,255,.055),
+      inset 0 0 34px rgba(var(--hall-accent-rgb), .13),
+      0 8px 20px rgba(0,0,0,.22) !important;
   }
 
   body[data-adversary-page="hall"] .adversary-content .hall-header-card:hover,
   body[data-adversary-page="hall"] .adversary-content .hall-header-card[aria-pressed="true"] {
-    border-color: rgba(var(--hall-accent-rgb), .72) !important;
+    border-color: rgba(var(--hall-accent-rgb), .86) !important;
+    background-color: rgba(var(--hall-accent-rgb), .22) !important;
     box-shadow:
-      inset 0 0 34px rgba(var(--hall-accent-rgb), .10),
-      0 0 18px rgba(var(--hall-accent-rgb), .12),
-      0 10px 24px rgba(0,0,0,.26) !important;
+      inset 0 0 42px rgba(var(--hall-accent-rgb), .18),
+      0 0 20px rgba(var(--hall-accent-rgb), .17),
+      0 10px 24px rgba(0,0,0,.24) !important;
   }
 
   @media (max-width: 1023px) {
