@@ -433,13 +433,13 @@ export function KillDeathChart({
     : '';
 
   return (
-    <Panel cls="overflow-hidden">
+    <Panel cls="overflow-visible">
       <div className="mb-3">
         <h3 className="text-xl font-black">{title}</h3>
       </div>
 
       <div
-        className="relative overflow-hidden rounded-2xl border border-slate-800/60 bg-transparent"
+        className="relative overflow-visible rounded-2xl border border-slate-800/60 bg-transparent"
         onMouseLeave={() => {
           setHoveredIndex(null);
           setHoveredMarker(null);
@@ -447,7 +447,7 @@ export function KillDeathChart({
       >
         {hovered && (
           <div
-            className="pointer-events-none absolute z-20 rounded-xl border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-2xl backdrop-blur"
+            className="pointer-events-none absolute z-50 min-w-[150px] rounded-xl border border-amber-300/35 bg-[rgba(3,5,7,.97)] px-3 py-2 text-xs shadow-[0_14px_40px_rgba(0,0,0,.50),0_0_14px_rgba(246,201,21,.06)] backdrop-blur"
             style={{
               left: `${(hovered.x / width) * 100}%`,
               top: `${(hovered.y / height) * 100}%`,
