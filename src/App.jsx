@@ -53,6 +53,7 @@ import classOrbWizard from './assets/class-orbs/Wizard.webp';
 import classOrbWoosa from './assets/class-orbs/Woosa.webp';
 import classOrbWukong from './assets/class-orbs/Wukong.webp';
 import sidebarOrbHoverSound from './assets/class-orbs/orb-hover.mp3';
+import adversaryStartupClip from './assets/adversary-startup.mp4?url';
 
 // The user's click sound lives at src/assets/Page-click.mp3. Using import.meta.glob
 // keeps this source buildable even when the audio file is not present in a shared
@@ -6794,6 +6795,73 @@ function ActivePageBrand({ page }) {
 
 export default function App() {
   const [page, setPage] = useState('nodewars');
+  const startupVideoRef = useRef(null);
+  const startupExitTimerRef = useRef(null);
+  const [startupFinished, setStartupFinished] = useState(false);
+  const [startupNeedsGesture, setStartupNeedsGesture] = useState(false);
+  const [startupStarted, setStartupStarted] = useState(false);
+  const [startupFading, setStartupFading] = useState(false);
+
+  const finishStartup = useCallback(() => {
+    if (startupExitTimerRef.current) return;
+
+    setStartupFading(true);
+    startupExitTimerRef.current = window.setTimeout(() => {
+      setStartupFinished(true);
+      startupExitTimerRef.current = null;
+    }, 520);
+  }, []);
+
+  const startStartupWithSound = useCallback(async () => {
+    const video = startupVideoRef.current;
+    if (!video) return;
+
+    try {
+      video.currentTime = 0;
+      video.muted = false;
+      video.volume = 1;
+      await video.play();
+      setStartupStarted(true);
+      setStartupNeedsGesture(false);
+    } catch {
+      setStartupNeedsGesture(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const video = startupVideoRef.current;
+    if (!video) return undefined;
+
+    let cancelled = false;
+    video.muted = false;
+    video.volume = 1;
+    video.currentTime = 0;
+
+    const tryAutoplay = async () => {
+      try {
+        await video.play();
+        if (cancelled) return;
+        setStartupStarted(true);
+        setStartupNeedsGesture(false);
+      } catch {
+        if (cancelled) return;
+        video.pause();
+        video.currentTime = 0;
+        setStartupStarted(false);
+        setStartupNeedsGesture(true);
+      }
+    };
+
+    tryAutoplay();
+
+    return () => {
+      cancelled = true;
+      if (startupExitTimerRef.current) {
+        window.clearTimeout(startupExitTimerRef.current);
+        startupExitTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -7737,6 +7805,59 @@ export default function App() {
     <div className="adversary-app relative min-h-screen overflow-x-hidden text-slate-100">
       <style>{GLOBAL_PANEL_CSS}</style>
       <style>{ALL_PAGES_NODEWARS_TECH_CSS}</style>
+
+      {!startupFinished && (
+        <div
+          className={`fixed inset-0 z-[100000] flex items-center justify-center overflow-hidden bg-black transition-opacity duration-500 ${
+            startupFading ? 'pointer-events-none opacity-0' : 'opacity-100'
+          }`}
+          data-no-page-click-sound="true"
+          aria-label="Adversary startup sequence"
+        >
+          <video
+            ref={startupVideoRef}
+            src={adversaryStartupClip}
+            preload="auto"
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+            onEnded={finishStartup}
+            onError={finishStartup}
+          />
+
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,.22)_78%,rgba(0,0,0,.62)_100%)]" />
+
+          {startupNeedsGesture && !startupStarted && (
+            <button
+              type="button"
+              data-no-page-click-sound="true"
+              onClick={startStartupWithSound}
+              className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center gap-4 bg-black/38 text-center backdrop-blur-[2px]"
+              aria-label="Play Adversary intro with sound"
+            >
+              <img
+                src={adversaryEmblem}
+                alt=""
+                aria-hidden="true"
+                className="h-24 w-24 object-cover object-center drop-shadow-[0_0_28px_rgba(250,204,21,.28)]"
+              />
+              <span className="rounded-xl border border-amber-300/40 bg-black/72 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] text-amber-200 shadow-[0_0_26px_rgba(250,204,21,.12)]">
+                Click to start
+              </span>
+            </button>
+          )}
+
+          {startupStarted && (
+            <button
+              type="button"
+              data-no-page-click-sound="true"
+              onClick={finishStartup}
+              className="absolute right-5 top-5 z-30 rounded-lg border border-amber-300/25 bg-black/55 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-amber-100/75 opacity-55 transition hover:border-amber-300/55 hover:bg-black/80 hover:text-amber-100 hover:opacity-100"
+            >
+              Skip
+            </button>
+          )}
+        </div>
+      )}
       <div
         aria-hidden="true"
         className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
