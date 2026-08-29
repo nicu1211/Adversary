@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Castle,
   ChevronDown,
+  ChevronRight,
   Crosshair,
   Gauge,
   Hand,
@@ -440,9 +441,319 @@ const NODE_WARS_PANEL_CSS = `
     border-color: rgba(var(--nw-gold-rgb), .52) !important;
   }
 
-  @media (max-width: 1279px) {
+  /* Final mockup matching pass. */
+  #root .adversary-content .nodewars-page-shell {
+    width: 100%;
+    max-width: none;
+  }
+
+  #root .adversary-content .nodewars-guild-panel::before,
+  #root .adversary-content .nodewars-summary-stat::after {
+    background-image:
+      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.050) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.050) 87.5%),
+      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.050) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.050) 87.5%),
+      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.035) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.035) 87.5%),
+      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.035) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.035) 87.5%),
+      linear-gradient(60deg, rgba(var(--nw-gold-rgb),.024) 25%, transparent 25.5%, transparent 75%, rgba(var(--nw-gold-rgb),.024) 75%);
+    background-size: 48px 84px;
+    background-position: 0 0, 0 0, 24px 42px, 24px 42px, 0 0;
+  }
+
+  #root .adversary-content .nodewars-filter-panel {
+    border-radius: 14px !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,232,122,.045),
+      inset 0 -1px 0 rgba(var(--nw-gold-rgb),.11),
+      0 0 16px rgba(var(--nw-gold-rgb),.055),
+      0 10px 30px rgba(0,0,0,.27) !important;
+  }
+
+  #root .adversary-content .nodewars-filter-panel input {
+    min-height: 43px;
+  }
+
+  #root .adversary-content .nodewars-filter-main-row {
+    align-items: center;
+  }
+
+  #root .adversary-content .nodewars-filter-actions {
+    justify-content: flex-end;
+  }
+
+  #root .adversary-content .nodewars-filter-footer {
+    margin-top: 10px !important;
+    padding-top: 9px !important;
+  }
+
+  #root .adversary-content .nodewars-summary-grid {
+    margin-top: 1px;
+  }
+
+  #root .adversary-content .nodewars-summary-stat {
+    min-height: 82px;
+    border-color: rgba(var(--nw-gold-rgb),.36) !important;
+    background:
+      radial-gradient(circle at 17% 0%, rgba(var(--nodewars-accent-rgb),.15), transparent 58%),
+      linear-gradient(150deg, rgba(11,12,11,.96), rgba(3,4,5,.97)) !important;
+  }
+
+  #root .adversary-content .nodewars-war-card {
+    min-height: 128px;
+    border-radius: 14px !important;
+  }
+
+  #root .adversary-content .nodewars-war-date {
+    padding: 14px 12px !important;
+  }
+
+  #root .adversary-content .nodewars-war-content {
+    padding: 13px 15px !important;
+  }
+
+  #root .adversary-content .nodewars-open-chevron {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(var(--nw-gold-rgb),.48);
+    border-radius: 12px;
+    color: #f8cc31;
+    background: linear-gradient(180deg, rgba(46,35,6,.72), rgba(6,7,6,.94));
+    box-shadow: inset 0 0 14px rgba(var(--nw-gold-rgb),.06), 0 0 11px rgba(var(--nw-gold-rgb),.055);
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  #root .adversary-content .nodewars-open-chevron:hover {
+    border-color: rgba(var(--nw-gold-rgb),.88);
+    box-shadow: inset 0 0 16px rgba(var(--nw-gold-rgb),.09), 0 0 16px rgba(var(--nw-gold-rgb),.12);
+    transform: translateX(1px);
+  }
+
+  #root .adversary-content .nodewars-card-actions {
+    align-self: stretch;
+    min-width: 42px;
+  }
+
+  #root .adversary-content .nodewars-select-toggle {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 9px !important;
+  }
+
+  #root .adversary-content .nodewars-select-toggle input {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  #root .adversary-content .nodewars-list {
+    scrollbar-color: rgba(var(--nw-gold-rgb),.48) rgba(3,4,5,.5);
+  }
+
+  /* Reference layout: one compact filter row, eight stat tiles, and a single
+     compact war row. The rules below deliberately override Tailwind breakpoints
+     so the page keeps the mockup proportions on normal desktop widths. */
+  #root .adversary-content .nodewars-filter-panel {
+    padding: 11px 12px !important;
+  }
+
+  #root .adversary-content .nodewars-filter-main-row {
+    display: grid !important;
+    grid-template-columns: minmax(245px, 285px) minmax(0, 1fr) !important;
+    gap: 14px !important;
+    align-items: center !important;
+  }
+
+  #root .adversary-content .nodewars-filter-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+    gap: 7px !important;
+    min-width: 0;
+  }
+
+  #root .adversary-content .nodewars-search-field {
+    min-height: 40px !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+
+  #root .adversary-content .nodewars-sort-control {
+    min-width: 48px !important;
+    padding: 7px 9px !important;
+    border-radius: 9px !important;
+    font-size: 9px !important;
+    white-space: nowrap;
+  }
+
+  #root .adversary-content .nodewars-action-button,
+  #root .adversary-content .nodewars-period-button {
+    min-height: 34px;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+    white-space: nowrap;
+  }
+
+  #root .adversary-content .nodewars-filter-footer {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  #root .adversary-content .nodewars-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  #root .adversary-content .nodewars-summary-stat {
+    min-width: 0 !important;
+    min-height: 78px !important;
+    padding: 10px 12px !important;
+  }
+
+  #root .adversary-content .nodewars-summary-stat > div:first-child {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  #root .adversary-content .nodewars-summary-stat .text-xl {
+    font-size: 1.12rem !important;
+  }
+
+  #root .adversary-content .nodewars-trend-card {
+    display: none !important;
+  }
+
+  #root .adversary-content .nodewars-list {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  #root .adversary-content .nodewars-war-card {
+    display: grid !important;
+    grid-template-columns: 118px minmax(0, 1fr) !important;
+    min-height: 126px !important;
+    border-radius: 13px !important;
+    background:
+      radial-gradient(circle at 18% -45%, rgba(var(--nw-gold-rgb), 0.065), transparent 42%),
+      linear-gradient(180deg, rgba(7,8,7,.89), rgba(2,3,4,.91)) !important;
+  }
+
+  #root .adversary-content .nodewars-war-card::before {
+    opacity: .10 !important;
+  }
+
+  #root .adversary-content .nodewars-war-date {
+    min-height: 126px !important;
+    padding: 13px 12px !important;
+    border-right-color: rgba(var(--nw-gold-rgb), .18) !important;
+  }
+
+  #root .adversary-content .nodewars-war-content {
+    padding: 12px 14px !important;
+  }
+
+  #root .adversary-content .nodewars-war-head-grid {
+    display: grid !important;
+    grid-template-columns: 118px minmax(0, 1fr) !important;
+    gap: 16px !important;
+    align-items: start !important;
+  }
+
+  #root .adversary-content .nodewars-enemies-row {
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
+  }
+
+  #root .adversary-content .nodewars-metrics-grid {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  #root .adversary-content .nodewars-metrics-grid > div {
+    min-width: 0 !important;
+  }
+
+  #root .adversary-content .nodewars-card-actions {
+    justify-content: center !important;
+    align-self: stretch !important;
+    min-width: 42px !important;
+  }
+
+  #root .adversary-content .nodewars-select-toggle {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  #root .adversary-content .nodewars-open-chevron {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+  }
+
+  #root .adversary-content .nodewars-war-weekday {
+    color: #e4b317 !important;
+    font-size: 9px !important;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  #root .adversary-content .nodewars-war-date-text {
+    color: #f6f4ea !important;
+    font-size: 13px !important;
+  }
+
+  #root .adversary-content .nodewars-page-shell .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 9px !important;
+  }
+
+  @media (max-width: 1180px) {
+    #root .adversary-content .nodewars-filter-main-row {
+      grid-template-columns: minmax(210px, 250px) minmax(0, 1fr) !important;
+      gap: 9px !important;
+    }
+
+    #root .adversary-content .nodewars-filter-actions {
+      gap: 5px !important;
+    }
+
+    #root .adversary-content .nodewars-sort-control {
+      min-width: 42px !important;
+      padding-inline: 7px !important;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    #root .adversary-content .nodewars-filter-main-row {
+      grid-template-columns: 1fr !important;
+    }
+
+    #root .adversary-content .nodewars-filter-actions {
+      flex-wrap: wrap !important;
+      justify-content: flex-start !important;
+    }
+
     #root .adversary-content .nodewars-summary-grid {
-      gap: 8px !important;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+
+    #root .adversary-content .nodewars-war-card {
+      grid-template-columns: 106px minmax(0, 1fr) !important;
+    }
+
+    #root .adversary-content .nodewars-metrics-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     }
   }
 `;
@@ -673,7 +984,7 @@ function EnemySearch({ value, onChange, suggestions, onPick }) {
           setOpen(true);
         }}
         placeholder="Search enemies..."
-        className="nodewars-dark-control w-full rounded-xl border py-3 pl-11 pr-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-500 focus:shadow-[0_0_20px_rgba(139,92,246,.16)]"
+        className="nodewars-dark-control nodewars-search-field w-full rounded-xl border py-3 pl-11 pr-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-500 focus:shadow-[0_0_20px_rgba(139,92,246,.16)]"
       />
 
       {showSuggestions && (
@@ -773,12 +1084,12 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
           <div
             title={date.weekday}
-            className="max-w-[92px] truncate text-[12px] font-black leading-tight text-white"
+            className="nodewars-war-weekday max-w-[92px] truncate text-[12px] font-black leading-tight text-white"
           >
-            {date.weekday},
+            {date.weekday}
           </div>
 
-          <div className="mt-0.5 text-[14px] font-black leading-tight text-white">
+          <div className="nodewars-war-date-text mt-0.5 text-[14px] font-black leading-tight text-white">
             {date.full}
           </div>
         </div>
@@ -791,14 +1102,14 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
         )}
       </div>
 
-      <div className="relative min-w-0 overflow-hidden rounded-r-xl bg-transparent p-3">
+      <div className="nodewars-war-content relative min-w-0 overflow-hidden rounded-r-xl bg-transparent p-3">
         <div
           className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.topLine} opacity-70`}
         />
 
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-3 xl:grid-cols-[150px_1fr]">
+            <div className="nodewars-war-head-grid grid min-w-0 gap-3 xl:grid-cols-[150px_1fr]">
               <div>
                 <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Kills/Deaths Ratio
@@ -818,7 +1129,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                   Top 5 Enemies
                 </div>
 
-                <div className="flex min-w-0 flex-wrap gap-1.5 xl:flex-nowrap xl:overflow-hidden">
+                <div className="nodewars-enemies-row flex min-w-0 flex-wrap gap-1.5 xl:flex-nowrap xl:overflow-hidden">
                   {row.topEnemies.length ? (
                     row.topEnemies.map((enemy) => (
                       <EnemyPill key={enemy.name} enemy={enemy} />
@@ -834,7 +1145,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
             <div className="nodewars-metrics-divider mt-2.5 h-px bg-slate-700/25" />
 
-            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+            <div className="nodewars-metrics-grid mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
               <WarMetric
                 label="Players"
                 value={row.players}
@@ -892,25 +1203,40 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
             </div>
           </div>
 
-          <div
-            className={`nodewars-select-toggle mt-[28px] flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition ${
-              checked
-                ? 'border-white/80 bg-white/10 shadow-[0_0_18px_rgba(255,255,255,0.18)]'
-                : 'border-slate-800 bg-slate-950/70 group-hover:border-slate-700'
-            }`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={(event) => {
+          <div className="nodewars-card-actions flex shrink-0 flex-col items-center justify-between gap-3 py-1">
+            <button
+              type="button"
+              className="nodewars-open-chevron"
+              onClick={(event) => {
                 event.stopPropagation();
-                onToggle();
+                onOpen();
               }}
-              className="h-[18px] w-[18px] cursor-pointer"
-              style={{ accentColor: '#ffffff' }}
-              title={checked ? 'Deselect this war' : 'Select this war'}
-            />
+              title="Open war overview"
+              aria-label="Open war overview"
+            >
+              <ChevronRight size={20} strokeWidth={2.4} />
+            </button>
+
+            <div
+              className={`nodewars-select-toggle flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition ${
+                checked
+                  ? 'border-white/80 bg-white/10 shadow-[0_0_18px_rgba(255,255,255,0.18)]'
+                  : 'border-slate-800 bg-slate-950/70 group-hover:border-slate-700'
+              }`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => {
+                  event.stopPropagation();
+                  onToggle();
+                }}
+                className="h-[18px] w-[18px] cursor-pointer"
+                style={{ accentColor: '#ffffff' }}
+                title={checked ? 'Deselect this war' : 'Select this war'}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -984,7 +1310,7 @@ function KillsDeathsTrend({ rows }) {
   const deathsPoints = buildPoints(safeDeaths);
 
   return (
-    <div className="nodewars-summary-stat flex min-w-[260px] flex-1 items-center gap-4 px-4 py-3" style={{ '--nodewars-accent-rgb': '6, 182, 212' }}>
+    <div className="nodewars-summary-stat nodewars-trend-card flex min-w-[260px] flex-1 items-center gap-4 px-4 py-3" style={{ '--nodewars-accent-rgb': '6, 182, 212' }}>
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cyan-500/10">
         <Activity size={20} className="text-cyan-300" />
       </div>
@@ -1313,17 +1639,17 @@ export default function NodeWars({
   return (
     <Panel cls="nodewars-page-shell border-0 bg-transparent p-0 shadow-none">
       <style>{NODE_WARS_PANEL_CSS}</style>
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {/* FILTER PANEL */}
         <div
           className={`nodewars-guild-panel nodewars-filter-panel relative z-30 rounded-xl border transition-all duration-300 ${
             filtersVisible
-              ? 'max-h-[240px] overflow-visible p-4 opacity-100 translate-y-0'
+              ? 'max-h-[220px] overflow-visible p-3.5 opacity-100 translate-y-0'
               : 'max-h-0 overflow-hidden border-transparent p-0 opacity-0 -translate-y-2'
           }`}
           style={{ '--nodewars-accent-rgb': '139, 92, 246' }}
         >
-          <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
+          <div className="nodewars-filter-main-row grid gap-3 2xl:grid-cols-[minmax(300px,1fr)_auto]">
             <EnemySearch
               value={query}
               suggestions={enemySuggestions}
@@ -1337,40 +1663,29 @@ export default function NodeWars({
               }}
             />
 
-            <div className="flex flex-wrap items-center gap-2">
-              <SortHeader
-                id="time"
-                label="Time"
-                sort={sort}
-                onSort={toggleSort}
-              />
-              <SortHeader
-                id="kills"
-                label="Kills"
-                sort={sort}
-                onSort={toggleSort}
-              />
-              <SortHeader
-                id="deaths"
-                label="Deaths"
-                sort={sort}
-                onSort={toggleSort}
-              />
+            <div className="nodewars-filter-actions flex flex-wrap items-center gap-2">
+              <SortHeader id="time" label="Time" sort={sort} onSort={toggleSort} />
+              <SortHeader id="kills" label="Kills" sort={sort} onSort={toggleSort} />
+              <SortHeader id="deaths" label="Deaths" sort={sort} onSort={toggleSort} />
               <SortHeader id="kd" label="K/D" sort={sort} onSort={toggleSort} />
-              <SortHeader
-                id="damageDealt"
-                label="Damage"
-                sort={sort}
-                onSort={toggleSort}
-              />
-              <SortHeader
-                id="damageTaken"
-                label="Taken"
-                sort={sort}
-                onSort={toggleSort}
-              />
+              <SortHeader id="damageDealt" label="Damage" sort={sort} onSort={toggleSort} />
+              <SortHeader id="damageTaken" label="Taken" sort={sort} onSort={toggleSort} />
               <SortHeader id="ccHits" label="CC" sort={sort} onSort={toggleSort} />
               <SortHeader id="fortDamage" label="Fort" sort={sort} onSort={toggleSort} />
+
+              <button
+                type="button"
+                onClick={openSelectedOverview}
+                className="nodewars-action-button nodewars-action-primary rounded-xl border px-4 py-2 text-xs font-black transition"
+              >
+                Open overview
+              </button>
+
+              <PeriodSelect
+                value={periodDays}
+                onChange={onPeriodChange}
+                loading={loading}
+              />
             </div>
           </div>
 
@@ -1406,20 +1721,6 @@ export default function NodeWars({
               >
                 {exactDisplayedSelection ? 'Clear selection' : 'Select displayed'}
               </button>
-
-              <button
-                type="button"
-                onClick={openSelectedOverview}
-                className="nodewars-action-button nodewars-action-primary rounded-xl border px-4 py-2 text-xs font-black transition"
-              >
-                Open overview
-              </button>
-
-              <PeriodSelect
-                value={periodDays}
-                onChange={onPeriodChange}
-                loading={loading}
-              />
             </div>
           </div>
         </div>
@@ -1515,7 +1816,7 @@ export default function NodeWars({
         {/* LIST */}
         <div
           onScroll={handleWarsListScroll}
-          className={`${filtersVisible ? 'max-h-[calc(100vh-330px)]' : 'max-h-[calc(100vh-210px)]'} space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
+          className={`nodewars-list ${filtersVisible ? 'max-h-[calc(100vh-285px)]' : 'max-h-[calc(100vh-188px)]'} space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
         >
           {loading && !rows.length ? (
             <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400" style={{ '--nodewars-accent-rgb': '59, 130, 246' }}>
