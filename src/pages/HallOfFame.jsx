@@ -3289,34 +3289,34 @@ function MilestoneEmblemBadge({ threshold }) {
     <div className="relative h-[92px] w-[92px] shrink-0">
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
         <defs>
-          <linearGradient id={`hall-milestone-gold-${label}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(255,230,120,0.98)" />
-            <stop offset="55%" stopColor="rgba(249,193,33,0.95)" />
-            <stop offset="100%" stopColor="rgba(150,98,0,0.95)" />
+          <linearGradient id={`hall-milestone-blue-${label}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="rgba(165,220,255,0.98)" />
+            <stop offset="55%" stopColor="rgba(59,130,246,0.96)" />
+            <stop offset="100%" stopColor="rgba(30,64,175,0.96)" />
           </linearGradient>
         </defs>
         <polygon
           points="50,3 84,22 84,61 50,96 16,61 16,22"
           fill="rgba(5,8,12,0.72)"
-          stroke={`url(#hall-milestone-gold-${label})`}
+          stroke={`url(#hall-milestone-blue-${label})`}
           strokeWidth="2.5"
         />
         <polygon
           points="50,12 76,27 76,56 50,82 24,56 24,27"
           fill="rgba(10,14,18,0.84)"
-          stroke="rgba(255,219,86,0.55)"
+          stroke="rgba(125,211,252,0.62)"
           strokeWidth="1.6"
         />
-        <path d="M16 22 L50 40 L84 22" fill="none" stroke="rgba(255,219,86,0.34)" strokeWidth="1.5" />
-        <path d="M24 56 L50 40 L76 56" fill="none" stroke="rgba(255,219,86,0.30)" strokeWidth="1.5" />
-        <path d="M24 27 L50 54 L76 27" fill="none" stroke="rgba(255,219,86,0.18)" strokeWidth="1.2" />
-        <path d="M20 67 L9 58" fill="none" stroke="rgba(255,219,86,0.58)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M23 60 L8 49" fill="none" stroke="rgba(255,219,86,0.46)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M80 67 L91 58" fill="none" stroke="rgba(255,219,86,0.58)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M77 60 L92 49" fill="none" stroke="rgba(255,219,86,0.46)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M16 22 L50 40 L84 22" fill="none" stroke="rgba(96,165,250,0.42)" strokeWidth="1.5" />
+        <path d="M24 56 L50 40 L76 56" fill="none" stroke="rgba(96,165,250,0.36)" strokeWidth="1.5" />
+        <path d="M24 27 L50 54 L76 27" fill="none" stroke="rgba(96,165,250,0.24)" strokeWidth="1.2" />
+        <path d="M20 67 L9 58" fill="none" stroke="rgba(125,211,252,0.66)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M23 60 L8 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M80 67 L91 58" fill="none" stroke="rgba(125,211,252,0.66)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M77 60 L92 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-[20px] font-black tracking-tight text-amber-300 shadow-[0_0_16px_rgba(250,204,21,.18)]">
+        <div className="rounded-xl border border-sky-300/35 bg-blue-500/12 px-2.5 py-1 text-[20px] font-black tracking-tight text-sky-200 shadow-[0_0_16px_rgba(59,130,246,.22)]">
           {label}
         </div>
       </div>
@@ -3334,36 +3334,29 @@ function MilestoneLeaderboardCard({
     : `First to ${nf.format(threshold)} Kills`;
   const emptyText = `No player reached ${nf.format(threshold)} kills yet.`;
   const visibleRows = rows.slice(0, 10);
-  const rawMaximum = Math.max(
-    1,
-    ...visibleRows.map((row) =>
-      mode === 'fastest'
-        ? num(row.fromPlayerFirstLogWars)
-        : num(row.fromFirstLogWars),
-    ),
-  );
+  const rankBarMax = Math.max(1, visibleRows.length);
 
   return (
-    <div className="group relative overflow-hidden rounded-[26px] border border-amber-300/24 bg-[linear-gradient(135deg,rgba(11,13,16,.70),rgba(5,7,10,.58))] px-5 py-4 shadow-[0_18px_35px_rgba(0,0,0,.28)] transition duration-200 hover:border-amber-300/40 hover:shadow-[0_0_22px_rgba(250,204,21,.10)]">
+    <div className="group relative overflow-hidden rounded-[26px] border border-blue-400/28 bg-[linear-gradient(135deg,rgba(11,13,16,.70),rgba(5,7,10,.58))] px-5 py-4 shadow-[0_18px_35px_rgba(0,0,0,.28)] transition duration-200 hover:border-sky-300/52 hover:shadow-[0_0_22px_rgba(59,130,246,.14)]">
       <div className="pointer-events-none absolute inset-0 opacity-[0.16]" style={{
         backgroundImage:
-          'linear-gradient(30deg, rgba(246,201,21,.18) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.18) 87.5%), linear-gradient(150deg, rgba(246,201,21,.16) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.16) 87.5%), radial-gradient(circle at 18% 28%, rgba(255,220,64,.28) 0 1.5px, transparent 2.5px), radial-gradient(circle at 74% 62%, rgba(255,220,64,.2) 0 1px, transparent 2px)',
+          'linear-gradient(30deg, rgba(59,130,246,.20) 12%, transparent 12.5%, transparent 87%, rgba(59,130,246,.20) 87.5%), linear-gradient(150deg, rgba(14,165,233,.17) 12%, transparent 12.5%, transparent 87%, rgba(14,165,233,.17) 87.5%), radial-gradient(circle at 18% 28%, rgba(125,211,252,.30) 0 1.5px, transparent 2.5px), radial-gradient(circle at 74% 62%, rgba(96,165,250,.22) 0 1px, transparent 2px)',
         backgroundSize: '30px 52px, 30px 52px, 120px 120px, 150px 150px',
       }} />
-      <div className="pointer-events-none absolute inset-y-0 left-[112px] w-px bg-gradient-to-b from-transparent via-amber-300/14 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 left-[112px] w-px bg-gradient-to-b from-transparent via-sky-300/18 to-transparent" />
       <div className="relative flex items-start gap-4">
         <div className="sticky top-0 pt-1">
           <MilestoneEmblemBadge threshold={threshold} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="mb-3 text-[12px] font-black uppercase tracking-[0.14em] text-amber-300">{title}</div>
+          <div className="mb-3 text-[12px] font-black uppercase tracking-[0.14em] text-sky-300">{title}</div>
           {visibleRows.length ? (
             <div>
               {visibleRows.map((row, index) => {
-                const rawValue = mode === 'fastest'
-                  ? num(row.fromPlayerFirstLogWars)
-                  : num(row.fromFirstLogWars);
-                const chargeValue = Math.max(1, rawMaximum - rawValue + 1);
+                // Visual rank charge: #1 is always 100%, then each lower
+                // position becomes progressively shorter while the ranking data itself
+                // remains unchanged.
+                const chargeValue = Math.max(1, rankBarMax - index);
                 const right = mode === 'first'
                   ? (row.date || '-')
                   : `${row.fromPlayerFirstLogWars} Node Wars`;
@@ -3373,9 +3366,9 @@ function MilestoneLeaderboardCard({
                     key={`${mode}-${threshold}-${row.name}`}
                     label={`${index + 1}. ${row.name}`}
                     value={chargeValue}
-                    max={rawMaximum}
+                    max={rankBarMax}
                     right={right}
-                    tone="yellowGold"
+                    tone="blueRoyal"
                   />
                 );
               })}
