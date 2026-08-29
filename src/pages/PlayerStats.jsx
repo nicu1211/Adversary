@@ -5199,7 +5199,7 @@ export default function PlayerStats({
   }, [player, stats, averageRankTable, matchPlayerClassMap]);
 
   return (
-    <div className="player-stats-page player-stats-guild-style player-stats-root-transparent p-4">
+    <div className="adversary-tech-page adversary-tech-player-page player-stats-page player-stats-guild-style player-stats-root-transparent p-4">
       <style>{PLAYER_STATS_GUILD_CSS}</style>
       <h2 className="mb-4 text-2xl font-black">Player Stats</h2>
 
