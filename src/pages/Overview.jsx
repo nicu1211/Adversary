@@ -5482,7 +5482,7 @@ export default function OverviewPage({
     Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0;
 
   return (
-    <div className="overview-guild-page space-y-4">
+    <div className="adversary-tech-page adversary-tech-overview-page overview-guild-page space-y-4">
       <style>{OVERVIEW_GUILD_PANEL_CSS}</style>
       <header className="overview-guild-panel overview-panel-transparent overview-accent-amber overview-summary-panel rounded-3xl border border-transparent p-5">
         <div className="overview-section-header overview-header-amber mb-4">
