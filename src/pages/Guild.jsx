@@ -1387,7 +1387,7 @@ export default function Guild({ stats, logs }) {
   const data = useMemo(() => buildGuildData(stats || {}, logs || []), [stats, logs]);
   const hasData = data.kills > 0 || data.deaths > 0 || data.matches > 0;
   return (
-    <div>
+    <div className="adversary-tech-page adversary-tech-guild-page">
       {hasData ? (
         <Arsenal
           data={data}
