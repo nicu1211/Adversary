@@ -53,6 +53,7 @@ import classOrbWizard from './assets/class-orbs/Wizard.webp';
 import classOrbWoosa from './assets/class-orbs/Woosa.webp';
 import classOrbWukong from './assets/class-orbs/Wukong.webp';
 import sidebarOrbHoverSound from './assets/class-orbs/orb-hover.mp3';
+import panelHoverSound from './assets/panel-hover.mp3';
 import adversaryStartupClip from './assets/adversary-startup.mp4?url';
 
 // The user's click sound lives at src/assets/Page-click.mp3. Using import.meta.glob
@@ -6820,6 +6821,27 @@ export default function App() {
   const [startupFading, setStartupFading] = useState(false);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
+  const panelHoverAudioRef = useRef([]);
+  const panelHoverAudioIndexRef = useRef(0);
+
+  const playPanelHoverSound = useCallback(() => {
+    const pool = panelHoverAudioRef.current;
+    if (!pool.length) return;
+
+    const audio = pool[panelHoverAudioIndexRef.current % pool.length];
+    panelHoverAudioIndexRef.current += 1;
+
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 0.42;
+
+      const playback = audio.play();
+      if (playback?.catch) playback.catch(() => {});
+    } catch {
+      // Ignore browser media-policy failures.
+    }
+  }, []);
 
   const finishStartup = useCallback(() => {
     if (startupRevealTimerRef.current) {
@@ -6999,6 +7021,65 @@ export default function App() {
       }
     };
   }, [finishStartup]);
+
+  useEffect(() => {
+    const audios = Array.from({ length: 3 }, () => {
+      const audio = new Audio(panelHoverSound);
+      audio.preload = 'auto';
+      audio.volume = 0.42;
+      return audio;
+    });
+
+    panelHoverAudioRef.current = audios;
+
+    const unlockPanelHoverAudio = () => {
+      panelHoverAudioRef.current.forEach((audio) => {
+        if (!audio) return;
+
+        const previousMuted = audio.muted;
+        audio.muted = true;
+
+        try {
+          const playback = audio.play();
+
+          const resetAudio = () => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = previousMuted;
+            audio.volume = 0.42;
+          };
+
+          if (playback?.then) {
+            playback.then(resetAudio).catch(() => {
+              audio.muted = previousMuted;
+            });
+          } else {
+            resetAudio();
+          }
+        } catch {
+          audio.muted = previousMuted;
+        }
+      });
+    };
+
+    document.addEventListener('pointerdown', unlockPanelHoverAudio, {
+      once: true,
+      capture: true,
+    });
+
+    return () => {
+      document.removeEventListener('pointerdown', unlockPanelHoverAudio, {
+        capture: true,
+      });
+
+      panelHoverAudioRef.current.forEach((audio) => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+
+      panelHoverAudioRef.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -8097,6 +8178,7 @@ export default function App() {
                 <div key={id}>
                   <button
                     type="button"
+                    onPointerEnter={playPanelHoverSound}
                     onClick={() => {
                       if (id === 'overview') {
                         openOverviewFromMenu();
@@ -8139,6 +8221,7 @@ export default function App() {
           <div className="adversary-rail-bottom pointer-events-none relative z-30 pt-4">
             <button
               type="button"
+              onPointerEnter={playPanelHoverSound}
               onClick={() => openPage('raw')}
               className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
                 isMenuActive('raw') ? 'is-active' : ''
