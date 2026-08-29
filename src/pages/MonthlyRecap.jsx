@@ -354,6 +354,34 @@ const MONTHLY_GUILD_PANEL_CSS = `
       0 0 18px rgba(246, 201, 21, .34) !important;
   }
 
+  /* Persistent ON state. Higher specificity than the global control skin so the
+     gold interior remains visible after the pointer leaves the button. */
+  body[data-adversary-page="monthly"] .adversary-content .monthly-recap-guild-style .monthly-role-filter.is-active,
+  body[data-adversary-page="monthly"] .adversary-content .monthly-recap-guild-style .monthly-class-filter.is-active {
+    border-color: rgba(255, 224, 71, 1) !important;
+    color: #fff9d7 !important;
+    background-color: rgb(157, 105, 0) !important;
+    background-image:
+      radial-gradient(circle at 25% 18%, rgba(255, 244, 157, .58), transparent 44%),
+      linear-gradient(135deg, rgba(244, 184, 8, .96), rgba(125, 79, 0, .94)) !important;
+    box-shadow:
+      inset 0 0 0 999px rgba(246, 201, 21, .18),
+      inset 0 1px 0 rgba(255, 251, 215, .34),
+      inset 0 0 22px rgba(255, 225, 72, .24),
+      0 0 16px rgba(246, 201, 21, .30) !important;
+    text-shadow: 0 1px 8px rgba(59, 35, 0, .86);
+  }
+
+  body[data-adversary-page="monthly"] .adversary-content .monthly-recap-guild-style .monthly-role-filter.is-active:hover,
+  body[data-adversary-page="monthly"] .adversary-content .monthly-recap-guild-style .monthly-class-filter.is-active:hover,
+  body[data-adversary-page="monthly"] .adversary-content .monthly-recap-guild-style .monthly-class-filter.is-active:focus {
+    background-color: rgb(177, 121, 0) !important;
+    box-shadow:
+      inset 0 0 0 999px rgba(255, 215, 42, .22),
+      inset 0 1px 0 rgba(255,255,230,.42),
+      0 0 19px rgba(246,201,21,.36) !important;
+  }
+
 `;
 
 const GUILD_ROSTER = Object.freeze([
@@ -4251,7 +4279,7 @@ function PlayersTable({
           <select
             value={classFilter}
             onChange={(event) => setClassFilter(event.target.value)}
-            className={`monthly-class-filter is-active rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] outline-none transition ${
+            className={`monthly-class-filter ${classFilter ? 'is-active' : ''} rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] outline-none transition ${
               classFilter
                 ? 'border-yellow-300/90 bg-yellow-400/38 text-yellow-50 shadow-[inset_0_0_18px_rgba(250,204,21,.16),0_0_16px_rgba(246,201,21,.22)]'
                 : 'border-[#263c59] bg-slate-950/80 text-slate-300 hover:border-amber-300/55 hover:bg-amber-400/8'
