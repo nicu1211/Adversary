@@ -372,7 +372,7 @@ export default function RawLog({
 
   return (
     <>
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="adversary-tech-page adversary-tech-rawlog-page grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <Panel>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
