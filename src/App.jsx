@@ -1164,22 +1164,61 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-modal {
     position: relative;
+    isolation: isolate;
     width: min(1600px, 97vw);
     max-width: calc(100vw - 20px);
     max-height: 92vh;
     overflow-x: hidden;
     overflow-y: auto;
-    border: 1px solid rgba(var(--class-rgb, 250, 204, 21), 0.30);
+    border: 1px solid rgba(242, 194, 22, 0.52);
     border-radius: 23px;
     padding: 20px;
     color: #e2e8f0;
-    background:
-      radial-gradient(circle at 12% 0%, rgba(var(--class-rgb, 250, 204, 21), 0.15), transparent 38%),
-      linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+    background-color: rgba(3, 5, 6, 0.92);
+    background-image:
+      radial-gradient(ellipse at 12% -8%, rgba(var(--class-rgb, 250, 204, 21), 0.18), transparent 44%),
+      radial-gradient(ellipse at 88% 108%, rgba(var(--class-rgb, 250, 204, 21), 0.07), transparent 42%),
+      var(--adversary-tech-art),
+      radial-gradient(circle at 10% 28%, rgba(255, 210, 52, .09) 0 1px, transparent 2px),
+      radial-gradient(circle at 82% 66%, rgba(255, 205, 39, .07) 0 1px, transparent 2px),
+      linear-gradient(145deg, rgba(10, 12, 12, 0.91), rgba(2, 5, 6, 0.94));
+    background-size: 100% 100%, 100% 100%, 650px 255px, 190px 155px, 250px 195px, 100% 100%;
+    background-position: center, center, 0 50%, 8% 24%, 80% 68%, center;
+    background-repeat: no-repeat, no-repeat, repeat, repeat, repeat, no-repeat;
     box-shadow:
+      inset 0 1px 0 rgba(255, 235, 135, .06),
+      inset 0 0 34px rgba(242, 194, 22, .025),
       0 28px 90px rgba(0, 0, 0, 0.65),
-      0 0 40px rgba(var(--class-rgb, 250, 204, 21), 0.13);
+      0 0 34px rgba(242, 194, 22, 0.12);
     scrollbar-gutter: stable;
+  }
+
+  .adversary-class-modal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: .48;
+    background-image:
+      linear-gradient(90deg, transparent 0 7%, rgba(242,194,22,.14) 7% 7.12%, transparent 7.12% 31%, rgba(242,194,22,.10) 31% 31.12%, transparent 31.12% 100%),
+      linear-gradient(0deg, transparent 0 24%, rgba(242,194,22,.12) 24% 24.2%, transparent 24.2% 69%, rgba(242,194,22,.09) 69% 69.2%, transparent 69.2% 100%);
+    background-size: 220px 100%, 100% 88px;
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.82) 72%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.82) 72%, transparent 100%);
+  }
+
+  .adversary-class-modal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 218, 62, .05),
+      inset 0 0 44px rgba(242, 194, 22, .018);
   }
 
   .adversary-class-modal,
@@ -1237,6 +1276,7 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-class-modal-content {
     position: relative;
+    z-index: 2;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -1260,10 +1300,17 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-overall-distribution,
   .adversary-class-rankings-panel {
     min-width: 0;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    border: 1px solid rgba(242, 194, 22, 0.30);
     border-radius: 18px;
-    background: rgba(2, 6, 23, 0.46);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    background-color: rgba(3,5,6,.72);
+    background-image:
+      radial-gradient(ellipse at 10% -10%, rgba(var(--class-rgb, 250,204,21), .13), transparent 50%),
+      var(--adversary-tech-art),
+      linear-gradient(180deg, rgba(8,9,8,.68), rgba(2,4,5,.74));
+    background-size: 100% 100%, 500px 196px, 100% 100%;
+    background-position: center, 0 50%, center;
+    background-repeat: no-repeat, repeat, no-repeat;
+    box-shadow: inset 0 1px 0 rgba(255, 235, 135, .04), inset 0 0 24px rgba(242,194,22,.018);
   }
 
   .adversary-class-overall-distribution {
@@ -1494,24 +1541,56 @@ const GLOBAL_PANEL_CSS = `
     }
   }
 
-  .adversary-class-modal-close {
-    position: absolute;
-    right: 16px;
-    top: 16px;
-    display: grid;
-    width: 36px;
-    height: 36px;
-    place-items: center;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 12px;
-    color: #cbd5e1;
-    background: rgba(15, 23, 42, 0.78);
-    cursor: pointer;
+
+  .adversary-class-modal :is(
+    .adversary-class-player-stat-card,
+    .adversary-class-performance-card,
+    .adversary-class-player-list,
+    .adversary-class-stats-table-wrap
+  ) {
+    border-color: rgba(242,194,22,.26) !important;
+    background-color: rgba(3,5,6,.66) !important;
+    background-image:
+      radial-gradient(ellipse at 12% -10%, rgba(var(--metric-rgb, var(--class-rgb, 250,204,21)), .10), transparent 48%),
+      var(--adversary-tech-art),
+      linear-gradient(180deg, rgba(8,9,8,.62), rgba(2,4,5,.70)) !important;
+    background-size: 100% 100%, 430px 169px, 100% 100% !important;
+    background-position: center, 0 50%, center !important;
+    background-repeat: no-repeat, repeat, no-repeat !important;
   }
 
-  .adversary-class-modal-close:hover {
-    border-color: rgba(var(--class-rgb, 250, 204, 21), 0.50);
-    color: #fff;
+  .adversary-class-modal-close {
+    position: sticky;
+    float: right;
+    right: 0;
+    top: 0;
+    z-index: 100;
+    display: grid;
+    width: 40px;
+    height: 40px;
+    margin: -4px -4px 4px 12px;
+    place-items: center;
+    border: 1px solid rgba(255, 218, 62, 0.68);
+    border-radius: 12px;
+    color: #ffe46b;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255,218,62,.16), transparent 68%),
+      rgba(2,5,6,.96);
+    box-shadow: inset 0 0 16px rgba(242,194,22,.05), 0 0 16px rgba(242,194,22,.11);
+    cursor: pointer;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+  }
+
+  .adversary-class-modal-close:hover,
+  .adversary-class-modal-close:focus-visible {
+    border-color: rgba(255, 226, 96, 0.92);
+    color: #fff7c2;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255,218,62,.25), transparent 68%),
+      rgba(5,7,6,.98);
+    box-shadow: inset 0 0 18px rgba(242,194,22,.08), 0 0 20px rgba(242,194,22,.18);
+    outline: none;
   }
 
   .adversary-class-modal-orb {
@@ -5911,7 +5990,16 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
               type="button"
               className="adversary-class-modal-close"
               aria-label="Close class details"
-              onClick={() => setSelectedClass(null)}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setSelectedClass(null);
+              }}
             >
               ×
             </button>
