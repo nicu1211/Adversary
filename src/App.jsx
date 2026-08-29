@@ -6814,7 +6814,6 @@ export default function App() {
   const backgroundLoopTransitionRef = useRef(false);
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
-  const startupMutedFallbackRef = useRef(false);
   const [startupFinished, setStartupFinished] = useState(false);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
@@ -6838,6 +6837,16 @@ export default function App() {
 
   const handleStartupPlaying = useCallback(() => {
     setStartupStarted(true);
+
+    const video = startupVideoRef.current;
+
+    // If the browser already granted audible autoplay for this site, make sure
+    // the intro stays at full volume. If it did not, the muted fallback keeps
+    // the visual intro running rather than freezing.
+    if (video && !video.muted) {
+      video.defaultMuted = false;
+      video.volume = 1;
+    }
 
     if (backgroundLoopActive || startupRevealTimerRef.current || startupFinished) return;
 
@@ -6926,67 +6935,46 @@ export default function App() {
 
     let cancelled = false;
 
-    const unlockBackgroundAudio = () => {
-      if (cancelled || !startupMutedFallbackRef.current) return;
+    // Use the same startup path as the first version that played correctly:
+    // explicitly request the intro with sound once the element is mounted.
+    video.defaultMuted = false;
+    video.muted = false;
+    video.volume = 1;
+    video.currentTime = 0;
 
+    const startIntro = async () => {
       try {
-        video.muted = false;
-        video.volume = 1;
-        startupMutedFallbackRef.current = false;
-
-        const playPromise = video.play();
-        if (playPromise?.catch) {
-          playPromise.catch(() => {
-            // If the browser still refuses audible playback, keep the video
-            // running muted rather than interrupting the background.
-            video.muted = true;
-            video.volume = 0;
-            startupMutedFallbackRef.current = true;
-            video.play().catch(() => {});
-          });
-        }
-      } catch {
-        // Browser policy can still reject audible autoplay without a gesture.
-      }
-    };
-
-    const tryAutoplay = async () => {
-      try {
-        video.muted = false;
-        video.defaultMuted = false;
-        video.volume = 1;
         await video.play();
-        startupMutedFallbackRef.current = false;
+
+        if (cancelled) return;
+
+        // Keep it audible if the browser accepted audible autoplay.
+        video.defaultMuted = false;
+        video.muted = false;
+        video.volume = 1;
       } catch {
         if (cancelled) return;
 
-        // Modern browsers may block autoplay with audio. There is no standards-
-        // compliant way to bypass that policy without a user gesture, so keep
-        // the visual background running muted and unlock it on the first normal
-        // interaction instead of showing a click-to-start gate.
+        // Never leave the intro frozen. If this browser rejects audible
+        // autoplay, immediately fall back to muted playback so the clip still
+        // starts without requiring a click.
         try {
           video.muted = true;
+          video.defaultMuted = true;
           video.volume = 0;
-          startupMutedFallbackRef.current = true;
           await video.play();
         } catch {
-          // If playback itself fails, reveal the UI and leave the static fallback.
+          // If media playback itself fails, reveal the site instead of leaving
+          // a dead black startup screen.
           finishStartup();
         }
       }
     };
 
-    document.addEventListener('pointerdown', unlockBackgroundAudio, { passive: true });
-    document.addEventListener('keydown', unlockBackgroundAudio);
-    document.addEventListener('touchstart', unlockBackgroundAudio, { passive: true });
-
-    tryAutoplay();
+    startIntro();
 
     return () => {
       cancelled = true;
-      document.removeEventListener('pointerdown', unlockBackgroundAudio);
-      document.removeEventListener('keydown', unlockBackgroundAudio);
-      document.removeEventListener('touchstart', unlockBackgroundAudio);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -7970,7 +7958,6 @@ export default function App() {
         <video
           ref={startupVideoRef}
           src={adversaryStartupClip}
-          autoPlay
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
