@@ -2876,15 +2876,17 @@ const GLOBAL_PANEL_CSS = `
       inset: 0;
       z-index: 1;
       pointer-events: none;
-      opacity: .22;
+      opacity: .38;
       background-image:
-        linear-gradient(30deg, rgba(246,201,21,.12) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.12) 87.5%),
-        linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
-        radial-gradient(circle at 50% 22%, rgba(255,220,64,.34) 0 1px, transparent 2px),
-        radial-gradient(circle at 30% 63%, rgba(255,220,64,.24) 0 1px, transparent 2px);
-      background-size: 42px 72px, 42px 72px, 128px 128px, 170px 170px;
-      -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.14) 44%, transparent 72%);
-      mask-image: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.14) 44%, transparent 72%);
+        var(--adversary-tech-art),
+        radial-gradient(circle at 18% 19%, rgba(255,220,64,.30) 0 1px, transparent 2px),
+        radial-gradient(circle at 77% 42%, rgba(255,220,64,.24) 0 1px, transparent 2px),
+        radial-gradient(ellipse at 44% 58%, rgba(193,116,8,.06), transparent 34%);
+      background-size: 500px 196px, 150px 140px, 190px 165px, 100% 100%;
+      background-position: 18% 5%, 10% 18%, 72% 48%, center;
+      background-repeat: repeat, repeat, repeat, no-repeat;
+      -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.92), rgba(0,0,0,.70) 44%, rgba(0,0,0,.28) 78%, transparent 100%);
+      mask-image: linear-gradient(180deg, rgba(0,0,0,.92), rgba(0,0,0,.70) 44%, rgba(0,0,0,.28) 78%, transparent 100%);
     }
 
     .adversary-sidebar::after {
@@ -2892,22 +2894,21 @@ const GLOBAL_PANEL_CSS = `
       position: absolute;
       left: 6px;
       right: 6px;
-      bottom: 54px;
-      height: 220px;
+      bottom: 48px;
+      height: 270px;
       z-index: 1;
       pointer-events: none;
-      opacity: .34;
+      opacity: .48;
       background-image:
-        linear-gradient(30deg, rgba(246,201,21,.17) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.17) 87.5%),
-        linear-gradient(150deg, rgba(246,201,21,.17) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.17) 87.5%),
-        linear-gradient(30deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
-        linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
-        radial-gradient(circle at 24% 72%, rgba(255,215,47,.42) 0 1px, transparent 2px),
-        radial-gradient(circle at 72% 46%, rgba(255,215,47,.30) 0 1px, transparent 2px);
-      background-size: 34px 59px, 34px 59px, 52px 90px, 52px 90px, 120px 120px, 150px 150px;
-      background-position: 0 0, 0 0, 13px 19px, 13px 19px, 0 0, 0 0;
-      -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.24) 12%, #000 52%, rgba(0,0,0,.54) 82%, transparent 100%);
-      mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.24) 12%, #000 52%, rgba(0,0,0,.54) 82%, transparent 100%);
+        var(--adversary-tech-art),
+        radial-gradient(circle at 23% 70%, rgba(255,215,47,.40) 0 1.4px, transparent 2.4px),
+        radial-gradient(circle at 76% 44%, rgba(255,215,47,.28) 0 1.2px, transparent 2.2px),
+        radial-gradient(ellipse at 52% 70%, rgba(166,96,6,.10), transparent 45%);
+      background-size: 390px 153px, 130px 120px, 170px 150px, 100% 100%;
+      background-position: 8% 50%, 14% 68%, 74% 42%, center;
+      background-repeat: repeat, repeat, repeat, no-repeat;
+      -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.34) 10%, #000 42%, rgba(0,0,0,.76) 84%, transparent 100%);
+      mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.34) 10%, #000 42%, rgba(0,0,0,.76) 84%, transparent 100%);
     }
 
     .adversary-sidebar > h1,
@@ -3172,6 +3173,7 @@ const GLOBAL_PANEL_CSS = `
 const ALL_PAGES_NODEWARS_TECH_CSS = `
   /* Unified visual language for every page except Node Wars, which already owns
      its exact reference-match CSS. No calculations or page logic are changed. */
+  :root,
   body:not([data-adversary-page="nodewars"]) .adversary-content {
     --tech-gold: #f2c216;
     --tech-gold-bright: #ffdc46;
@@ -3444,38 +3446,63 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
 
 
 
-  /* Hall of Fame top tabs keep the old semantic colour identity inside the
-     new black/gold techno shell instead of being flattened to neutral black. */
+  /* Hall of Fame top tabs: 50% semantic colour when idle, full-intensity when selected. */
   body[data-adversary-page="hall"] .adversary-content .hall-header-card {
-    border-color: rgba(var(--hall-accent-rgb), .72) !important;
-    background-color: rgba(var(--hall-accent-rgb), .36) !important;
+    position: relative !important;
+    isolation: isolate;
+    overflow: hidden;
+    border-color: rgba(var(--hall-accent-rgb), .74) !important;
+    background-color: rgba(2,4,5,.72) !important;
     background-image:
-      radial-gradient(ellipse at 12% -12%, rgba(var(--hall-accent-rgb), .76) 0%, rgba(var(--hall-accent-rgb), .44) 34%, rgba(var(--hall-accent-rgb), .18) 62%, transparent 84%),
-      radial-gradient(ellipse at 92% 118%, rgba(var(--hall-accent-rgb), .34), transparent 50%),
       var(--adversary-tech-art),
-      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .40) 0%, rgba(var(--hall-accent-rgb), .22) 42%, rgba(3,5,6,.54) 78%, rgba(2,4,5,.60)) !important;
-    background-size: 100% 100%, 100% 100%, 380px 150px, 100% 100% !important;
-    background-position: center, center, 12% 50%, center !important;
-    background-repeat: no-repeat, no-repeat, repeat, no-repeat !important;
+      linear-gradient(145deg, rgba(5,8,10,.38), rgba(2,4,5,.72)) !important;
+    background-size: 420px 165px, 100% 100% !important;
+    background-position: 12% 50%, center !important;
+    background-repeat: repeat, no-repeat !important;
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.10),
-      inset 0 0 38px rgba(var(--hall-accent-rgb), .26),
+      inset 0 0 30px rgba(var(--hall-accent-rgb), .20),
       0 8px 20px rgba(0,0,0,.22) !important;
   }
 
-  body[data-adversary-page="hall"] .adversary-content .hall-header-card:hover,
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 15% 4%, rgba(var(--hall-accent-rgb), .92), rgba(var(--hall-accent-rgb), .60) 35%, rgba(var(--hall-accent-rgb), .26) 70%, transparent 92%),
+      linear-gradient(120deg, rgba(var(--hall-accent-rgb), .56), rgba(var(--hall-accent-rgb), .28) 58%, transparent 100%);
+    opacity: .50;
+    transition: opacity 160ms ease, filter 160ms ease;
+  }
+
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card > div:first-child {
+    z-index: 1;
+  }
+
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card > div:last-child {
+    position: relative;
+    z-index: 2;
+  }
+
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card:hover::before {
+    opacity: .72;
+  }
+
   body[data-adversary-page="hall"] .adversary-content .hall-header-card[aria-pressed="true"] {
-    border-color: rgba(var(--hall-accent-rgb), .98) !important;
-    background-color: rgba(var(--hall-accent-rgb), .48) !important;
-    background-image:
-      radial-gradient(ellipse at 12% -12%, rgba(var(--hall-accent-rgb), .92) 0%, rgba(var(--hall-accent-rgb), .55) 36%, rgba(var(--hall-accent-rgb), .22) 66%, transparent 86%),
-      radial-gradient(ellipse at 92% 118%, rgba(var(--hall-accent-rgb), .40), transparent 50%),
-      var(--adversary-tech-art),
-      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .50), rgba(var(--hall-accent-rgb), .28) 48%, rgba(3,5,6,.50) 82%) !important;
+    border-color: rgba(var(--hall-accent-rgb), 1) !important;
     box-shadow:
-      inset 0 0 46px rgba(var(--hall-accent-rgb), .32),
-      0 0 22px rgba(var(--hall-accent-rgb), .24),
+      inset 0 1px 0 rgba(255,255,255,.14),
+      inset 0 0 42px rgba(var(--hall-accent-rgb), .36),
+      0 0 24px rgba(var(--hall-accent-rgb), .28),
       0 10px 24px rgba(0,0,0,.24) !important;
+  }
+
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card[aria-pressed="true"]::before {
+    opacity: .96;
+    filter: saturate(1.12) brightness(1.03);
   }
 
   @media (max-width: 1023px) {
