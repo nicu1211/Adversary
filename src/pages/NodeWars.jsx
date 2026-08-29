@@ -17,27 +17,26 @@ import {
 } from 'lucide-react';
 
 import { Panel } from '../components/UI';
+import adversaryEmblem from '../assets/adversary-emblem.png?url';
 import { buildNodeWarRow, scrollCls } from '../lib/logUtils';
 
 
 const NODE_WARS_PANEL_CSS = `
   #root .adversary-content .nodewars-page-shell,
   #root .adversary-content .nodewars-page-shell:hover {
-    --nw-gold: #f4bf16;
-    --nw-gold-bright: #ffd94a;
-    --nw-gold-rgb: 244, 191, 22;
-    --nw-panel: rgba(5, 7, 8, 0.88);
-    --nw-panel-deep: rgba(2, 3, 4, 0.94);
-    --nw-line: rgba(244, 191, 22, 0.34);
-    --nw-line-strong: rgba(244, 191, 22, 0.68);
-    --nw-text-muted: #8d8a78;
-    background-color: transparent !important;
-    background-image: none !important;
-    border-color: transparent !important;
+    --nw-gold: #f2c216;
+    --nw-gold-bright: #ffdc46;
+    --nw-gold-rgb: 242, 194, 22;
+    --nw-line: rgba(242, 194, 22, .34);
+    --nw-line-hot: rgba(255, 218, 62, .78);
+    --nw-panel: rgba(3, 5, 6, .82);
+    position: relative;
+    isolation: isolate;
+    background: transparent !important;
+    border: 0 !important;
     box-shadow: none !important;
-    -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
-    filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   #root .adversary-content .nodewars-page-shell::before,
@@ -45,220 +44,220 @@ const NODE_WARS_PANEL_CSS = `
     display: none !important;
   }
 
-  /* Shared black / gold techno panel surface. */
-  #root .adversary-content .nodewars-guild-panel {
+  #root .adversary-content .nodewars-scene {
     position: relative;
     isolation: isolate;
-    overflow: hidden;
-    background-color: var(--nw-panel) !important;
-    background-image:
-      radial-gradient(circle at 10% -35%, rgba(var(--nw-gold-rgb), 0.13), transparent 42%),
-      radial-gradient(circle at 88% 130%, rgba(var(--nw-gold-rgb), 0.055), transparent 42%),
-      linear-gradient(180deg, rgba(15, 14, 9, 0.94), rgba(3, 5, 6, 0.93)) !important;
-    border: 1px solid var(--nw-line) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 226, 105, 0.045),
-      inset 0 0 26px rgba(var(--nw-gold-rgb), 0.025),
-      0 0 0 1px rgba(0, 0, 0, 0.52),
-      0 9px 24px rgba(0, 0, 0, 0.28) !important;
-    -webkit-backdrop-filter: blur(7px) saturate(112%);
-    backdrop-filter: blur(7px) saturate(112%);
-    transition:
-      border-color 180ms ease,
-      box-shadow 180ms ease,
-      transform 180ms ease,
-      background-color 180ms ease;
   }
 
-  /* Subtle connected-tech lattice. */
+  /* Large piece of the actual emblem becomes the page's structural core. */
+  #root .adversary-content .nodewars-emblem-watermark {
+    position: absolute !important;
+    z-index: -3 !important;
+    left: 50%;
+    top: -122px;
+    width: min(660px, 58vw);
+    height: 520px;
+    transform: translateX(-50%);
+    background-repeat: no-repeat;
+    background-position: center top;
+    background-size: contain;
+    opacity: .155;
+    filter: saturate(1.25) contrast(1.08) drop-shadow(0 0 42px rgba(var(--nw-gold-rgb), .16));
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(180deg, #000 0 58%, rgba(0,0,0,.7) 74%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 0 58%, rgba(0,0,0,.7) 74%, transparent 100%);
+  }
+
+  #root .adversary-content .nodewars-tech-field {
+    position: absolute !important;
+    z-index: -4 !important;
+    inset: -10px 0 0;
+    pointer-events: none;
+    opacity: .46;
+    background-image:
+      linear-gradient(30deg, rgba(var(--nw-gold-rgb), .07) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .07) 87.5%),
+      linear-gradient(150deg, rgba(var(--nw-gold-rgb), .07) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .07) 87.5%),
+      linear-gradient(30deg, rgba(var(--nw-gold-rgb), .045) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .045) 87.5%),
+      linear-gradient(150deg, rgba(var(--nw-gold-rgb), .045) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .045) 87.5%);
+    background-size: 54px 94px;
+    background-position: 0 0, 0 0, 27px 47px, 27px 47px;
+    -webkit-mask-image: radial-gradient(ellipse at 54% 18%, #000 0 48%, rgba(0,0,0,.60) 68%, transparent 93%);
+    mask-image: radial-gradient(ellipse at 54% 18%, #000 0 48%, rgba(0,0,0,.60) 68%, transparent 93%);
+  }
+
+  #root .adversary-content .nodewars-circuit-field {
+    position: absolute !important;
+    z-index: -2 !important;
+    inset: 0;
+    pointer-events: none;
+    opacity: .26;
+    background-image:
+      linear-gradient(90deg, transparent 0 8%, rgba(var(--nw-gold-rgb),.24) 8% 8.08%, transparent 8.08% 30%, rgba(var(--nw-gold-rgb),.14) 30% 30.08%, transparent 30.08% 100%),
+      linear-gradient(0deg, transparent 0 21%, rgba(var(--nw-gold-rgb),.15) 21% 21.2%, transparent 21.2% 64%, rgba(var(--nw-gold-rgb),.12) 64% 64.2%, transparent 64.2% 100%);
+    background-size: 240px 100%, 100% 130px;
+    -webkit-mask-image: linear-gradient(90deg, #000 0 17%, transparent 34%, transparent 68%, #000 86% 100%);
+    mask-image: linear-gradient(90deg, #000 0 17%, transparent 34%, transparent 68%, #000 86% 100%);
+  }
+
+  /* Shared reference-like panel. */
+  #root .adversary-content .nodewars-guild-panel {
+    position: relative !important;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 12% -70%, rgba(var(--nw-gold-rgb), .095), transparent 43%),
+      linear-gradient(180deg, rgba(8,9,8,.91), rgba(2,4,5,.90)) !important;
+    border: 1px solid rgba(var(--nw-gold-rgb), .40) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,232,125,.035),
+      inset 0 0 26px rgba(var(--nw-gold-rgb), .018),
+      0 8px 22px rgba(0,0,0,.26) !important;
+    backdrop-filter: blur(5px) saturate(112%);
+    -webkit-backdrop-filter: blur(5px) saturate(112%);
+  }
+
   #root .adversary-content .nodewars-guild-panel::before {
     content: '';
-    position: absolute;
+    position: absolute !important;
     inset: 0;
-    z-index: -1;
+    z-index: -1 !important;
     pointer-events: none;
-    opacity: 0.34;
+    opacity: .18;
     background-image:
-      repeating-linear-gradient(
-        60deg,
-        transparent 0 23px,
-        rgba(var(--nw-gold-rgb), 0.055) 23px 24px,
-        transparent 24px 47px
-      ),
-      repeating-linear-gradient(
-        -60deg,
-        transparent 0 23px,
-        rgba(var(--nw-gold-rgb), 0.045) 23px 24px,
-        transparent 24px 47px
-      ),
-      repeating-linear-gradient(
-        0deg,
-        transparent 0 39px,
-        rgba(var(--nw-gold-rgb), 0.03) 39px 40px,
-        transparent 40px 79px
-      );
-    mask-image: linear-gradient(90deg, rgba(0,0,0,.78), rgba(0,0,0,.28) 48%, rgba(0,0,0,.62));
-    -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.78), rgba(0,0,0,.28) 48%, rgba(0,0,0,.62));
+      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%),
+      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%);
+    background-size: 42px 73px;
+    -webkit-mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.24) 52%, #000);
+    mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.24) 52%, #000);
   }
 
   #root .adversary-content .nodewars-guild-panel::after {
     content: '';
-    position: absolute;
+    position: absolute !important;
     inset: 0;
-    z-index: 20;
+    z-index: 20 !important;
     pointer-events: none;
     border-radius: inherit;
     border: 1px solid transparent;
-    background: linear-gradient(
-      105deg,
-      rgba(255, 225, 89, 0.72) 0%,
-      rgba(var(--nw-gold-rgb), 0.34) 16%,
-      rgba(var(--nw-gold-rgb), 0.10) 43%,
-      rgba(var(--nw-gold-rgb), 0.28) 78%,
-      rgba(255, 220, 67, 0.56) 100%
-    ) border-box;
-    -webkit-mask:
-      linear-gradient(#000 0 0) padding-box,
-      linear-gradient(#000 0 0);
+    background: linear-gradient(102deg, rgba(255,224,76,.72), rgba(var(--nw-gold-rgb),.18) 26%, transparent 50%, rgba(var(--nw-gold-rgb),.15) 77%, rgba(255,221,65,.55)) border-box;
+    -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    opacity: 0.74;
+    opacity: .55;
   }
 
-  #root .adversary-content .nodewars-guild-panel:hover {
-    border-color: var(--nw-line-strong) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 230, 120, 0.075),
-      inset 0 0 34px rgba(var(--nw-gold-rgb), 0.045),
-      0 0 18px rgba(var(--nw-gold-rgb), 0.09),
-      0 12px 28px rgba(0, 0, 0, 0.32) !important;
-  }
-
-  /* Filter / control strip. */
+  /* One compact control strip, matching the requested reference. */
   #root .adversary-content .nodewars-filter-panel {
-    background-image:
-      radial-gradient(circle at 50% -110%, rgba(var(--nw-gold-rgb), 0.12), transparent 50%),
-      linear-gradient(180deg, rgba(9, 10, 9, 0.95), rgba(3, 5, 6, 0.96)) !important;
-    border-color: rgba(var(--nw-gold-rgb), 0.45) !important;
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    background:
+      linear-gradient(90deg, rgba(5,7,7,.92), rgba(2,4,5,.87) 58%, rgba(6,6,4,.91)) !important;
   }
 
-  #root .adversary-content .nodewars-dark-control {
-    background:
-      linear-gradient(180deg, rgba(11, 12, 11, 0.96), rgba(3, 4, 5, 0.98)) !important;
-    border: 1px solid rgba(var(--nw-gold-rgb), 0.33) !important;
-    color: #eee9d9 !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 230, 126, 0.035),
-      0 0 0 1px rgba(0, 0, 0, 0.34) !important;
+  #root .adversary-content .nodewars-filter-main {
+    display: grid;
+    grid-template-columns: minmax(270px, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #root .adversary-content .nodewars-sort-row,
+  #root .adversary-content .nodewars-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: nowrap;
+  }
+
+  #root .adversary-content .nodewars-dark-control,
+  #root .adversary-content .nodewars-action-button {
+    min-height: 36px;
+    background: linear-gradient(180deg, rgba(12,12,9,.96), rgba(2,4,5,.98)) !important;
+    border: 1px solid rgba(var(--nw-gold-rgb), .36) !important;
+    color: #eee7d3 !important;
+    box-shadow: inset 0 1px 0 rgba(255,231,124,.025) !important;
   }
 
   #root .adversary-content .nodewars-dark-control:hover,
-  #root .adversary-content .nodewars-dark-control:focus {
-    background:
-      linear-gradient(180deg, rgba(20, 18, 10, 0.98), rgba(4, 5, 5, 0.99)) !important;
-    border-color: rgba(var(--nw-gold-rgb), 0.74) !important;
-    color: #fff8d7 !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 234, 145, 0.06),
-      0 0 12px rgba(var(--nw-gold-rgb), 0.09) !important;
-  }
-
-  #root .adversary-content .nodewars-dark-control::placeholder {
-    color: #77776f !important;
+  #root .adversary-content .nodewars-dark-control:focus,
+  #root .adversary-content .nodewars-action-button:hover {
+    border-color: rgba(var(--nw-gold-rgb), .76) !important;
+    color: #fff4b8 !important;
+    box-shadow: inset 0 0 12px rgba(var(--nw-gold-rgb),.04), 0 0 11px rgba(var(--nw-gold-rgb),.07) !important;
   }
 
   #root .adversary-content .nodewars-search-icon {
-    color: rgba(245, 197, 39, 0.55) !important;
+    color: rgba(255,220,69,.48) !important;
   }
 
   #root .adversary-content .nodewars-sort-control {
-    min-width: 62px;
-    border-radius: 10px !important;
-    padding: 8px 12px !important;
-    font-size: 10px !important;
-    letter-spacing: .04em !important;
+    min-width: 58px;
+    padding: 8px 10px !important;
+    border-radius: 9px !important;
+    font-size: 9px !important;
+    letter-spacing: .045em !important;
   }
 
   #root .adversary-content .nodewars-sort-control.nodewars-sort-active {
-    color: #fff3b8 !important;
-    border-color: rgba(var(--nw-gold-rgb), 0.78) !important;
-    background:
-      linear-gradient(180deg, rgba(58, 42, 5, 0.72), rgba(14, 12, 5, 0.94)) !important;
-    box-shadow:
-      inset 0 0 14px rgba(var(--nw-gold-rgb), 0.08),
-      0 0 11px rgba(var(--nw-gold-rgb), 0.12) !important;
+    color: #ffdf58 !important;
+    border-color: rgba(var(--nw-gold-rgb),.82) !important;
+    background: linear-gradient(180deg, rgba(70,53,7,.66), rgba(8,8,5,.96)) !important;
   }
 
-  #root .adversary-content .nodewars-period-menu {
-    overflow: hidden;
-    background: rgba(3, 4, 4, 0.99) !important;
-    border: 1px solid rgba(var(--nw-gold-rgb), 0.54) !important;
-    color: #fff !important;
-    color-scheme: dark;
-    box-shadow:
-      0 20px 60px rgba(0,0,0,.72),
-      0 0 18px rgba(var(--nw-gold-rgb), .08) !important;
-  }
-
-  #root .adversary-content .nodewars-period-menu button {
-    background: rgba(2, 3, 3, 0.98) !important;
-    color: #eae5d5 !important;
-    border-color: rgba(var(--nw-gold-rgb), 0.10) !important;
-  }
-
-  #root .adversary-content .nodewars-period-menu button:hover {
-    background: rgba(48, 37, 8, 0.72) !important;
-    color: #fff3b8 !important;
-  }
-
-  #root .adversary-content .nodewars-filter-footer {
-    border-top-color: rgba(var(--nw-gold-rgb), 0.14) !important;
-  }
-
-  #root .adversary-content .nodewars-filter-chip {
-    border: 1px solid rgba(var(--nw-gold-rgb), 0.18) !important;
-    background: rgba(3, 4, 4, 0.84) !important;
-    color: #9b998e !important;
-  }
-
-  #root .adversary-content .nodewars-filter-chip b {
-    color: #f5f1e5 !important;
-  }
-
-  #root .adversary-content .nodewars-filter-chip-selected b {
-    color: #f5c51e !important;
-  }
-
+  #root .adversary-content .nodewars-period-button,
   #root .adversary-content .nodewars-action-button {
-    border: 1px solid rgba(var(--nw-gold-rgb), 0.45) !important;
-    background:
-      linear-gradient(180deg, rgba(18, 16, 8, 0.94), rgba(4, 5, 5, 0.98)) !important;
-    color: #e9e3cf !important;
-    box-shadow: inset 0 1px 0 rgba(255, 231, 123, .035);
-  }
-
-  #root .adversary-content .nodewars-action-button:hover {
-    border-color: rgba(var(--nw-gold-rgb), 0.85) !important;
-    color: #fff3b8 !important;
-    background:
-      linear-gradient(180deg, rgba(48, 38, 8, 0.90), rgba(7, 7, 5, 0.99)) !important;
-    box-shadow: 0 0 14px rgba(var(--nw-gold-rgb), .10);
+    white-space: nowrap;
+    border-radius: 10px !important;
+    padding: 8px 13px !important;
+    font-size: 10px !important;
   }
 
   #root .adversary-content .nodewars-action-primary {
-    border-color: rgba(var(--nw-gold-rgb), 0.68) !important;
-    color: #ffe373 !important;
+    color: #ffde52 !important;
+    border-color: rgba(var(--nw-gold-rgb),.62) !important;
   }
 
-  /* Summary row = separate gold framed tiles like the reference. */
+  #root .adversary-content .nodewars-select-all-compact {
+    width: 38px;
+    padding: 0 !important;
+    display: grid;
+    place-items: center;
+    color: rgba(255,221,74,.74) !important;
+  }
+
+  #root .adversary-content .nodewars-period-menu {
+    background: rgba(2,3,3,.99) !important;
+    border-color: rgba(var(--nw-gold-rgb),.52) !important;
+    color: #fff !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,.72), 0 0 16px rgba(var(--nw-gold-rgb),.08) !important;
+  }
+
+  #root .adversary-content .nodewars-period-menu button {
+    background: rgba(2,3,3,.98) !important;
+    color: #e9e3d3 !important;
+  }
+
+  #root .adversary-content .nodewars-period-menu button:hover {
+    background: rgba(55,42,7,.70) !important;
+    color: #fff0a4 !important;
+  }
+
+  #root .adversary-content .nodewars-warning-panel {
+    color: #ffe493 !important;
+    border-color: rgba(var(--nw-gold-rgb),.56) !important;
+  }
+
+  /* Eight separate semantic stat tiles. */
   #root .adversary-content .nodewars-summary-grid {
-    gap: 9px !important;
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(108px,1fr)) !important;
+    gap: 8px !important;
     overflow: visible !important;
-    border: 0 !important;
     background: transparent !important;
+    border: 0 !important;
     box-shadow: none !important;
-    -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   #root .adversary-content .nodewars-summary-grid::before,
@@ -267,496 +266,237 @@ const NODE_WARS_PANEL_CSS = `
   }
 
   #root .adversary-content .nodewars-summary-stat {
-    --nodewars-accent-rgb: 96, 165, 250;
-    position: relative;
-    isolation: isolate;
-    min-height: 80px;
+    position: relative !important;
+    min-height: 78px;
     overflow: hidden;
-    border: 1px solid rgba(var(--nw-gold-rgb), 0.31);
+    border: 1px solid rgba(var(--nw-gold-rgb), .34) !important;
     border-radius: 13px;
     background:
-      radial-gradient(circle at 18% 0%, rgba(var(--nodewars-accent-rgb), 0.13), transparent 58%),
-      linear-gradient(150deg, rgba(13, 14, 13, 0.96), rgba(4, 5, 6, 0.96));
-    box-shadow:
-      inset 0 0 22px rgba(var(--nodewars-accent-rgb), 0.025),
-      inset 0 1px 0 rgba(255,255,255,.025),
-      0 8px 20px rgba(0,0,0,.20);
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+      radial-gradient(circle at 18% 8%, rgba(var(--nodewars-accent-rgb), .135), transparent 52%),
+      linear-gradient(145deg, rgba(13,13,11,.91), rgba(2,5,6,.92)) !important;
+    box-shadow: inset 0 0 22px rgba(var(--nodewars-accent-rgb),.018), 0 7px 18px rgba(0,0,0,.22) !important;
+  }
+
+  #root .adversary-content .nodewars-summary-stat::before {
+    content: '';
+    position: absolute !important;
+    inset: 0;
+    z-index: -1 !important;
+    pointer-events: none;
+    opacity: .16;
+    background-image:
+      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%),
+      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%);
+    background-size: 34px 59px;
   }
 
   #root .adversary-content .nodewars-summary-stat::after {
     content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: .25;
-    background:
-      repeating-linear-gradient(60deg, transparent 0 20px, rgba(var(--nw-gold-rgb), .045) 20px 21px, transparent 21px 41px),
-      repeating-linear-gradient(-60deg, transparent 0 20px, rgba(var(--nw-gold-rgb), .035) 20px 21px, transparent 21px 41px);
+    position: absolute !important;
+    left: 13px;
+    bottom: 0;
+    width: 44px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(var(--nodewars-accent-rgb),.95), transparent);
+    box-shadow: 0 0 7px rgba(var(--nodewars-accent-rgb),.22);
   }
 
   #root .adversary-content .nodewars-summary-stat:hover {
+    border-color: rgba(var(--nw-gold-rgb), .59) !important;
     transform: translateY(-1px);
-    border-color: rgba(var(--nw-gold-rgb), 0.58);
-    box-shadow:
-      inset 0 0 28px rgba(var(--nodewars-accent-rgb), 0.05),
-      0 0 14px rgba(var(--nw-gold-rgb), 0.07),
-      0 10px 22px rgba(0,0,0,.24);
   }
 
-  /* App.jsx has broad gold-tech direct-child rules. Keep decorative layers out of the grid flow. */
-  #root .adversary-content .nodewars-page-shell .nodewars-war-card > .nodewars-card-glow {
-    position: absolute !important;
-    z-index: -1 !important;
-    display: block !important;
-  }
-
-  /* War cards. */
+  /* War rows borrow the emblem's V cuts and dark metal/gold edge language. */
   #root .adversary-content .nodewars-war-card {
     overflow: hidden !important;
-    border-color: rgba(var(--nw-gold-rgb), 0.46) !important;
+    min-height: 126px;
+    border-radius: 13px !important;
+    border-color: rgba(var(--nw-gold-rgb), .52) !important;
     background:
-      radial-gradient(circle at 22% -50%, rgba(var(--nw-gold-rgb), 0.08), transparent 44%),
-      linear-gradient(180deg, rgba(9, 10, 9, 0.95), rgba(3, 5, 6, 0.96)) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 230, 112, 0.035),
-      inset 0 0 30px rgba(var(--nw-gold-rgb), 0.02),
-      0 9px 23px rgba(0,0,0,.26) !important;
+      linear-gradient(180deg, rgba(7,8,7,.875), rgba(2,4,5,.91)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,229,100,.035), inset 0 0 26px rgba(var(--nw-gold-rgb),.015), 0 8px 21px rgba(0,0,0,.24) !important;
   }
 
   #root .adversary-content .nodewars-war-card:hover {
-    border-color: rgba(var(--nw-gold-rgb), 0.82) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 233, 132, 0.055),
-      inset 0 0 34px rgba(var(--nw-gold-rgb), 0.035),
-      0 0 17px rgba(var(--nw-gold-rgb), .08),
-      0 11px 26px rgba(0,0,0,.30) !important;
+    border-color: rgba(var(--nw-gold-rgb), .88) !important;
+    box-shadow: inset 0 0 30px rgba(var(--nw-gold-rgb),.028), 0 0 13px rgba(var(--nw-gold-rgb),.07), 0 10px 24px rgba(0,0,0,.28) !important;
   }
 
   #root .adversary-content .nodewars-war-card.nodewars-selected {
-    border-color: rgba(var(--nw-gold-rgb), 0.92) !important;
-    background:
-      radial-gradient(circle at 20% -30%, rgba(var(--nw-gold-rgb), 0.13), transparent 48%),
-      linear-gradient(180deg, rgba(17, 15, 8, 0.96), rgba(4, 5, 5, 0.98)) !important;
-    box-shadow:
-      inset 0 0 38px rgba(var(--nw-gold-rgb), 0.045),
-      0 0 19px rgba(var(--nw-gold-rgb), .10),
-      0 12px 28px rgba(0,0,0,.30) !important;
+    border-color: rgba(255,218,58,.96) !important;
+    box-shadow: inset 0 0 34px rgba(var(--nw-gold-rgb),.038), 0 0 15px rgba(var(--nw-gold-rgb),.10), 0 10px 25px rgba(0,0,0,.28) !important;
   }
 
   #root .adversary-content .nodewars-war-card::before {
-    opacity: 0.22;
+    opacity: .12;
     background-image:
-      repeating-linear-gradient(60deg, transparent 0 24px, rgba(var(--nw-gold-rgb), 0.055) 24px 25px, transparent 25px 49px),
-      repeating-linear-gradient(-60deg, transparent 0 24px, rgba(var(--nw-gold-rgb), 0.04) 24px 25px, transparent 25px 49px),
-      repeating-linear-gradient(0deg, transparent 0 42px, rgba(var(--nw-gold-rgb), 0.025) 42px 43px, transparent 43px 85px);
+      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.12) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.12) 87.5%),
+      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.12) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.12) 87.5%);
+    background-size: 40px 69px;
+  }
+
+  #root .adversary-content .nodewars-card-glow {
+    position: absolute !important;
+    z-index: -2 !important;
+  }
+
+  #root .adversary-content .nodewars-war-card .nodewars-emblem-shard {
+    position: absolute !important;
+    z-index: 0 !important;
+    right: 54px;
+    top: -34px;
+    width: 170px;
+    height: 150px;
+    opacity: .055;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    transform: rotate(-18deg);
+    filter: saturate(1.2) contrast(1.1);
+    pointer-events: none;
   }
 
   #root .adversary-content .nodewars-war-date {
-    position: relative;
-    border-right: 1px solid rgba(var(--nw-gold-rgb), 0.16);
+    position: relative !important;
+    border-right: 1px solid rgba(var(--nw-gold-rgb), .17);
     background:
-      radial-gradient(circle at 20% 18%, rgba(var(--nw-gold-rgb), 0.12), transparent 55%),
-      linear-gradient(145deg, rgba(21, 18, 8, 0.76), rgba(3, 4, 5, 0.32)) !important;
+      radial-gradient(circle at 24% 16%, rgba(var(--nw-gold-rgb),.13), transparent 52%),
+      linear-gradient(145deg, rgba(31,25,6,.70), rgba(3,5,5,.34)) !important;
   }
 
   #root .adversary-content .nodewars-war-date::after {
     content: '';
-    position: absolute;
+    position: absolute !important;
     left: 0;
     top: 0;
-    width: 18px;
-    height: 18px;
-    background: linear-gradient(135deg, var(--nw-gold-bright) 0 42%, rgba(var(--nw-gold-rgb), .32) 43% 54%, transparent 55%);
-    filter: drop-shadow(0 0 7px rgba(var(--nw-gold-rgb), .22));
-    opacity: .82;
+    width: 19px;
+    height: 19px;
+    background: linear-gradient(135deg, #ffdd43 0 40%, rgba(var(--nw-gold-rgb),.30) 41% 55%, transparent 56%);
+    filter: drop-shadow(0 0 6px rgba(var(--nw-gold-rgb),.20));
   }
 
-  #root .adversary-content .nodewars-war-date svg {
+  #root .adversary-content .nodewars-date-icon {
+    border: 1px solid rgba(var(--nw-gold-rgb),.28) !important;
+    background: rgba(66,50,4,.28) !important;
     color: #f5c51e !important;
+    box-shadow: inset 0 0 12px rgba(var(--nw-gold-rgb),.05) !important;
   }
 
-  #root .adversary-content .nodewars-war-card .nodewars-date-icon {
-    background: rgba(61, 46, 5, 0.34) !important;
-    color: #f5c51e !important;
-    border: 1px solid rgba(var(--nw-gold-rgb), 0.26);
-    box-shadow: inset 0 0 14px rgba(var(--nw-gold-rgb), .06) !important;
-  }
-
-  #root .adversary-content .nodewars-war-card .nodewars-kd-badge {
-    border-color: rgba(var(--nw-gold-rgb), 0.48) !important;
-    background: rgba(60, 45, 5, 0.38) !important;
-    color: #f8cf39 !important;
-    box-shadow:
-      inset 0 0 12px rgba(var(--nw-gold-rgb), .05),
-      0 0 8px rgba(var(--nw-gold-rgb), .04);
+  #root .adversary-content .nodewars-kd-badge {
+    border-color: rgba(var(--nw-gold-rgb),.48) !important;
+    background: rgba(64,47,4,.34) !important;
+    color: #ffd847 !important;
   }
 
   #root .adversary-content .nodewars-enemy-pill {
-    border-color: rgba(var(--nw-gold-rgb), 0.24) !important;
-    background: rgba(2, 3, 3, 0.82) !important;
-  }
-
-  #root .adversary-content .nodewars-enemy-pill:hover {
-    border-color: rgba(var(--nw-gold-rgb), 0.52) !important;
+    min-width: 0 !important;
+    height: 27px !important;
+    border-color: rgba(var(--nw-gold-rgb),.22) !important;
+    background: rgba(1,3,4,.78) !important;
   }
 
   #root .adversary-content .nodewars-metrics-divider {
-    background: linear-gradient(90deg, rgba(var(--nw-gold-rgb), .18), rgba(var(--nw-gold-rgb), .07), transparent) !important;
+    background: linear-gradient(90deg, rgba(var(--nw-gold-rgb),.20), rgba(var(--nw-gold-rgb),.065), transparent) !important;
+  }
+
+  #root .adversary-content .nodewars-war-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(84px,1fr)) !important;
+    gap: 8px !important;
+  }
+
+  #root .adversary-content .nodewars-open-controls {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 24px;
   }
 
   #root .adversary-content .nodewars-select-toggle {
-    border-color: rgba(var(--nw-gold-rgb), .34) !important;
-    background: rgba(5, 6, 6, .90) !important;
-    box-shadow: inset 0 0 12px rgba(var(--nw-gold-rgb), .035);
+    width: 19px !important;
+    height: 19px !important;
+    min-width: 19px;
+    border-radius: 6px !important;
+    opacity: .22;
+    border-color: rgba(var(--nw-gold-rgb),.35) !important;
+    background: rgba(1,3,4,.75) !important;
+    transition: opacity .16s ease, border-color .16s ease, box-shadow .16s ease;
   }
 
+  #root .adversary-content .nodewars-war-card:hover .nodewars-select-toggle,
   #root .adversary-content .nodewars-selected .nodewars-select-toggle {
-    border-color: rgba(var(--nw-gold-rgb), .90) !important;
-    background: rgba(57, 43, 5, .66) !important;
-    box-shadow: 0 0 12px rgba(var(--nw-gold-rgb), .10);
+    opacity: .88;
   }
 
   #root .adversary-content .nodewars-select-toggle input {
-    accent-color: #e7b300 !important;
-  }
-
-  /* Typography and separators. */
-  #root .adversary-content .nodewars-page-shell .text-slate-500,
-  #root .adversary-content .nodewars-page-shell .text-slate-600 {
-    color: #858276 !important;
-  }
-
-  #root .adversary-content .nodewars-page-shell .border-slate-700\/25 {
-    border-color: rgba(var(--nw-gold-rgb), 0.13) !important;
-  }
-
-  #root .adversary-content .nodewars-page-shell .bg-slate-700\/25 {
-    background-color: rgba(var(--nw-gold-rgb), 0.12) !important;
-  }
-
-  #root .adversary-content .nodewars-warning-panel {
-    color: #ffe693 !important;
-    border-color: rgba(var(--nw-gold-rgb), .52) !important;
-  }
-
-  /* Final mockup matching pass. */
-  #root .adversary-content .nodewars-page-shell {
-    width: 100%;
-    max-width: none;
-  }
-
-  #root .adversary-content .nodewars-guild-panel::before,
-  #root .adversary-content .nodewars-summary-stat::after {
-    background-image:
-      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.050) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.050) 87.5%),
-      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.050) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.050) 87.5%),
-      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.035) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.035) 87.5%),
-      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.035) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.035) 87.5%),
-      linear-gradient(60deg, rgba(var(--nw-gold-rgb),.024) 25%, transparent 25.5%, transparent 75%, rgba(var(--nw-gold-rgb),.024) 75%);
-    background-size: 48px 84px;
-    background-position: 0 0, 0 0, 24px 42px, 24px 42px, 0 0;
-  }
-
-  #root .adversary-content .nodewars-filter-panel {
-    border-radius: 14px !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255,232,122,.045),
-      inset 0 -1px 0 rgba(var(--nw-gold-rgb),.11),
-      0 0 16px rgba(var(--nw-gold-rgb),.055),
-      0 10px 30px rgba(0,0,0,.27) !important;
-  }
-
-  #root .adversary-content .nodewars-filter-panel input {
-    min-height: 43px;
-  }
-
-  #root .adversary-content .nodewars-filter-main-row {
-    align-items: center;
-  }
-
-  #root .adversary-content .nodewars-filter-actions {
-    justify-content: flex-end;
-  }
-
-  #root .adversary-content .nodewars-filter-footer {
-    margin-top: 10px !important;
-    padding-top: 9px !important;
-  }
-
-  #root .adversary-content .nodewars-summary-grid {
-    margin-top: 1px;
-  }
-
-  #root .adversary-content .nodewars-summary-stat {
-    min-height: 82px;
-    border-color: rgba(var(--nw-gold-rgb),.36) !important;
-    background:
-      radial-gradient(circle at 17% 0%, rgba(var(--nodewars-accent-rgb),.15), transparent 58%),
-      linear-gradient(150deg, rgba(11,12,11,.96), rgba(3,4,5,.97)) !important;
-  }
-
-  #root .adversary-content .nodewars-war-card {
-    min-height: 128px;
-    border-radius: 14px !important;
-  }
-
-  #root .adversary-content .nodewars-war-date {
-    padding: 14px 12px !important;
-  }
-
-  #root .adversary-content .nodewars-war-content {
-    padding: 13px 15px !important;
+    width: 13px !important;
+    height: 13px !important;
+    accent-color: #e8b900 !important;
   }
 
   #root .adversary-content .nodewars-open-chevron {
+    position: relative;
     display: grid;
     place-items: center;
-    width: 36px;
-    height: 36px;
-    border: 1px solid rgba(var(--nw-gold-rgb),.48);
-    border-radius: 12px;
-    color: #f8cc31;
-    background: linear-gradient(180deg, rgba(46,35,6,.72), rgba(6,7,6,.94));
-    box-shadow: inset 0 0 14px rgba(var(--nw-gold-rgb),.06), 0 0 11px rgba(var(--nw-gold-rgb),.055);
-    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    color: #ffd93f;
+    border: 1px solid rgba(var(--nw-gold-rgb),.56);
+    background: linear-gradient(135deg, rgba(73,55,5,.54), rgba(3,5,5,.94));
+    box-shadow: inset 0 0 13px rgba(var(--nw-gold-rgb),.045), 0 0 9px rgba(var(--nw-gold-rgb),.055);
   }
 
-  #root .adversary-content .nodewars-open-chevron:hover {
-    border-color: rgba(var(--nw-gold-rgb),.88);
-    box-shadow: inset 0 0 16px rgba(var(--nw-gold-rgb),.09), 0 0 16px rgba(var(--nw-gold-rgb),.12);
-    transform: translateX(1px);
+  #root .adversary-content .nodewars-open-chevron::before,
+  #root .adversary-content .nodewars-open-chevron::after {
+    content: '';
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-color: rgba(255,222,71,.64);
+    pointer-events: none;
   }
 
-  #root .adversary-content .nodewars-card-actions {
-    align-self: stretch;
-    min-width: 42px;
+  #root .adversary-content .nodewars-open-chevron::before {
+    left: -1px;
+    top: -1px;
+    border-left: 1px solid;
+    border-top: 1px solid;
   }
 
-  #root .adversary-content .nodewars-select-toggle {
-    width: 28px !important;
-    height: 28px !important;
-    border-radius: 9px !important;
+  #root .adversary-content .nodewars-open-chevron::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 1px solid;
+    border-bottom: 1px solid;
   }
 
-  #root .adversary-content .nodewars-select-toggle input {
-    width: 16px !important;
-    height: 16px !important;
+  #root .adversary-content .nodewars-page-shell .text-slate-500,
+  #root .adversary-content .nodewars-page-shell .text-slate-600 {
+    color: #837f70 !important;
   }
 
-  #root .adversary-content .nodewars-list {
-    scrollbar-color: rgba(var(--nw-gold-rgb),.48) rgba(3,4,5,.5);
-  }
-
-  /* Reference layout: one compact filter row, eight stat tiles, and a single
-     compact war row. The rules below deliberately override Tailwind breakpoints
-     so the page keeps the mockup proportions on normal desktop widths. */
-  #root .adversary-content .nodewars-filter-panel {
-    padding: 11px 12px !important;
-  }
-
-  #root .adversary-content .nodewars-filter-main-row {
-    display: grid !important;
-    grid-template-columns: minmax(245px, 285px) minmax(0, 1fr) !important;
-    gap: 14px !important;
-    align-items: center !important;
-  }
-
-  #root .adversary-content .nodewars-filter-actions {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    justify-content: flex-end !important;
-    gap: 7px !important;
-    min-width: 0;
-  }
-
-  #root .adversary-content .nodewars-search-field {
-    min-height: 40px !important;
-    padding-top: 9px !important;
-    padding-bottom: 9px !important;
-  }
-
-  #root .adversary-content .nodewars-sort-control {
-    min-width: 48px !important;
-    padding: 7px 9px !important;
-    border-radius: 9px !important;
-    font-size: 9px !important;
-    white-space: nowrap;
-  }
-
-  #root .adversary-content .nodewars-action-button,
-  #root .adversary-content .nodewars-period-button {
-    min-height: 34px;
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
-    white-space: nowrap;
-  }
-
-  #root .adversary-content .nodewars-filter-footer {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-  }
-
-  #root .adversary-content .nodewars-summary-grid {
-    display: grid !important;
-    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-  }
-
-  #root .adversary-content .nodewars-summary-stat {
-    min-width: 0 !important;
-    min-height: 78px !important;
-    padding: 10px 12px !important;
-  }
-
-  #root .adversary-content .nodewars-summary-stat > div:first-child {
-    width: 36px !important;
-    height: 36px !important;
-  }
-
-  #root .adversary-content .nodewars-summary-stat .text-xl {
-    font-size: 1.12rem !important;
-  }
-
-  #root .adversary-content .nodewars-trend-card {
-    display: none !important;
-  }
-
-  #root .adversary-content .nodewars-list {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-
-  #root .adversary-content .nodewars-war-card {
-    display: grid !important;
-    grid-template-columns: 118px minmax(0, 1fr) !important;
-    min-height: 126px !important;
-    border-radius: 13px !important;
-    background:
-      radial-gradient(circle at 18% -45%, rgba(var(--nw-gold-rgb), 0.065), transparent 42%),
-      linear-gradient(180deg, rgba(7,8,7,.89), rgba(2,3,4,.91)) !important;
-  }
-
-  #root .adversary-content .nodewars-war-card::before {
-    opacity: .10 !important;
-  }
-
-  #root .adversary-content .nodewars-war-date {
-    min-height: 126px !important;
-    padding: 13px 12px !important;
-    border-right-color: rgba(var(--nw-gold-rgb), .18) !important;
-  }
-
-  #root .adversary-content .nodewars-war-content {
-    padding: 12px 14px !important;
-  }
-
-  #root .adversary-content .nodewars-war-head-grid {
-    display: grid !important;
-    grid-template-columns: 118px minmax(0, 1fr) !important;
-    gap: 16px !important;
-    align-items: start !important;
-  }
-
-  #root .adversary-content .nodewars-enemies-row {
-    flex-wrap: nowrap !important;
-    overflow: hidden !important;
-  }
-
-  #root .adversary-content .nodewars-metrics-grid {
-    display: grid !important;
-    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-  }
-
-  #root .adversary-content .nodewars-metrics-grid > div {
-    min-width: 0 !important;
-  }
-
-  #root .adversary-content .nodewars-card-actions {
-    justify-content: center !important;
-    align-self: stretch !important;
-    min-width: 42px !important;
-  }
-
-  #root .adversary-content .nodewars-select-toggle {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    overflow: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
-  #root .adversary-content .nodewars-open-chevron {
-    width: 34px !important;
-    height: 34px !important;
-    border-radius: 10px !important;
-  }
-
-  #root .adversary-content .nodewars-war-weekday {
-    color: #e4b317 !important;
-    font-size: 9px !important;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-  }
-
-  #root .adversary-content .nodewars-war-date-text {
-    color: #f6f4ea !important;
-    font-size: 13px !important;
-  }
-
-  #root .adversary-content .nodewars-page-shell .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 9px !important;
+  @media (max-width: 1500px) {
+    #root .adversary-content .nodewars-filter-main {
+      grid-template-columns: minmax(240px,1fr) auto;
+    }
+    #root .adversary-content .nodewars-actions-row {
+      grid-column: 1 / -1;
+      justify-content: flex-end;
+    }
+    #root .adversary-content .nodewars-summary-grid {
+      grid-template-columns: repeat(4, minmax(120px,1fr)) !important;
+    }
   }
 
   @media (max-width: 1180px) {
-    #root .adversary-content .nodewars-filter-main-row {
-      grid-template-columns: minmax(210px, 250px) minmax(0, 1fr) !important;
-      gap: 9px !important;
-    }
-
-    #root .adversary-content .nodewars-filter-actions {
-      gap: 5px !important;
-    }
-
-    #root .adversary-content .nodewars-sort-control {
-      min-width: 42px !important;
-      padding-inline: 7px !important;
-    }
-  }
-
-  @media (max-width: 1023px) {
-    #root .adversary-content .nodewars-filter-main-row {
-      grid-template-columns: 1fr !important;
-    }
-
-    #root .adversary-content .nodewars-filter-actions {
-      flex-wrap: wrap !important;
-      justify-content: flex-start !important;
-    }
-
-    #root .adversary-content .nodewars-summary-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    }
-
-    #root .adversary-content .nodewars-war-card {
-      grid-template-columns: 106px minmax(0, 1fr) !important;
-    }
-
-    #root .adversary-content .nodewars-metrics-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    #root .adversary-content .nodewars-sort-row { flex-wrap: wrap; }
+    #root .adversary-content .nodewars-war-metrics {
+      grid-template-columns: repeat(4, minmax(90px,1fr)) !important;
     }
   }
 `;
+
 
 /* -------------------- SORT HEADER -------------------- */
 function SortHeader({ id, label, sort, onSort }) {
@@ -984,7 +724,7 @@ function EnemySearch({ value, onChange, suggestions, onPick }) {
           setOpen(true);
         }}
         placeholder="Search enemies..."
-        className="nodewars-dark-control nodewars-search-field w-full rounded-xl border py-3 pl-11 pr-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-500 focus:shadow-[0_0_20px_rgba(139,92,246,.16)]"
+        className="nodewars-dark-control w-full rounded-xl border py-3 pl-11 pr-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-500 focus:shadow-[0_0_20px_rgba(139,92,246,.16)]"
       />
 
       {showSuggestions && (
@@ -1073,23 +813,29 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
       />
 
       <div
+        aria-hidden="true"
+        className="nodewars-emblem-shard"
+        style={{ backgroundImage: `url("${adversaryEmblem}")` }}
+      />
+
+      <div
         className="nodewars-war-date relative flex min-h-[94px] flex-col justify-between overflow-hidden rounded-l-xl p-3"
       >
         <div>
           <div
             className={`nodewars-date-icon mb-2 grid h-7 w-7 place-items-center rounded-lg ${accent.iconBox}`}
           >
-            <CalendarDays size={15} />
+            <Swords size={15} />
           </div>
 
           <div
             title={date.weekday}
-            className="nodewars-war-weekday max-w-[92px] truncate text-[12px] font-black leading-tight text-white"
+            className="max-w-[92px] truncate text-[12px] font-black leading-tight text-white"
           >
-            {date.weekday}
+            {date.weekday},
           </div>
 
-          <div className="nodewars-war-date-text mt-0.5 text-[14px] font-black leading-tight text-white">
+          <div className="mt-0.5 text-[14px] font-black leading-tight text-white">
             {date.full}
           </div>
         </div>
@@ -1102,14 +848,14 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
         )}
       </div>
 
-      <div className="nodewars-war-content relative min-w-0 overflow-hidden rounded-r-xl bg-transparent p-3">
+      <div className="relative min-w-0 overflow-hidden rounded-r-xl bg-transparent p-3">
         <div
           className={`pointer-events-none absolute left-0 right-0 top-0 h-px bg-gradient-to-r ${accent.topLine} opacity-70`}
         />
 
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="nodewars-war-head-grid grid min-w-0 gap-3 xl:grid-cols-[150px_1fr]">
+            <div className="grid min-w-0 gap-3 xl:grid-cols-[150px_1fr]">
               <div>
                 <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Kills/Deaths Ratio
@@ -1129,7 +875,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                   Top 5 Enemies
                 </div>
 
-                <div className="nodewars-enemies-row flex min-w-0 flex-wrap gap-1.5 xl:flex-nowrap xl:overflow-hidden">
+                <div className="flex min-w-0 flex-wrap gap-1.5 xl:flex-nowrap xl:overflow-hidden">
                   {row.topEnemies.length ? (
                     row.topEnemies.map((enemy) => (
                       <EnemyPill key={enemy.name} enemy={enemy} />
@@ -1145,7 +891,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
             <div className="nodewars-metrics-divider mt-2.5 h-px bg-slate-700/25" />
 
-            <div className="nodewars-metrics-grid mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+            <div className="nodewars-war-metrics mt-2.5">
               <WarMetric
                 label="Players"
                 value={row.players}
@@ -1203,27 +949,11 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
             </div>
           </div>
 
-          <div className="nodewars-card-actions flex shrink-0 flex-col items-center justify-between gap-3 py-1">
-            <button
-              type="button"
-              className="nodewars-open-chevron"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpen();
-              }}
-              title="Open war overview"
-              aria-label="Open war overview"
-            >
-              <ChevronRight size={20} strokeWidth={2.4} />
-            </button>
-
+          <div className="nodewars-open-controls shrink-0">
             <div
-              className={`nodewars-select-toggle flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition ${
-                checked
-                  ? 'border-white/80 bg-white/10 shadow-[0_0_18px_rgba(255,255,255,0.18)]'
-                  : 'border-slate-800 bg-slate-950/70 group-hover:border-slate-700'
-              }`}
+              className="nodewars-select-toggle flex shrink-0 items-center justify-center border"
               onClick={(event) => event.stopPropagation()}
+              title={checked ? 'Deselect this war' : 'Select this war'}
             >
               <input
                 type="checkbox"
@@ -1232,10 +962,12 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                   event.stopPropagation();
                   onToggle();
                 }}
-                className="h-[18px] w-[18px] cursor-pointer"
-                style={{ accentColor: '#ffffff' }}
-                title={checked ? 'Deselect this war' : 'Select this war'}
+                className="cursor-pointer"
+                style={{ accentColor: '#e8b900' }}
               />
+            </div>
+            <div className="nodewars-open-chevron" aria-hidden="true">
+              <ChevronRight size={20} strokeWidth={2.2} />
             </div>
           </div>
         </div>
@@ -1254,7 +986,7 @@ function SummaryStat({
   accentRgb = '96, 165, 250',
 }) {
   return (
-    <div className="nodewars-summary-stat flex items-center gap-3 px-4 py-3" style={{ '--nodewars-accent-rgb': accentRgb }}>
+    <div className="nodewars-summary-stat flex items-center gap-3 px-3.5 py-3" style={{ '--nodewars-accent-rgb': accentRgb }}>
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black/30 shadow-[inset_0_0_18px_rgba(255,255,255,.025)]">
         {icon}
       </div>
@@ -1268,7 +1000,6 @@ function SummaryStat({
           {value}
         </div>
 
-        <div className={`mt-1 h-[2px] w-10 rounded-full ${barClass}`} />
       </div>
     </div>
   );
@@ -1310,7 +1041,7 @@ function KillsDeathsTrend({ rows }) {
   const deathsPoints = buildPoints(safeDeaths);
 
   return (
-    <div className="nodewars-summary-stat nodewars-trend-card flex min-w-[260px] flex-1 items-center gap-4 px-4 py-3" style={{ '--nodewars-accent-rgb': '6, 182, 212' }}>
+    <div className="nodewars-summary-stat flex min-w-[260px] flex-1 items-center gap-4 px-4 py-3" style={{ '--nodewars-accent-rgb': '6, 182, 212' }}>
       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cyan-500/10">
         <Activity size={20} className="text-cyan-300" />
       </div>
@@ -1639,210 +1370,187 @@ export default function NodeWars({
   return (
     <Panel cls="nodewars-page-shell border-0 bg-transparent p-0 shadow-none">
       <style>{NODE_WARS_PANEL_CSS}</style>
-      <div className="space-y-2.5">
-        {/* FILTER PANEL */}
+
+      <div className="nodewars-scene">
         <div
-          className={`nodewars-guild-panel nodewars-filter-panel relative z-30 rounded-xl border transition-all duration-300 ${
-            filtersVisible
-              ? 'max-h-[220px] overflow-visible p-3.5 opacity-100 translate-y-0'
-              : 'max-h-0 overflow-hidden border-transparent p-0 opacity-0 -translate-y-2'
-          }`}
-          style={{ '--nodewars-accent-rgb': '139, 92, 246' }}
-        >
-          <div className="nodewars-filter-main-row grid gap-3 2xl:grid-cols-[minmax(300px,1fr)_auto]">
-            <EnemySearch
-              value={query}
-              suggestions={enemySuggestions}
-              onChange={(value) => {
-                setQuery(value);
-                clearWarnings();
-              }}
-              onPick={(enemy) => {
-                setQuery(enemy);
-                clearWarnings();
-              }}
-            />
+          aria-hidden="true"
+          className="nodewars-emblem-watermark"
+          style={{ backgroundImage: `url("${adversaryEmblem}")` }}
+        />
+        <div aria-hidden="true" className="nodewars-tech-field" />
+        <div aria-hidden="true" className="nodewars-circuit-field" />
 
-            <div className="nodewars-filter-actions flex flex-wrap items-center gap-2">
-              <SortHeader id="time" label="Time" sort={sort} onSort={toggleSort} />
-              <SortHeader id="kills" label="Kills" sort={sort} onSort={toggleSort} />
-              <SortHeader id="deaths" label="Deaths" sort={sort} onSort={toggleSort} />
-              <SortHeader id="kd" label="K/D" sort={sort} onSort={toggleSort} />
-              <SortHeader id="damageDealt" label="Damage" sort={sort} onSort={toggleSort} />
-              <SortHeader id="damageTaken" label="Taken" sort={sort} onSort={toggleSort} />
-              <SortHeader id="ccHits" label="CC" sort={sort} onSort={toggleSort} />
-              <SortHeader id="fortDamage" label="Fort" sort={sort} onSort={toggleSort} />
-
-              <button
-                type="button"
-                onClick={openSelectedOverview}
-                className="nodewars-action-button nodewars-action-primary rounded-xl border px-4 py-2 text-xs font-black transition"
-              >
-                Open overview
-              </button>
-
-              <PeriodSelect
-                value={periodDays}
-                onChange={onPeriodChange}
-                loading={loading}
+        <div className="relative z-10 space-y-3">
+          {/* Compact reference-style filter strip. */}
+          <div
+            className={`nodewars-guild-panel nodewars-filter-panel relative z-30 border transition-all duration-300 ${
+              filtersVisible
+                ? 'max-h-[130px] overflow-visible opacity-100 translate-y-0'
+                : 'max-h-0 overflow-hidden border-transparent p-0 opacity-0 -translate-y-2'
+            }`}
+            style={{ '--nodewars-accent-rgb': '242, 194, 22' }}
+          >
+            <div className="nodewars-filter-main">
+              <EnemySearch
+                value={query}
+                suggestions={enemySuggestions}
+                onChange={(value) => {
+                  setQuery(value);
+                  clearWarnings();
+                }}
+                onPick={(enemy) => {
+                  setQuery(enemy);
+                  clearWarnings();
+                }}
               />
-            </div>
-          </div>
 
-          <div className="nodewars-filter-footer mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-700/25 pt-4">
-            <div className="flex flex-wrap gap-2 text-xs font-bold text-slate-400">
-              <span className="nodewars-filter-chip rounded-full border border-slate-800 bg-slate-950 px-3 py-1">
-                Displayed: <b className="text-white">{rows.length}</b>
-              </span>
+              <div className="nodewars-sort-row">
+                <SortHeader id="time" label="Time" sort={sort} onSort={toggleSort} />
+                <SortHeader id="kills" label="Kills" sort={sort} onSort={toggleSort} />
+                <SortHeader id="deaths" label="Deaths" sort={sort} onSort={toggleSort} />
+                <SortHeader id="kd" label="K/D" sort={sort} onSort={toggleSort} />
+                <SortHeader id="damageDealt" label="Damage" sort={sort} onSort={toggleSort} />
+                <SortHeader id="damageTaken" label="Taken" sort={sort} onSort={toggleSort} />
+                <SortHeader id="ccHits" label="CC" sort={sort} onSort={toggleSort} />
+                <SortHeader id="fortDamage" label="Fort" sort={sort} onSort={toggleSort} />
+              </div>
 
-              <span className="nodewars-filter-chip nodewars-filter-chip-selected rounded-full border border-slate-800 bg-slate-950 px-3 py-1">
-                Selected:{' '}
-                <b className="text-violet-300">{selectedVisibleCount}</b>
-              </span>
+              <div className="nodewars-actions-row">
+                <button
+                  type="button"
+                  onClick={selectDisplayedLogs}
+                  className="nodewars-action-button nodewars-select-all-compact border font-black transition"
+                  title={exactDisplayedSelection ? 'Clear displayed selection' : `Select all ${rows.length} displayed wars`}
+                  aria-label={exactDisplayedSelection ? 'Clear displayed selection' : 'Select displayed wars'}
+                >
+                  <Swords size={15} />
+                </button>
 
-              {query.trim() && (
-                <span className="nodewars-filter-chip rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-cyan-200">
-                  Search: {query.trim()}
-                </span>
-              )}
+                <button
+                  type="button"
+                  onClick={openSelectedOverview}
+                  className="nodewars-action-button nodewars-action-primary border font-black transition"
+                >
+                  Open Overview
+                </button>
 
-              {loading && (
-                <span className="nodewars-filter-chip rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-blue-200">
-                  Loading database...
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={selectDisplayedLogs}
-                className="nodewars-action-button rounded-xl border px-4 py-2 text-xs font-black transition"
-              >
-                {exactDisplayedSelection ? 'Clear selection' : 'Select displayed'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* WARNING */}
-        {(warning || externalWarning) && (
-          <div className="nodewars-guild-panel nodewars-warning-panel rounded-xl border px-4 py-3 text-sm font-bold text-amber-200" style={{ '--nodewars-accent-rgb': '245, 158, 11' }}>
-            {warning || externalWarning}
-          </div>
-        )}
-
-        {/* SUMMARY */}
-        <div className="nodewars-guild-panel nodewars-summary-grid grid overflow-hidden rounded-xl border md:grid-cols-2 xl:grid-cols-[repeat(8,minmax(112px,1fr))_minmax(220px,1.25fr)]" style={{ '--nodewars-accent-rgb': '59, 130, 246' }}>
-          <SummaryStat
-            label="Total Matches"
-            value={totals.matches}
-            valueClass="text-violet-400"
-            barClass="bg-violet-400"
-            icon={<Swords size={20} className="text-violet-300" />}
-            accentRgb="139, 92, 246"
-          />
-
-          <SummaryStat
-            label="Total Kills"
-            value={totals.kills.toLocaleString('en-US')}
-            valueClass="text-emerald-400"
-            barClass="bg-emerald-400"
-            icon={<Crosshair size={20} className="text-emerald-300" />}
-            accentRgb="16, 185, 129"
-          />
-
-          <SummaryStat
-            label="Total Deaths"
-            value={totals.deaths.toLocaleString('en-US')}
-            valueClass="text-rose-400"
-            barClass="bg-rose-400"
-            icon={<Skull size={20} className="text-rose-300" />}
-            accentRgb="244, 63, 94"
-          />
-
-          <SummaryStat
-            label="Overall K/D"
-            value={totals.kd}
-            valueClass={
-              Number(totals.kd) >= 1 ? 'text-emerald-400' : 'text-rose-400'
-            }
-            barClass={
-              Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'
-            }
-            icon={<Gauge size={20} className="text-cyan-300" />}
-            accentRgb="6, 182, 212"
-          />
-
-          <SummaryStat
-            label="Damage"
-            value={compactNumber(totals.damageDealt)}
-            valueClass="text-amber-300"
-            barClass="bg-amber-300"
-            icon={<Zap size={20} className="text-amber-300" />}
-            accentRgb="245, 158, 11"
-          />
-
-          <SummaryStat
-            label="Damage Taken"
-            value={compactNumber(totals.damageTaken)}
-            valueClass="text-pink-300"
-            barClass="bg-pink-300"
-            icon={<Shield size={20} className="text-pink-300" />}
-            accentRgb="236, 72, 153"
-          />
-
-          <SummaryStat
-            label="CC Hits"
-            value={compactNumber(totals.ccHits)}
-            valueClass="text-cyan-300"
-            barClass="bg-cyan-300"
-            icon={<Hand size={20} className="text-cyan-300" />}
-            accentRgb="6, 182, 212"
-          />
-
-          <SummaryStat
-            label="Fort Damage"
-            value={compactNumber(totals.fortDamage)}
-            valueClass="text-violet-300"
-            barClass="bg-violet-300"
-            icon={<Castle size={20} className="text-violet-300" />}
-            accentRgb="139, 92, 246"
-          />
-
-          <KillsDeathsTrend rows={rows} />
-        </div>
-
-        {/* LIST */}
-        <div
-          onScroll={handleWarsListScroll}
-          className={`nodewars-list ${filtersVisible ? 'max-h-[calc(100vh-285px)]' : 'max-h-[calc(100vh-188px)]'} space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
-        >
-          {loading && !rows.length ? (
-            <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400" style={{ '--nodewars-accent-rgb': '59, 130, 246' }}>
-              Loading node wars...
-            </div>
-          ) : !rows.length ? (
-            <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400" style={{ '--nodewars-accent-rgb': '59, 130, 246' }}>
-              No saved node wars found for this filter.
-            </div>
-          ) : (
-            rows.map((row, index) => {
-              const id = String(row.id);
-              const checked = allSavedLogsSelected || selectedRealWars.includes(id);
-
-              return (
-                <WarCard
-                  key={row.id}
-                  row={row}
-                  index={index}
-                  checked={checked}
-                  onOpen={() => openWar(row)}
-                  onToggle={() => toggleWar(row)}
+                <PeriodSelect
+                  value={periodDays}
+                  onChange={onPeriodChange}
+                  loading={loading}
                 />
-              );
-            })
+              </div>
+            </div>
+          </div>
+
+          {(warning || externalWarning) && (
+            <div
+              className="nodewars-guild-panel nodewars-warning-panel rounded-xl border px-4 py-3 text-sm font-bold text-amber-200"
+              style={{ '--nodewars-accent-rgb': '245, 158, 11' }}
+            >
+              {warning || externalWarning}
+            </div>
           )}
+
+          {/* Eight separate tiles, exactly like the reference row. */}
+          <div className="nodewars-summary-grid">
+            <SummaryStat
+              label="Total Matches"
+              value={totals.matches}
+              valueClass="text-violet-400"
+              barClass="bg-violet-400"
+              icon={<Swords size={20} className="text-violet-300" />}
+              accentRgb="139, 92, 246"
+            />
+            <SummaryStat
+              label="Total Kills"
+              value={totals.kills.toLocaleString('en-US')}
+              valueClass="text-emerald-400"
+              barClass="bg-emerald-400"
+              icon={<Crosshair size={20} className="text-emerald-300" />}
+              accentRgb="16, 185, 129"
+            />
+            <SummaryStat
+              label="Total Deaths"
+              value={totals.deaths.toLocaleString('en-US')}
+              valueClass="text-rose-400"
+              barClass="bg-rose-400"
+              icon={<Skull size={20} className="text-rose-300" />}
+              accentRgb="244, 63, 94"
+            />
+            <SummaryStat
+              label="Overall K/D"
+              value={totals.kd}
+              valueClass={Number(totals.kd) >= 1 ? 'text-emerald-400' : 'text-rose-400'}
+              barClass={Number(totals.kd) >= 1 ? 'bg-emerald-400' : 'bg-rose-400'}
+              icon={<Gauge size={20} className="text-cyan-300" />}
+              accentRgb="6, 182, 212"
+            />
+            <SummaryStat
+              label="Damage"
+              value={compactNumber(totals.damageDealt)}
+              valueClass="text-amber-300"
+              barClass="bg-amber-300"
+              icon={<Zap size={20} className="text-amber-300" />}
+              accentRgb="245, 158, 11"
+            />
+            <SummaryStat
+              label="Damage Taken"
+              value={compactNumber(totals.damageTaken)}
+              valueClass="text-pink-300"
+              barClass="bg-pink-300"
+              icon={<Shield size={20} className="text-pink-300" />}
+              accentRgb="236, 72, 153"
+            />
+            <SummaryStat
+              label="CC Hits"
+              value={compactNumber(totals.ccHits)}
+              valueClass="text-cyan-300"
+              barClass="bg-cyan-300"
+              icon={<Hand size={20} className="text-cyan-300" />}
+              accentRgb="6, 182, 212"
+            />
+            <SummaryStat
+              label="Fort Damage"
+              value={compactNumber(totals.fortDamage)}
+              valueClass="text-violet-300"
+              barClass="bg-violet-300"
+              icon={<Castle size={20} className="text-violet-300" />}
+              accentRgb="139, 92, 246"
+            />
+          </div>
+
+          {/* War list. */}
+          <div
+            onScroll={handleWarsListScroll}
+            className={`${filtersVisible ? 'max-h-[calc(100vh-260px)]' : 'max-h-[calc(100vh-190px)]'} space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
+          >
+            {loading && !rows.length ? (
+              <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400">
+                Loading node wars...
+              </div>
+            ) : !rows.length ? (
+              <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400">
+                No saved node wars found for this filter.
+              </div>
+            ) : (
+              rows.map((row, index) => {
+                const id = String(row.id);
+                const checked = allSavedLogsSelected || selectedRealWars.includes(id);
+
+                return (
+                  <WarCard
+                    key={row.id}
+                    row={row}
+                    index={index}
+                    checked={checked}
+                    onOpen={() => openWar(row)}
+                    onToggle={() => toggleWar(row)}
+                  />
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </Panel>
