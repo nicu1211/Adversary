@@ -583,13 +583,56 @@ function looksLikeStatPanel(panel, activePage) {
 }
 
 function getPanelAccent(element, index) {
-  const classText =
-    typeof element?.className === 'string' ? element.className : '';
+  if (!element) return PANEL_ACCENTS[index % PANEL_ACCENTS.length];
+
+  const ownClassText =
+    typeof element.className === 'string' ? element.className : '';
+
+  /* Preserve the page's original semantic colour wherever possible. Many of
+     the old panels carried their tint on an icon/value child rather than on
+     the panel border itself, so inspect a small descendant sample too. */
+  const descendantClassText = [...element.querySelectorAll?.(
+    '[class*="text-"], [class*="bg-"], [class*="border-"], [class*="from-"], [class*="via-"]',
+  ) || []]
+    .slice(0, 28)
+    .map((node) => (typeof node.className === 'string' ? node.className : ''))
+    .join(' ');
+
+  const classText = `${ownClassText} ${descendantClassText}`;
 
   for (const [name, rgb] of Object.entries(PANEL_ACCENT_BY_CLASS)) {
-    if (classText.includes(`border-${name}-`)) {
+    const colorClassPattern = new RegExp(
+      `(?:border|text|bg|from|via|to)-${name}(?:-|\\/|\\[|\\s|$)`,
+      'i',
+    );
+
+    if (colorClassPattern.test(classText)) {
       return rgb;
     }
+  }
+
+  /* Stat cards that have neutral shells still get the same familiar semantic
+     tints as Node Wars. */
+  const text = String(element.textContent || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  const semanticAccents = [
+    [/damage taken|taken\b/, PANEL_ACCENT_BY_CLASS.pink],
+    [/deaths?|death\b/, PANEL_ACCENT_BY_CLASS.rose],
+    [/fort(?: damage)?|fortification/, PANEL_ACCENT_BY_CLASS.violet],
+    [/cc hits?|crowd control/, PANEL_ACCENT_BY_CLASS.cyan],
+    [/kills?|frags?/, PANEL_ACCENT_BY_CLASS.emerald],
+    [/k\s*\/\s*d|\bkd\b|ratio/, PANEL_ACCENT_BY_CLASS.cyan],
+    [/damage|dmg/, PANEL_ACCENT_BY_CLASS.amber],
+    [/players?|roster|members?/, PANEL_ACCENT_BY_CLASS.indigo],
+    [/wars?|matches?|participation/, PANEL_ACCENT_BY_CLASS.violet],
+    [/rank|score|milestone|record|trophy/, PANEL_ACCENT_BY_CLASS.amber],
+  ];
+
+  for (const [pattern, rgb] of semanticAccents) {
+    if (pattern.test(text)) return rgb;
   }
 
   const borderColor = window.getComputedStyle(element).borderTopColor;
@@ -1908,7 +1951,7 @@ const GLOBAL_PANEL_CSS = `
   .adversary-class-mode-pill.is-succession {
     border: 1px solid rgba(34, 211, 238, 0.24);
     color: #a5f3fc;
-    background: rgba(6, 182, 212, 0.10);
+    background: rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.14);
   }
 
   .adversary-class-mode-pill.is-awakening {
@@ -2499,29 +2542,28 @@ const GLOBAL_PANEL_CSS = `
      retain their semantic colours; only the card surface is unified. */
   .adversary-content .adversary-stat-panel,
   body[data-adversary-page="guild"] .adversary-page-guild .adversary-stat-panel {
-    --adversary-panel-accent-rgb: 6, 182, 212 !important;
-    --player-stats-summary-rgb: 6, 182, 212 !important;
-    --player-stats-panel-rgb: 6, 182, 212 !important;
-    --nodewars-accent-rgb: 6, 182, 212 !important;
-    --monthly-panel-accent-rgb: 6, 182, 212 !important;
+    --player-stats-summary-rgb: var(--adversary-panel-accent-rgb, 6, 182, 212) !important;
+    --player-stats-panel-rgb: var(--adversary-panel-accent-rgb, 6, 182, 212) !important;
+    --nodewars-accent-rgb: var(--adversary-panel-accent-rgb, 6, 182, 212) !important;
+    --monthly-panel-accent-rgb: var(--adversary-panel-accent-rgb, 6, 182, 212) !important;
     border-color: transparent !important;
     background-color: rgba(2, 6, 23, 0.46) !important;
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(6, 182, 212, 0.10) 0%,
-        rgba(6, 182, 212, 0.05) 42%,
-        rgba(6, 182, 212, 0.018) 74%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.14) 0%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.07) 42%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.026) 74%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(6, 182, 212, 0.035) 0%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.050) 0%,
         rgba(7, 13, 29, 0.38) 54%,
         rgba(2, 6, 23, 0.50) 100%
       ) !important;
     box-shadow:
-      inset 0 0 36px rgba(6, 182, 212, 0.04),
+      inset 0 0 36px rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.055),
       0 10px 24px rgba(0, 0, 0, 0.18) !important;
     -webkit-backdrop-filter: blur(8px) saturate(122%) !important;
     backdrop-filter: blur(8px) saturate(122%) !important;
@@ -2534,20 +2576,20 @@ const GLOBAL_PANEL_CSS = `
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
-        rgba(6, 182, 212, 0.15) 0%,
-        rgba(6, 182, 212, 0.075) 44%,
-        rgba(6, 182, 212, 0.028) 76%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.20) 0%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.10) 44%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.038) 76%,
         transparent 100%
       ),
       linear-gradient(
         145deg,
-        rgba(6, 182, 212, 0.05) 0%,
+        rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.07) 0%,
         rgba(7, 13, 29, 0.36) 54%,
         rgba(2, 6, 23, 0.48) 100%
       ) !important;
     box-shadow:
-      inset 0 0 40px rgba(6, 182, 212, 0.065),
-      0 0 16px rgba(6, 182, 212, 0.16),
+      inset 0 0 40px rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.080),
+      0 0 16px rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.16),
       0 12px 28px rgba(0, 0, 0, 0.20) !important;
   }
 
@@ -3207,14 +3249,15 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
     border-color: rgba(var(--tech-gold-rgb), .42) !important;
     background-color: rgba(3,5,6,.76) !important;
     background-image:
-      radial-gradient(circle at 14% -55%, rgba(var(--adversary-panel-accent-rgb, 242,194,22), .10), transparent 42%),
+      radial-gradient(ellipse at 12% -18%, rgba(var(--adversary-panel-accent-rgb, 242,194,22), .18), transparent 48%),
+      radial-gradient(ellipse at 92% 118%, rgba(var(--adversary-panel-accent-rgb, 242,194,22), .055), transparent 38%),
       var(--adversary-tech-art),
       radial-gradient(circle at 10% 28%, rgba(255,210,52,.075) 0 1px, transparent 2px),
       radial-gradient(circle at 82% 66%, rgba(255,205,39,.06) 0 1px, transparent 2px),
-      linear-gradient(180deg, rgba(8,9,8,.80), rgba(2,4,5,.82)) !important;
-    background-size: 100% 100%, 650px 255px, 190px 155px, 250px 195px, 100% 100% !important;
-    background-position: center, 0 50%, 8% 24%, 80% 68%, center !important;
-    background-repeat: no-repeat, repeat, repeat, repeat, no-repeat !important;
+      linear-gradient(180deg, rgba(8,9,8,.76), rgba(2,4,5,.79)) !important;
+    background-size: 100% 100%, 100% 100%, 650px 255px, 190px 155px, 250px 195px, 100% 100% !important;
+    background-position: center, center, 0 50%, 8% 24%, 80% 68%, center !important;
+    background-repeat: no-repeat, no-repeat, repeat, repeat, repeat, no-repeat !important;
     box-shadow:
       inset 0 1px 0 rgba(255,232,125,.035),
       inset 0 0 26px rgba(var(--tech-gold-rgb),.018),
@@ -3243,12 +3286,13 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
     border-radius: 13px !important;
     background-color: rgba(3,5,6,.79) !important;
     background-image:
-      radial-gradient(circle at 18% 8%, rgba(var(--adversary-panel-accent-rgb, 6,182,212), .13), transparent 52%),
+      radial-gradient(ellipse at 16% -6%, rgba(var(--adversary-panel-accent-rgb, 6,182,212), .20), transparent 55%),
+      radial-gradient(ellipse at 88% 118%, rgba(var(--adversary-panel-accent-rgb, 6,182,212), .055), transparent 42%),
       var(--adversary-tech-art),
-      linear-gradient(145deg, rgba(13,13,11,.80), rgba(2,5,6,.82)) !important;
-    background-size: 100% 100%, 360px 142px, 100% 100% !important;
-    background-position: center, 12% 50%, center !important;
-    background-repeat: no-repeat, repeat, no-repeat !important;
+      linear-gradient(145deg, rgba(13,13,11,.76), rgba(2,5,6,.79)) !important;
+    background-size: 100% 100%, 100% 100%, 360px 142px, 100% 100% !important;
+    background-position: center, center, 12% 50%, center !important;
+    background-repeat: no-repeat, no-repeat, repeat, no-repeat !important;
     box-shadow: inset 0 0 22px rgba(var(--adversary-panel-accent-rgb, 6,182,212),.018), 0 7px 18px rgba(0,0,0,.22) !important;
   }
 
@@ -3263,11 +3307,14 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
   body[data-adversary-page="hall"] .adversary-content .adversary-tech-hall-page,
   body[data-adversary-page="hall"] .adversary-content .adversary-tech-hall-page :is(section,article,div)[class*="rounded"][class*="border"] {
     border-color: rgba(var(--tech-gold-rgb), .38) !important;
-    background-color: rgba(3,5,6,.76) !important;
-    background-image: var(--adversary-tech-art), linear-gradient(180deg, rgba(8,9,8,.79), rgba(2,4,5,.82)) !important;
-    background-size: 620px 244px, 100% 100% !important;
-    background-position: 0 50%, center !important;
-    background-repeat: repeat, no-repeat !important;
+    background-color: rgba(3,5,6,.70) !important;
+    background-image:
+      radial-gradient(ellipse at 14% -12%, rgba(var(--adversary-panel-accent-rgb, 250,204,21), .15), transparent 48%),
+      var(--adversary-tech-art),
+      linear-gradient(180deg, rgba(8,9,8,.73), rgba(2,4,5,.77)) !important;
+    background-size: 100% 100%, 620px 244px, 100% 100% !important;
+    background-position: center, 0 50%, center !important;
+    background-repeat: no-repeat, repeat, no-repeat !important;
     box-shadow: inset 0 1px 0 rgba(255,232,125,.03), 0 8px 22px rgba(0,0,0,.24) !important;
   }
 
@@ -3415,7 +3462,7 @@ const PAGE_TITLES = {
 };
 
 const PAGE_SUBTITLES = {
-  guild: 'Guild Intelligence',
+  guild: 'Guild',
   monthly: 'Node Wars Performance Overview',
   nodewars: 'Guild Warfare Analytics',
   overview: 'Battle Analytics',
@@ -6572,7 +6619,7 @@ export default function App() {
           panel.classList.toggle('adversary-stat-panel', isStatPanel);
           panel.style.setProperty(
             '--adversary-panel-accent-rgb',
-            isStatPanel ? '6, 182, 212' : getPanelAccent(panel, index),
+            getPanelAccent(panel, index),
           );
         });
       }
