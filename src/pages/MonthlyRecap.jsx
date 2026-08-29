@@ -322,6 +322,38 @@ const MONTHLY_GUILD_PANEL_CSS = `
       0 0 16px rgba(var(--monthly-panel-accent-rgb), 0.16),
       0 12px 28px rgba(0, 0, 0, 0.20) !important;
   }
+
+  /* Role/class filter active state: use an unmistakable Adversary gold fill.
+     This deliberately overrides the global control skin in App.jsx. */
+  .monthly-recap-guild-style .monthly-role-filter.is-active,
+  .monthly-recap-guild-style .monthly-class-filter.is-active {
+    border-color: rgba(255, 220, 58, .96) !important;
+    color: #fff7c2 !important;
+    background-color: rgba(202, 145, 0, .78) !important;
+    background-image:
+      radial-gradient(circle at 22% 18%, rgba(255, 235, 117, .46), transparent 44%),
+      linear-gradient(135deg, rgba(245, 180, 0, .92), rgba(123, 79, 0, .86)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 248, 196, .28),
+      inset 0 0 18px rgba(255, 220, 58, .18),
+      0 0 14px rgba(246, 201, 21, .26) !important;
+    text-shadow: 0 1px 7px rgba(63, 38, 0, .82);
+  }
+
+  .monthly-recap-guild-style .monthly-role-filter.is-active:hover,
+  .monthly-recap-guild-style .monthly-class-filter.is-active:hover,
+  .monthly-recap-guild-style .monthly-class-filter.is-active:focus {
+    border-color: #ffe66a !important;
+    background-color: rgba(222, 160, 0, .88) !important;
+    background-image:
+      radial-gradient(circle at 22% 18%, rgba(255, 243, 153, .56), transparent 46%),
+      linear-gradient(135deg, rgba(255, 195, 14, .96), rgba(139, 88, 0, .90)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 252, 221, .34),
+      inset 0 0 20px rgba(255, 225, 72, .22),
+      0 0 18px rgba(246, 201, 21, .34) !important;
+  }
+
 `;
 
 const GUILD_ROSTER = Object.freeze([
@@ -4206,7 +4238,7 @@ function PlayersTable({
               onClick={() => setRoleFilter((current) => current === role ? '' : role)}
               aria-pressed={roleFilter === role}
               title={`Show only wars where the player was assigned the ${role} role`}
-              className={`rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
+              className={`monthly-role-filter ${roleFilter === role ? 'is-active' : ''} rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
                 roleFilter === role
                   ? 'border-yellow-300/90 bg-yellow-400/38 text-yellow-50 shadow-[inset_0_0_18px_rgba(250,204,21,.16),0_0_16px_rgba(246,201,21,.24)]'
                   : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-amber-300/55 hover:bg-amber-400/8 hover:text-amber-100'
@@ -4219,7 +4251,7 @@ function PlayersTable({
           <select
             value={classFilter}
             onChange={(event) => setClassFilter(event.target.value)}
-            className={`rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] outline-none transition ${
+            className={`monthly-class-filter is-active rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] outline-none transition ${
               classFilter
                 ? 'border-yellow-300/90 bg-yellow-400/38 text-yellow-50 shadow-[inset_0_0_18px_rgba(250,204,21,.16),0_0_16px_rgba(246,201,21,.22)]'
                 : 'border-[#263c59] bg-slate-950/80 text-slate-300 hover:border-amber-300/55 hover:bg-amber-400/8'
