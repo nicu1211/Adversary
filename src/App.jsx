@@ -6866,7 +6866,7 @@ export default function App() {
     startupRevealTimerRef.current = window.setTimeout(() => {
       startupRevealTimerRef.current = null;
       finishStartup();
-    }, 6000);
+    }, 5500);
   }, [backgroundLoopActive, finishStartup, startupFinished]);
 
   const startBackgroundLoop = useCallback(() => {
