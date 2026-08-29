@@ -4584,6 +4584,38 @@ function PlayerOverview({
   );
 }
 
+function EnemyGuildPanelPopup({ title, close, children }) {
+  return (
+    <div className="absolute inset-2 z-[500] flex min-h-0 flex-col overflow-hidden rounded-[22px] border border-amber-300/45 bg-[rgba(3,5,7,.96)] shadow-[0_18px_60px_rgba(0,0,0,.66),0_0_20px_rgba(246,201,21,.08)] backdrop-blur-xl">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.20]"
+        style={{
+          backgroundImage:
+            'var(--adversary-tech-art), radial-gradient(circle at 16% 18%, rgba(255,220,64,.22) 0 1px, transparent 2px), radial-gradient(circle at 82% 72%, rgba(255,220,64,.18) 0 1px, transparent 2px)',
+          backgroundSize: '520px 204px, 150px 140px, 180px 160px',
+          backgroundPosition: '12% 12%, 10% 18%, 80% 72%',
+        }}
+      />
+
+      <div className="relative z-10 flex shrink-0 items-center justify-between gap-3 border-b border-amber-300/20 bg-black/34 px-4 py-3">
+        <h4 className="min-w-0 truncate text-base font-black text-white">{title}</h4>
+        <button
+          type="button"
+          onClick={close}
+          aria-label={`Close ${title}`}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-amber-300/65 bg-black/80 text-xl font-black leading-none text-amber-300 shadow-[0_0_12px_rgba(246,201,21,.10)] transition hover:bg-amber-500/18 hover:text-amber-100"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className={`relative z-10 min-h-0 flex-1 overflow-auto p-3 ${scrollCls}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function EnemyGuilds({ guilds, events }) {
   const chartRef = useRef(null);
   const [selected, setSelected] = useState(null);
@@ -5141,7 +5173,7 @@ function EnemyGuilds({ guilds, events }) {
   }
 
   return (
-    <Panel cls="overview-guild-panel overview-accent-rose h-[520px]">
+    <Panel cls="overview-guild-panel overview-accent-rose relative h-[520px] overflow-hidden">
       <div className="flex h-full flex-col">
         <div className="overview-section-header overview-header-rose mb-4 flex items-start justify-between gap-3">
           <h3 className="text-xl font-black">🛡 Enemy Guilds</h3>
@@ -5191,12 +5223,12 @@ function EnemyGuilds({ guilds, events }) {
         )}
 
         {guildListOpen && (
-          <Popup title="Enemy Guilds" close={() => setGuildListOpen(false)}>
+          <EnemyGuildPanelPopup title="Enemy Guilds" close={() => setGuildListOpen(false)}>
             {!allGuildRows.length ? (
               <p className="text-slate-500">No guild data yet.</p>
             ) : (
               <div
-                className={`max-h-[60vh] space-y-2 overflow-y-auto pr-2 ${scrollCls}`}
+                className="space-y-2 pr-1"
               >
                 <button
                   type="button"
@@ -5284,11 +5316,11 @@ function EnemyGuilds({ guilds, events }) {
                 )}
               </div>
             )}
-          </Popup>
+          </EnemyGuildPanelPopup>
         )}
 
         {selected && (
-          <Popup
+          <EnemyGuildPanelPopup
             title={`${selected.name} Kill Log`}
             close={() => setSelected(null)}
           >
@@ -5296,7 +5328,7 @@ function EnemyGuilds({ guilds, events }) {
               <p className="text-slate-500">No kill log found for this guild.</p>
             ) : (
               <div
-                className={`max-h-[60vh] space-y-2 overflow-y-auto pr-2 ${scrollCls}`}
+                className="space-y-2 pr-1"
               >
                 {log.map((event, index) => (
                   <div
@@ -5337,7 +5369,7 @@ function EnemyGuilds({ guilds, events }) {
                 ))}
               </div>
             )}
-          </Popup>
+          </EnemyGuildPanelPopup>
         )}
       </div>
     </Panel>
