@@ -2508,7 +2508,7 @@ function getTone(tone) {
 
 function PageFrame({ children }) {
   return (
-    <div className="adversary-tech-page adversary-tech-hall-page relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
+    <div className="relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,.3),transparent)]" />
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
@@ -3272,46 +3272,108 @@ function CombatRecordsPanel({ data }) {
   );
 }
 
+
+function MilestoneEmblemBadge({ threshold }) {
+  const label = threshold >= 1000 ? `${Math.round(threshold / 1000)}K` : String(threshold);
+
+  return (
+    <div className="relative h-[92px] w-[92px] shrink-0">
+      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
+        <defs>
+          <linearGradient id={`hall-milestone-gold-${label}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="rgba(255,230,120,0.98)" />
+            <stop offset="55%" stopColor="rgba(249,193,33,0.95)" />
+            <stop offset="100%" stopColor="rgba(150,98,0,0.95)" />
+          </linearGradient>
+        </defs>
+        <polygon
+          points="50,3 84,22 84,61 50,96 16,61 16,22"
+          fill="rgba(5,8,12,0.72)"
+          stroke={`url(#hall-milestone-gold-${label})`}
+          strokeWidth="2.5"
+        />
+        <polygon
+          points="50,12 76,27 76,56 50,82 24,56 24,27"
+          fill="rgba(10,14,18,0.84)"
+          stroke="rgba(255,219,86,0.55)"
+          strokeWidth="1.6"
+        />
+        <path d="M16 22 L50 40 L84 22" fill="none" stroke="rgba(255,219,86,0.34)" strokeWidth="1.5" />
+        <path d="M24 56 L50 40 L76 56" fill="none" stroke="rgba(255,219,86,0.30)" strokeWidth="1.5" />
+        <path d="M24 27 L50 54 L76 27" fill="none" stroke="rgba(255,219,86,0.18)" strokeWidth="1.2" />
+        <path d="M20 67 L9 58" fill="none" stroke="rgba(255,219,86,0.58)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M23 60 L8 49" fill="none" stroke="rgba(255,219,86,0.46)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M80 67 L91 58" fill="none" stroke="rgba(255,219,86,0.58)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M77 60 L92 49" fill="none" stroke="rgba(255,219,86,0.46)" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-[20px] font-black tracking-tight text-amber-300 shadow-[0_0_16px_rgba(250,204,21,.18)]">
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MilestoneLeaderboardCard({
+  threshold,
+  rows = [],
+  mode = 'first',
+}) {
+  const title = mode === 'fastest' ? `Fastest to ${nf.format(threshold)} Kills` : `First to ${nf.format(threshold)} Kills`;
+  const emptyText = `No player reached ${nf.format(threshold)} kills yet.`;
+
+  return (
+    <div className="group relative overflow-hidden rounded-[26px] border border-amber-300/24 bg-[linear-gradient(135deg,rgba(11,13,16,.96),rgba(5,7,10,.88))] px-5 py-4 shadow-[0_18px_35px_rgba(0,0,0,.28)] transition duration-200 hover:border-amber-300/40 hover:shadow-[0_0_22px_rgba(250,204,21,.10)]">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.16]" style={{
+        backgroundImage:
+          'linear-gradient(30deg, rgba(246,201,21,.18) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.18) 87.5%), linear-gradient(150deg, rgba(246,201,21,.16) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.16) 87.5%), radial-gradient(circle at 18% 28%, rgba(255,220,64,.28) 0 1.5px, transparent 2.5px), radial-gradient(circle at 74% 62%, rgba(255,220,64,.2) 0 1px, transparent 2px)',
+        backgroundSize: '30px 52px, 30px 52px, 120px 120px, 150px 150px',
+      }} />
+      <div className="pointer-events-none absolute inset-y-0 left-[112px] w-px bg-gradient-to-b from-transparent via-amber-300/14 to-transparent" />
+      <div className="relative flex items-center gap-4">
+        <MilestoneEmblemBadge threshold={threshold} />
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 text-[12px] font-black uppercase tracking-[0.14em] text-amber-300">{title}</div>
+          {rows.length ? (
+            <div className="space-y-2.5">
+              {rows.slice(0, 3).map((row, index) => (
+                <div key={`${mode}-${threshold}-${row.name}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 text-sm">
+                  <div className="min-w-0">
+                    <div className={cls('truncate font-black', index === 0 ? 'text-amber-300' : 'text-slate-200')}>
+                      {index + 1}. {row.name}
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-amber-100/82">
+                    {mode === 'first' ? <CalendarDays className="h-3.5 w-3.5 text-amber-300/85" /> : <Zap className="h-3.5 w-3.5 text-amber-300/85" />}
+                    <span>{mode === 'first' ? (row.date || '-') : `${row.fromPlayerFirstLogWars} Node Wars`}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm font-bold text-slate-500">{emptyText}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FirstMilestonesPanel({ data }) {
   const thresholds = [1000, 3000, 5000];
-
-  function renderFirstLeaderboard(threshold) {
-    const rows = data.thresholdLeaderboards?.[threshold]?.first || [];
-    const maxValue = Math.max(1, ...rows.map((row) => row.fromFirstLogWars || 0));
-
-    return (
-      <div>
-        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          First to {threshold} Kills
-        </p>
-        {rows.length ? (
-          rows.map((row, index) => (
-            <HallProgressRow
-              key={`${threshold}-first-${row.name}`}
-              label={`${index + 1}. ${row.name}`}
-              value={Math.max(1, maxValue - row.fromFirstLogWars + 1)}
-              max={maxValue}
-              right={row.date || '-'}
-              tone="blueIndigo"
-            />
-          ))
-        ) : (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
-            No player reached {threshold} kills yet.
-          </p>
-        )}
-      </div>
-    );
-  }
 
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={Trophy} title="First Milestones" />
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 xl:grid-cols-3">
         {thresholds.map((threshold) => (
-          <React.Fragment key={`first-${threshold}`}>
-            {renderFirstLeaderboard(threshold)}
-          </React.Fragment>
+          <MilestoneLeaderboardCard
+            key={`first-${threshold}`}
+            threshold={threshold}
+            rows={data.thresholdLeaderboards?.[threshold]?.first || []}
+            mode="first"
+          />
         ))}
       </div>
     </PremiumPanel>
@@ -3321,43 +3383,17 @@ function FirstMilestonesPanel({ data }) {
 function FastestMilestonesPanel({ data }) {
   const thresholds = [1000, 3000, 5000];
 
-  function renderFastestLeaderboard(threshold) {
-    const rows = data.thresholdLeaderboards?.[threshold]?.fastest || [];
-    const maxValue = Math.max(1, ...rows.map((row) => row.fromPlayerFirstLogWars || 0));
-
-    return (
-      <div>
-        <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-          Fastest to {threshold} Kills
-        </p>
-        {rows.length ? (
-          rows.map((row, index) => (
-            <HallProgressRow
-              key={`${threshold}-fastest-${row.name}`}
-              label={`${index + 1}. ${row.name}`}
-              value={Math.max(1, maxValue - row.fromPlayerFirstLogWars + 1)}
-              max={maxValue}
-              right={`${row.fromPlayerFirstLogWars} Node Wars`}
-              tone="blueIce"
-            />
-          ))
-        ) : (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm font-bold text-slate-500">
-            No player reached {threshold} kills yet.
-          </p>
-        )}
-      </div>
-    );
-  }
-
   return (
     <PremiumPanel className="p-5">
       <SectionTitle icon={Zap} title="Fastest Milestones" />
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 xl:grid-cols-3">
         {thresholds.map((threshold) => (
-          <React.Fragment key={`fastest-${threshold}`}>
-            {renderFastestLeaderboard(threshold)}
-          </React.Fragment>
+          <MilestoneLeaderboardCard
+            key={`fastest-${threshold}`}
+            threshold={threshold}
+            rows={data.thresholdLeaderboards?.[threshold]?.fastest || []}
+            mode="fastest"
+          />
         ))}
       </div>
     </PremiumPanel>
