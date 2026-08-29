@@ -3054,14 +3054,23 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon {
-      width: 42px !important;
-      height: 42px !important;
+      width: 46px !important;
+      height: 46px !important;
+      overflow: hidden !important;
+      border-radius: 9px !important;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(255,215,44,.10), transparent 70%),
+        rgba(0,0,0,.30) !important;
     }
 
     .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon img {
-      width: 40px !important;
-      height: 40px !important;
-      filter: saturate(1.10) contrast(1.05) drop-shadow(0 0 8px rgba(246,201,21,.20));
+      width: 83px !important;
+      min-width: 83px !important;
+      max-width: none !important;
+      height: 46px !important;
+      object-fit: cover !important;
+      object-position: center center !important;
+      filter: saturate(1.16) contrast(1.08) drop-shadow(0 0 8px rgba(246,201,21,.28));
     }
 
     .adversary-sidebar-menu-label {
@@ -7363,6 +7372,27 @@ export default function App() {
 
   const label = current ? 'Current log' : all ? 'All saved days' : selectedDays[0] || 'No day';
 
+  const overviewLabel = useMemo(() => {
+    if (page !== 'overview') return label;
+
+    const loadedDates = [
+      ...new Set(
+        (Array.isArray(overviewLogs) ? overviewLogs : [])
+          .map((log) => dateOf(log))
+          .filter(Boolean),
+      ),
+    ];
+
+    if (loadedDates.length === 1) return loadedDates[0];
+    if (loadedDates.length > 1) return `${loadedDates.length} selected node wars`;
+
+    const selectedDate = selectedDays.find(
+      (day) => day && day !== 'all' && day !== 'current',
+    );
+
+    return selectedDate || label;
+  }, [page, label, overviewLogs, selectedDays]);
+
   const markedDates = useMemo(
     () => new Set([...new Set(logs.map(dateOf))]),
     [logs],
@@ -7572,7 +7602,7 @@ export default function App() {
 
     setNodeWarsWarning('');
     setMatchHistoryDateFilter('');
-    setSelectedDays(['all']);
+    setSelectedDays([dateOf(latestWar)]);
     setSelectedWars([String(latestWar.id)]);
     setPage('overview');
   }
@@ -7868,7 +7898,7 @@ export default function App() {
               ) : (
                 <Overview
                   stats={stats}
-                  label={label}
+                  label={overviewLabel}
                   members={members}
                   selectedLogs={activeLogs}
                   lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
