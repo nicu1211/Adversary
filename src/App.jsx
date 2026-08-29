@@ -2846,6 +2846,8 @@ const GLOBAL_PANEL_CSS = `
   @media (min-width: 1024px) {
     .adversary-layout-grid {
       grid-template-columns: 220px minmax(0, 1fr) !important;
+      min-height: 0 !important;
+      align-items: stretch !important;
     }
 
     .adversary-site-artwork {
@@ -2854,11 +2856,11 @@ const GLOBAL_PANEL_CSS = `
 
     .adversary-sidebar {
       width: 220px;
-      height: 100vh;
-      min-height: 100vh !important;
-      position: sticky !important;
-      top: 0;
-      align-self: start;
+      height: auto !important;
+      min-height: 0 !important;
+      position: relative !important;
+      top: auto !important;
+      align-self: stretch !important;
       padding: 14px 12px 12px !important;
       align-items: center;
       border-right: 1px solid rgba(246,201,21,.22) !important;
@@ -7612,7 +7614,7 @@ export default function App() {
         )}
       </div>
 
-      <div className="adversary-layout-grid relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
+      <div className="adversary-layout-grid relative z-10 grid lg:grid-cols-[250px_1fr]">
         <aside className="adversary-sidebar relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <SidebarClassOrbs
             members={members}
