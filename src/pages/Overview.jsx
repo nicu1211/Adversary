@@ -630,6 +630,11 @@ const OVERVIEW_GUILD_PANEL_CSS = `
       transform 180ms ease;
   }
 
+  .overview-guild-page .overview-chart-shell,
+  .overview-guild-page .overview-chart-shell > :is(div, section, article) {
+    overflow: visible !important;
+  }
+
   .overview-player-performance-dialog .overview-popup-card:hover,
   .overview-player-performance-dialog .overview-popup-section:hover {
     background-image:
@@ -910,6 +915,105 @@ const OVERVIEW_GUILD_PANEL_CSS = `
       transform: translateY(-0.5vh) !important;
     }
   }
+
+  /* New Adversary gold-tech popup skin. */
+  .overview-player-performance-overlay {
+    background: rgba(1, 3, 7, .62) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(108%) !important;
+    backdrop-filter: blur(10px) saturate(108%) !important;
+  }
+
+  .overview-player-performance-dialog {
+    --overview-tech-gold: 246, 201, 21;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) {
+    position: relative !important;
+    z-index: 20 !important;
+    overflow: visible !important;
+    border: 1px solid rgba(var(--overview-tech-gold), .58) !important;
+    background-color: rgba(4, 6, 7, .88) !important;
+    background-image:
+      radial-gradient(ellipse at 14% -36%, rgba(var(--overview-tech-gold), .20), transparent 50%),
+      linear-gradient(30deg, rgba(var(--overview-tech-gold), .075) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .075) 87.5%),
+      linear-gradient(150deg, rgba(var(--overview-tech-gold), .065) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .065) 87.5%),
+      linear-gradient(180deg, rgba(11, 11, 9, .94), rgba(3, 5, 6, .94)) !important;
+    background-size: 100% 100%, 42px 72px, 42px 72px, 100% 100% !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 239, 151, .08),
+      inset 0 -1px 0 rgba(var(--overview-tech-gold), .20),
+      0 0 18px rgba(var(--overview-tech-gold), .09),
+      0 20px 60px rgba(0, 0, 0, .54) !important;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) h3 {
+    color: #fff9dc !important;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) > div:first-child > div:first-child {
+    border-color: rgba(var(--overview-tech-gold), .42) !important;
+    background: rgba(var(--overview-tech-gold), .10) !important;
+    box-shadow: inset 0 0 16px rgba(var(--overview-tech-gold), .08) !important;
+  }
+
+  .overview-player-performance-dialog > div:nth-of-type(2) > div:first-child > div:first-child > div {
+    border-color: rgba(255, 222, 75, .92) !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-tech-close {
+    position: relative !important;
+    z-index: 100 !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 42px !important;
+    height: 42px !important;
+    flex: 0 0 42px !important;
+    border: 1px solid rgba(255, 220, 58, .66) !important;
+    border-radius: 11px !important;
+    background:
+      radial-gradient(circle at 35% 28%, rgba(255, 229, 102, .16), transparent 48%),
+      rgba(7, 8, 7, .96) !important;
+    color: #ffe66a !important;
+    font-size: 25px !important;
+    line-height: 1 !important;
+    text-shadow: 0 0 10px rgba(255, 220, 58, .34);
+    box-shadow: inset 0 0 16px rgba(var(--overview-tech-gold), .05), 0 0 12px rgba(var(--overview-tech-gold), .08) !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-tech-close:hover {
+    border-color: #ffe66a !important;
+    background: rgba(92, 65, 0, .82) !important;
+    color: #fffbe5 !important;
+    box-shadow: inset 0 0 18px rgba(var(--overview-tech-gold), .12), 0 0 17px rgba(var(--overview-tech-gold), .18) !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card,
+  .overview-player-performance-dialog .overview-popup-section {
+    border: 1px solid rgba(var(--overview-tech-gold), .28) !important;
+    background-color: rgba(4, 6, 7, .72) !important;
+    background-image:
+      radial-gradient(ellipse at 14% -8%, rgba(var(--overview-popup-card-rgb), .28), rgba(var(--overview-popup-card-rgb), .10) 44%, transparent 72%),
+      linear-gradient(30deg, rgba(var(--overview-tech-gold), .048) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .048) 87.5%),
+      linear-gradient(150deg, rgba(var(--overview-tech-gold), .040) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .040) 87.5%),
+      linear-gradient(145deg, rgba(var(--overview-popup-card-rgb), .10), rgba(4, 6, 7, .74) 58%, rgba(2, 4, 5, .80)) !important;
+    background-size: 100% 100%, 40px 69px, 40px 69px, 100% 100% !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .04),
+      inset 0 0 24px rgba(var(--overview-popup-card-rgb), .055),
+      0 8px 20px rgba(0,0,0,.20) !important;
+  }
+
+  .overview-player-performance-dialog .overview-popup-card:hover,
+  .overview-player-performance-dialog .overview-popup-section:hover {
+    border-color: rgba(var(--overview-tech-gold), .48) !important;
+    transform: none !important;
+    box-shadow:
+      inset 0 0 28px rgba(var(--overview-popup-card-rgb), .085),
+      0 0 12px rgba(var(--overview-tech-gold), .06),
+      0 8px 20px rgba(0,0,0,.22) !important;
+  }
+
 `;
 
 function compactNumber(value, digits = 1) {
@@ -2955,7 +3059,7 @@ function PlayerPerformanceModal({
           <button
             type="button"
             onClick={close}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 text-lg font-black text-slate-400 transition hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200"
+            className="overview-popup-tech-close flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border font-black transition"
             aria-label="Close player performance"
           >
             ×
