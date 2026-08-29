@@ -53,6 +53,7 @@ import classOrbWizard from './assets/class-orbs/Wizard.webp';
 import classOrbWoosa from './assets/class-orbs/Woosa.webp';
 import classOrbWukong from './assets/class-orbs/Wukong.webp';
 import sidebarOrbHoverSound from './assets/class-orbs/orb-hover.mp3';
+import panelHoverSound from './assets/panel-hover.mp3';
 import adversaryStartupClip from './assets/adversary-startup.mp4?url';
 
 // The user's click sound lives at src/assets/Page-click.mp3. Using import.meta.glob
@@ -65,14 +66,9 @@ const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
 });
 const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
 
-// Hover sound for the desktop sidebar page panels.
-// Matches files such as panel-hover.mp3 / .wav / .ogg / .m4a.
-const PANEL_HOVER_SOUND_MODULES = import.meta.glob('./assets/panel-hover*', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
-const PANEL_HOVER_SOUND = Object.values(PANEL_HOVER_SOUND_MODULES)[0] || '';
+// Sidebar page-panel hover sound. Direct import on purpose: this uses the
+// same loading path as the already-working class-orb hover sound.
+const PANEL_HOVER_SOUND = panelHoverSound;
 
 // Optional persistent website background loop. Drop the finished loop into
 // src/assets as Loop-video.mp4 (or .webm). The glob keeps the project buildable
@@ -6832,33 +6828,33 @@ export default function App() {
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
   const panelHoverAudioRef = useRef([]);
+  const panelHoverIndexRef = useRef(0);
+  const panelHoverLastPlayedRef = useRef(0);
 
   const playPanelHoverSound = useCallback(() => {
-    if (!PANEL_HOVER_SOUND) return;
+    const now = performance.now();
+
+    // Avoid a double-trigger when entering a button right on a child boundary.
+    if (now - panelHoverLastPlayedRef.current < 90) return;
+
+    const pool = panelHoverAudioRef.current;
+    if (!pool.length) return;
+
+    const audio = pool[panelHoverIndexRef.current % pool.length];
+    panelHoverIndexRef.current += 1;
 
     try {
-      if (!panelHoverAudioRef.current.length) {
-        panelHoverAudioRef.current = Array.from({ length: 2 }, () => {
-          const audio = new Audio(PANEL_HOVER_SOUND);
-          audio.preload = 'auto';
-          audio.volume = 0.42;
-          return audio;
-        });
-      }
-
-      const pool = panelHoverAudioRef.current;
-      const audio =
-        pool.find((item) => item.paused || item.ended) ||
-        pool[0];
-
       audio.pause();
       audio.currentTime = 0;
+      audio.volume = 0.42;
 
       const playback = audio.play();
       if (playback?.catch) playback.catch(() => {});
     } catch {
-      // Ignore browser media-policy failures.
+      // Ignore media-policy failures.
     }
+
+    panelHoverLastPlayedRef.current = now;
   }, []);
 
   const finishStartup = useCallback(() => {
@@ -6881,11 +6877,9 @@ export default function App() {
 
     const video = startupVideoRef.current;
 
-    // If the browser already granted audible autoplay for this site, make sure
-    // the intro stays at full volume. If it did not, the muted fallback keeps
-    // the visual intro running rather than freezing.
-    if (video && !video.muted) {
+    if (video) {
       video.defaultMuted = false;
+      video.muted = false;
       video.volume = 1;
     }
 
@@ -6974,44 +6968,25 @@ export default function App() {
     const video = startupVideoRef.current;
     if (!video) return undefined;
 
-    let cancelled = false;
-    let fallbackTimer = 0;
+    // Restore the original successful behaviour: do not run a competing
+    // play()/mute fallback. Keep the element explicitly audible and let the
+    // browser's native autoplay path own startup playback.
+    video.defaultMuted = false;
+    video.muted = false;
+    video.volume = 1;
 
-    // Keep the intro in an audible state and let the browser's native autoplay
-    // start it. This is the least intrusive path and avoids the freezes caused
-    // by repeated play() calls.
-    try {
+    const keepStartupAudible = () => {
       video.defaultMuted = false;
       video.muted = false;
       video.volume = 1;
-    } catch {
-      // Ignore media property write failures.
-    }
+    };
 
-    // Safety only: if the browser refuses audible autoplay and the video is
-    // still completely paused, start the visual intro muted instead of leaving
-    // the startup frozen. This does not touch a video that is already playing.
-    fallbackTimer = window.setTimeout(() => {
-      if (cancelled || !video.paused) return;
-
-      try {
-        video.muted = true;
-        video.defaultMuted = true;
-        video.volume = 0;
-        const playback = video.play();
-        if (playback?.catch) {
-          playback.catch(() => {
-            if (!cancelled) finishStartup();
-          });
-        }
-      } catch {
-        if (!cancelled) finishStartup();
-      }
-    }, 1800);
+    video.addEventListener('loadedmetadata', keepStartupAudible);
+    video.addEventListener('canplay', keepStartupAudible);
 
     return () => {
-      cancelled = true;
-      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+      video.removeEventListener('loadedmetadata', keepStartupAudible);
+      video.removeEventListener('canplay', keepStartupAudible);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -7023,10 +6998,61 @@ export default function App() {
         startupExitTimerRef.current = null;
       }
     };
-  }, [finishStartup]);
+  }, []);
 
   useEffect(() => {
+    const audios = Array.from({ length: 3 }, () => {
+      const audio = new Audio(PANEL_HOVER_SOUND);
+      audio.preload = 'auto';
+      audio.volume = 0.42;
+      return audio;
+    });
+
+    panelHoverAudioRef.current = audios;
+
+    // Same unlock trick used by the working orb sound: after the first real
+    // pointer click, silently prime the audio elements so subsequent hovers
+    // play immediately.
+    const unlockPanelHoverAudio = () => {
+      panelHoverAudioRef.current.forEach((audio) => {
+        if (!audio) return;
+
+        const previousMuted = audio.muted;
+        audio.muted = true;
+
+        try {
+          const playback = audio.play();
+
+          const reset = () => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = previousMuted;
+            audio.volume = 0.42;
+          };
+
+          if (playback?.then) {
+            playback.then(reset).catch(() => {
+              audio.muted = previousMuted;
+            });
+          } else {
+            reset();
+          }
+        } catch {
+          audio.muted = previousMuted;
+        }
+      });
+    };
+
+    document.addEventListener('pointerdown', unlockPanelHoverAudio, {
+      once: true,
+      capture: true,
+    });
+
     return () => {
+      document.removeEventListener('pointerdown', unlockPanelHoverAudio, {
+        capture: true,
+      });
+
       panelHoverAudioRef.current.forEach((audio) => {
         try {
           audio.pause();
@@ -7035,6 +7061,7 @@ export default function App() {
           // Ignore cleanup failures.
         }
       });
+
       panelHoverAudioRef.current = [];
     };
   }, []);
@@ -8007,6 +8034,7 @@ export default function App() {
         )}
 
         <video
+          key="adversary-startup-audible"
           ref={startupVideoRef}
           src={adversaryStartupClip}
           autoPlay
