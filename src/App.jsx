@@ -3447,29 +3447,34 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
   /* Hall of Fame top tabs keep the old semantic colour identity inside the
      new black/gold techno shell instead of being flattened to neutral black. */
   body[data-adversary-page="hall"] .adversary-content .hall-header-card {
-    border-color: rgba(var(--hall-accent-rgb), .54) !important;
-    background-color: rgba(var(--hall-accent-rgb), .16) !important;
+    border-color: rgba(var(--hall-accent-rgb), .72) !important;
+    background-color: rgba(var(--hall-accent-rgb), .36) !important;
     background-image:
-      radial-gradient(ellipse at 14% -8%, rgba(var(--hall-accent-rgb), .48), transparent 56%),
-      radial-gradient(ellipse at 88% 118%, rgba(var(--hall-accent-rgb), .20), transparent 48%),
+      radial-gradient(ellipse at 12% -12%, rgba(var(--hall-accent-rgb), .76) 0%, rgba(var(--hall-accent-rgb), .44) 34%, rgba(var(--hall-accent-rgb), .18) 62%, transparent 84%),
+      radial-gradient(ellipse at 92% 118%, rgba(var(--hall-accent-rgb), .34), transparent 50%),
       var(--adversary-tech-art),
-      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .24), rgba(3,5,6,.62) 56%, rgba(2,4,5,.70)) !important;
+      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .40) 0%, rgba(var(--hall-accent-rgb), .22) 42%, rgba(3,5,6,.54) 78%, rgba(2,4,5,.60)) !important;
     background-size: 100% 100%, 100% 100%, 380px 150px, 100% 100% !important;
     background-position: center, center, 12% 50%, center !important;
     background-repeat: no-repeat, no-repeat, repeat, no-repeat !important;
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.055),
-      inset 0 0 34px rgba(var(--hall-accent-rgb), .13),
+      inset 0 1px 0 rgba(255,255,255,.10),
+      inset 0 0 38px rgba(var(--hall-accent-rgb), .26),
       0 8px 20px rgba(0,0,0,.22) !important;
   }
 
   body[data-adversary-page="hall"] .adversary-content .hall-header-card:hover,
   body[data-adversary-page="hall"] .adversary-content .hall-header-card[aria-pressed="true"] {
-    border-color: rgba(var(--hall-accent-rgb), .86) !important;
-    background-color: rgba(var(--hall-accent-rgb), .22) !important;
+    border-color: rgba(var(--hall-accent-rgb), .98) !important;
+    background-color: rgba(var(--hall-accent-rgb), .48) !important;
+    background-image:
+      radial-gradient(ellipse at 12% -12%, rgba(var(--hall-accent-rgb), .92) 0%, rgba(var(--hall-accent-rgb), .55) 36%, rgba(var(--hall-accent-rgb), .22) 66%, transparent 86%),
+      radial-gradient(ellipse at 92% 118%, rgba(var(--hall-accent-rgb), .40), transparent 50%),
+      var(--adversary-tech-art),
+      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .50), rgba(var(--hall-accent-rgb), .28) 48%, rgba(3,5,6,.50) 82%) !important;
     box-shadow:
-      inset 0 0 42px rgba(var(--hall-accent-rgb), .18),
-      0 0 20px rgba(var(--hall-accent-rgb), .17),
+      inset 0 0 46px rgba(var(--hall-accent-rgb), .32),
+      0 0 22px rgba(var(--hall-accent-rgb), .24),
       0 10px 24px rgba(0,0,0,.24) !important;
   }
 
