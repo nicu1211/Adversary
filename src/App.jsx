@@ -65,6 +65,15 @@ const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
 });
 const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
 
+// Sidebar page-panel hover sound. Drop the file in src/assets as panel-hover.mp3
+// (or wav/ogg/m4a/etc.). Using a glob keeps App.jsx valid regardless of extension.
+const PANEL_HOVER_SOUND_MODULES = import.meta.glob('./assets/panel-hover.*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const PANEL_HOVER_SOUND = Object.values(PANEL_HOVER_SOUND_MODULES)[0] || '';
+
 // Optional persistent website background loop. Drop the finished loop into
 // src/assets as Loop-video.mp4 (or .webm). The glob keeps the project buildable
 // before that file is added.
@@ -3034,9 +3043,10 @@ const GLOBAL_PANEL_CSS = `
       flex-direction: column;
       align-items: center;
       flex: 0 0 auto !important;
-      gap: 5px;
+      gap: 0 !important;
       padding-top: 0;
       z-index: 30;
+      pointer-events: auto !important;
     }
 
     .adversary-sidebar-nav-zone::before {
@@ -3061,8 +3071,10 @@ const GLOBAL_PANEL_CSS = `
       justify-content: center;
       gap: 6px;
       overflow: visible !important;
-      border-radius: 14px !important;
+      border-radius: 8px !important;
       border: 1px solid transparent !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
       background: rgba(3,5,7,.68) !important;
       color: rgba(246,201,21,.72) !important;
       box-shadow: inset 0 0 14px rgba(246,201,21,.02) !important;
@@ -3073,8 +3085,8 @@ const GLOBAL_PANEL_CSS = `
       width: 176px !important;
       min-width: 176px !important;
       min-height: 70px !important;
-      margin-bottom: 6px;
-      border-radius: 16px !important;
+      margin-bottom: 0 !important;
+      border-radius: 14px 14px 8px 8px !important;
       border-color: rgba(246,201,21,.52) !important;
       background:
         radial-gradient(circle at 50% 38%, rgba(255,218,55,.08), transparent 64%),
@@ -3185,10 +3197,10 @@ const GLOBAL_PANEL_CSS = `
 
     .adversary-sidebar > .adversary-rail-bottom {
       width: 100%;
-      margin-top: auto;
+      margin-top: 0 !important;
       display: flex;
       justify-content: center;
-      padding-top: 14px !important;
+      padding-top: 0 !important;
       padding-bottom: 2px;
       z-index: 30;
     }
@@ -3211,6 +3223,7 @@ const GLOBAL_PANEL_CSS = `
     .adversary-sidebar-nav-zone,
     .adversary-sidebar > .adversary-rail-bottom {
       z-index: 30 !important;
+      pointer-events: auto !important;
     }
 
     .adversary-sidebar .adversary-menu-button {
@@ -6934,47 +6947,89 @@ export default function App() {
     if (!video) return undefined;
 
     let cancelled = false;
+    let startInProgress = false;
+    let fallbackTimer = 0;
 
-    // Use the same startup path as the first version that played correctly:
-    // explicitly request the intro with sound once the element is mounted.
-    video.defaultMuted = false;
-    video.muted = false;
-    video.volume = 1;
-    video.currentTime = 0;
+    const keepAudible = () => {
+      if (cancelled) return;
 
-    const startIntro = async () => {
       try {
-        await video.play();
-
-        if (cancelled) return;
-
-        // Keep it audible if the browser accepted audible autoplay.
         video.defaultMuted = false;
         video.muted = false;
         video.volume = 1;
       } catch {
-        if (cancelled) return;
-
-        // Never leave the intro frozen. If this browser rejects audible
-        // autoplay, immediately fall back to muted playback so the clip still
-        // starts without requiring a click.
-        try {
-          video.muted = true;
-          video.defaultMuted = true;
-          video.volume = 0;
-          await video.play();
-        } catch {
-          // If media playback itself fails, reveal the site instead of leaving
-          // a dead black startup screen.
-          finishStartup();
-        }
+        // Ignore media property write failures.
       }
     };
 
-    startIntro();
+    const startAudible = async () => {
+      if (cancelled || startInProgress || !video.paused) return;
+
+      startInProgress = true;
+      keepAudible();
+
+      try {
+        await video.play();
+
+        if (!cancelled) {
+          keepAudible();
+        }
+      } catch {
+        // Do not immediately force the intro silent. Give the browser one
+        // readiness/native-autoplay window first.
+      } finally {
+        startInProgress = false;
+      }
+    };
+
+    const startMutedFallback = async () => {
+      if (cancelled || !video.paused) return;
+
+      try {
+        video.muted = true;
+        video.defaultMuted = true;
+        video.volume = 0;
+        await video.play();
+      } catch {
+        if (!cancelled) finishStartup();
+      }
+    };
+
+    const handleCanPlay = () => {
+      startAudible();
+    };
+
+    const handlePlaying = () => {
+      // If audible autoplay was accepted, keep the startup audio at full volume.
+      if (!video.muted) {
+        video.defaultMuted = false;
+        video.volume = 1;
+      }
+    };
+
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('playing', handlePlaying);
+
+    keepAudible();
+
+    // Native autoplay gets the first chance. If the browser has already buffered
+    // enough media, also make one explicit audible request.
+    if (video.readyState >= 3) {
+      startAudible();
+    }
+
+    // Only use the muted visual fallback if the video is STILL paused after the
+    // audible/native attempts. This prevents the old "first rejection = silent"
+    // behaviour while also preventing a frozen startup.
+    fallbackTimer = window.setTimeout(() => {
+      startMutedFallback();
+    }, 900);
 
     return () => {
       cancelled = true;
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('playing', handlePlaying);
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -6987,6 +7042,64 @@ export default function App() {
       }
     };
   }, [finishStartup]);
+
+  useEffect(() => {
+    if (!PANEL_HOVER_SOUND) return undefined;
+
+    let audioPool = null;
+    let audioIndex = 0;
+
+    const getAudioPool = () => {
+      if (audioPool) return audioPool;
+
+      audioPool = Array.from({ length: 2 }, () => {
+        const audio = new Audio(PANEL_HOVER_SOUND);
+        audio.preload = 'auto';
+        audio.volume = 0.38;
+        return audio;
+      });
+
+      return audioPool;
+    };
+
+    const handleSidebarPageHover = (event) => {
+      if (!(event.target instanceof Element)) return;
+
+      const button = event.target.closest(
+        '.adversary-sidebar .adversary-menu-button',
+      );
+      if (!button) return;
+
+      // pointerover bubbles through the icon/text inside a button. Only play
+      // when the pointer actually enters a different page panel.
+      const previous = event.relatedTarget;
+      if (previous instanceof Node && button.contains(previous)) return;
+
+      const pool = getAudioPool();
+      const audio = pool[audioIndex % pool.length];
+      audioIndex += 1;
+
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        const playback = audio.play();
+        if (playback?.catch) playback.catch(() => {});
+      } catch {
+        // Ignore browser audio policy failures.
+      }
+    };
+
+    document.addEventListener('pointerover', handleSidebarPageHover, true);
+
+    return () => {
+      document.removeEventListener('pointerover', handleSidebarPageHover, true);
+
+      audioPool?.forEach((audio) => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+    };
+  }, []);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -7958,6 +8071,7 @@ export default function App() {
         <video
           ref={startupVideoRef}
           src={adversaryStartupClip}
+          autoPlay
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
