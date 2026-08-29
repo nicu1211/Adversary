@@ -2785,6 +2785,14 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
   );
 }
 
+
+const HALL_HEADER_TONE_RGB = {
+  blueRoyal: '37, 99, 235',
+  greenDeep: '16, 185, 129',
+  yellowGold: '234, 179, 8',
+  redDeep: '239, 68, 68',
+};
+
 function HallHeaderCard({
   icon: Icon,
   title,
@@ -2800,8 +2808,10 @@ function HallHeaderCard({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
+      style={{ '--hall-accent-rgb': HALL_HEADER_TONE_RGB[tone] || '59, 130, 246' }}
       className={cls(
-        'relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-xl transition duration-200 hover:-translate-y-0.5',
+        'hall-header-card relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-xl transition duration-200 hover:-translate-y-0.5',
         toneInfo.soft,
         active && 'ring-2 ring-white/20',
       )}
@@ -3319,36 +3329,56 @@ function MilestoneLeaderboardCard({
   rows = [],
   mode = 'first',
 }) {
-  const title = mode === 'fastest' ? `Fastest to ${nf.format(threshold)} Kills` : `First to ${nf.format(threshold)} Kills`;
+  const title = mode === 'fastest'
+    ? `Fastest to ${nf.format(threshold)} Kills`
+    : `First to ${nf.format(threshold)} Kills`;
   const emptyText = `No player reached ${nf.format(threshold)} kills yet.`;
+  const visibleRows = rows.slice(0, 10);
+  const rawMaximum = Math.max(
+    1,
+    ...visibleRows.map((row) =>
+      mode === 'fastest'
+        ? num(row.fromPlayerFirstLogWars)
+        : num(row.fromFirstLogWars),
+    ),
+  );
 
   return (
-    <div className="group relative overflow-hidden rounded-[26px] border border-amber-300/24 bg-[linear-gradient(135deg,rgba(11,13,16,.76),rgba(5,7,10,.66))] px-5 py-4 shadow-[0_18px_35px_rgba(0,0,0,.28)] transition duration-200 hover:border-amber-300/40 hover:shadow-[0_0_22px_rgba(250,204,21,.10)]">
+    <div className="group relative overflow-hidden rounded-[26px] border border-amber-300/24 bg-[linear-gradient(135deg,rgba(11,13,16,.70),rgba(5,7,10,.58))] px-5 py-4 shadow-[0_18px_35px_rgba(0,0,0,.28)] transition duration-200 hover:border-amber-300/40 hover:shadow-[0_0_22px_rgba(250,204,21,.10)]">
       <div className="pointer-events-none absolute inset-0 opacity-[0.16]" style={{
         backgroundImage:
           'linear-gradient(30deg, rgba(246,201,21,.18) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.18) 87.5%), linear-gradient(150deg, rgba(246,201,21,.16) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.16) 87.5%), radial-gradient(circle at 18% 28%, rgba(255,220,64,.28) 0 1.5px, transparent 2.5px), radial-gradient(circle at 74% 62%, rgba(255,220,64,.2) 0 1px, transparent 2px)',
         backgroundSize: '30px 52px, 30px 52px, 120px 120px, 150px 150px',
       }} />
       <div className="pointer-events-none absolute inset-y-0 left-[112px] w-px bg-gradient-to-b from-transparent via-amber-300/14 to-transparent" />
-      <div className="relative flex items-center gap-4">
-        <MilestoneEmblemBadge threshold={threshold} />
+      <div className="relative flex items-start gap-4">
+        <div className="sticky top-0 pt-1">
+          <MilestoneEmblemBadge threshold={threshold} />
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="mb-1 text-[12px] font-black uppercase tracking-[0.14em] text-amber-300">{title}</div>
-          {rows.length ? (
-            <div className="space-y-2.5">
-              {rows.slice(0, 10).map((row, index) => (
-                <div key={`${mode}-${threshold}-${row.name}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 text-sm">
-                  <div className="min-w-0">
-                    <div className={cls('truncate font-black', index === 0 ? 'text-amber-300' : 'text-slate-200')}>
-                      {index + 1}. {row.name}
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold text-amber-100/82">
-                    {mode === 'first' ? <CalendarDays className="h-3.5 w-3.5 text-amber-300/85" /> : <Zap className="h-3.5 w-3.5 text-amber-300/85" />}
-                    <span>{mode === 'first' ? (row.date || '-') : `${row.fromPlayerFirstLogWars} Node Wars`}</span>
-                  </div>
-                </div>
-              ))}
+          <div className="mb-3 text-[12px] font-black uppercase tracking-[0.14em] text-amber-300">{title}</div>
+          {visibleRows.length ? (
+            <div>
+              {visibleRows.map((row, index) => {
+                const rawValue = mode === 'fastest'
+                  ? num(row.fromPlayerFirstLogWars)
+                  : num(row.fromFirstLogWars);
+                const chargeValue = Math.max(1, rawMaximum - rawValue + 1);
+                const right = mode === 'first'
+                  ? (row.date || '-')
+                  : `${row.fromPlayerFirstLogWars} Node Wars`;
+
+                return (
+                  <HallProgressRow
+                    key={`${mode}-${threshold}-${row.name}`}
+                    label={`${index + 1}. ${row.name}`}
+                    value={chargeValue}
+                    max={rawMaximum}
+                    right={right}
+                    tone="yellowGold"
+                  />
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm font-bold text-slate-500">{emptyText}</p>
