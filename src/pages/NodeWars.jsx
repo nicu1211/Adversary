@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 
 import { Panel } from '../components/UI';
-import adversaryEmblem from '../assets/adversary-emblem.png?url';
 import { buildNodeWarRow, scrollCls } from '../lib/logUtils';
 
 
@@ -30,6 +29,7 @@ const NODE_WARS_PANEL_CSS = `
     --nw-line: rgba(242, 194, 22, .34);
     --nw-line-hot: rgba(255, 218, 62, .78);
     --nw-panel: rgba(3, 5, 6, .82);
+    --nw-tech-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20560%20220'%3E%0A%3Cg%20fill%3D'none'%20stroke%3D'%23d9aa17'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%0A%20%20%3Cg%20stroke-width%3D'1'%20stroke-opacity%3D'.34'%3E%0A%20%20%20%20%3Cpolygon%20points%3D'44,20%2060,11%2076,20%2076,38%2060,47%2044,38'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'77,39%2090,31%20103,39%20103,54%2090,62%2077,54'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'18,74%2035,64%2052,74%2052,94%2035,104%2018,94'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'52,74%2069,64%2086,74%2086,94%2069,104%2052,94'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'86,74%20103,64%20120,74%20120,94%20103,104%2086,94'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'211,24%20230,13%20249,24%20249,46%20230,57%20211,46'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'246,60%20258,53%20270,60%20270,74%20258,81%20246,74'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'387,24%20415,8%20443,24%20443,56%20415,72%20387,56'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'420,70%20438,60%20456,70%20456,91%20438,101%20420,91'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'468,126%20493,112%20518,126%20518,155%20493,169%20468,155'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'267,142%20292,128%20317,142%20317,171%20292,185%20267,171'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'136,144%20151,135%20166,144%20166,162%20151,171%20136,162'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'93,166%20111,156%20129,166%20129,187%20111,197%2093,187'%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20stroke-width%3D'.8'%20stroke-opacity%3D'.18'%3E%0A%20%20%20%20%3Cpolygon%20points%3D'154,22%20162,17%20170,22%20170,31%20162,36%20154,31'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'170,31%20178,26%20186,31%20186,40%20178,45%20170,40'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'186,22%20194,17%20202,22%20202,31%20194,36%20186,31'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'325,91%20334,86%20343,91%20343,101%20334,106%20325,101'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'343,101%20352,96%20361,101%20361,111%20352,116%20343,111'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'361,91%20370,86%20379,91%20379,101%20370,106%20361,101'%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20stroke-width%3D'1.05'%20stroke-opacity%3D'.38'%3E%0A%20%20%20%20%3Cpath%20d%3D'M4%20130%20H50%20L62%20118%20H103%20L118%20103%20H151'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M151%20103%20H186%20L198%2091%20H230'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M336%2036%20H365%20L379%2050%20H411'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M443%2056%20H484%20L496%2068%20H548'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M10%20203%20H62%20L78%20187%20H111'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M166%20153%20H204%20L219%20168%20H256'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M317%20156%20H354%20L370%20140%20H415%20L431%20124%20H461'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M493%20169%20V190%20H536'%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fg%3E%0A%3Cg%20fill%3D'%23e5b61d'%3E%0A%20%20%3Cg%20fill-opacity%3D'.62'%3E%0A%20%20%20%20%3Ccircle%20cx%3D'4'%20cy%3D'130'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'50'%20cy%3D'130'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'103'%20cy%3D'118'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'151'%20cy%3D'103'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'198'%20cy%3D'91'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'230'%20cy%3D'91'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'336'%20cy%3D'36'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'411'%20cy%3D'50'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'548'%20cy%3D'68'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'10'%20cy%3D'203'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'111'%20cy%3D'187'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'166'%20cy%3D'153'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'256'%20cy%3D'168'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'317'%20cy%3D'156'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'461'%20cy%3D'124'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'536'%20cy%3D'190'%20r%3D'1.7'%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20fill-opacity%3D'.18'%3E%0A%20%20%20%20%3Ccircle%20cx%3D'145'%20cy%3D'57'%20r%3D'2.2'%2F%3E%3Ccircle%20cx%3D'282'%20cy%3D'36'%20r%3D'1.6'%2F%3E%3Ccircle%20cx%3D'382'%20cy%3D'113'%20r%3D'2.4'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'535'%20cy%3D'28'%20r%3D'1.8'%2F%3E%3Ccircle%20cx%3D'241'%20cy%3D'199'%20r%3D'2.1'%2F%3E%3Ccircle%20cx%3D'69'%20cy%3D'151'%20r%3D'1.5'%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fg%3E%0A%3C%2Fsvg%3E");
     position: relative;
     isolation: isolate;
     background: transparent !important;
@@ -49,56 +49,7 @@ const NODE_WARS_PANEL_CSS = `
     isolation: isolate;
   }
 
-  /* Large piece of the actual emblem becomes the page's structural core. */
-  #root .adversary-content .nodewars-emblem-watermark {
-    position: absolute !important;
-    z-index: -3 !important;
-    left: 50%;
-    top: -122px;
-    width: min(660px, 58vw);
-    height: 520px;
-    transform: translateX(-50%);
-    background-repeat: no-repeat;
-    background-position: center top;
-    background-size: contain;
-    opacity: .155;
-    filter: saturate(1.25) contrast(1.08) drop-shadow(0 0 42px rgba(var(--nw-gold-rgb), .16));
-    pointer-events: none;
-    -webkit-mask-image: linear-gradient(180deg, #000 0 58%, rgba(0,0,0,.7) 74%, transparent 100%);
-    mask-image: linear-gradient(180deg, #000 0 58%, rgba(0,0,0,.7) 74%, transparent 100%);
-  }
-
-  #root .adversary-content .nodewars-tech-field {
-    position: absolute !important;
-    z-index: -4 !important;
-    inset: -10px 0 0;
-    pointer-events: none;
-    opacity: .46;
-    background-image:
-      linear-gradient(30deg, rgba(var(--nw-gold-rgb), .07) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .07) 87.5%),
-      linear-gradient(150deg, rgba(var(--nw-gold-rgb), .07) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .07) 87.5%),
-      linear-gradient(30deg, rgba(var(--nw-gold-rgb), .045) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .045) 87.5%),
-      linear-gradient(150deg, rgba(var(--nw-gold-rgb), .045) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb), .045) 87.5%);
-    background-size: 54px 94px;
-    background-position: 0 0, 0 0, 27px 47px, 27px 47px;
-    -webkit-mask-image: radial-gradient(ellipse at 54% 18%, #000 0 48%, rgba(0,0,0,.60) 68%, transparent 93%);
-    mask-image: radial-gradient(ellipse at 54% 18%, #000 0 48%, rgba(0,0,0,.60) 68%, transparent 93%);
-  }
-
-  #root .adversary-content .nodewars-circuit-field {
-    position: absolute !important;
-    z-index: -2 !important;
-    inset: 0;
-    pointer-events: none;
-    opacity: .26;
-    background-image:
-      linear-gradient(90deg, transparent 0 8%, rgba(var(--nw-gold-rgb),.24) 8% 8.08%, transparent 8.08% 30%, rgba(var(--nw-gold-rgb),.14) 30% 30.08%, transparent 30.08% 100%),
-      linear-gradient(0deg, transparent 0 21%, rgba(var(--nw-gold-rgb),.15) 21% 21.2%, transparent 21.2% 64%, rgba(var(--nw-gold-rgb),.12) 64% 64.2%, transparent 64.2% 100%);
-    background-size: 240px 100%, 100% 130px;
-    -webkit-mask-image: linear-gradient(90deg, #000 0 17%, transparent 34%, transparent 68%, #000 86% 100%);
-    mask-image: linear-gradient(90deg, #000 0 17%, transparent 34%, transparent 68%, #000 86% 100%);
-  }
-
+  /* Panel interiors carry the emblem's hex/circuit language. */
   /* Shared reference-like panel. */
   #root .adversary-content .nodewars-guild-panel {
     position: relative !important;
@@ -120,15 +71,25 @@ const NODE_WARS_PANEL_CSS = `
     content: '';
     position: absolute !important;
     inset: 0;
-    z-index: -1 !important;
+    z-index: 0 !important;
     pointer-events: none;
-    opacity: .18;
+    opacity: .34;
     background-image:
-      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%),
-      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%);
-    background-size: 42px 73px;
-    -webkit-mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.24) 52%, #000);
-    mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.24) 52%, #000);
+      var(--nw-tech-art),
+      radial-gradient(circle at 14% 24%, rgba(255,205,45,.12) 0 1px, transparent 2px),
+      radial-gradient(circle at 72% 58%, rgba(255,210,56,.09) 0 1px, transparent 2px),
+      radial-gradient(ellipse at 18% 34%, rgba(193,116,8,.08), transparent 38%),
+      radial-gradient(ellipse at 86% 72%, rgba(118,63,10,.07), transparent 34%);
+    background-size: 560px 220px, 180px 150px, 240px 190px, 100% 100%, 100% 100%;
+    background-position: 0 50%, 8% 28%, 72% 62%, center, center;
+    background-repeat: repeat, repeat, repeat, no-repeat, no-repeat;
+    -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.92), rgba(0,0,0,.54) 48%, rgba(0,0,0,.88));
+    mask-image: linear-gradient(90deg, rgba(0,0,0,.92), rgba(0,0,0,.54) 48%, rgba(0,0,0,.88));
+  }
+
+  #root .adversary-content .nodewars-guild-panel > :not(.nodewars-panel-tech) {
+    position: relative;
+    z-index: 1;
   }
 
   #root .adversary-content .nodewars-guild-panel::after {
@@ -152,6 +113,12 @@ const NODE_WARS_PANEL_CSS = `
     border-radius: 14px !important;
     background:
       linear-gradient(90deg, rgba(5,7,7,.92), rgba(2,4,5,.87) 58%, rgba(6,6,4,.91)) !important;
+  }
+
+  #root .adversary-content .nodewars-filter-panel::before {
+    opacity: .30;
+    background-size: 620px 244px, 180px 150px, 240px 190px, 100% 100%, 100% 100%;
+    background-position: 2% 50%, 8% 28%, 72% 62%, center, center;
   }
 
   #root .adversary-content .nodewars-filter-main {
@@ -281,13 +248,22 @@ const NODE_WARS_PANEL_CSS = `
     content: '';
     position: absolute !important;
     inset: 0;
-    z-index: -1 !important;
+    z-index: 0 !important;
     pointer-events: none;
-    opacity: .16;
+    opacity: .23;
     background-image:
-      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%),
-      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.10) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.10) 87.5%);
-    background-size: 34px 59px;
+      var(--nw-tech-art),
+      radial-gradient(circle at 82% 24%, rgba(255,214,69,.11) 0 1px, transparent 2px);
+    background-size: 360px 142px, 150px 120px;
+    background-position: 12% 50%, 86% 20%;
+    background-repeat: repeat, repeat;
+    -webkit-mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.38) 70%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.38) 70%, transparent 100%);
+  }
+
+  #root .adversary-content .nodewars-summary-stat > * {
+    position: relative;
+    z-index: 1;
   }
 
   #root .adversary-content .nodewars-summary-stat::after {
@@ -328,11 +304,22 @@ const NODE_WARS_PANEL_CSS = `
   }
 
   #root .adversary-content .nodewars-war-card::before {
-    opacity: .12;
+    content: '';
+    position: absolute !important;
+    inset: 0;
+    z-index: 0 !important;
+    pointer-events: none;
+    opacity: .31;
     background-image:
-      linear-gradient(30deg, rgba(var(--nw-gold-rgb),.12) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.12) 87.5%),
-      linear-gradient(150deg, rgba(var(--nw-gold-rgb),.12) 12%, transparent 12.5%, transparent 87%, rgba(var(--nw-gold-rgb),.12) 87.5%);
-    background-size: 40px 69px;
+      var(--nw-tech-art),
+      radial-gradient(circle at 8% 18%, rgba(255,214,66,.14) 0 1px, transparent 2px),
+      radial-gradient(circle at 90% 70%, rgba(255,207,39,.10) 0 1px, transparent 2px),
+      radial-gradient(ellipse at 14% 42%, rgba(159,92,6,.085), transparent 34%);
+    background-size: 650px 255px, 170px 140px, 230px 180px, 100% 100%;
+    background-position: 0 50%, 5% 18%, 84% 74%, center;
+    background-repeat: repeat, repeat, repeat, no-repeat;
+    -webkit-mask-image: linear-gradient(90deg, #000 0 24%, rgba(0,0,0,.36) 48%, rgba(0,0,0,.72) 74%, #000 100%);
+    mask-image: linear-gradient(90deg, #000 0 24%, rgba(0,0,0,.36) 48%, rgba(0,0,0,.72) 74%, #000 100%);
   }
 
   #root .adversary-content .nodewars-card-glow {
@@ -340,21 +327,7 @@ const NODE_WARS_PANEL_CSS = `
     z-index: -2 !important;
   }
 
-  #root .adversary-content .nodewars-war-card .nodewars-emblem-shard {
-    position: absolute !important;
-    z-index: 0 !important;
-    right: 54px;
-    top: -34px;
-    width: 170px;
-    height: 150px;
-    opacity: .055;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-    transform: rotate(-18deg);
-    filter: saturate(1.2) contrast(1.1);
-    pointer-events: none;
-  }
+  /* No literal logo fragments inside cards; panels use the emblem's hex/circuit texture instead. */
 
   #root .adversary-content .nodewars-war-date {
     position: relative !important;
@@ -810,12 +783,6 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
     >
       <div
         className={`nodewars-card-glow pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-30`}
-      />
-
-      <div
-        aria-hidden="true"
-        className="nodewars-emblem-shard"
-        style={{ backgroundImage: `url("${adversaryEmblem}")` }}
       />
 
       <div
@@ -1372,13 +1339,6 @@ export default function NodeWars({
       <style>{NODE_WARS_PANEL_CSS}</style>
 
       <div className="nodewars-scene">
-        <div
-          aria-hidden="true"
-          className="nodewars-emblem-watermark"
-          style={{ backgroundImage: `url("${adversaryEmblem}")` }}
-        />
-        <div aria-hidden="true" className="nodewars-tech-field" />
-        <div aria-hidden="true" className="nodewars-circuit-field" />
 
         <div className="relative z-10 space-y-3">
           {/* Compact reference-style filter strip. */}
