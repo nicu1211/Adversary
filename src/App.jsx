@@ -6944,47 +6944,99 @@ export default function App() {
     if (!video) return undefined;
 
     let cancelled = false;
+    let startedAudibly = false;
+    let mutedFallbackTimer = 0;
+    const retryTimers = [];
 
-    // Use the same startup path as the first version that played correctly:
-    // explicitly request the intro with sound once the element is mounted.
-    video.defaultMuted = false;
-    video.muted = false;
-    video.volume = 1;
-    video.currentTime = 0;
+    // Keep startup identical in intent to the original working version:
+    // the intro begins as an audible video, not as a muted autoplay.
+    const forceAudibleState = () => {
+      if (cancelled) return;
 
-    const startIntro = async () => {
       try {
-        await video.play();
-
-        if (cancelled) return;
-
-        // Keep it audible if the browser accepted audible autoplay.
         video.defaultMuted = false;
         video.muted = false;
         video.volume = 1;
       } catch {
+        // Ignore browser media-property write failures.
+      }
+    };
+
+    const requestAudiblePlayback = async () => {
+      if (cancelled || startedAudibly) return;
+
+      forceAudibleState();
+
+      try {
+        await video.play();
         if (cancelled) return;
 
-        // Never leave the intro frozen. If this browser rejects audible
-        // autoplay, immediately fall back to muted playback so the clip still
-        // starts without requiring a click.
-        try {
-          video.muted = true;
-          video.defaultMuted = true;
-          video.volume = 0;
-          await video.play();
-        } catch {
-          // If media playback itself fails, reveal the site instead of leaving
-          // a dead black startup screen.
-          finishStartup();
+        forceAudibleState();
+
+        if (!video.muted && video.volume > 0) {
+          startedAudibly = true;
+        }
+      } catch {
+        // Do not mute on the first rejection. A play() request can reject while
+        // the source is still becoming ready, which was causing the intro to be
+        // permanently silent in the previous version.
+      }
+    };
+
+    const handleMediaReady = () => {
+      requestAudiblePlayback();
+    };
+
+    const handlePlaying = () => {
+      // If autoplay permission exists for this site, keep the real startup audio
+      // alive even if the browser briefly inherited a muted state.
+      if (!startedAudibly) {
+        forceAudibleState();
+        if (!video.muted && video.volume > 0) {
+          startedAudibly = true;
         }
       }
     };
 
-    startIntro();
+    video.addEventListener('loadedmetadata', handleMediaReady);
+    video.addEventListener('loadeddata', handleMediaReady);
+    video.addEventListener('canplay', handleMediaReady);
+    video.addEventListener('canplaythrough', handleMediaReady);
+    video.addEventListener('playing', handlePlaying);
+
+    // Native autoplay + these delayed retries cover both already-buffered and
+    // slower media loads without repeatedly resetting currentTime.
+    forceAudibleState();
+    requestAudiblePlayback();
+
+    [120, 320, 700, 1200, 1800].forEach((delay) => {
+      retryTimers.push(window.setTimeout(requestAudiblePlayback, delay));
+    });
+
+    // Only if every audible attempt failed do we use a visual-only fallback, so
+    // the intro never freezes. We deliberately wait instead of muting instantly.
+    mutedFallbackTimer = window.setTimeout(async () => {
+      if (cancelled || !video.paused || startedAudibly) return;
+
+      try {
+        video.muted = true;
+        video.volume = 0;
+        await video.play();
+      } catch {
+        if (!cancelled) finishStartup();
+      }
+    }, 2300);
 
     return () => {
       cancelled = true;
+      retryTimers.forEach((timer) => window.clearTimeout(timer));
+      if (mutedFallbackTimer) window.clearTimeout(mutedFallbackTimer);
+
+      video.removeEventListener('loadedmetadata', handleMediaReady);
+      video.removeEventListener('loadeddata', handleMediaReady);
+      video.removeEventListener('canplay', handleMediaReady);
+      video.removeEventListener('canplaythrough', handleMediaReady);
+      video.removeEventListener('playing', handlePlaying);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -7066,15 +7118,23 @@ export default function App() {
   useEffect(() => {
     if (!SIDE_PANEL_HOVER_SOUND) return undefined;
 
-    // Two players are enough to let a quick move from one sidebar page to the
-    // next retrigger the sound without cutting the previous hover off.
-    const hoverAudioPool = Array.from({ length: 2 }, () => {
-      const audio = new Audio(SIDE_PANEL_HOVER_SOUND);
-      audio.preload = 'auto';
-      audio.volume = 0.34;
-      return audio;
-    });
+    let hoverAudioPool = null;
     let hoverAudioIndex = 0;
+
+    const getHoverAudioPool = () => {
+      if (hoverAudioPool) return hoverAudioPool;
+
+      // Build the hover players only when the user actually reaches the sidebar.
+      // This keeps startup playback isolated from extra Audio() initialization.
+      hoverAudioPool = Array.from({ length: 2 }, () => {
+        const audio = new Audio(SIDE_PANEL_HOVER_SOUND);
+        audio.preload = 'auto';
+        audio.volume = 0.34;
+        return audio;
+      });
+
+      return hoverAudioPool;
+    };
 
     const playSidebarHover = (event) => {
       if (!(event.target instanceof Element)) return;
@@ -7084,12 +7144,11 @@ export default function App() {
       );
       if (!button) return;
 
-      // pointerover bubbles when moving between the icon/label inside the same
-      // button. Only trigger when the pointer actually enters a new page button.
       const from = event.relatedTarget;
       if (from instanceof Node && button.contains(from)) return;
 
-      const audio = hoverAudioPool[hoverAudioIndex % hoverAudioPool.length];
+      const pool = getHoverAudioPool();
+      const audio = pool[hoverAudioIndex % pool.length];
       hoverAudioIndex += 1;
 
       try {
@@ -7106,7 +7165,8 @@ export default function App() {
 
     return () => {
       document.removeEventListener('pointerover', playSidebarHover, true);
-      hoverAudioPool.forEach((audio) => {
+
+      hoverAudioPool?.forEach((audio) => {
         audio.pause();
         audio.currentTime = 0;
       });
@@ -8018,6 +8078,7 @@ export default function App() {
         <video
           ref={startupVideoRef}
           src={adversaryStartupClip}
+          autoPlay
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
