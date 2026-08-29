@@ -132,22 +132,29 @@ export function Calendar({ month, setMonth, selected, marked, onPick, footer }) 
 
 export function Popup({ title, close, children, maxWidth = 'max-w-5xl' }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[14000] flex items-center justify-center bg-black/68 p-4 backdrop-blur-md">
       <div
-        className={`max-h-[86vh] w-full ${maxWidth} overflow-hidden rounded-3xl border border-slate-700 bg-slate-950 shadow-2xl`}
+        className={`relative max-h-[86vh] w-full ${maxWidth} overflow-hidden rounded-3xl border border-amber-300/45 bg-[rgba(3,5,7,.94)] shadow-[0_24px_80px_rgba(0,0,0,.62),0_0_24px_rgba(246,201,21,.08)]`}
+        style={{
+          backgroundImage:
+            'radial-gradient(ellipse at 12% -18%, rgba(246,201,21,.13), transparent 48%), linear-gradient(30deg, rgba(246,201,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.055) 87.5%), linear-gradient(150deg, rgba(246,201,21,.045) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.045) 87.5%)',
+          backgroundSize: '100% 100%, 42px 72px, 42px 72px',
+        }}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-5">
-          <h3 className="text-2xl font-black">{title}</h3>
+        <div className="relative z-10 flex items-center justify-between gap-4 border-b border-amber-300/18 bg-black/22 p-5">
+          <h3 className="text-2xl font-black text-white">{title}</h3>
 
           <button
+            type="button"
             onClick={close}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 font-bold hover:bg-slate-800"
+            aria-label={`Close ${title}`}
+            className="relative z-20 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-300/60 bg-black/70 text-2xl font-black leading-none text-amber-300 shadow-[inset_0_0_14px_rgba(246,201,21,.06),0_0_12px_rgba(246,201,21,.08)] transition hover:border-amber-200 hover:bg-amber-500/15 hover:text-amber-100"
           >
-            Close
+            ×
           </button>
         </div>
 
-        <div className={`max-h-[70vh] overflow-auto p-4 ${scrollCls}`}>
+        <div className={`relative z-10 max-h-[70vh] overflow-auto p-4 ${scrollCls}`}>
           {children}
         </div>
       </div>
