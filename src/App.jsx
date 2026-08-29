@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
 import adversaryEmblem from './assets/adversary-emblem.png?url';
-import adversaryEmblemBackground from './assets/adversary-emblem-background.png?url';
+import adversaryEmblemBackground from './assets/adversary-emblem.png?url';
 import classOrbArcher from './assets/class-orbs/Archer.webp';
 import classOrbBerserker from './assets/class-orbs/Berserker.webp';
 import classOrbCorsair from './assets/class-orbs/Corsair.webp';
