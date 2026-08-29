@@ -65,16 +65,6 @@ const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
 });
 const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
 
-// Sidebar page hover sound. This accepts mp3/wav/ogg/m4a/etc. as long as the
-// file is named side-panel-hover inside src/assets.
-const SIDE_PANEL_HOVER_SOUND_MODULES = import.meta.glob('./assets/side-panel-hover.*', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
-const SIDE_PANEL_HOVER_SOUND =
-  Object.values(SIDE_PANEL_HOVER_SOUND_MODULES)[0] || '';
-
 // Optional persistent website background loop. Drop the finished loop into
 // src/assets as Loop-video.mp4 (or .webm). The glob keeps the project buildable
 // before that file is added.
@@ -6944,50 +6934,47 @@ export default function App() {
     if (!video) return undefined;
 
     let cancelled = false;
-    let startAttempted = false;
 
-    const startVideo = async () => {
-      if (cancelled || startAttempted) return;
-      startAttempted = true;
+    // Use the same startup path as the first version that played correctly:
+    // explicitly request the intro with sound once the element is mounted.
+    video.defaultMuted = false;
+    video.muted = false;
+    video.volume = 1;
+    video.currentTime = 0;
 
-      // First try exactly what we want: autoplay the intro WITH its embedded sound.
+    const startIntro = async () => {
       try {
+        await video.play();
+
+        if (cancelled) return;
+
+        // Keep it audible if the browser accepted audible autoplay.
         video.defaultMuted = false;
         video.muted = false;
         video.volume = 1;
-        await video.play();
-        return;
       } catch {
         if (cancelled) return;
-      }
 
-      // If the browser itself rejects audible autoplay, immediately keep the
-      // VIDEO moving rather than leaving the startup frozen on frame one.
-      try {
-        video.muted = true;
-        video.defaultMuted = true;
-        video.volume = 0;
-        await video.play();
-      } catch {
-        if (!cancelled) finishStartup();
+        // Never leave the intro frozen. If this browser rejects audible
+        // autoplay, immediately fall back to muted playback so the clip still
+        // starts without requiring a click.
+        try {
+          video.muted = true;
+          video.defaultMuted = true;
+          video.volume = 0;
+          await video.play();
+        } catch {
+          // If media playback itself fails, reveal the site instead of leaving
+          // a dead black startup screen.
+          finishStartup();
+        }
       }
     };
 
-    const handleCanPlay = () => {
-      startVideo();
-    };
-
-    // Do not hammer play() while the file is still loading. Waiting until the
-    // browser says it can play removes the startup freezes caused by the retry loop.
-    if (video.readyState >= 3) {
-      startVideo();
-    } else {
-      video.addEventListener('canplay', handleCanPlay, { once: true });
-    }
+    startIntro();
 
     return () => {
       cancelled = true;
-      video.removeEventListener('canplay', handleCanPlay);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -7060,64 +7047,6 @@ export default function App() {
     return () => {
       document.removeEventListener('click', playPageClick, true);
       audioPool.forEach((audio) => {
-        audio.pause();
-        audio.currentTime = 0;
-      });
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!SIDE_PANEL_HOVER_SOUND) return undefined;
-
-    let hoverAudioPool = null;
-    let hoverAudioIndex = 0;
-
-    const getHoverAudioPool = () => {
-      if (hoverAudioPool) return hoverAudioPool;
-
-      // Build the hover players only when the user actually reaches the sidebar.
-      // This keeps startup playback isolated from extra Audio() initialization.
-      hoverAudioPool = Array.from({ length: 2 }, () => {
-        const audio = new Audio(SIDE_PANEL_HOVER_SOUND);
-        audio.preload = 'auto';
-        audio.volume = 0.34;
-        return audio;
-      });
-
-      return hoverAudioPool;
-    };
-
-    const playSidebarHover = (event) => {
-      if (!(event.target instanceof Element)) return;
-
-      const button = event.target.closest(
-        '.adversary-sidebar .adversary-menu-button',
-      );
-      if (!button) return;
-
-      const from = event.relatedTarget;
-      if (from instanceof Node && button.contains(from)) return;
-
-      const pool = getHoverAudioPool();
-      const audio = pool[hoverAudioIndex % pool.length];
-      hoverAudioIndex += 1;
-
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-        const playback = audio.play();
-        if (playback?.catch) playback.catch(() => {});
-      } catch {
-        // Ignore browser audio-policy rejections.
-      }
-    };
-
-    document.addEventListener('pointerover', playSidebarHover, true);
-
-    return () => {
-      document.removeEventListener('pointerover', playSidebarHover, true);
-
-      hoverAudioPool?.forEach((audio) => {
         audio.pause();
         audio.currentTime = 0;
       });
@@ -8029,7 +7958,6 @@ export default function App() {
         <video
           ref={startupVideoRef}
           src={adversaryStartupClip}
-          autoPlay
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
