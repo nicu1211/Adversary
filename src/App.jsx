@@ -8,6 +8,13 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  BarChart3,
+  ScrollText,
+  Swords as MenuSwords,
+  Trophy,
+  UsersRound,
+} from 'lucide-react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
 import adversaryEmblem from './assets/adversary-emblem.png?url';
@@ -2792,84 +2799,188 @@ const GLOBAL_PANEL_CSS = `
     mix-blend-mode: screen;
   }
 
-  /* Compact Node Wars header: integrated into the background instead of a
-     large empty banner. This is intentionally scoped to Node Wars only. */
-  body[data-adversary-page="nodewars"] .adversary-nodewars-brand {
-    min-height: 76px;
-    margin-top: 0 !important;
-    margin-bottom: 9px !important;
-    padding: 7px 8px 7px !important;
+  /* Node Wars exact-match shell: slim emblem rail + open hero, scoped only to this page. */
+  body[data-adversary-page="nodewars"] .adversary-layout-grid {
+    grid-template-columns: 92px minmax(0, 1fr) !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar {
+    width: 92px;
+    padding: 14px 10px !important;
+    align-items: center;
+    border-right: 1px solid rgba(246,201,21,.22) !important;
+    background:
+      linear-gradient(180deg, rgba(2,4,8,.965), rgba(2,4,7,.93)) !important;
+    box-shadow:
+      inset -1px 0 0 rgba(255,223,86,.05),
+      12px 0 38px rgba(0,0,0,.34) !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar::before {
+    opacity: .42;
+    background-image:
+      linear-gradient(30deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
+      linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%);
+    background-size: 42px 72px;
+    -webkit-mask-image: linear-gradient(180deg, #000, #000 76%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000, #000 76%, transparent 100%);
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar-class-orbs,
+  body[data-adversary-page="nodewars"] .adversary-sidebar > h1,
+  body[data-adversary-page="nodewars"] .adversary-nodewars-submenu {
+    display: none !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone > div {
+    width: 100%;
+    margin-bottom: 0 !important;
+    display: flex;
+    justify-content: center;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button {
+    width: 54px !important;
+    min-height: 54px !important;
+    height: 54px;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px !important;
+    border: 1px solid transparent !important;
+    background: rgba(3,5,7,.62) !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone > div:first-child .adversary-menu-button {
+    width: 62px !important;
+    height: 62px;
+    min-height: 62px !important;
+    margin-bottom: 8px;
+    border-color: rgba(246,201,21,.58) !important;
+    background: rgba(1,3,5,.82) !important;
+    box-shadow:
+      inset 0 0 18px rgba(246,201,21,.05),
+      0 0 16px rgba(246,201,21,.11) !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button:hover {
+    border-color: rgba(246,201,21,.56) !important;
+    background: linear-gradient(135deg, rgba(70,52,8,.48), rgba(2,5,7,.86)) !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button.is-active {
+    border-color: rgba(255,218,58,.78) !important;
+    color: #ffd83e !important;
+    background:
+      radial-gradient(circle at 28% 30%, rgba(255,220,62,.18), transparent 46%),
+      linear-gradient(135deg, rgba(75,57,8,.72), rgba(4,6,7,.94)) !important;
+    box-shadow:
+      inset 0 0 20px rgba(255,216,56,.08),
+      0 0 15px rgba(246,201,21,.16) !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button.is-active::before {
+    left: -10px;
+    top: 9px;
+    bottom: 9px;
+    width: 2px;
+    border-radius: 99px;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar-menu-icon {
+    display: flex !important;
+    width: 34px !important;
+    height: 34px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: rgba(246,201,21,.74);
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar-menu-label {
+    display: none !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-sidebar > .pointer-events-none.relative.z-30.pt-4 {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-top: 16px !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-page-nodewars {
+    overflow: hidden;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-page-brand.adversary-nodewars-brand {
+    min-height: 94px;
+    margin: 0 0 8px !important;
+    padding: 0 6px !important;
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
-    -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
-    isolation: isolate;
+    -webkit-backdrop-filter: none !important;
   }
 
   body[data-adversary-page="nodewars"] .adversary-nodewars-brand::after {
     display: none !important;
   }
 
-  body[data-adversary-page="nodewars"] .adversary-nodewars-brand-tech {
-    opacity: .72;
-    z-index: -1;
-    background-image:
-      radial-gradient(ellipse 34% 125% at 50% 112%, rgba(250,204,21,.18), transparent 64%),
-      linear-gradient(90deg, rgba(250,204,21,.025), transparent 22%, transparent 76%, rgba(250,204,21,.035)),
-      linear-gradient(30deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%),
-      linear-gradient(150deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%);
-    background-size: auto, auto, 54px 94px, 54px 94px;
-    -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.90) 55%, rgba(0,0,0,.34) 86%, transparent 100%);
-    mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.90) 55%, rgba(0,0,0,.34) 86%, transparent 100%);
-  }
-
-  body[data-adversary-page="nodewars"] .adversary-nodewars-brand-emblem {
-    border: 1px solid rgba(250,204,21,.68);
+  body[data-adversary-page="nodewars"] .adversary-nodewars-brand-icon {
+    border: 1px solid rgba(246,201,21,.55);
     background:
-      radial-gradient(circle at 50% 42%, rgba(250,204,21,.13), transparent 66%),
-      rgba(3,5,7,.82);
+      radial-gradient(circle at 50% 35%, rgba(255,218,55,.14), transparent 66%),
+      rgba(1,3,5,.82);
     box-shadow:
-      inset 0 0 0 1px rgba(255,235,137,.055),
-      inset 0 0 20px rgba(250,204,21,.055),
-      0 0 16px rgba(250,204,21,.14);
+      inset 0 0 18px rgba(246,201,21,.055),
+      0 0 13px rgba(246,201,21,.11);
   }
 
-  /* NodeWars.jsx owns all of its own gold-tech surfaces. Keep the broad global
-     panel skin from adding extra layers/pseudo-elements on top of it. */
-  body[data-adversary-page="nodewars"] .adversary-page-nodewars .nodewars-page-shell,
-  body[data-adversary-page="nodewars"] .adversary-page-nodewars .nodewars-summary-grid {
-    background: transparent !important;
-    box-shadow: none !important;
-    border-color: transparent !important;
+  body[data-adversary-page="nodewars"] .adversary-nodewars-brand-watermark {
+    opacity: .18;
+    filter: saturate(1.2) contrast(1.08) drop-shadow(0 0 34px rgba(246,201,21,.17));
+    -webkit-mask-image: linear-gradient(180deg, #000 0, rgba(0,0,0,.94) 50%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 0, rgba(0,0,0,.94) 50%, transparent 100%);
   }
 
-
-  /* Exact Node Wars mockup proportions. This is intentionally scoped so the
-     other pages keep their existing sidebar/content geometry. */
-  @media (min-width: 1024px) {
-    body[data-adversary-page="nodewars"] .adversary-page-nodewars {
-      padding: 8px 14px 10px !important;
-    }
+  body[data-adversary-page="nodewars"] .adversary-nodewars-brand-grid {
+    opacity: .32;
+    background-image:
+      linear-gradient(30deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
+      linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%);
+    background-size: 46px 80px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 20%, #000 82%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 20%, #000 82%, transparent 100%);
   }
 
-  body[data-adversary-page="nodewars"] .adversary-site-background {
-    background: #020304 !important;
-  }
-
-  body[data-adversary-page="nodewars"] .adversary-nodewars-brand h2 {
-    text-shadow: 0 2px 14px rgba(0,0,0,.80);
+  body[data-adversary-page="nodewars"] .adversary-nodewars-brand-circuit {
+    opacity: .48;
+    background-image:
+      linear-gradient(90deg, transparent 0 8%, rgba(246,201,21,.24) 8% 8.2%, transparent 8.2% 28%, rgba(246,201,21,.17) 28% 28.2%, transparent 28.2% 100%),
+      linear-gradient(0deg, transparent 0 28%, rgba(246,201,21,.18) 28% 29%, transparent 29% 62%, rgba(246,201,21,.15) 62% 63%, transparent 63% 100%);
+    background-size: 180px 100%, 100% 66px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%, #000 100%);
+    mask-image: linear-gradient(90deg, transparent, #000 24%, #000 100%);
   }
 
   @media (max-width: 1023px) {
     .adversary-page-brand {
       margin-top: 2px;
-    }
-
-    body[data-adversary-page="nodewars"] .adversary-nodewars-brand {
-      min-height: 72px;
-      padding-inline: 4px !important;
     }
   }
 `;
@@ -2887,6 +2998,14 @@ const PAGE_TITLES = {
   hall: 'Hall of Fame',
   raw: 'Raw Logs',
 };
+
+const NODEWARS_RAIL_ICONS = Object.freeze({
+  monthly: BarChart3,
+  nodewars: MenuSwords,
+  players: UsersRound,
+  hall: Trophy,
+  raw: ScrollText,
+});
 
 const SIDEBAR_STANDARD_CLASS_ORB_SIZE = 68;
 
@@ -5976,28 +6095,32 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 function ActivePageBrand({ page }) {
   const title = PAGE_TITLES[page] || 'Adversary';
 
-  /* Node Wars uses the compact integrated header from the gold-tech mockup.
-     Other pages intentionally keep their current shared header. */
   if (page === 'nodewars') {
     return (
-      <section className="adversary-page-brand adversary-nodewars-brand relative mb-3 overflow-hidden">
-        <div className="adversary-nodewars-brand-tech pointer-events-none absolute inset-0" />
+      <section className="adversary-page-brand adversary-nodewars-brand relative mb-2 overflow-hidden">
+        <div className="adversary-nodewars-brand-grid pointer-events-none absolute inset-0" />
+        <div
+          aria-hidden="true"
+          className="adversary-nodewars-brand-watermark pointer-events-none absolute left-1/2 top-[-122px] h-[300px] w-[420px] -translate-x-1/2 bg-contain bg-center bg-no-repeat"
+          style={{ backgroundImage: `url("${adversaryEmblem}")` }}
+        />
+        <div className="adversary-nodewars-brand-circuit pointer-events-none absolute inset-y-0 right-0 w-[48%]" />
 
-        <div className="relative flex min-w-0 items-center gap-3.5">
-          <div className="adversary-nodewars-brand-emblem relative flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-[14px]">
+        <div className="relative z-10 flex min-h-[92px] items-start gap-3 pt-2">
+          <div className="adversary-nodewars-brand-icon relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl">
             <img
               src={adversaryEmblem}
               alt=""
               aria-hidden="true"
-              className="relative h-[86%] w-[86%] object-contain"
+              className="relative h-[88%] w-[88%] object-contain"
             />
           </div>
 
-          <div className="min-w-0">
-            <h2 className="truncate text-[28px] font-black leading-none tracking-tight text-white sm:text-[30px]">
-              {title}
+          <div className="min-w-0 pt-0.5">
+            <h2 className="truncate text-[28px] font-black leading-none tracking-[-0.025em] text-white sm:text-[31px]">
+              Node Wars
             </h2>
-            <div className="mt-1 text-[10px] font-black uppercase tracking-[0.17em] text-amber-300/90 sm:text-[11px]">
+            <div className="mt-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
               Guild Warfare Analytics
             </div>
           </div>
@@ -7014,7 +7137,7 @@ export default function App() {
         )}
       </div>
 
-      <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
+      <div className="adversary-layout-grid relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
         <aside className="adversary-sidebar relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <SidebarClassOrbs
             members={members}
@@ -7031,6 +7154,7 @@ export default function App() {
               .filter(([id]) => id !== 'raw')
               .map(([id, title]) => {
                 const isNodeWars = id === 'nodewars';
+                const RailIcon = NODEWARS_RAIL_ICONS[id];
 
                 return (
                   <div key={id} className="mb-2">
@@ -7046,22 +7170,24 @@ export default function App() {
                       }}
                     >
                       <span className="flex items-center gap-3">
-                        {id === 'guild' && (
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30">
+                        <span className={`adversary-sidebar-menu-icon ${id === 'guild' ? '' : 'hidden'} h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30`}>
+                          {id === 'guild' ? (
                             <img
                               src={adversaryEmblem}
                               alt=""
                               aria-hidden="true"
                               className="h-7 w-7 object-contain drop-shadow-[0_0_10px_rgba(250,204,21,.26)]"
                             />
-                          </span>
-                        )}
-                        <span>{title}</span>
+                          ) : RailIcon ? (
+                            <RailIcon size={21} strokeWidth={1.8} />
+                          ) : null}
+                        </span>
+                        <span className="adversary-sidebar-menu-label">{title}</span>
                       </span>
                     </button>
 
                     {isNodeWars && (
-                      <div className="ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
+                      <div className="adversary-nodewars-submenu ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
                         <button
                           type="button"
                           onClick={() => openPage('nodewars')}
@@ -7099,16 +7225,17 @@ export default function App() {
               }`}
               style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
             >
-              Raw Logs
+              <span className="flex items-center gap-3">
+                <span className="adversary-sidebar-menu-icon hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30">
+                  <ScrollText size={21} strokeWidth={1.8} />
+                </span>
+                <span className="adversary-sidebar-menu-label">Raw Logs</span>
+              </span>
             </button>
           </div>
         </aside>
 
-        <main
-          className={`adversary-content adversary-page-${page} relative min-w-0 ${
-            page === 'nodewars' ? 'p-3 sm:p-4 lg:p-4' : 'p-3 sm:p-5 lg:p-6'
-          }`}
-        >
+        <main className={`adversary-content adversary-page-${page} relative min-w-0 ${page === 'nodewars' ? 'p-2 sm:p-3 lg:p-4' : 'p-3 sm:p-5 lg:p-6'}`}>
           <ActivePageBrand page={page} />
           {page === 'guild' && (
             <Suspense fallback={<PageLoader text="Loading guild stats..." />}>
