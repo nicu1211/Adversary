@@ -2508,7 +2508,7 @@ function getTone(tone) {
 
 function PageFrame({ children }) {
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
+    <div className="relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16]/72 p-4 shadow-2xl sm:p-5">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,.3),transparent)]" />
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
@@ -2521,7 +2521,7 @@ function PremiumPanel({ children, className = '', glow = false }) {
   return (
     <div
       className={cls(
-        'relative overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/72 shadow-2xl backdrop-blur-xl',
+        'relative overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/58 shadow-2xl backdrop-blur-xl',
         glow && 'shadow-[0_0_40px_rgba(59,130,246,.12)]',
         className,
       )}
@@ -3324,7 +3324,7 @@ function MilestoneLeaderboardCard({
   const emptyText = `No player reached ${nf.format(threshold)} kills yet.`;
 
   return (
-    <div className="group relative overflow-hidden rounded-[26px] border border-amber-300/24 bg-[linear-gradient(135deg,rgba(11,13,16,.96),rgba(5,7,10,.88))] px-5 py-4 shadow-[0_18px_35px_rgba(0,0,0,.28)] transition duration-200 hover:border-amber-300/40 hover:shadow-[0_0_22px_rgba(250,204,21,.10)]">
+    <div className="group relative overflow-hidden rounded-[26px] border border-amber-300/24 bg-[linear-gradient(135deg,rgba(11,13,16,.76),rgba(5,7,10,.66))] px-5 py-4 shadow-[0_18px_35px_rgba(0,0,0,.28)] transition duration-200 hover:border-amber-300/40 hover:shadow-[0_0_22px_rgba(250,204,21,.10)]">
       <div className="pointer-events-none absolute inset-0 opacity-[0.16]" style={{
         backgroundImage:
           'linear-gradient(30deg, rgba(246,201,21,.18) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.18) 87.5%), linear-gradient(150deg, rgba(246,201,21,.16) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.16) 87.5%), radial-gradient(circle at 18% 28%, rgba(255,220,64,.28) 0 1.5px, transparent 2.5px), radial-gradient(circle at 74% 62%, rgba(255,220,64,.2) 0 1px, transparent 2px)',
@@ -3337,7 +3337,7 @@ function MilestoneLeaderboardCard({
           <div className="mb-1 text-[12px] font-black uppercase tracking-[0.14em] text-amber-300">{title}</div>
           {rows.length ? (
             <div className="space-y-2.5">
-              {rows.slice(0, 3).map((row, index) => (
+              {rows.slice(0, 10).map((row, index) => (
                 <div key={`${mode}-${threshold}-${row.name}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 text-sm">
                   <div className="min-w-0">
                     <div className={cls('truncate font-black', index === 0 ? 'text-amber-300' : 'text-slate-200')}>
