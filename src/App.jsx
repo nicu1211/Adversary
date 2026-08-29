@@ -10,7 +10,8 @@ import React, {
 import { createPortal } from 'react-dom';
 import {
   BarChart3,
-  ScrollText,
+  Settings,
+  Shield,
   Swords as MenuSwords,
   Trophy,
   UsersRound,
@@ -2799,126 +2800,264 @@ const GLOBAL_PANEL_CSS = `
     mix-blend-mode: screen;
   }
 
-  /* Node Wars exact-match shell: slim emblem rail + open hero, scoped only to this page. */
-  body[data-adversary-page="nodewars"] .adversary-layout-grid {
-    grid-template-columns: 92px minmax(0, 1fr) !important;
-  }
+  /* Compact emblem-tech rail used on every desktop page. */
+  @media (min-width: 1024px) {
+    .adversary-layout-grid {
+      grid-template-columns: 92px minmax(0, 1fr) !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar {
-    width: 92px;
-    padding: 14px 10px !important;
-    align-items: center;
-    border-right: 1px solid rgba(246,201,21,.22) !important;
-    background:
-      linear-gradient(180deg, rgba(2,4,8,.965), rgba(2,4,7,.93)) !important;
-    box-shadow:
-      inset -1px 0 0 rgba(255,223,86,.05),
-      12px 0 38px rgba(0,0,0,.34) !important;
-  }
+    .adversary-site-artwork {
+      padding-left: 92px !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar::before {
-    opacity: .42;
-    background-image:
-      linear-gradient(30deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
-      linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%);
-    background-size: 42px 72px;
-    -webkit-mask-image: linear-gradient(180deg, #000, #000 76%, transparent 100%);
-    mask-image: linear-gradient(180deg, #000, #000 76%, transparent 100%);
-  }
+    .adversary-sidebar {
+      width: 92px;
+      height: 100vh;
+      min-height: 100vh !important;
+      position: sticky !important;
+      top: 0;
+      align-self: start;
+      padding: 14px 10px 12px !important;
+      align-items: center;
+      border-right: 1px solid rgba(246,201,21,.22) !important;
+      background:
+        radial-gradient(circle at 50% 7%, rgba(246,201,21,.045), transparent 20%),
+        linear-gradient(180deg, rgba(2,4,8,.985), rgba(2,4,7,.965)) !important;
+      box-shadow:
+        inset -1px 0 0 rgba(255,223,86,.055),
+        12px 0 38px rgba(0,0,0,.34) !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar-class-orbs,
-  body[data-adversary-page="nodewars"] .adversary-sidebar > h1,
-  body[data-adversary-page="nodewars"] .adversary-nodewars-submenu {
-    display: none !important;
-  }
+    /* Sparse emblem-style circuitry through the rail. */
+    .adversary-sidebar::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(30deg, rgba(246,201,21,.12) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.12) 87.5%),
+        linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
+        radial-gradient(circle at 50% 22%, rgba(255,220,64,.34) 0 1px, transparent 2px),
+        radial-gradient(circle at 30% 63%, rgba(255,220,64,.24) 0 1px, transparent 2px);
+      background-size: 42px 72px, 42px 72px, 128px 128px, 170px 170px;
+      -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.14) 44%, transparent 72%);
+      mask-image: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.14) 44%, transparent 72%);
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-  }
+    /* Stronger joined-hex cluster near the bottom, matching the reference rail. */
+    .adversary-sidebar::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      bottom: 54px;
+      height: 220px;
+      z-index: 1;
+      pointer-events: none;
+      opacity: .34;
+      background-image:
+        linear-gradient(30deg, rgba(246,201,21,.17) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.17) 87.5%),
+        linear-gradient(150deg, rgba(246,201,21,.17) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.17) 87.5%),
+        linear-gradient(30deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
+        linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
+        radial-gradient(circle at 24% 72%, rgba(255,215,47,.42) 0 1px, transparent 2px),
+        radial-gradient(circle at 72% 46%, rgba(255,215,47,.30) 0 1px, transparent 2px);
+      background-size: 34px 59px, 34px 59px, 52px 90px, 52px 90px, 120px 120px, 150px 150px;
+      background-position: 0 0, 0 0, 13px 19px, 13px 19px, 0 0, 0 0;
+      -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.24) 12%, #000 52%, rgba(0,0,0,.54) 82%, transparent 100%);
+      mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.24) 12%, #000 52%, rgba(0,0,0,.54) 82%, transparent 100%);
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone > div {
-    width: 100%;
-    margin-bottom: 0 !important;
-    display: flex;
-    justify-content: center;
-  }
+    /* The new rail replaces the old text/orb sidebar on desktop. */
+    .adversary-sidebar-class-orbs,
+    .adversary-sidebar > h1,
+    .adversary-nodewars-submenu {
+      display: none !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button {
-    width: 54px !important;
-    min-height: 54px !important;
-    height: 54px;
-    padding: 0 !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px !important;
-    border: 1px solid transparent !important;
-    background: rgba(3,5,7,.62) !important;
-  }
+    .adversary-sidebar-nav-zone {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 0 0 auto !important;
+      gap: 8px;
+      padding-top: 0;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone > div:first-child .adversary-menu-button {
-    width: 62px !important;
-    height: 62px;
-    min-height: 62px !important;
-    margin-bottom: 8px;
-    border-color: rgba(246,201,21,.58) !important;
-    background: rgba(1,3,5,.82) !important;
-    box-shadow:
-      inset 0 0 18px rgba(246,201,21,.05),
-      0 0 16px rgba(246,201,21,.11) !important;
-  }
+    .adversary-sidebar-nav-zone::before {
+      display: none !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button:hover {
-    border-color: rgba(246,201,21,.56) !important;
-    background: linear-gradient(135deg, rgba(70,52,8,.48), rgba(2,5,7,.86)) !important;
-  }
+    .adversary-sidebar-nav-zone > div {
+      width: 100%;
+      margin-bottom: 0 !important;
+      display: flex;
+      justify-content: center;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button.is-active {
-    border-color: rgba(255,218,58,.78) !important;
-    color: #ffd83e !important;
-    background:
-      radial-gradient(circle at 28% 30%, rgba(255,220,62,.18), transparent 46%),
-      linear-gradient(135deg, rgba(75,57,8,.72), rgba(4,6,7,.94)) !important;
-    box-shadow:
-      inset 0 0 20px rgba(255,216,56,.08),
-      0 0 15px rgba(246,201,21,.16) !important;
-  }
+    .adversary-sidebar .adversary-menu-button {
+      width: 54px !important;
+      min-width: 54px !important;
+      height: 54px;
+      min-height: 54px !important;
+      padding: 0 !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible !important;
+      border-radius: 12px !important;
+      border: 1px solid transparent !important;
+      background: rgba(3,5,7,.60) !important;
+      color: rgba(246,201,21,.66) !important;
+      box-shadow: inset 0 0 14px rgba(246,201,21,.015) !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar .adversary-menu-button.is-active::before {
-    left: -10px;
-    top: 9px;
-    bottom: 9px;
-    width: 2px;
-    border-radius: 99px;
-  }
+    /* The emblem/Guild button is visually separated at the top. */
+    .adversary-sidebar-nav-zone > div:first-child .adversary-menu-button {
+      width: 62px !important;
+      min-width: 62px !important;
+      height: 62px;
+      min-height: 62px !important;
+      margin-bottom: 9px;
+      border-radius: 13px !important;
+      border-color: rgba(246,201,21,.52) !important;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255,218,55,.08), transparent 64%),
+        rgba(1,3,5,.88) !important;
+      box-shadow:
+        inset 0 0 18px rgba(246,201,21,.045),
+        0 0 16px rgba(246,201,21,.10) !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar-menu-icon {
-    display: flex !important;
-    width: 34px !important;
-    height: 34px !important;
-    border: 0 !important;
-    background: transparent !important;
-    color: rgba(246,201,21,.74);
-  }
+    .adversary-sidebar .adversary-menu-button:hover {
+      color: #ffd83e !important;
+      border-color: rgba(246,201,21,.46) !important;
+      background:
+        radial-gradient(circle at 30% 32%, rgba(255,220,62,.11), transparent 48%),
+        linear-gradient(135deg, rgba(45,35,8,.44), rgba(2,5,7,.90)) !important;
+      box-shadow:
+        inset 0 0 16px rgba(255,216,56,.035),
+        0 0 12px rgba(246,201,21,.08) !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon {
-    width: 48px !important;
-    height: 48px !important;
-  }
+    .adversary-sidebar .adversary-menu-button.is-active {
+      border-color: rgba(255,218,58,.72) !important;
+      color: #ffd83e !important;
+      background:
+        radial-gradient(circle at 28% 30%, rgba(255,220,62,.17), transparent 46%),
+        linear-gradient(135deg, rgba(68,52,8,.66), rgba(4,6,7,.95)) !important;
+      box-shadow:
+        inset 0 0 20px rgba(255,216,56,.075),
+        0 0 15px rgba(246,201,21,.14) !important;
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar-menu-label {
-    display: none !important;
-  }
+    .adversary-sidebar .adversary-menu-button.is-active::before {
+      left: -11px;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      border-radius: 99px;
+      background: #ffd83e;
+      box-shadow: 0 0 9px rgba(255,216,56,.95), 0 0 18px rgba(246,201,21,.42);
+    }
 
-  body[data-adversary-page="nodewars"] .adversary-sidebar > .pointer-events-none.relative.z-30.pt-4 {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    padding-top: 16px !important;
+    .adversary-rail-active-dot {
+      position: absolute;
+      right: -7px;
+      top: 50%;
+      width: 5px;
+      height: 5px;
+      margin-top: -2.5px;
+      border-radius: 999px;
+      opacity: 0;
+      pointer-events: none;
+      background: #ffd83e;
+      box-shadow: 0 0 7px rgba(255,216,56,.95), 0 0 14px rgba(246,201,21,.52);
+      transition: opacity 140ms ease;
+    }
+
+    .adversary-menu-button.is-active .adversary-rail-active-dot {
+      opacity: 1;
+    }
+
+    .adversary-sidebar-menu-icon {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 34px !important;
+      height: 34px !important;
+      border: 0 !important;
+      background: transparent !important;
+      color: currentColor;
+    }
+
+    .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon {
+      width: 48px !important;
+      height: 48px !important;
+    }
+
+    .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon img {
+      width: 46px !important;
+      height: 46px !important;
+      filter: saturate(1.10) contrast(1.05) drop-shadow(0 0 8px rgba(246,201,21,.20));
+    }
+
+    .adversary-sidebar-menu-label {
+      display: none !important;
+    }
+
+    .adversary-rail-tooltip {
+      position: absolute;
+      left: calc(100% + 14px);
+      top: 50%;
+      z-index: 80;
+      transform: translateY(-50%) translateX(-4px);
+      width: max-content;
+      max-width: 180px;
+      padding: 7px 10px;
+      border: 1px solid rgba(246,201,21,.34);
+      border-radius: 8px;
+      background: rgba(2,4,7,.96);
+      color: #f5edd0;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .02em;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      box-shadow: 0 10px 30px rgba(0,0,0,.42), 0 0 12px rgba(246,201,21,.06);
+      transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+    }
+
+    .adversary-sidebar .adversary-menu-button:hover .adversary-rail-tooltip,
+    .adversary-sidebar .adversary-menu-button:focus-visible .adversary-rail-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(-50%) translateX(0);
+    }
+
+    .adversary-sidebar > .adversary-rail-bottom {
+      width: 100%;
+      margin-top: auto;
+      display: flex;
+      justify-content: center;
+      padding-top: 14px !important;
+      padding-bottom: 1px;
+      z-index: 5;
+    }
+
+    .adversary-sidebar > .adversary-rail-bottom .adversary-menu-button {
+      width: 50px !important;
+      min-width: 50px !important;
+      height: 50px;
+      min-height: 50px !important;
+      color: rgba(246,201,21,.72) !important;
+      background: rgba(1,3,5,.72) !important;
+    }
   }
 
   body[data-adversary-page="nodewars"] .adversary-page-nodewars {
@@ -3002,9 +3141,10 @@ const PAGE_TITLES = {
 const NODEWARS_RAIL_ICONS = Object.freeze({
   monthly: BarChart3,
   nodewars: MenuSwords,
+  overview: Shield,
   players: UsersRound,
   hall: Trophy,
-  raw: ScrollText,
+  raw: Settings,
 });
 
 const SIDEBAR_STANDARD_CLASS_ORB_SIZE = 68;
@@ -7150,73 +7290,61 @@ export default function App() {
           </h1>
 
           <nav className="adversary-sidebar-nav-zone pointer-events-none relative z-30 flex-1">
-            {menu
-              .filter(([id]) => id !== 'raw')
-              .map(([id, title]) => {
-                const isNodeWars = id === 'nodewars';
-                const RailIcon = NODEWARS_RAIL_ICONS[id];
+            {[
+              ['guild', 'Guild'],
+              ['nodewars', 'Node Wars'],
+              ['monthly', 'Monthly Recap'],
+              ['overview', 'Overview'],
+              ['hall', 'Hall of Fame'],
+              ['players', 'Player Stats'],
+            ].map(([id, title]) => {
+              const RailIcon = NODEWARS_RAIL_ICONS[id];
+              const active = id === 'overview' ? page === 'overview' : page === id;
 
-                return (
-                  <div key={id} className="mb-2">
-                    <button
-                      type="button"
-                      onClick={() => openPage(id)}
-                      className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
-                        isMenuActive(id) ? 'is-active' : ''
-                      }`}
-                      style={{
-                        '--adversary-menu-rgb':
-                          MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
-                      }}
-                    >
-                      <span className="flex items-center gap-3">
-                        <span className={`adversary-sidebar-menu-icon ${id === 'guild' ? '' : 'hidden'} h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30`}>
-                          {id === 'guild' ? (
-                            <img
-                              src={adversaryEmblem}
-                              alt=""
-                              aria-hidden="true"
-                              className="h-7 w-7 object-contain drop-shadow-[0_0_10px_rgba(250,204,21,.26)]"
-                            />
-                          ) : RailIcon ? (
-                            <RailIcon size={21} strokeWidth={1.8} />
-                          ) : null}
-                        </span>
-                        <span className="adversary-sidebar-menu-label">{title}</span>
-                      </span>
-                    </button>
+              return (
+                <div key={id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (id === 'overview') {
+                        openOverviewFromMenu();
+                        return;
+                      }
 
-                    {isNodeWars && (
-                      <div className="adversary-nodewars-submenu ml-4 mt-2 space-y-1 border-l border-slate-800 pl-3">
-                        <button
-                          type="button"
-                          onClick={() => openPage('nodewars')}
-                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
-                            page === 'nodewars' ? 'is-active' : ''
-                          }`}
-                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.nodewars }}
-                        >
-                          Match History
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={openOverviewFromMenu}
-                          className={`adversary-menu-button pointer-events-auto relative w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
-                            page === 'overview' ? 'is-active' : ''
-                          }`}
-                          style={{ '--adversary-menu-rgb': MENU_ACCENTS.overview }}
-                        >
-                          Overview
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      openPage(id);
+                    }}
+                    className={`adversary-menu-button pointer-events-auto relative ${
+                      active ? 'is-active' : ''
+                    }`}
+                    style={{
+                      '--adversary-menu-rgb':
+                        MENU_ACCENTS[id] || MENU_ACCENTS.nodewars,
+                    }}
+                    aria-label={title}
+                    title={title}
+                  >
+                    <span className="adversary-sidebar-menu-icon">
+                      {id === 'guild' ? (
+                        <img
+                          src={adversaryEmblem}
+                          alt=""
+                          aria-hidden="true"
+                          className="object-contain"
+                        />
+                      ) : RailIcon ? (
+                        <RailIcon size={22} strokeWidth={1.7} />
+                      ) : null}
+                    </span>
+                    <span className="adversary-sidebar-menu-label">{title}</span>
+                    <span className="adversary-rail-active-dot" aria-hidden="true" />
+                    <span className="adversary-rail-tooltip" aria-hidden="true">{title}</span>
+                  </button>
+                </div>
+              );
+            })}
           </nav>
 
-          <div className="pointer-events-none relative z-30 pt-4">
+          <div className="adversary-rail-bottom pointer-events-none relative z-30 pt-4">
             <button
               type="button"
               onClick={() => openPage('raw')}
@@ -7224,13 +7352,15 @@ export default function App() {
                 isMenuActive('raw') ? 'is-active' : ''
               }`}
               style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
+              aria-label="Raw Logs"
+              title="Raw Logs"
             >
-              <span className="flex items-center gap-3">
-                <span className="adversary-sidebar-menu-icon hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-black/30">
-                  <ScrollText size={21} strokeWidth={1.8} />
-                </span>
-                <span className="adversary-sidebar-menu-label">Raw Logs</span>
+              <span className="adversary-sidebar-menu-icon">
+                <Settings size={22} strokeWidth={1.7} />
               </span>
+              <span className="adversary-sidebar-menu-label">Raw Logs</span>
+              <span className="adversary-rail-active-dot" aria-hidden="true" />
+              <span className="adversary-rail-tooltip" aria-hidden="true">Raw Logs</span>
             </button>
           </div>
         </aside>
