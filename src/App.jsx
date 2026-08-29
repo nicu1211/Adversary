@@ -64,6 +64,20 @@ const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
   import: 'default',
 });
 const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
+
+// Optional persistent website background loop. Drop the finished loop into
+// src/assets as Loop-video.mp4 (or .webm). The glob keeps the project buildable
+// before that file is added.
+const LOOP_VIDEO_MODULES = import.meta.glob('./assets/Loop-video.*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const ADVERSARY_LOOP_VIDEO =
+  LOOP_VIDEO_MODULES['./assets/Loop-video.mp4'] ||
+  LOOP_VIDEO_MODULES['./assets/Loop-video.webm'] ||
+  LOOP_VIDEO_MODULES['./assets/Loop-video.mov'] ||
+  '';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -6798,9 +6812,11 @@ export default function App() {
   const startupVideoRef = useRef(null);
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
+  const startupMutedFallbackRef = useRef(false);
   const [startupFinished, setStartupFinished] = useState(false);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
+  const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
 
   const finishStartup = useCallback(() => {
     if (startupRevealTimerRef.current) {
@@ -6820,62 +6836,102 @@ export default function App() {
   const handleStartupPlaying = useCallback(() => {
     setStartupStarted(true);
 
-    if (startupRevealTimerRef.current) return;
+    if (backgroundLoopActive || startupRevealTimerRef.current || startupFinished) return;
 
     startupRevealTimerRef.current = window.setTimeout(() => {
       startupRevealTimerRef.current = null;
       finishStartup();
     }, 6000);
-  }, [finishStartup]);
+  }, [backgroundLoopActive, finishStartup, startupFinished]);
+
+  const handleBackgroundVideoEnded = useCallback(() => {
+    // After the intro finishes, hand the same full-screen video element over to
+    // the optional Loop-video asset. Until that file exists, replay the intro as
+    // a harmless fallback so the website never loses its moving background.
+    if (ADVERSARY_LOOP_VIDEO) {
+      setBackgroundLoopActive(true);
+      return;
+    }
+
+    const video = startupVideoRef.current;
+    if (!video) return;
+
+    try {
+      video.currentTime = 0;
+      const playPromise = video.play();
+      if (playPromise?.catch) playPromise.catch(() => {});
+    } catch {
+      // Ignore background replay failures; the static fallback remains visible.
+    }
+  }, []);
 
   useEffect(() => {
     const video = startupVideoRef.current;
     if (!video) return undefined;
 
     let cancelled = false;
-    let autoplayMutedFallback = false;
 
-    video.muted = false;
-    video.volume = 1;
-    video.currentTime = 0;
+    const unlockBackgroundAudio = () => {
+      if (cancelled || !startupMutedFallbackRef.current) return;
 
-    const unlockIntroAudio = () => {
-      if (!autoplayMutedFallback || cancelled) return;
-      video.muted = false;
-      video.volume = 1;
-      autoplayMutedFallback = false;
+      try {
+        video.muted = false;
+        video.volume = 1;
+        startupMutedFallbackRef.current = false;
+
+        const playPromise = video.play();
+        if (playPromise?.catch) {
+          playPromise.catch(() => {
+            // If the browser still refuses audible playback, keep the video
+            // running muted rather than interrupting the background.
+            video.muted = true;
+            video.volume = 0;
+            startupMutedFallbackRef.current = true;
+            video.play().catch(() => {});
+          });
+        }
+      } catch {
+        // Browser policy can still reject audible autoplay without a gesture.
+      }
     };
 
     const tryAutoplay = async () => {
       try {
+        video.muted = false;
+        video.defaultMuted = false;
+        video.volume = 1;
         await video.play();
+        startupMutedFallbackRef.current = false;
       } catch {
         if (cancelled) return;
 
-        // Browsers can reject unmuted autoplay. Fall back to muted playback
-        // with no blocking "Click to start" screen, then restore sound on
-        // the user's first normal interaction if one happens during the intro.
+        // Modern browsers may block autoplay with audio. There is no standards-
+        // compliant way to bypass that policy without a user gesture, so keep
+        // the visual background running muted and unlock it on the first normal
+        // interaction instead of showing a click-to-start gate.
         try {
           video.muted = true;
           video.volume = 0;
-          autoplayMutedFallback = true;
+          startupMutedFallbackRef.current = true;
           await video.play();
         } catch {
-          // If playback itself is unavailable, reveal the site instead of
-          // leaving a blocking startup layer on screen.
+          // If playback itself fails, reveal the UI and leave the static fallback.
           finishStartup();
         }
       }
     };
 
-    document.addEventListener('pointerdown', unlockIntroAudio, { passive: true });
-    document.addEventListener('keydown', unlockIntroAudio);
+    document.addEventListener('pointerdown', unlockBackgroundAudio, { passive: true });
+    document.addEventListener('keydown', unlockBackgroundAudio);
+    document.addEventListener('touchstart', unlockBackgroundAudio, { passive: true });
+
     tryAutoplay();
 
     return () => {
       cancelled = true;
-      document.removeEventListener('pointerdown', unlockIntroAudio);
-      document.removeEventListener('keydown', unlockIntroAudio);
+      document.removeEventListener('pointerdown', unlockBackgroundAudio);
+      document.removeEventListener('keydown', unlockBackgroundAudio);
+      document.removeEventListener('touchstart', unlockBackgroundAudio);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -6887,7 +6943,7 @@ export default function App() {
         startupExitTimerRef.current = null;
       }
     };
-  }, [finishStartup]);
+  }, [backgroundLoopActive, finishStartup]);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -7832,105 +7888,49 @@ export default function App() {
       <style>{GLOBAL_PANEL_CSS}</style>
       <style>{ALL_PAGES_NODEWARS_TECH_CSS}</style>
 
-      {!startupFinished && (
-        <div
-          className={`fixed inset-0 z-[100000] flex items-center justify-center overflow-hidden bg-black transition-opacity duration-500 ${
-            startupFading ? 'pointer-events-none opacity-0' : 'opacity-100'
-          }`}
-          data-no-page-click-sound="true"
-          aria-label="Adversary startup sequence"
-        >
-          <video
-            ref={startupVideoRef}
-            src={adversaryStartupClip}
-            preload="auto"
-            playsInline
-            className="absolute inset-0 h-full w-full object-cover"
-            onPlaying={handleStartupPlaying}
-            onEnded={finishStartup}
-            onError={finishStartup}
-          />
-
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,.22)_78%,rgba(0,0,0,.62)_100%)]" />
-
-          {startupStarted && (
-            <button
-              type="button"
-              data-no-page-click-sound="true"
-              onClick={finishStartup}
-              className="absolute right-5 top-5 z-30 rounded-lg border border-amber-300/25 bg-black/55 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-amber-100/75 opacity-55 transition hover:border-amber-300/55 hover:bg-black/80 hover:text-amber-100 hover:opacity-100"
-            >
-              Skip
-            </button>
-          )}
-        </div>
-      )}
       <div
         aria-hidden="true"
-        className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
+        className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden bg-black"
       >
         <div className="absolute inset-0 bg-slate-950" />
 
-        {/* A very soft enlarged copy of the same artwork supplies the exact
-            edge colours. This replaces most of the artificial yellow smoke
-            and prevents a visible seam where the main image ends. */}
-        <div
-          className="absolute -inset-[6%] bg-cover bg-center bg-no-repeat opacity-[0.13]"
-          style={{
-            backgroundImage: `url("${adversaryEmblemBackground}")`,
-            filter: 'blur(44px) saturate(.88) brightness(.52)',
-            transform: 'scale(1.08)',
+        <video
+          ref={startupVideoRef}
+          src={backgroundLoopActive && ADVERSARY_LOOP_VIDEO ? ADVERSARY_LOOP_VIDEO : adversaryStartupClip}
+          autoPlay
+          playsInline
+          preload="auto"
+          loop={backgroundLoopActive}
+          muted={false}
+          disablePictureInPicture
+          className="absolute inset-0 h-full w-full object-cover"
+          onPlaying={handleStartupPlaying}
+          onEnded={handleBackgroundVideoEnded}
+          onError={() => {
+            if (!startupFinished) finishStartup();
           }}
         />
 
-        <div
-          className="absolute inset-0 opacity-[0.34]"
-          style={{
-            backgroundImage: [
-              'radial-gradient(ellipse 42% 78% at 0% 49%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
-              'radial-gradient(ellipse 42% 78% at 100% 51%, rgba(217,119,6,.095) 0%, rgba(180,83,9,.065) 30%, rgba(120,53,15,.038) 54%, transparent 78%)',
-              'radial-gradient(ellipse 28% 46% at 11% 19%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
-              'radial-gradient(ellipse 28% 46% at 89% 81%, rgba(245,158,11,.035) 0%, rgba(120,53,15,.022) 52%, transparent 80%)',
-            ].join(', '),
-            filter: 'blur(30px)',
-            transform: 'scale(1.03)',
-          }}
-        />
-
-        <div className="adversary-site-artwork absolute inset-0 opacity-[0.30]">
-          <img
-            src={adversaryEmblemBackground}
-            alt=""
-            aria-hidden="true"
-            style={{
-              filter: 'saturate(1.18) contrast(1.06)',
-              WebkitMaskImage:
-                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
-              maskImage:
-                'linear-gradient(90deg, transparent 0%, rgba(0,0,0,.24) 4%, rgba(0,0,0,.62) 9%, rgba(0,0,0,.90) 15%, #000 21%, #000 79%, rgba(0,0,0,.90) 85%, rgba(0,0,0,.62) 91%, rgba(0,0,0,.24) 96%, transparent 100%)',
-            }}
-          />
-        </div>
-
-        {/* Keep only a faint, darker amber haze over the image edges. The
-            colour now follows the artwork instead of adding bright yellow. */}
-        <div
-          className="absolute -inset-[4%] opacity-[0.28]"
-          style={{
-            backgroundImage: [
-              'radial-gradient(ellipse 46% 90% at 7% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
-              'radial-gradient(ellipse 46% 90% at 93% 50%, rgba(217,119,6,.080) 0%, rgba(180,83,9,.060) 24%, rgba(120,53,15,.036) 46%, rgba(69,26,3,.018) 60%, transparent 76%)',
-            ].join(', '),
-            filter: 'blur(34px) saturate(.94)',
-            transform: 'scale(1.025)',
-          }}
-        />
-
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,.13)_0%,rgba(250,204,21,.06)_32%,rgba(180,83,9,.04)_56%,transparent_76%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_38%,rgba(120,53,15,.10)_66%,rgba(2,6,23,.74)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,.34),rgba(120,53,15,.035)_28%,rgba(120,53,15,.055)_68%,rgba(2,6,23,.66))]" />
+        {/* Readability layers only; the moving video is now the actual full-site background. */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_28%,rgba(0,0,0,.14)_68%,rgba(0,0,0,.48)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(1,3,7,.18),rgba(1,3,7,.05)_42%,rgba(1,3,7,.28))]" />
       </div>
-      <div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 backdrop-blur-xl lg:hidden">
+
+      {!startupFinished && (
+        <button
+          type="button"
+          data-no-page-click-sound="true"
+          onClick={finishStartup}
+          className={`fixed right-5 top-5 z-[100001] rounded-lg border border-amber-300/25 bg-black/55 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-amber-100/75 transition-all duration-300 hover:border-amber-300/55 hover:bg-black/80 hover:text-amber-100 ${
+            startupStarted ? 'opacity-55 hover:opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          Skip
+        </button>
+      )}
+      <div className={`sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 backdrop-blur-xl transition-opacity duration-500 lg:hidden ${
+        startupFading || startupFinished ? 'opacity-100' : 'pointer-events-none opacity-0'
+      }`}>
         <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
           Adversary
         </div>
@@ -7991,7 +7991,9 @@ export default function App() {
         )}
       </div>
 
-      <div className="adversary-layout-grid relative z-10 grid lg:grid-cols-[250px_1fr]">
+      <div className={`adversary-layout-grid relative z-10 grid transition-opacity duration-500 lg:grid-cols-[250px_1fr] ${
+        startupFading || startupFinished ? 'opacity-100' : 'pointer-events-none opacity-0'
+      }`}>
         <aside className="adversary-sidebar relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <SidebarClassOrbs
             members={members}
