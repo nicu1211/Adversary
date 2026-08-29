@@ -2795,10 +2795,10 @@ const GLOBAL_PANEL_CSS = `
   /* Compact Node Wars header: integrated into the background instead of a
      large empty banner. This is intentionally scoped to Node Wars only. */
   body[data-adversary-page="nodewars"] .adversary-nodewars-brand {
-    min-height: 88px;
+    min-height: 76px;
     margin-top: 0 !important;
-    margin-bottom: 12px !important;
-    padding: 12px 8px 10px !important;
+    margin-bottom: 9px !important;
+    padding: 7px 8px 7px !important;
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -2813,13 +2813,16 @@ const GLOBAL_PANEL_CSS = `
   }
 
   body[data-adversary-page="nodewars"] .adversary-nodewars-brand-tech {
-    opacity: .48;
+    opacity: .72;
     z-index: -1;
     background-image:
-      radial-gradient(ellipse 34% 115% at 50% 100%, rgba(250,204,21,.13), transparent 66%),
-      linear-gradient(90deg, transparent 0%, rgba(250,204,21,.10) 16%, transparent 36%, transparent 70%, rgba(250,204,21,.07) 100%);
-    -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.72) 48%, transparent 100%);
-    mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.72) 48%, transparent 100%);
+      radial-gradient(ellipse 34% 125% at 50% 112%, rgba(250,204,21,.18), transparent 64%),
+      linear-gradient(90deg, rgba(250,204,21,.025), transparent 22%, transparent 76%, rgba(250,204,21,.035)),
+      linear-gradient(30deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%),
+      linear-gradient(150deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%);
+    background-size: auto, auto, 54px 94px, 54px 94px;
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.90) 55%, rgba(0,0,0,.34) 86%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.90) 55%, rgba(0,0,0,.34) 86%, transparent 100%);
   }
 
   body[data-adversary-page="nodewars"] .adversary-nodewars-brand-emblem {
@@ -2840,6 +2843,23 @@ const GLOBAL_PANEL_CSS = `
     background: transparent !important;
     box-shadow: none !important;
     border-color: transparent !important;
+  }
+
+
+  /* Exact Node Wars mockup proportions. This is intentionally scoped so the
+     other pages keep their existing sidebar/content geometry. */
+  @media (min-width: 1024px) {
+    body[data-adversary-page="nodewars"] .adversary-page-nodewars {
+      padding: 8px 14px 10px !important;
+    }
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-site-background {
+    background: #020304 !important;
+  }
+
+  body[data-adversary-page="nodewars"] .adversary-nodewars-brand h2 {
+    text-shadow: 0 2px 14px rgba(0,0,0,.80);
   }
 
   @media (max-width: 1023px) {
@@ -5974,10 +5994,10 @@ function ActivePageBrand({ page }) {
           </div>
 
           <div className="min-w-0">
-            <h2 className="truncate text-[27px] font-black leading-none tracking-tight text-white sm:text-[31px]">
+            <h2 className="truncate text-[28px] font-black leading-none tracking-tight text-white sm:text-[30px]">
               {title}
             </h2>
-            <div className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-300/90 sm:text-xs">
+            <div className="mt-1 text-[10px] font-black uppercase tracking-[0.17em] text-amber-300/90 sm:text-[11px]">
               Guild Warfare Analytics
             </div>
           </div>
