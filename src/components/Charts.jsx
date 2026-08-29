@@ -227,6 +227,23 @@ export function KillDeathChart({
   const uid = useId();
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [hoveredMarker, setHoveredMarker] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState(null);
+
+  function trackTooltipPointer(event) {
+    const svg = event.currentTarget?.ownerSVGElement || event.currentTarget?.closest?.('svg');
+    if (!svg) return;
+
+    const bounds = svg.getBoundingClientRect();
+    const x = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
+    const y = Math.max(0, Math.min(bounds.height, event.clientY - bounds.top));
+
+    setTooltipPosition({
+      x,
+      y,
+      flipX: x > bounds.width - 210,
+      flipY: y < 48,
+    });
+  }
 
   const rows = useMemo(() => normalizeTimelineData(data || []), [data]);
 
@@ -402,19 +419,6 @@ export function KillDeathChart({
           deaths: rows[hoveredIndex].deaths,
         });
 
-  const tooltipBelow = hovered ? hovered.y < 72 : false;
-
-  const tooltipHorizontalTransform = hovered
-    ? hovered.x < 150
-      ? '-8%'
-      : hovered.x > width - 150
-        ? '-92%'
-        : '-50%'
-    : '-50%';
-
-  const tooltipVerticalTransform = tooltipBelow
-    ? '12px'
-    : 'calc(-100% - 12px)';
 
   const topGlowAreaKills = pointsKills.length
     ? `${linePathKills} L ${
@@ -443,15 +447,18 @@ export function KillDeathChart({
         onMouseLeave={() => {
           setHoveredIndex(null);
           setHoveredMarker(null);
+          setTooltipPosition(null);
         }}
       >
-        {hovered && (
+        {hovered && tooltipPosition && (
           <div
-            className="pointer-events-none absolute z-50 min-w-[150px] rounded-xl border border-amber-300/35 bg-[rgba(3,5,7,.97)] px-3 py-2 text-xs shadow-[0_14px_40px_rgba(0,0,0,.50),0_0_14px_rgba(246,201,21,.06)] backdrop-blur"
+            className="pointer-events-none absolute z-[90] min-w-[132px] max-w-[220px] rounded-lg border border-amber-300/40 bg-[rgba(3,5,7,.97)] px-2.5 py-2 text-[11px] shadow-[0_12px_32px_rgba(0,0,0,.52),0_0_12px_rgba(246,201,21,.08)] backdrop-blur"
             style={{
-              left: `${(hovered.x / width) * 100}%`,
-              top: `${(hovered.y / height) * 100}%`,
-              transform: `translate(${tooltipHorizontalTransform}, ${tooltipVerticalTransform})`,
+              left: `${tooltipPosition.x}px`,
+              top: `${tooltipPosition.y}px`,
+              transform: tooltipPosition.flipX
+                ? `translate(calc(-100% - 12px), ${tooltipPosition.flipY ? '8px' : '-50%'})`
+                : `translate(12px, ${tooltipPosition.flipY ? '8px' : '-50%'})`,
             }}
           >
             <p className="mb-1 font-bold text-slate-200">
@@ -779,10 +786,12 @@ export function KillDeathChart({
                 width={Math.max(12, endX - startX)}
                 height={height - pad.top - pad.bottom}
                 fill="transparent"
-                onMouseEnter={() => {
+                onMouseEnter={(event) => {
                   setHoveredIndex(index);
                   setHoveredMarker(null);
+                  trackTooltipPointer(event);
                 }}
+                onMouseMove={trackTooltipPointer}
               />
             );
           })}
@@ -796,10 +805,12 @@ export function KillDeathChart({
               <g
                 key={marker.id || `timeline-marker-${marker.markerIndex}`}
                 transform={`translate(${marker.x} ${marker.y})`}
-                onMouseEnter={() => {
+                onMouseEnter={(event) => {
                   setHoveredMarker(marker);
                   setHoveredIndex(null);
+                  trackTooltipPointer(event);
                 }}
+                onMouseMove={trackTooltipPointer}
               >
                 <circle cx="0" cy="0" r={isSkullMarker ? '12' : '12'} fill="transparent" />
 
