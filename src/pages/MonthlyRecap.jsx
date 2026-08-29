@@ -4161,35 +4161,6 @@ function PlayersTable({
           </div>
 
           <div className="flex items-center gap-2">
-            {['Main', 'Flex', 'Utility'].map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setRoleFilter((current) => current === role ? '' : role)}
-                aria-pressed={roleFilter === role}
-                title={`Show only wars where the player was assigned the ${role} role`}
-                className={`rounded-md border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
-                  roleFilter === role
-                    ? 'border-emerald-400/70 bg-emerald-500/15 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,.16)]'
-                    : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-emerald-400/60 hover:text-white'
-                }`}
-              >
-                {role} only: {roleFilter === role ? 'On' : 'Off'}
-              </button>
-            ))}
-
-            <select
-              value={classFilter}
-              onChange={(event) => setClassFilter(event.target.value)}
-              className="rounded-md border border-[#263c59] bg-slate-950/80 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-slate-300 outline-none transition hover:border-[#4ea1ff]"
-              title="Filter players by classes played in the selected role and period"
-            >
-              <option value="">All classes</option>
-              {availableClasses.map((className) => (
-                <option key={className} value={className}>{className}</option>
-              ))}
-            </select>
-
             <div className="rounded-md border border-[#263c59] bg-slate-950/22 px-2.5 py-1.5 text-[9px] font-black text-slate-400">
               Weight pool:{' '}
               <span className="text-white">
@@ -4225,6 +4196,41 @@ function PlayersTable({
               ))}
             </div>
           </div>
+        </div>
+
+        <div className="mb-3 flex flex-wrap items-center gap-2 border-t border-amber-300/10 pt-3">
+          {['Main', 'Flex', 'Utility'].map((role) => (
+            <button
+              key={role}
+              type="button"
+              onClick={() => setRoleFilter((current) => current === role ? '' : role)}
+              aria-pressed={roleFilter === role}
+              title={`Show only wars where the player was assigned the ${role} role`}
+              className={`rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
+                roleFilter === role
+                  ? 'border-amber-300/80 bg-amber-400/16 text-amber-200 shadow-[0_0_14px_rgba(246,201,21,.20)]'
+                  : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-amber-300/55 hover:text-amber-100'
+              }`}
+            >
+              {role} only: {roleFilter === role ? 'On' : 'Off'}
+            </button>
+          ))}
+
+          <select
+            value={classFilter}
+            onChange={(event) => setClassFilter(event.target.value)}
+            className={`rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] outline-none transition ${
+              classFilter
+                ? 'border-amber-300/80 bg-amber-400/14 text-amber-100 shadow-[0_0_14px_rgba(246,201,21,.16)]'
+                : 'border-[#263c59] bg-slate-950/80 text-slate-300 hover:border-amber-300/55'
+            }`}
+            title="Filter players by classes played in the selected role and period"
+          >
+            <option value="">All classes</option>
+            {availableClasses.map((className) => (
+              <option key={className} value={className}>{className}</option>
+            ))}
+          </select>
         </div>
 
         <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
