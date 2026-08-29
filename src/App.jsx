@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
 import adversaryEmblem from './assets/adversary-emblem.png?url';
+import adversaryEmblemBackground from './assets/adversary-emblem-background.png?url';
 import classOrbArcher from './assets/class-orbs/Archer.webp';
 import classOrbBerserker from './assets/class-orbs/Berserker.webp';
 import classOrbCorsair from './assets/class-orbs/Corsair.webp';
@@ -633,11 +634,12 @@ const GLOBAL_PANEL_CSS = `
   }
 
   .adversary-site-artwork > img {
-    width: auto;
-    height: 106%;
+    width: 100%;
+    height: 100%;
     max-width: none;
     flex: none;
-    object-fit: contain;
+    object-fit: cover;
+    object-position: center;
   }
 
   @media (min-width: 1024px) {
@@ -2578,6 +2580,222 @@ const GLOBAL_PANEL_CSS = `
     -webkit-backdrop-filter: blur(16px) !important;
     backdrop-filter: blur(16px) !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42) !important;
+  }
+
+
+  /* ----------------------------------------------------------------------
+     GOLDEN HEX-TECH THEME
+     Shared visual language for every analytics page. This deliberately lives
+     in the global shell so new panels inherit the same treatment without
+     duplicating page-specific CSS.
+     ---------------------------------------------------------------------- */
+  .adversary-app {
+    --adversary-gold: 250, 204, 21;
+    --adversary-gold-hot: 255, 221, 64;
+    --adversary-gold-deep: 180, 112, 0;
+  }
+
+  .adversary-site-background::before,
+  .adversary-site-background::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .adversary-site-background::before {
+    opacity: .34;
+    background-image:
+      linear-gradient(30deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%),
+      linear-gradient(150deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%),
+      linear-gradient(30deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%),
+      linear-gradient(150deg, rgba(250,204,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.055) 87.5%),
+      linear-gradient(60deg, rgba(250,204,21,.032) 25%, transparent 25.5%, transparent 75%, rgba(250,204,21,.032) 75%);
+    background-size: 56px 98px;
+    background-position: 0 0, 0 0, 28px 49px, 28px 49px, 0 0;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 0 58%, transparent 94%);
+    mask-image: radial-gradient(ellipse at center, #000 0 58%, transparent 94%);
+  }
+
+  .adversary-site-background::after {
+    opacity: .48;
+    background-image:
+      radial-gradient(circle at 9% 16%, rgba(255,221,64,.8) 0 1px, transparent 2px),
+      radial-gradient(circle at 84% 23%, rgba(255,221,64,.55) 0 1px, transparent 2px),
+      radial-gradient(circle at 19% 74%, rgba(255,221,64,.5) 0 1px, transparent 2px),
+      radial-gradient(circle at 92% 77%, rgba(255,221,64,.55) 0 1px, transparent 2px);
+    background-size: 240px 240px, 310px 310px, 360px 360px, 420px 420px;
+  }
+
+  .adversary-page-brand {
+    border-color: rgba(250,204,21,.52) !important;
+    background:
+      linear-gradient(90deg, rgba(250,204,21,.075), transparent 22%, transparent 76%, rgba(250,204,21,.04)),
+      rgba(2,6,17,.80) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,238,145,.10),
+      inset 0 -1px 0 rgba(180,112,0,.30),
+      0 0 0 1px rgba(250,204,21,.05),
+      0 0 22px rgba(250,204,21,.11),
+      0 20px 55px rgba(0,0,0,.32) !important;
+  }
+
+  .adversary-page-brand::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .24;
+    background-image:
+      linear-gradient(30deg, rgba(250,204,21,.16) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.16) 87.5%),
+      linear-gradient(150deg, rgba(250,204,21,.16) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.16) 87.5%);
+    background-size: 38px 66px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, transparent 58%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 18%, transparent 58%);
+  }
+
+  /* Gold frame over the existing semantic-color cards. */
+  .adversary-content :is(section, article, div)[class*="rounded"][class*="border"]:not(.adversary-class-modal) {
+    border-color: rgba(250,204,21,.24) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,244,181,.04),
+      inset 0 -1px 0 rgba(180,112,0,.14),
+      0 10px 28px rgba(0,0,0,.20);
+  }
+
+  .adversary-content :is(section, article, div)[class*="rounded"][class*="border"]:not(.adversary-class-modal):hover {
+    border-color: rgba(250,204,21,.44) !important;
+  }
+
+  /* Keep strong semantic accents inside cards, but make the panel shell gold. */
+  .adversary-content .adversary-color-panel,
+  .adversary-content .adversary-stat-panel,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-stat-panel {
+    border-color: rgba(250,204,21,.25) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,246,194,.05),
+      inset 0 -1px 0 rgba(180,112,0,.17),
+      inset 0 0 36px rgba(var(--adversary-panel-accent-rgb, 250,204,21),.035),
+      0 10px 25px rgba(0,0,0,.20) !important;
+  }
+
+  .adversary-content .adversary-color-panel:hover,
+  .adversary-content .adversary-stat-panel:hover,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover,
+  body[data-adversary-page="guild"] .adversary-page-guild .adversary-stat-panel:hover {
+    border-color: rgba(255,221,64,.58) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,246,194,.08),
+      inset 0 -1px 0 rgba(180,112,0,.24),
+      inset 0 0 42px rgba(var(--adversary-panel-accent-rgb, 250,204,21),.055),
+      0 0 18px rgba(250,204,21,.14),
+      0 14px 30px rgba(0,0,0,.24) !important;
+  }
+
+  .adversary-content button[class*="border"],
+  .adversary-content select[class*="border"],
+  .adversary-content input[class*="border"] {
+    border-color: rgba(250,204,21,.22) !important;
+  }
+
+  .adversary-content button[class*="border"]:hover,
+  .adversary-content select[class*="border"]:hover,
+  .adversary-content input[class*="border"]:focus {
+    border-color: rgba(250,204,21,.55) !important;
+    box-shadow: 0 0 14px rgba(250,204,21,.10);
+  }
+
+  /* Page-specific shells: preserve the information architecture while making
+     Node Wars, Monthly Recap, Hall of Fame, Overview, Player Stats and Guild
+     visually read as one product. */
+  body[data-adversary-page="nodewars"] .adversary-page-nodewars,
+  body[data-adversary-page="monthly"] .adversary-page-monthly,
+  body[data-adversary-page="hall"] .adversary-page-hall,
+  body[data-adversary-page="overview"] .adversary-page-overview,
+  body[data-adversary-page="players"] .adversary-page-players,
+  body[data-adversary-page="guild"] .adversary-page-guild {
+    --adversary-panel-border: rgba(250,204,21,.27);
+  }
+
+  /* Sidebar becomes the dark/gold control rail from the mockups. */
+  .adversary-sidebar {
+    border-right-color: rgba(250,204,21,.20) !important;
+    background:
+      radial-gradient(circle at 54% 16%, rgba(250,204,21,.07), transparent 24%),
+      linear-gradient(180deg, rgba(4,6,15,.94), rgba(2,6,23,.89)) !important;
+    box-shadow: inset -1px 0 0 rgba(255,221,64,.05), 16px 0 42px rgba(0,0,0,.22);
+  }
+
+  .adversary-sidebar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: .24;
+    background-image:
+      linear-gradient(30deg, rgba(250,204,21,.11) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.11) 87.5%),
+      linear-gradient(150deg, rgba(250,204,21,.11) 12%, transparent 12.5%, transparent 87%, rgba(250,204,21,.11) 87.5%);
+    background-size: 48px 84px;
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 28%, #000 78%, transparent);
+    mask-image: linear-gradient(180deg, transparent, #000 28%, #000 78%, transparent);
+  }
+
+  .adversary-sidebar .adversary-menu-button {
+    min-height: 48px;
+    border-color: transparent !important;
+    background: rgba(2,6,23,.34) !important;
+    color: rgba(226,232,240,.88) !important;
+    text-shadow: 0 1px 10px rgba(0,0,0,.65);
+  }
+
+  .adversary-sidebar .adversary-menu-button:hover {
+    border-color: rgba(250,204,21,.24) !important;
+    background: linear-gradient(90deg, rgba(250,204,21,.10), rgba(2,6,23,.42) 68%) !important;
+    color: #fff !important;
+  }
+
+  .adversary-sidebar .adversary-menu-button.is-active {
+    border-color: rgba(250,204,21,.64) !important;
+    background:
+      radial-gradient(circle at 12% 50%, rgba(255,221,64,.18), transparent 42%),
+      linear-gradient(90deg, rgba(250,204,21,.12), rgba(2,6,23,.62) 68%) !important;
+    color: #fff !important;
+    box-shadow:
+      inset 0 0 24px rgba(250,204,21,.06),
+      0 0 18px rgba(250,204,21,.14) !important;
+  }
+
+  .adversary-sidebar .adversary-menu-button.is-active::before {
+    width: 3px;
+    background: rgb(255,221,64);
+    box-shadow: 0 0 12px rgba(255,221,64,.85), 0 0 24px rgba(250,204,21,.40);
+  }
+
+  /* Orbs stay vivid but yield to navigation: JS physically repels them from
+     menu buttons; this small depth cue makes close passes less distracting. */
+  .adversary-sidebar-nav-zone {
+    position: relative;
+  }
+
+  .adversary-sidebar-nav-zone::before {
+    content: '';
+    position: absolute;
+    inset: -10px -8px;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(2,6,23,.20), transparent 74%);
+    z-index: -1;
+  }
+
+  .adversary-sidebar-class-orb-shell {
+    mix-blend-mode: screen;
+  }
+
+  @media (max-width: 1023px) {
+    .adversary-page-brand {
+      margin-top: 2px;
+    }
   }
 `;
 
@@ -4678,6 +4896,61 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       }
     };
 
+    let navigationObstacles = [];
+
+    const measureNavigationObstacles = () => {
+      const layerBounds = layer.getBoundingClientRect();
+      navigationObstacles = Array.from(
+        sidebar.querySelectorAll('.adversary-sidebar-nav-zone .adversary-menu-button'),
+      ).map((element) => {
+        const bounds = element.getBoundingClientRect();
+        const paddingX = 13;
+        const paddingY = 10;
+
+        return {
+          left: bounds.left - layerBounds.left - paddingX,
+          right: bounds.right - layerBounds.left + paddingX,
+          top: bounds.top - layerBounds.top - paddingY,
+          bottom: bounds.bottom - layerBounds.top + paddingY,
+        };
+      });
+    };
+
+    const repelFromNavigation = (state, config, delta) => {
+      const centerX = state.x + config.size / 2;
+      const centerY = state.y + config.size / 2;
+
+      navigationObstacles.forEach((obstacle) => {
+        const nearestX = clampOrb(centerX, obstacle.left, obstacle.right);
+        const nearestY = clampOrb(centerY, obstacle.top, obstacle.bottom);
+        let deltaX = centerX - nearestX;
+        let deltaY = centerY - nearestY;
+        let distance = Math.hypot(deltaX, deltaY);
+        const safeRadius = config.size * 0.58 + 12;
+
+        if (distance >= safeRadius) return;
+
+        if (distance < 0.001) {
+          const distances = [
+            { x: centerX - obstacle.left, y: 0 },
+            { x: centerX - obstacle.right, y: 0 },
+            { x: 0, y: centerY - obstacle.top },
+            { x: 0, y: centerY - obstacle.bottom },
+          ];
+          const escape = distances.reduce((best, item) =>
+            Math.abs(item.x || item.y) < Math.abs(best.x || best.y) ? item : best
+          );
+          deltaX = escape.x;
+          deltaY = escape.y;
+          distance = Math.max(1, Math.hypot(deltaX, deltaY));
+        }
+
+        const force = (1 - distance / safeRadius) * 0.55 * delta;
+        state.vx += (deltaX / distance) * force;
+        state.vy += (deltaY / distance) * force;
+      });
+    };
+
     const animate = (time) => {
       const delta = Math.min(2.2, Math.max(0.35, (time - previousTime) / 16.667));
       previousTime = time;
@@ -4724,6 +4997,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             (deltaY / distance) * radialForce +
             pointer.vy * sweepForce;
         }
+
+        repelFromNavigation(state, config, delta);
 
         state.vx *= Math.pow(ORB_AIR_DRAG, delta);
         state.vy *= Math.pow(ORB_AIR_DRAG, delta);
@@ -4803,10 +5078,12 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
     const handleResize = () => {
       measureLayer();
+      measureNavigationObstacles();
       writeOrbStyles(pointerRef.current.active);
     };
 
     measureLayer();
+    measureNavigationObstacles();
     writeOrbStyles(false);
 
     sidebar.addEventListener('pointermove', handlePointerMove, {
@@ -5625,7 +5902,7 @@ function ActivePageBrand({ page }) {
   const title = PAGE_TITLES[page] || 'Adversary';
 
   return (
-    <section className="relative mb-4 overflow-hidden rounded-[26px] border border-amber-300/15 bg-slate-950/72 px-4 py-3 shadow-[0_24px_75px_rgba(0,0,0,.30)] backdrop-blur-2xl sm:px-5 sm:py-4">
+    <section className="adversary-page-brand relative mb-4 overflow-hidden rounded-[26px] border border-amber-300/15 bg-slate-950/72 px-4 py-3 shadow-[0_24px_75px_rgba(0,0,0,.30)] backdrop-blur-2xl sm:px-5 sm:py-4">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,rgba(250,204,21,.07),transparent_34%,rgba(59,130,246,.045))]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
 
@@ -6518,7 +6795,7 @@ export default function App() {
         <div
           className="absolute -inset-[6%] bg-cover bg-center bg-no-repeat opacity-[0.13]"
           style={{
-            backgroundImage: `url("${adversaryEmblem}")`,
+            backgroundImage: `url("${adversaryEmblemBackground}")`,
             filter: 'blur(44px) saturate(.88) brightness(.52)',
             transform: 'scale(1.08)',
           }}
@@ -6540,7 +6817,7 @@ export default function App() {
 
         <div className="adversary-site-artwork absolute inset-0 opacity-[0.30]">
           <img
-            src={adversaryEmblem}
+            src={adversaryEmblemBackground}
             alt=""
             aria-hidden="true"
             style={{
@@ -6633,7 +6910,7 @@ export default function App() {
       </div>
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[250px_1fr]">
-        <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
+        <aside className="adversary-sidebar relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
           <SidebarClassOrbs
             members={members}
             logs={Array.isArray(allLogs) ? allLogs : nodeLogs}
@@ -6644,7 +6921,7 @@ export default function App() {
             Adversary
           </h1>
 
-          <nav className="pointer-events-none relative z-30 flex-1">
+          <nav className="adversary-sidebar-nav-zone pointer-events-none relative z-30 flex-1">
             {menu
               .filter(([id]) => id !== 'raw')
               .map(([id, title]) => {
