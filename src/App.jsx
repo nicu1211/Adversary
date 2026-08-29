@@ -65,9 +65,9 @@ const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
 });
 const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
 
-// Sidebar page-panel hover sound. Drop the file in src/assets as panel-hover.mp3
-// (or wav/ogg/m4a/etc.). Using a glob keeps App.jsx valid regardless of extension.
-const PANEL_HOVER_SOUND_MODULES = import.meta.glob('./assets/panel-hover.*', {
+// Hover sound for the desktop sidebar page panels.
+// Matches files such as panel-hover.mp3 / .wav / .ogg / .m4a.
+const PANEL_HOVER_SOUND_MODULES = import.meta.glob('./assets/panel-hover*', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -3071,10 +3071,10 @@ const GLOBAL_PANEL_CSS = `
       justify-content: center;
       gap: 6px;
       overflow: visible !important;
-      border-radius: 8px !important;
-      border: 1px solid transparent !important;
       margin-top: 0 !important;
       margin-bottom: 0 !important;
+      border-radius: 8px !important;
+      border: 1px solid transparent !important;
       background: rgba(3,5,7,.68) !important;
       color: rgba(246,201,21,.72) !important;
       box-shadow: inset 0 0 14px rgba(246,201,21,.02) !important;
@@ -3086,7 +3086,7 @@ const GLOBAL_PANEL_CSS = `
       min-width: 176px !important;
       min-height: 70px !important;
       margin-bottom: 0 !important;
-      border-radius: 14px 14px 8px 8px !important;
+      border-radius: 16px 16px 8px 8px !important;
       border-color: rgba(246,201,21,.52) !important;
       background:
         radial-gradient(circle at 50% 38%, rgba(255,218,55,.08), transparent 64%),
@@ -3197,10 +3197,10 @@ const GLOBAL_PANEL_CSS = `
 
     .adversary-sidebar > .adversary-rail-bottom {
       width: 100%;
-      margin-top: 0 !important;
+      margin-top: auto !important;
       display: flex;
       justify-content: center;
-      padding-top: 0 !important;
+      padding-top: 14px !important;
       padding-bottom: 2px;
       z-index: 30;
     }
@@ -3223,7 +3223,6 @@ const GLOBAL_PANEL_CSS = `
     .adversary-sidebar-nav-zone,
     .adversary-sidebar > .adversary-rail-bottom {
       z-index: 30 !important;
-      pointer-events: auto !important;
     }
 
     .adversary-sidebar .adversary-menu-button {
@@ -6832,6 +6831,35 @@ export default function App() {
   const [startupFading, setStartupFading] = useState(false);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
+  const panelHoverAudioRef = useRef([]);
+
+  const playPanelHoverSound = useCallback(() => {
+    if (!PANEL_HOVER_SOUND) return;
+
+    try {
+      if (!panelHoverAudioRef.current.length) {
+        panelHoverAudioRef.current = Array.from({ length: 2 }, () => {
+          const audio = new Audio(PANEL_HOVER_SOUND);
+          audio.preload = 'auto';
+          audio.volume = 0.42;
+          return audio;
+        });
+      }
+
+      const pool = panelHoverAudioRef.current;
+      const audio =
+        pool.find((item) => item.paused || item.ended) ||
+        pool[0];
+
+      audio.pause();
+      audio.currentTime = 0;
+
+      const playback = audio.play();
+      if (playback?.catch) playback.catch(() => {});
+    } catch {
+      // Ignore browser media-policy failures.
+    }
+  }, []);
 
   const finishStartup = useCallback(() => {
     if (startupRevealTimerRef.current) {
@@ -6947,88 +6975,42 @@ export default function App() {
     if (!video) return undefined;
 
     let cancelled = false;
-    let startInProgress = false;
     let fallbackTimer = 0;
 
-    const keepAudible = () => {
-      if (cancelled) return;
+    // Keep the intro in an audible state and let the browser's native autoplay
+    // start it. This is the least intrusive path and avoids the freezes caused
+    // by repeated play() calls.
+    try {
+      video.defaultMuted = false;
+      video.muted = false;
+      video.volume = 1;
+    } catch {
+      // Ignore media property write failures.
+    }
 
-      try {
-        video.defaultMuted = false;
-        video.muted = false;
-        video.volume = 1;
-      } catch {
-        // Ignore media property write failures.
-      }
-    };
-
-    const startAudible = async () => {
-      if (cancelled || startInProgress || !video.paused) return;
-
-      startInProgress = true;
-      keepAudible();
-
-      try {
-        await video.play();
-
-        if (!cancelled) {
-          keepAudible();
-        }
-      } catch {
-        // Do not immediately force the intro silent. Give the browser one
-        // readiness/native-autoplay window first.
-      } finally {
-        startInProgress = false;
-      }
-    };
-
-    const startMutedFallback = async () => {
+    // Safety only: if the browser refuses audible autoplay and the video is
+    // still completely paused, start the visual intro muted instead of leaving
+    // the startup frozen. This does not touch a video that is already playing.
+    fallbackTimer = window.setTimeout(() => {
       if (cancelled || !video.paused) return;
 
       try {
         video.muted = true;
         video.defaultMuted = true;
         video.volume = 0;
-        await video.play();
+        const playback = video.play();
+        if (playback?.catch) {
+          playback.catch(() => {
+            if (!cancelled) finishStartup();
+          });
+        }
       } catch {
         if (!cancelled) finishStartup();
       }
-    };
-
-    const handleCanPlay = () => {
-      startAudible();
-    };
-
-    const handlePlaying = () => {
-      // If audible autoplay was accepted, keep the startup audio at full volume.
-      if (!video.muted) {
-        video.defaultMuted = false;
-        video.volume = 1;
-      }
-    };
-
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('playing', handlePlaying);
-
-    keepAudible();
-
-    // Native autoplay gets the first chance. If the browser has already buffered
-    // enough media, also make one explicit audible request.
-    if (video.readyState >= 3) {
-      startAudible();
-    }
-
-    // Only use the muted visual fallback if the video is STILL paused after the
-    // audible/native attempts. This prevents the old "first rejection = silent"
-    // behaviour while also preventing a frozen startup.
-    fallbackTimer = window.setTimeout(() => {
-      startMutedFallback();
-    }, 900);
+    }, 1800);
 
     return () => {
       cancelled = true;
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('playing', handlePlaying);
       if (fallbackTimer) window.clearTimeout(fallbackTimer);
 
       if (startupRevealTimerRef.current) {
@@ -7044,60 +7026,16 @@ export default function App() {
   }, [finishStartup]);
 
   useEffect(() => {
-    if (!PANEL_HOVER_SOUND) return undefined;
-
-    let audioPool = null;
-    let audioIndex = 0;
-
-    const getAudioPool = () => {
-      if (audioPool) return audioPool;
-
-      audioPool = Array.from({ length: 2 }, () => {
-        const audio = new Audio(PANEL_HOVER_SOUND);
-        audio.preload = 'auto';
-        audio.volume = 0.38;
-        return audio;
-      });
-
-      return audioPool;
-    };
-
-    const handleSidebarPageHover = (event) => {
-      if (!(event.target instanceof Element)) return;
-
-      const button = event.target.closest(
-        '.adversary-sidebar .adversary-menu-button',
-      );
-      if (!button) return;
-
-      // pointerover bubbles through the icon/text inside a button. Only play
-      // when the pointer actually enters a different page panel.
-      const previous = event.relatedTarget;
-      if (previous instanceof Node && button.contains(previous)) return;
-
-      const pool = getAudioPool();
-      const audio = pool[audioIndex % pool.length];
-      audioIndex += 1;
-
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-        const playback = audio.play();
-        if (playback?.catch) playback.catch(() => {});
-      } catch {
-        // Ignore browser audio policy failures.
-      }
-    };
-
-    document.addEventListener('pointerover', handleSidebarPageHover, true);
-
     return () => {
-      document.removeEventListener('pointerover', handleSidebarPageHover, true);
-
-      audioPool?.forEach((audio) => {
-        audio.pause();
-        audio.currentTime = 0;
+      panelHoverAudioRef.current.forEach((audio) => {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {
+          // Ignore cleanup failures.
+        }
       });
+      panelHoverAudioRef.current = [];
     };
   }, []);
 
@@ -8198,6 +8136,7 @@ export default function App() {
                 <div key={id}>
                   <button
                     type="button"
+                    onPointerEnter={playPanelHoverSound}
                     onClick={() => {
                       if (id === 'overview') {
                         openOverviewFromMenu();
@@ -8240,6 +8179,7 @@ export default function App() {
           <div className="adversary-rail-bottom pointer-events-none relative z-30 pt-4">
             <button
               type="button"
+              onPointerEnter={playPanelHoverSound}
               onClick={() => openPage('raw')}
               className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
                 isMenuActive('raw') ? 'is-active' : ''
