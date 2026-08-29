@@ -20,8 +20,8 @@ import { buildNodeWarRow, scrollCls } from '../lib/logUtils';
 
 
 const NODE_WARS_PANEL_CSS = `
-  .adversary-content .nodewars-page-shell,
-  .adversary-content .nodewars-page-shell:hover {
+  #root .adversary-content .nodewars-page-shell,
+  #root .adversary-content .nodewars-page-shell:hover {
     --nw-gold: #f4bf16;
     --nw-gold-bright: #ffd94a;
     --nw-gold-rgb: 244, 191, 22;
@@ -39,13 +39,13 @@ const NODE_WARS_PANEL_CSS = `
     filter: none !important;
   }
 
-  .adversary-content .nodewars-page-shell::before,
-  .adversary-content .nodewars-page-shell::after {
+  #root .adversary-content .nodewars-page-shell::before,
+  #root .adversary-content .nodewars-page-shell::after {
     display: none !important;
   }
 
   /* Shared black / gold techno panel surface. */
-  .adversary-content .nodewars-guild-panel {
+  #root .adversary-content .nodewars-guild-panel {
     position: relative;
     isolation: isolate;
     overflow: hidden;
@@ -70,7 +70,7 @@ const NODE_WARS_PANEL_CSS = `
   }
 
   /* Subtle connected-tech lattice. */
-  .adversary-content .nodewars-guild-panel::before {
+  #root .adversary-content .nodewars-guild-panel::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -100,7 +100,7 @@ const NODE_WARS_PANEL_CSS = `
     -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.78), rgba(0,0,0,.28) 48%, rgba(0,0,0,.62));
   }
 
-  .adversary-content .nodewars-guild-panel::after {
+  #root .adversary-content .nodewars-guild-panel::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -124,7 +124,7 @@ const NODE_WARS_PANEL_CSS = `
     opacity: 0.74;
   }
 
-  .adversary-content .nodewars-guild-panel:hover {
+  #root .adversary-content .nodewars-guild-panel:hover {
     border-color: var(--nw-line-strong) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 230, 120, 0.075),
@@ -134,14 +134,14 @@ const NODE_WARS_PANEL_CSS = `
   }
 
   /* Filter / control strip. */
-  .adversary-content .nodewars-filter-panel {
+  #root .adversary-content .nodewars-filter-panel {
     background-image:
       radial-gradient(circle at 50% -110%, rgba(var(--nw-gold-rgb), 0.12), transparent 50%),
       linear-gradient(180deg, rgba(9, 10, 9, 0.95), rgba(3, 5, 6, 0.96)) !important;
     border-color: rgba(var(--nw-gold-rgb), 0.45) !important;
   }
 
-  .adversary-content .nodewars-dark-control {
+  #root .adversary-content .nodewars-dark-control {
     background:
       linear-gradient(180deg, rgba(11, 12, 11, 0.96), rgba(3, 4, 5, 0.98)) !important;
     border: 1px solid rgba(var(--nw-gold-rgb), 0.33) !important;
@@ -151,8 +151,8 @@ const NODE_WARS_PANEL_CSS = `
       0 0 0 1px rgba(0, 0, 0, 0.34) !important;
   }
 
-  .adversary-content .nodewars-dark-control:hover,
-  .adversary-content .nodewars-dark-control:focus {
+  #root .adversary-content .nodewars-dark-control:hover,
+  #root .adversary-content .nodewars-dark-control:focus {
     background:
       linear-gradient(180deg, rgba(20, 18, 10, 0.98), rgba(4, 5, 5, 0.99)) !important;
     border-color: rgba(var(--nw-gold-rgb), 0.74) !important;
@@ -162,15 +162,15 @@ const NODE_WARS_PANEL_CSS = `
       0 0 12px rgba(var(--nw-gold-rgb), 0.09) !important;
   }
 
-  .adversary-content .nodewars-dark-control::placeholder {
+  #root .adversary-content .nodewars-dark-control::placeholder {
     color: #77776f !important;
   }
 
-  .adversary-content .nodewars-search-icon {
+  #root .adversary-content .nodewars-search-icon {
     color: rgba(245, 197, 39, 0.55) !important;
   }
 
-  .adversary-content .nodewars-sort-control {
+  #root .adversary-content .nodewars-sort-control {
     min-width: 62px;
     border-radius: 10px !important;
     padding: 8px 12px !important;
@@ -178,7 +178,7 @@ const NODE_WARS_PANEL_CSS = `
     letter-spacing: .04em !important;
   }
 
-  .adversary-content .nodewars-sort-control.nodewars-sort-active {
+  #root .adversary-content .nodewars-sort-control.nodewars-sort-active {
     color: #fff3b8 !important;
     border-color: rgba(var(--nw-gold-rgb), 0.78) !important;
     background:
@@ -188,7 +188,7 @@ const NODE_WARS_PANEL_CSS = `
       0 0 11px rgba(var(--nw-gold-rgb), 0.12) !important;
   }
 
-  .adversary-content .nodewars-period-menu {
+  #root .adversary-content .nodewars-period-menu {
     overflow: hidden;
     background: rgba(3, 4, 4, 0.99) !important;
     border: 1px solid rgba(var(--nw-gold-rgb), 0.54) !important;
@@ -199,36 +199,36 @@ const NODE_WARS_PANEL_CSS = `
       0 0 18px rgba(var(--nw-gold-rgb), .08) !important;
   }
 
-  .adversary-content .nodewars-period-menu button {
+  #root .adversary-content .nodewars-period-menu button {
     background: rgba(2, 3, 3, 0.98) !important;
     color: #eae5d5 !important;
     border-color: rgba(var(--nw-gold-rgb), 0.10) !important;
   }
 
-  .adversary-content .nodewars-period-menu button:hover {
+  #root .adversary-content .nodewars-period-menu button:hover {
     background: rgba(48, 37, 8, 0.72) !important;
     color: #fff3b8 !important;
   }
 
-  .adversary-content .nodewars-filter-footer {
+  #root .adversary-content .nodewars-filter-footer {
     border-top-color: rgba(var(--nw-gold-rgb), 0.14) !important;
   }
 
-  .adversary-content .nodewars-filter-chip {
+  #root .adversary-content .nodewars-filter-chip {
     border: 1px solid rgba(var(--nw-gold-rgb), 0.18) !important;
     background: rgba(3, 4, 4, 0.84) !important;
     color: #9b998e !important;
   }
 
-  .adversary-content .nodewars-filter-chip b {
+  #root .adversary-content .nodewars-filter-chip b {
     color: #f5f1e5 !important;
   }
 
-  .adversary-content .nodewars-filter-chip-selected b {
+  #root .adversary-content .nodewars-filter-chip-selected b {
     color: #f5c51e !important;
   }
 
-  .adversary-content .nodewars-action-button {
+  #root .adversary-content .nodewars-action-button {
     border: 1px solid rgba(var(--nw-gold-rgb), 0.45) !important;
     background:
       linear-gradient(180deg, rgba(18, 16, 8, 0.94), rgba(4, 5, 5, 0.98)) !important;
@@ -236,7 +236,7 @@ const NODE_WARS_PANEL_CSS = `
     box-shadow: inset 0 1px 0 rgba(255, 231, 123, .035);
   }
 
-  .adversary-content .nodewars-action-button:hover {
+  #root .adversary-content .nodewars-action-button:hover {
     border-color: rgba(var(--nw-gold-rgb), 0.85) !important;
     color: #fff3b8 !important;
     background:
@@ -244,13 +244,13 @@ const NODE_WARS_PANEL_CSS = `
     box-shadow: 0 0 14px rgba(var(--nw-gold-rgb), .10);
   }
 
-  .adversary-content .nodewars-action-primary {
+  #root .adversary-content .nodewars-action-primary {
     border-color: rgba(var(--nw-gold-rgb), 0.68) !important;
     color: #ffe373 !important;
   }
 
   /* Summary row = separate gold framed tiles like the reference. */
-  .adversary-content .nodewars-summary-grid {
+  #root .adversary-content .nodewars-summary-grid {
     gap: 9px !important;
     overflow: visible !important;
     border: 0 !important;
@@ -260,12 +260,12 @@ const NODE_WARS_PANEL_CSS = `
     backdrop-filter: none !important;
   }
 
-  .adversary-content .nodewars-summary-grid::before,
-  .adversary-content .nodewars-summary-grid::after {
+  #root .adversary-content .nodewars-summary-grid::before,
+  #root .adversary-content .nodewars-summary-grid::after {
     display: none !important;
   }
 
-  .adversary-content .nodewars-summary-stat {
+  #root .adversary-content .nodewars-summary-stat {
     --nodewars-accent-rgb: 96, 165, 250;
     position: relative;
     isolation: isolate;
@@ -283,7 +283,7 @@ const NODE_WARS_PANEL_CSS = `
     transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
   }
 
-  .adversary-content .nodewars-summary-stat::after {
+  #root .adversary-content .nodewars-summary-stat::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -295,7 +295,7 @@ const NODE_WARS_PANEL_CSS = `
       repeating-linear-gradient(-60deg, transparent 0 20px, rgba(var(--nw-gold-rgb), .035) 20px 21px, transparent 21px 41px);
   }
 
-  .adversary-content .nodewars-summary-stat:hover {
+  #root .adversary-content .nodewars-summary-stat:hover {
     transform: translateY(-1px);
     border-color: rgba(var(--nw-gold-rgb), 0.58);
     box-shadow:
@@ -304,8 +304,15 @@ const NODE_WARS_PANEL_CSS = `
       0 10px 22px rgba(0,0,0,.24);
   }
 
+  /* App.jsx has broad gold-tech direct-child rules. Keep decorative layers out of the grid flow. */
+  #root .adversary-content .nodewars-page-shell .nodewars-war-card > .nodewars-card-glow {
+    position: absolute !important;
+    z-index: -1 !important;
+    display: block !important;
+  }
+
   /* War cards. */
-  .adversary-content .nodewars-war-card {
+  #root .adversary-content .nodewars-war-card {
     overflow: hidden !important;
     border-color: rgba(var(--nw-gold-rgb), 0.46) !important;
     background:
@@ -317,7 +324,7 @@ const NODE_WARS_PANEL_CSS = `
       0 9px 23px rgba(0,0,0,.26) !important;
   }
 
-  .adversary-content .nodewars-war-card:hover {
+  #root .adversary-content .nodewars-war-card:hover {
     border-color: rgba(var(--nw-gold-rgb), 0.82) !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 233, 132, 0.055),
@@ -326,7 +333,7 @@ const NODE_WARS_PANEL_CSS = `
       0 11px 26px rgba(0,0,0,.30) !important;
   }
 
-  .adversary-content .nodewars-war-card.nodewars-selected {
+  #root .adversary-content .nodewars-war-card.nodewars-selected {
     border-color: rgba(var(--nw-gold-rgb), 0.92) !important;
     background:
       radial-gradient(circle at 20% -30%, rgba(var(--nw-gold-rgb), 0.13), transparent 48%),
@@ -337,7 +344,7 @@ const NODE_WARS_PANEL_CSS = `
       0 12px 28px rgba(0,0,0,.30) !important;
   }
 
-  .adversary-content .nodewars-war-card::before {
+  #root .adversary-content .nodewars-war-card::before {
     opacity: 0.22;
     background-image:
       repeating-linear-gradient(60deg, transparent 0 24px, rgba(var(--nw-gold-rgb), 0.055) 24px 25px, transparent 25px 49px),
@@ -345,7 +352,7 @@ const NODE_WARS_PANEL_CSS = `
       repeating-linear-gradient(0deg, transparent 0 42px, rgba(var(--nw-gold-rgb), 0.025) 42px 43px, transparent 43px 85px);
   }
 
-  .adversary-content .nodewars-war-date {
+  #root .adversary-content .nodewars-war-date {
     position: relative;
     border-right: 1px solid rgba(var(--nw-gold-rgb), 0.16);
     background:
@@ -353,7 +360,7 @@ const NODE_WARS_PANEL_CSS = `
       linear-gradient(145deg, rgba(21, 18, 8, 0.76), rgba(3, 4, 5, 0.32)) !important;
   }
 
-  .adversary-content .nodewars-war-date::after {
+  #root .adversary-content .nodewars-war-date::after {
     content: '';
     position: absolute;
     left: 0;
@@ -365,18 +372,18 @@ const NODE_WARS_PANEL_CSS = `
     opacity: .82;
   }
 
-  .adversary-content .nodewars-war-date svg {
+  #root .adversary-content .nodewars-war-date svg {
     color: #f5c51e !important;
   }
 
-  .adversary-content .nodewars-war-card .nodewars-date-icon {
+  #root .adversary-content .nodewars-war-card .nodewars-date-icon {
     background: rgba(61, 46, 5, 0.34) !important;
     color: #f5c51e !important;
     border: 1px solid rgba(var(--nw-gold-rgb), 0.26);
     box-shadow: inset 0 0 14px rgba(var(--nw-gold-rgb), .06) !important;
   }
 
-  .adversary-content .nodewars-war-card .nodewars-kd-badge {
+  #root .adversary-content .nodewars-war-card .nodewars-kd-badge {
     border-color: rgba(var(--nw-gold-rgb), 0.48) !important;
     background: rgba(60, 45, 5, 0.38) !important;
     color: #f8cf39 !important;
@@ -385,56 +392,56 @@ const NODE_WARS_PANEL_CSS = `
       0 0 8px rgba(var(--nw-gold-rgb), .04);
   }
 
-  .adversary-content .nodewars-enemy-pill {
+  #root .adversary-content .nodewars-enemy-pill {
     border-color: rgba(var(--nw-gold-rgb), 0.24) !important;
     background: rgba(2, 3, 3, 0.82) !important;
   }
 
-  .adversary-content .nodewars-enemy-pill:hover {
+  #root .adversary-content .nodewars-enemy-pill:hover {
     border-color: rgba(var(--nw-gold-rgb), 0.52) !important;
   }
 
-  .adversary-content .nodewars-metrics-divider {
+  #root .adversary-content .nodewars-metrics-divider {
     background: linear-gradient(90deg, rgba(var(--nw-gold-rgb), .18), rgba(var(--nw-gold-rgb), .07), transparent) !important;
   }
 
-  .adversary-content .nodewars-select-toggle {
+  #root .adversary-content .nodewars-select-toggle {
     border-color: rgba(var(--nw-gold-rgb), .34) !important;
     background: rgba(5, 6, 6, .90) !important;
     box-shadow: inset 0 0 12px rgba(var(--nw-gold-rgb), .035);
   }
 
-  .adversary-content .nodewars-selected .nodewars-select-toggle {
+  #root .adversary-content .nodewars-selected .nodewars-select-toggle {
     border-color: rgba(var(--nw-gold-rgb), .90) !important;
     background: rgba(57, 43, 5, .66) !important;
     box-shadow: 0 0 12px rgba(var(--nw-gold-rgb), .10);
   }
 
-  .adversary-content .nodewars-select-toggle input {
+  #root .adversary-content .nodewars-select-toggle input {
     accent-color: #e7b300 !important;
   }
 
   /* Typography and separators. */
-  .adversary-content .nodewars-page-shell .text-slate-500,
-  .adversary-content .nodewars-page-shell .text-slate-600 {
+  #root .adversary-content .nodewars-page-shell .text-slate-500,
+  #root .adversary-content .nodewars-page-shell .text-slate-600 {
     color: #858276 !important;
   }
 
-  .adversary-content .nodewars-page-shell .border-slate-700\/25 {
+  #root .adversary-content .nodewars-page-shell .border-slate-700\/25 {
     border-color: rgba(var(--nw-gold-rgb), 0.13) !important;
   }
 
-  .adversary-content .nodewars-page-shell .bg-slate-700\/25 {
+  #root .adversary-content .nodewars-page-shell .bg-slate-700\/25 {
     background-color: rgba(var(--nw-gold-rgb), 0.12) !important;
   }
 
-  .adversary-content .nodewars-warning-panel {
+  #root .adversary-content .nodewars-warning-panel {
     color: #ffe693 !important;
     border-color: rgba(var(--nw-gold-rgb), .52) !important;
   }
 
   @media (max-width: 1279px) {
-    .adversary-content .nodewars-summary-grid {
+    #root .adversary-content .nodewars-summary-grid {
       gap: 8px !important;
     }
   }
@@ -751,7 +758,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
       style={{ '--nodewars-accent-rgb': accent.rgb }}
     >
       <div
-        className={`pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-30`}
+        className={`nodewars-card-glow pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-30`}
       />
 
       <div
