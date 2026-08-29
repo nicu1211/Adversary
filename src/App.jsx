@@ -53,7 +53,6 @@ import classOrbWizard from './assets/class-orbs/Wizard.webp';
 import classOrbWoosa from './assets/class-orbs/Woosa.webp';
 import classOrbWukong from './assets/class-orbs/Wukong.webp';
 import sidebarOrbHoverSound from './assets/class-orbs/orb-hover.mp3';
-import panelHoverSound from './assets/panel-hover.mp3';
 import adversaryStartupClip from './assets/adversary-startup.mp4?url';
 
 // The user's click sound lives at src/assets/Page-click.mp3. Using import.meta.glob
@@ -65,10 +64,6 @@ const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
   import: 'default',
 });
 const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
-
-// Sidebar page-panel hover sound. Direct import on purpose: this uses the
-// same loading path as the already-working class-orb hover sound.
-const PANEL_HOVER_SOUND = panelHoverSound;
 
 // Optional persistent website background loop. Drop the finished loop into
 // src/assets as Loop-video.mp4 (or .webm). The glob keeps the project buildable
@@ -3039,10 +3034,9 @@ const GLOBAL_PANEL_CSS = `
       flex-direction: column;
       align-items: center;
       flex: 0 0 auto !important;
-      gap: 0 !important;
+      gap: 5px;
       padding-top: 0;
       z-index: 30;
-      pointer-events: auto !important;
     }
 
     .adversary-sidebar-nav-zone::before {
@@ -3067,9 +3061,7 @@ const GLOBAL_PANEL_CSS = `
       justify-content: center;
       gap: 6px;
       overflow: visible !important;
-      margin-top: 0 !important;
-      margin-bottom: 0 !important;
-      border-radius: 8px !important;
+      border-radius: 14px !important;
       border: 1px solid transparent !important;
       background: rgba(3,5,7,.68) !important;
       color: rgba(246,201,21,.72) !important;
@@ -3081,8 +3073,8 @@ const GLOBAL_PANEL_CSS = `
       width: 176px !important;
       min-width: 176px !important;
       min-height: 70px !important;
-      margin-bottom: 0 !important;
-      border-radius: 16px 16px 8px 8px !important;
+      margin-bottom: 6px;
+      border-radius: 16px !important;
       border-color: rgba(246,201,21,.52) !important;
       background:
         radial-gradient(circle at 50% 38%, rgba(255,218,55,.08), transparent 64%),
@@ -3193,7 +3185,7 @@ const GLOBAL_PANEL_CSS = `
 
     .adversary-sidebar > .adversary-rail-bottom {
       width: 100%;
-      margin-top: auto !important;
+      margin-top: auto;
       display: flex;
       justify-content: center;
       padding-top: 14px !important;
@@ -6822,40 +6814,12 @@ export default function App() {
   const backgroundLoopTransitionRef = useRef(false);
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
+  const startupMutedFallbackRef = useRef(false);
   const [startupFinished, setStartupFinished] = useState(false);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
-  const panelHoverAudioRef = useRef([]);
-  const panelHoverIndexRef = useRef(0);
-  const panelHoverLastPlayedRef = useRef(0);
-
-  const playPanelHoverSound = useCallback(() => {
-    const now = performance.now();
-
-    // Avoid a double-trigger when entering a button right on a child boundary.
-    if (now - panelHoverLastPlayedRef.current < 90) return;
-
-    const pool = panelHoverAudioRef.current;
-    if (!pool.length) return;
-
-    const audio = pool[panelHoverIndexRef.current % pool.length];
-    panelHoverIndexRef.current += 1;
-
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.volume = 0.42;
-
-      const playback = audio.play();
-      if (playback?.catch) playback.catch(() => {});
-    } catch {
-      // Ignore media-policy failures.
-    }
-
-    panelHoverLastPlayedRef.current = now;
-  }, []);
 
   const finishStartup = useCallback(() => {
     if (startupRevealTimerRef.current) {
@@ -6874,16 +6838,6 @@ export default function App() {
 
   const handleStartupPlaying = useCallback(() => {
     setStartupStarted(true);
-
-    const video = startupVideoRef.current;
-
-    // If the browser already granted audible autoplay for this site, make sure
-    // the intro stays at full volume. If it did not, the muted fallback keeps
-    // the visual intro running rather than freezing.
-    if (video && !video.muted) {
-      video.defaultMuted = false;
-      video.volume = 1;
-    }
 
     if (backgroundLoopActive || startupRevealTimerRef.current || startupFinished) return;
 
@@ -6972,46 +6926,67 @@ export default function App() {
 
     let cancelled = false;
 
-    // Use the same startup path as the first version that played correctly:
-    // explicitly request the intro with sound once the element is mounted.
-    video.defaultMuted = false;
-    video.muted = false;
-    video.volume = 1;
-    video.currentTime = 0;
+    const unlockBackgroundAudio = () => {
+      if (cancelled || !startupMutedFallbackRef.current) return;
 
-    const startIntro = async () => {
       try {
-        await video.play();
-
-        if (cancelled) return;
-
-        // Keep it audible if the browser accepted audible autoplay.
-        video.defaultMuted = false;
         video.muted = false;
         video.volume = 1;
+        startupMutedFallbackRef.current = false;
+
+        const playPromise = video.play();
+        if (playPromise?.catch) {
+          playPromise.catch(() => {
+            // If the browser still refuses audible playback, keep the video
+            // running muted rather than interrupting the background.
+            video.muted = true;
+            video.volume = 0;
+            startupMutedFallbackRef.current = true;
+            video.play().catch(() => {});
+          });
+        }
+      } catch {
+        // Browser policy can still reject audible autoplay without a gesture.
+      }
+    };
+
+    const tryAutoplay = async () => {
+      try {
+        video.muted = false;
+        video.defaultMuted = false;
+        video.volume = 1;
+        await video.play();
+        startupMutedFallbackRef.current = false;
       } catch {
         if (cancelled) return;
 
-        // Never leave the intro frozen. If this browser rejects audible
-        // autoplay, immediately fall back to muted playback so the clip still
-        // starts without requiring a click.
+        // Modern browsers may block autoplay with audio. There is no standards-
+        // compliant way to bypass that policy without a user gesture, so keep
+        // the visual background running muted and unlock it on the first normal
+        // interaction instead of showing a click-to-start gate.
         try {
           video.muted = true;
-          video.defaultMuted = true;
           video.volume = 0;
+          startupMutedFallbackRef.current = true;
           await video.play();
         } catch {
-          // If media playback itself fails, reveal the site instead of leaving
-          // a dead black startup screen.
+          // If playback itself fails, reveal the UI and leave the static fallback.
           finishStartup();
         }
       }
     };
 
-    startIntro();
+    document.addEventListener('pointerdown', unlockBackgroundAudio, { passive: true });
+    document.addEventListener('keydown', unlockBackgroundAudio);
+    document.addEventListener('touchstart', unlockBackgroundAudio, { passive: true });
+
+    tryAutoplay();
 
     return () => {
       cancelled = true;
+      document.removeEventListener('pointerdown', unlockBackgroundAudio);
+      document.removeEventListener('keydown', unlockBackgroundAudio);
+      document.removeEventListener('touchstart', unlockBackgroundAudio);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -7024,72 +6999,6 @@ export default function App() {
       }
     };
   }, [finishStartup]);
-
-  useEffect(() => {
-    const audios = Array.from({ length: 3 }, () => {
-      const audio = new Audio(PANEL_HOVER_SOUND);
-      audio.preload = 'auto';
-      audio.volume = 0.42;
-      return audio;
-    });
-
-    panelHoverAudioRef.current = audios;
-
-    // Same unlock trick used by the working orb sound: after the first real
-    // pointer click, silently prime the audio elements so subsequent hovers
-    // play immediately.
-    const unlockPanelHoverAudio = () => {
-      panelHoverAudioRef.current.forEach((audio) => {
-        if (!audio) return;
-
-        const previousMuted = audio.muted;
-        audio.muted = true;
-
-        try {
-          const playback = audio.play();
-
-          const reset = () => {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.muted = previousMuted;
-            audio.volume = 0.42;
-          };
-
-          if (playback?.then) {
-            playback.then(reset).catch(() => {
-              audio.muted = previousMuted;
-            });
-          } else {
-            reset();
-          }
-        } catch {
-          audio.muted = previousMuted;
-        }
-      });
-    };
-
-    document.addEventListener('pointerdown', unlockPanelHoverAudio, {
-      once: true,
-      capture: true,
-    });
-
-    return () => {
-      document.removeEventListener('pointerdown', unlockPanelHoverAudio, {
-        capture: true,
-      });
-
-      panelHoverAudioRef.current.forEach((audio) => {
-        try {
-          audio.pause();
-          audio.currentTime = 0;
-        } catch {
-          // Ignore cleanup failures.
-        }
-      });
-
-      panelHoverAudioRef.current = [];
-    };
-  }, []);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -8061,6 +7970,7 @@ export default function App() {
         <video
           ref={startupVideoRef}
           src={adversaryStartupClip}
+          autoPlay
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
@@ -8187,7 +8097,6 @@ export default function App() {
                 <div key={id}>
                   <button
                     type="button"
-                    onPointerEnter={playPanelHoverSound}
                     onClick={() => {
                       if (id === 'overview') {
                         openOverviewFromMenu();
@@ -8230,7 +8139,6 @@ export default function App() {
           <div className="adversary-rail-bottom pointer-events-none relative z-30 pt-4">
             <button
               type="button"
-              onPointerEnter={playPanelHoverSound}
               onClick={() => openPage('raw')}
               className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
                 isMenuActive('raw') ? 'is-active' : ''
