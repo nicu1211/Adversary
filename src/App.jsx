@@ -6944,99 +6944,50 @@ export default function App() {
     if (!video) return undefined;
 
     let cancelled = false;
-    let startedAudibly = false;
-    let mutedFallbackTimer = 0;
-    const retryTimers = [];
+    let startAttempted = false;
 
-    // Keep startup identical in intent to the original working version:
-    // the intro begins as an audible video, not as a muted autoplay.
-    const forceAudibleState = () => {
-      if (cancelled) return;
+    const startVideo = async () => {
+      if (cancelled || startAttempted) return;
+      startAttempted = true;
 
+      // First try exactly what we want: autoplay the intro WITH its embedded sound.
       try {
         video.defaultMuted = false;
         video.muted = false;
         video.volume = 1;
-      } catch {
-        // Ignore browser media-property write failures.
-      }
-    };
-
-    const requestAudiblePlayback = async () => {
-      if (cancelled || startedAudibly) return;
-
-      forceAudibleState();
-
-      try {
         await video.play();
-        if (cancelled) return;
-
-        forceAudibleState();
-
-        if (!video.muted && video.volume > 0) {
-          startedAudibly = true;
-        }
+        return;
       } catch {
-        // Do not mute on the first rejection. A play() request can reject while
-        // the source is still becoming ready, which was causing the intro to be
-        // permanently silent in the previous version.
+        if (cancelled) return;
       }
-    };
 
-    const handleMediaReady = () => {
-      requestAudiblePlayback();
-    };
-
-    const handlePlaying = () => {
-      // If autoplay permission exists for this site, keep the real startup audio
-      // alive even if the browser briefly inherited a muted state.
-      if (!startedAudibly) {
-        forceAudibleState();
-        if (!video.muted && video.volume > 0) {
-          startedAudibly = true;
-        }
-      }
-    };
-
-    video.addEventListener('loadedmetadata', handleMediaReady);
-    video.addEventListener('loadeddata', handleMediaReady);
-    video.addEventListener('canplay', handleMediaReady);
-    video.addEventListener('canplaythrough', handleMediaReady);
-    video.addEventListener('playing', handlePlaying);
-
-    // Native autoplay + these delayed retries cover both already-buffered and
-    // slower media loads without repeatedly resetting currentTime.
-    forceAudibleState();
-    requestAudiblePlayback();
-
-    [120, 320, 700, 1200, 1800].forEach((delay) => {
-      retryTimers.push(window.setTimeout(requestAudiblePlayback, delay));
-    });
-
-    // Only if every audible attempt failed do we use a visual-only fallback, so
-    // the intro never freezes. We deliberately wait instead of muting instantly.
-    mutedFallbackTimer = window.setTimeout(async () => {
-      if (cancelled || !video.paused || startedAudibly) return;
-
+      // If the browser itself rejects audible autoplay, immediately keep the
+      // VIDEO moving rather than leaving the startup frozen on frame one.
       try {
         video.muted = true;
+        video.defaultMuted = true;
         video.volume = 0;
         await video.play();
       } catch {
         if (!cancelled) finishStartup();
       }
-    }, 2300);
+    };
+
+    const handleCanPlay = () => {
+      startVideo();
+    };
+
+    // Do not hammer play() while the file is still loading. Waiting until the
+    // browser says it can play removes the startup freezes caused by the retry loop.
+    if (video.readyState >= 3) {
+      startVideo();
+    } else {
+      video.addEventListener('canplay', handleCanPlay, { once: true });
+    }
 
     return () => {
       cancelled = true;
-      retryTimers.forEach((timer) => window.clearTimeout(timer));
-      if (mutedFallbackTimer) window.clearTimeout(mutedFallbackTimer);
-
-      video.removeEventListener('loadedmetadata', handleMediaReady);
-      video.removeEventListener('loadeddata', handleMediaReady);
-      video.removeEventListener('canplay', handleMediaReady);
-      video.removeEventListener('canplaythrough', handleMediaReady);
-      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('canplay', handleCanPlay);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
