@@ -4208,8 +4208,8 @@ function PlayersTable({
               title={`Show only wars where the player was assigned the ${role} role`}
               className={`rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] transition ${
                 roleFilter === role
-                  ? 'border-amber-300/80 bg-amber-400/16 text-amber-200 shadow-[0_0_14px_rgba(246,201,21,.20)]'
-                  : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-amber-300/55 hover:text-amber-100'
+                  ? 'border-yellow-300/90 bg-yellow-400/38 text-yellow-50 shadow-[inset_0_0_18px_rgba(250,204,21,.16),0_0_16px_rgba(246,201,21,.24)]'
+                  : 'border-[#263c59] bg-slate-950/22 text-slate-400 hover:border-amber-300/55 hover:bg-amber-400/8 hover:text-amber-100'
               }`}
             >
               {role} only: {roleFilter === role ? 'On' : 'Off'}
@@ -4221,8 +4221,8 @@ function PlayersTable({
             onChange={(event) => setClassFilter(event.target.value)}
             className={`rounded-md border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] outline-none transition ${
               classFilter
-                ? 'border-amber-300/80 bg-amber-400/14 text-amber-100 shadow-[0_0_14px_rgba(246,201,21,.16)]'
-                : 'border-[#263c59] bg-slate-950/80 text-slate-300 hover:border-amber-300/55'
+                ? 'border-yellow-300/90 bg-yellow-400/38 text-yellow-50 shadow-[inset_0_0_18px_rgba(250,204,21,.16),0_0_16px_rgba(246,201,21,.22)]'
+                : 'border-[#263c59] bg-slate-950/80 text-slate-300 hover:border-amber-300/55 hover:bg-amber-400/8'
             }`}
             title="Filter players by classes played in the selected role and period"
           >
