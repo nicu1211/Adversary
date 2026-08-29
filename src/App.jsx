@@ -2845,15 +2845,15 @@ const GLOBAL_PANEL_CSS = `
   /* Wider emblem-tech rail with labels and restored floating class orbs. */
   @media (min-width: 1024px) {
     .adversary-layout-grid {
-      grid-template-columns: 182px minmax(0, 1fr) !important;
+      grid-template-columns: 220px minmax(0, 1fr) !important;
     }
 
     .adversary-site-artwork {
-      padding-left: 182px !important;
+      padding-left: 220px !important;
     }
 
     .adversary-sidebar {
-      width: 182px;
+      width: 220px;
       height: 100vh;
       min-height: 100vh !important;
       position: sticky !important;
@@ -2944,8 +2944,8 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar .adversary-menu-button {
-      width: 142px !important;
-      min-width: 142px !important;
+      width: 176px !important;
+      min-width: 176px !important;
       min-height: 74px !important;
       padding: 8px 8px 9px !important;
       display: flex;
@@ -2963,8 +2963,8 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar-nav-zone > div:first-child .adversary-menu-button {
-      width: 142px !important;
-      min-width: 142px !important;
+      width: 176px !important;
+      min-width: 176px !important;
       min-height: 86px !important;
       margin-bottom: 10px;
       border-radius: 16px !important;
@@ -3078,8 +3078,8 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar > .adversary-rail-bottom .adversary-menu-button {
-      width: 142px !important;
-      min-width: 142px !important;
+      width: 176px !important;
+      min-width: 176px !important;
       min-height: 70px !important;
       color: rgba(246,201,21,.72) !important;
       background: rgba(1,3,5,.72) !important;
@@ -3440,6 +3440,36 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
   ) {
     border-color: rgba(var(--tech-gold-rgb), .28) !important;
     box-shadow: inset 0 -1px 0 rgba(var(--tech-gold-rgb), .08) !important;
+  }
+
+
+
+  /* Hall of Fame top tabs keep the old semantic colour identity inside the
+     new black/gold techno shell instead of being flattened to neutral black. */
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card {
+    border-color: rgba(var(--hall-accent-rgb), .42) !important;
+    background-color: rgba(var(--hall-accent-rgb), .085) !important;
+    background-image:
+      radial-gradient(ellipse at 16% 0%, rgba(var(--hall-accent-rgb), .26), transparent 58%),
+      radial-gradient(ellipse at 86% 118%, rgba(var(--hall-accent-rgb), .09), transparent 46%),
+      var(--adversary-tech-art),
+      linear-gradient(145deg, rgba(var(--hall-accent-rgb), .10), rgba(3,5,6,.78) 54%, rgba(2,4,5,.84)) !important;
+    background-size: 100% 100%, 100% 100%, 380px 150px, 100% 100% !important;
+    background-position: center, center, 12% 50%, center !important;
+    background-repeat: no-repeat, no-repeat, repeat, no-repeat !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.035),
+      inset 0 0 28px rgba(var(--hall-accent-rgb), .065),
+      0 8px 20px rgba(0,0,0,.24) !important;
+  }
+
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card:hover,
+  body[data-adversary-page="hall"] .adversary-content .hall-header-card[aria-pressed="true"] {
+    border-color: rgba(var(--hall-accent-rgb), .72) !important;
+    box-shadow:
+      inset 0 0 34px rgba(var(--hall-accent-rgb), .10),
+      0 0 18px rgba(var(--hall-accent-rgb), .12),
+      0 10px 24px rgba(0,0,0,.26) !important;
   }
 
   @media (max-width: 1023px) {
