@@ -6797,12 +6797,17 @@ export default function App() {
   const [page, setPage] = useState('nodewars');
   const startupVideoRef = useRef(null);
   const startupExitTimerRef = useRef(null);
+  const startupRevealTimerRef = useRef(null);
   const [startupFinished, setStartupFinished] = useState(false);
-  const [startupNeedsGesture, setStartupNeedsGesture] = useState(false);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
 
   const finishStartup = useCallback(() => {
+    if (startupRevealTimerRef.current) {
+      window.clearTimeout(startupRevealTimerRef.current);
+      startupRevealTimerRef.current = null;
+    }
+
     if (startupExitTimerRef.current) return;
 
     setStartupFading(true);
@@ -6812,56 +6817,77 @@ export default function App() {
     }, 520);
   }, []);
 
-  const startStartupWithSound = useCallback(async () => {
-    const video = startupVideoRef.current;
-    if (!video) return;
+  const handleStartupPlaying = useCallback(() => {
+    setStartupStarted(true);
 
-    try {
-      video.currentTime = 0;
-      video.muted = false;
-      video.volume = 1;
-      await video.play();
-      setStartupStarted(true);
-      setStartupNeedsGesture(false);
-    } catch {
-      setStartupNeedsGesture(true);
-    }
-  }, []);
+    if (startupRevealTimerRef.current) return;
+
+    startupRevealTimerRef.current = window.setTimeout(() => {
+      startupRevealTimerRef.current = null;
+      finishStartup();
+    }, 6000);
+  }, [finishStartup]);
 
   useEffect(() => {
     const video = startupVideoRef.current;
     if (!video) return undefined;
 
     let cancelled = false;
+    let autoplayMutedFallback = false;
+
     video.muted = false;
     video.volume = 1;
     video.currentTime = 0;
 
+    const unlockIntroAudio = () => {
+      if (!autoplayMutedFallback || cancelled) return;
+      video.muted = false;
+      video.volume = 1;
+      autoplayMutedFallback = false;
+    };
+
     const tryAutoplay = async () => {
       try {
         await video.play();
-        if (cancelled) return;
-        setStartupStarted(true);
-        setStartupNeedsGesture(false);
       } catch {
         if (cancelled) return;
-        video.pause();
-        video.currentTime = 0;
-        setStartupStarted(false);
-        setStartupNeedsGesture(true);
+
+        // Browsers can reject unmuted autoplay. Fall back to muted playback
+        // with no blocking "Click to start" screen, then restore sound on
+        // the user's first normal interaction if one happens during the intro.
+        try {
+          video.muted = true;
+          video.volume = 0;
+          autoplayMutedFallback = true;
+          await video.play();
+        } catch {
+          // If playback itself is unavailable, reveal the site instead of
+          // leaving a blocking startup layer on screen.
+          finishStartup();
+        }
       }
     };
 
+    document.addEventListener('pointerdown', unlockIntroAudio, { passive: true });
+    document.addEventListener('keydown', unlockIntroAudio);
     tryAutoplay();
 
     return () => {
       cancelled = true;
+      document.removeEventListener('pointerdown', unlockIntroAudio);
+      document.removeEventListener('keydown', unlockIntroAudio);
+
+      if (startupRevealTimerRef.current) {
+        window.clearTimeout(startupRevealTimerRef.current);
+        startupRevealTimerRef.current = null;
+      }
+
       if (startupExitTimerRef.current) {
         window.clearTimeout(startupExitTimerRef.current);
         startupExitTimerRef.current = null;
       }
     };
-  }, []);
+  }, [finishStartup]);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -7820,31 +7846,12 @@ export default function App() {
             preload="auto"
             playsInline
             className="absolute inset-0 h-full w-full object-cover"
+            onPlaying={handleStartupPlaying}
             onEnded={finishStartup}
             onError={finishStartup}
           />
 
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,.22)_78%,rgba(0,0,0,.62)_100%)]" />
-
-          {startupNeedsGesture && !startupStarted && (
-            <button
-              type="button"
-              data-no-page-click-sound="true"
-              onClick={startStartupWithSound}
-              className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center gap-4 bg-black/38 text-center backdrop-blur-[2px]"
-              aria-label="Play Adversary intro with sound"
-            >
-              <img
-                src={adversaryEmblem}
-                alt=""
-                aria-hidden="true"
-                className="h-24 w-24 object-cover object-center drop-shadow-[0_0_28px_rgba(250,204,21,.28)]"
-              />
-              <span className="rounded-xl border border-amber-300/40 bg-black/72 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] text-amber-200 shadow-[0_0_26px_rgba(250,204,21,.12)]">
-                Click to start
-              </span>
-            </button>
-          )}
 
           {startupStarted && (
             <button
