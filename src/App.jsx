@@ -6810,12 +6810,14 @@ function ActivePageBrand({ page }) {
 export default function App() {
   const [page, setPage] = useState('nodewars');
   const startupVideoRef = useRef(null);
+  const backgroundLoopVideoRef = useRef(null);
+  const backgroundLoopTransitionRef = useRef(false);
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
-  const startupMutedFallbackRef = useRef(false);
   const [startupFinished, setStartupFinished] = useState(false);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
+  const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
 
   const finishStartup = useCallback(() => {
@@ -6844,15 +6846,67 @@ export default function App() {
     }, 6000);
   }, [backgroundLoopActive, finishStartup, startupFinished]);
 
-  const handleBackgroundVideoEnded = useCallback(() => {
-    // After the intro finishes, hand the same full-screen video element over to
-    // the optional Loop-video asset. Until that file exists, replay the intro as
-    // a harmless fallback so the website never loses its moving background.
-    if (ADVERSARY_LOOP_VIDEO) {
-      setBackgroundLoopActive(true);
+  const startBackgroundLoop = useCallback(() => {
+    if (!ADVERSARY_LOOP_VIDEO || backgroundLoopTransitionRef.current || backgroundLoopActive) {
       return;
     }
 
+    const loopVideo = backgroundLoopVideoRef.current;
+    if (!loopVideo) return;
+
+    backgroundLoopTransitionRef.current = true;
+
+    try {
+      // The loop is a separate preloaded video element underneath the intro.
+      // Starting it just before the intro ends avoids the black frame caused by
+      // swapping the src on one video element.
+      if (loopVideo.currentTime > 0.08) loopVideo.currentTime = 0;
+      loopVideo.muted = true;
+      loopVideo.defaultMuted = true;
+      loopVideo.volume = 0;
+
+      const playPromise = loopVideo.play();
+
+      if (playPromise?.then) {
+        playPromise
+          .then(() => {
+            setBackgroundLoopActive(true);
+          })
+          .catch(() => {
+            backgroundLoopTransitionRef.current = false;
+          });
+      } else {
+        setBackgroundLoopActive(true);
+      }
+    } catch {
+      backgroundLoopTransitionRef.current = false;
+    }
+  }, [backgroundLoopActive]);
+
+  const handleIntroTimeUpdate = useCallback((event) => {
+    if (!ADVERSARY_LOOP_VIDEO || backgroundLoopActive) return;
+
+    const video = event.currentTarget;
+    const duration = Number(video.duration);
+    const currentTime = Number(video.currentTime);
+
+    if (!Number.isFinite(duration) || !Number.isFinite(currentTime) || duration <= 0) return;
+
+    // Begin the loop a fraction of a second early so its first decoded frame is
+    // already on screen beneath the intro when the crossfade happens.
+    if (duration - currentTime <= 0.45 && (backgroundLoopReady || video.readyState >= 3)) {
+      startBackgroundLoop();
+    }
+  }, [backgroundLoopActive, backgroundLoopReady, startBackgroundLoop]);
+
+  const handleBackgroundVideoEnded = useCallback(() => {
+    if (ADVERSARY_LOOP_VIDEO) {
+      startBackgroundLoop();
+      return;
+    }
+
+    // No Loop-video has been added yet. Restart the intro immediately as a
+    // fallback so the full-page background never falls back to black.
     const video = startupVideoRef.current;
     if (!video) return;
 
@@ -6861,77 +6915,84 @@ export default function App() {
       const playPromise = video.play();
       if (playPromise?.catch) playPromise.catch(() => {});
     } catch {
-      // Ignore background replay failures; the static fallback remains visible.
+      // Keep the last rendered video frame if replay is unavailable.
     }
-  }, []);
+  }, [startBackgroundLoop]);
 
   useEffect(() => {
     const video = startupVideoRef.current;
     if (!video) return undefined;
 
     let cancelled = false;
+    const retryTimers = [];
 
-    const unlockBackgroundAudio = () => {
-      if (cancelled || !startupMutedFallbackRef.current) return;
+    // Restore the first intro behaviour: the startup clip is always requested
+    // as audible playback. Do NOT switch it to a muted fallback just because
+    // one play() attempt rejects.
+    const keepIntroAudible = () => {
+      if (cancelled) return;
 
       try {
+        video.defaultMuted = false;
         video.muted = false;
         video.volume = 1;
-        startupMutedFallbackRef.current = false;
+      } catch {
+        // Ignore media property failures.
+      }
+    };
 
+    const requestAudiblePlayback = () => {
+      if (cancelled) return;
+
+      keepIntroAudible();
+
+      try {
         const playPromise = video.play();
         if (playPromise?.catch) {
-          playPromise.catch(() => {
-            // If the browser still refuses audible playback, keep the video
-            // running muted rather than interrupting the background.
-            video.muted = true;
-            video.volume = 0;
-            startupMutedFallbackRef.current = true;
-            video.play().catch(() => {});
-          });
+          // Keep the element unmuted and let the native autoplay/readiness
+          // retries below have another chance. There is deliberately no
+          // automatic silent fallback here.
+          playPromise.catch(() => {});
         }
       } catch {
-        // Browser policy can still reject audible autoplay without a gesture.
+        // Leave native autoplay intact.
       }
     };
 
-    const tryAutoplay = async () => {
-      try {
-        video.muted = false;
-        video.defaultMuted = false;
-        video.volume = 1;
-        await video.play();
-        startupMutedFallbackRef.current = false;
-      } catch {
-        if (cancelled) return;
-
-        // Modern browsers may block autoplay with audio. There is no standards-
-        // compliant way to bypass that policy without a user gesture, so keep
-        // the visual background running muted and unlock it on the first normal
-        // interaction instead of showing a click-to-start gate.
-        try {
-          video.muted = true;
-          video.volume = 0;
-          startupMutedFallbackRef.current = true;
-          await video.play();
-        } catch {
-          // If playback itself fails, reveal the UI and leave the static fallback.
-          finishStartup();
-        }
-      }
+    const handleReady = () => {
+      keepIntroAudible();
+      requestAudiblePlayback();
     };
 
-    document.addEventListener('pointerdown', unlockBackgroundAudio, { passive: true });
-    document.addEventListener('keydown', unlockBackgroundAudio);
-    document.addEventListener('touchstart', unlockBackgroundAudio, { passive: true });
+    const handlePlaying = () => {
+      // Make sure playback never inherits a muted fallback state.
+      keepIntroAudible();
+    };
 
-    tryAutoplay();
+    video.addEventListener('loadedmetadata', handleReady);
+    video.addEventListener('loadeddata', handleReady);
+    video.addEventListener('canplay', handleReady);
+    video.addEventListener('canplaythrough', handleReady);
+    video.addEventListener('playing', handlePlaying);
+
+    // Let <video autoPlay muted={false}> make the first browser-native attempt,
+    // then retry with sound as the media becomes ready.
+    keepIntroAudible();
+    requestAudiblePlayback();
+
+    [80, 220, 500, 1000].forEach((delay) => {
+      retryTimers.push(window.setTimeout(requestAudiblePlayback, delay));
+    });
 
     return () => {
       cancelled = true;
-      document.removeEventListener('pointerdown', unlockBackgroundAudio);
-      document.removeEventListener('keydown', unlockBackgroundAudio);
-      document.removeEventListener('touchstart', unlockBackgroundAudio);
+      retryTimers.forEach((timer) => window.clearTimeout(timer));
+
+      video.removeEventListener('loadedmetadata', handleReady);
+      video.removeEventListener('loadeddata', handleReady);
+      video.removeEventListener('canplay', handleReady);
+      video.removeEventListener('canplaythrough', handleReady);
+      video.removeEventListener('playing', handlePlaying);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -6943,7 +7004,7 @@ export default function App() {
         startupExitTimerRef.current = null;
       }
     };
-  }, [backgroundLoopActive, finishStartup]);
+  }, []);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
@@ -7894,17 +7955,38 @@ export default function App() {
       >
         <div className="absolute inset-0 bg-slate-950" />
 
+        {ADVERSARY_LOOP_VIDEO && (
+          <video
+            ref={backgroundLoopVideoRef}
+            src={ADVERSARY_LOOP_VIDEO}
+            playsInline
+            preload="auto"
+            loop
+            muted
+            disablePictureInPicture
+            aria-hidden="true"
+            onLoadedData={() => setBackgroundLoopReady(true)}
+            onCanPlay={() => setBackgroundLoopReady(true)}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
+              backgroundLoopActive ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        )}
+
         <video
           ref={startupVideoRef}
-          src={backgroundLoopActive && ADVERSARY_LOOP_VIDEO ? ADVERSARY_LOOP_VIDEO : adversaryStartupClip}
+          src={adversaryStartupClip}
           autoPlay
           playsInline
           preload="auto"
-          loop={backgroundLoopActive}
+          loop={!ADVERSARY_LOOP_VIDEO}
           muted={false}
           disablePictureInPicture
-          className="absolute inset-0 h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
+            backgroundLoopActive ? 'opacity-0' : 'opacity-100'
+          }`}
           onPlaying={handleStartupPlaying}
+          onTimeUpdate={handleIntroTimeUpdate}
           onEnded={handleBackgroundVideoEnded}
           onError={() => {
             if (!startupFinished) finishStartup();
