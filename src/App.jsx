@@ -53,6 +53,16 @@ import classOrbWizard from './assets/class-orbs/Wizard.webp';
 import classOrbWoosa from './assets/class-orbs/Woosa.webp';
 import classOrbWukong from './assets/class-orbs/Wukong.webp';
 import sidebarOrbHoverSound from './assets/class-orbs/orb-hover.mp3';
+
+// The user's click sound lives at src/assets/Page-click.mp3. Using import.meta.glob
+// keeps this source buildable even when the audio file is not present in a shared
+// patch archive; when the file exists in the project Vite bundles its URL normally.
+const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -6707,6 +6717,52 @@ export default function App() {
     icon.href = adversaryEmblem;
   }, [page]);
 
+
+  useEffect(() => {
+    if (!PAGE_CLICK_SOUND) return undefined;
+
+    // A small pool prevents rapid clicks from cutting the previous click sound off.
+    const audioPool = Array.from({ length: 4 }, () => {
+      const audio = new Audio(PAGE_CLICK_SOUND);
+      audio.preload = 'auto';
+      audio.volume = 0.48;
+      return audio;
+    });
+    let audioIndex = 0;
+
+    const clickableSelector = [
+      'button:not(:disabled)',
+      'a[href]',
+      '[role="button"]:not([aria-disabled="true"])',
+      '.cursor-pointer',
+      'input[type="checkbox"]',
+      'input[type="radio"]',
+      'select',
+    ].join(',');
+
+    const playPageClick = (event) => {
+      if (!(event.target instanceof Element)) return;
+
+      const clickable = event.target.closest(clickableSelector);
+      if (!clickable || clickable.closest('[data-no-page-click-sound="true"]')) return;
+
+      const audio = audioPool[audioIndex % audioPool.length];
+      audioIndex += 1;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    };
+
+    document.addEventListener('click', playPageClick, true);
+
+    return () => {
+      document.removeEventListener('click', playPageClick, true);
+      audioPool.forEach((audio) => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+    };
+  }, []);
+
   useEffect(() => {
     document.body.dataset.adversaryPage = page;
 
@@ -7478,19 +7534,46 @@ export default function App() {
   }
 
   function openOverviewFromMenu() {
-    const allSavedLogsSelected = selectedWars.includes('all');
-    const selectedRealWars = selectedWars.filter(
-      (id) => id !== 'all' && id !== 'current',
-    );
+    // Overview from the navigation always opens the newest saved node war.
+    // Existing explicit match/war links still keep their own selected war.
+    const combinedLogs = [
+      ...(Array.isArray(nodeLogs) ? nodeLogs : []),
+      ...(Array.isArray(allLogs) ? allLogs : []),
+    ];
 
-    if (!allSavedLogsSelected && !selectedRealWars.length) {
-      setNodeWarsWarning('No node war selected.\nSelect at least one war first.');
+    const uniqueLogs = [...new Map(
+      combinedLogs
+        .filter((log) => log?.id != null)
+        .map((log) => [String(log.id), log]),
+    ).values()];
+
+    const latestWar = uniqueLogs.sort((a, b) => {
+      const dateCompare = String(dateOf(b) || '').localeCompare(
+        String(dateOf(a) || ''),
+      );
+
+      if (dateCompare) return dateCompare;
+
+      const bCreated = String(
+        b?.createdAt || b?.created_at || b?.timestamp || '',
+      );
+      const aCreated = String(
+        a?.createdAt || a?.created_at || a?.timestamp || '',
+      );
+
+      return bCreated.localeCompare(aCreated);
+    })[0];
+
+    if (!latestWar) {
+      setNodeWarsWarning('No saved node wars are available yet.');
       setPage('nodewars');
       return;
     }
 
     setNodeWarsWarning('');
+    setMatchHistoryDateFilter('');
     setSelectedDays(['all']);
+    setSelectedWars([String(latestWar.id)]);
     setPage('overview');
   }
 
@@ -7677,8 +7760,8 @@ export default function App() {
           <nav className="adversary-sidebar-nav-zone pointer-events-none relative z-30 flex-1">
             {[
               ['guild', 'Guild'],
-              ['nodewars', 'Node Wars'],
               ['monthly', 'Monthly Recap'],
+              ['nodewars', 'Node Wars'],
               ['overview', 'Overview'],
               ['hall', 'Hall of Fame'],
               ['players', 'Player Stats'],
