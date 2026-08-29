@@ -691,7 +691,7 @@ const GLOBAL_PANEL_CSS = `
 
   .adversary-content .adversary-color-panel {
     --adversary-panel-accent-rgb: 96, 165, 250;
-    background-color: rgba(2, 6, 23, 0.58) !important;
+    background-color: rgba(2, 6, 23, 0.46) !important;
     background-image:
       radial-gradient(
         ellipse at 16% 0%,
@@ -704,7 +704,7 @@ const GLOBAL_PANEL_CSS = `
         145deg,
         rgba(var(--adversary-panel-accent-rgb), 0.16) 0%,
         rgba(8, 15, 32, 0.44) 52%,
-        rgba(2, 6, 23, 0.56) 100%
+        rgba(2, 6, 23, 0.46) 100%
       ) !important;
     border-color: rgba(var(--adversary-panel-accent-rgb), 0.42) !important;
     box-shadow:
@@ -2505,7 +2505,7 @@ const GLOBAL_PANEL_CSS = `
     --nodewars-accent-rgb: 6, 182, 212 !important;
     --monthly-panel-accent-rgb: 6, 182, 212 !important;
     border-color: transparent !important;
-    background-color: rgba(2, 6, 23, 0.46) !important;
+    background-color: rgba(2, 6, 23, 0.38) !important;
     background-image:
       radial-gradient(
         ellipse at 14% 0%,
@@ -2800,35 +2800,34 @@ const GLOBAL_PANEL_CSS = `
     mix-blend-mode: screen;
   }
 
-  /* Compact emblem-tech rail used on every desktop page. */
+  /* Wider emblem-tech rail with labels and restored floating class orbs. */
   @media (min-width: 1024px) {
     .adversary-layout-grid {
-      grid-template-columns: 92px minmax(0, 1fr) !important;
+      grid-template-columns: 182px minmax(0, 1fr) !important;
     }
 
     .adversary-site-artwork {
-      padding-left: 92px !important;
+      padding-left: 182px !important;
     }
 
     .adversary-sidebar {
-      width: 92px;
+      width: 182px;
       height: 100vh;
       min-height: 100vh !important;
       position: sticky !important;
       top: 0;
       align-self: start;
-      padding: 14px 10px 12px !important;
+      padding: 14px 12px 12px !important;
       align-items: center;
       border-right: 1px solid rgba(246,201,21,.22) !important;
       background:
-        radial-gradient(circle at 50% 7%, rgba(246,201,21,.045), transparent 20%),
+        radial-gradient(circle at 50% 7%, rgba(246,201,21,.055), transparent 20%),
         linear-gradient(180deg, rgba(2,4,8,.985), rgba(2,4,7,.965)) !important;
       box-shadow:
         inset -1px 0 0 rgba(255,223,86,.055),
         12px 0 38px rgba(0,0,0,.34) !important;
     }
 
-    /* Sparse emblem-style circuitry through the rail. */
     .adversary-sidebar::before {
       content: '';
       position: absolute;
@@ -2846,12 +2845,11 @@ const GLOBAL_PANEL_CSS = `
       mask-image: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.14) 44%, transparent 72%);
     }
 
-    /* Stronger joined-hex cluster near the bottom, matching the reference rail. */
     .adversary-sidebar::after {
       content: '';
       position: absolute;
-      left: 3px;
-      right: 3px;
+      left: 6px;
+      right: 6px;
       bottom: 54px;
       height: 220px;
       z-index: 1;
@@ -2870,11 +2868,15 @@ const GLOBAL_PANEL_CSS = `
       mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.24) 12%, #000 52%, rgba(0,0,0,.54) 82%, transparent 100%);
     }
 
-    /* The new rail replaces the old text/orb sidebar on desktop. */
-    .adversary-sidebar-class-orbs,
     .adversary-sidebar > h1,
     .adversary-nodewars-submenu {
       display: none !important;
+    }
+
+    .adversary-sidebar-class-orbs {
+      display: block !important;
+      z-index: 2 !important;
+      opacity: 1 !important;
     }
 
     .adversary-sidebar-nav-zone {
@@ -2885,6 +2887,7 @@ const GLOBAL_PANEL_CSS = `
       flex: 0 0 auto !important;
       gap: 8px;
       padding-top: 0;
+      z-index: 30;
     }
 
     .adversary-sidebar-nav-zone::before {
@@ -2899,30 +2902,30 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar .adversary-menu-button {
-      width: 54px !important;
-      min-width: 54px !important;
-      height: 54px;
-      min-height: 54px !important;
-      padding: 0 !important;
+      width: 142px !important;
+      min-width: 142px !important;
+      min-height: 74px !important;
+      padding: 8px 8px 9px !important;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       overflow: visible !important;
-      border-radius: 12px !important;
+      border-radius: 14px !important;
       border: 1px solid transparent !important;
-      background: rgba(3,5,7,.60) !important;
-      color: rgba(246,201,21,.66) !important;
-      box-shadow: inset 0 0 14px rgba(246,201,21,.015) !important;
+      background: rgba(3,5,7,.68) !important;
+      color: rgba(246,201,21,.72) !important;
+      box-shadow: inset 0 0 14px rgba(246,201,21,.02) !important;
+      backdrop-filter: blur(10px);
     }
 
-    /* The emblem/Guild button is visually separated at the top. */
     .adversary-sidebar-nav-zone > div:first-child .adversary-menu-button {
-      width: 62px !important;
-      min-width: 62px !important;
-      height: 62px;
-      min-height: 62px !important;
-      margin-bottom: 9px;
-      border-radius: 13px !important;
+      width: 142px !important;
+      min-width: 142px !important;
+      min-height: 86px !important;
+      margin-bottom: 10px;
+      border-radius: 16px !important;
       border-color: rgba(246,201,21,.52) !important;
       background:
         radial-gradient(circle at 50% 38%, rgba(255,218,55,.08), transparent 64%),
@@ -2955,9 +2958,9 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar .adversary-menu-button.is-active::before {
-      left: -11px;
-      top: 8px;
-      bottom: 8px;
+      left: -9px;
+      top: 14px;
+      bottom: 14px;
       width: 2px;
       border-radius: 99px;
       background: #ffd83e;
@@ -2987,11 +2990,12 @@ const GLOBAL_PANEL_CSS = `
       display: flex !important;
       align-items: center;
       justify-content: center;
-      width: 34px !important;
-      height: 34px !important;
+      width: 38px !important;
+      height: 38px !important;
       border: 0 !important;
       background: transparent !important;
       color: currentColor;
+      flex: 0 0 auto;
     }
 
     .adversary-sidebar-nav-zone > div:first-child .adversary-sidebar-menu-icon {
@@ -3006,38 +3010,19 @@ const GLOBAL_PANEL_CSS = `
     }
 
     .adversary-sidebar-menu-label {
-      display: none !important;
+      display: block !important;
+      width: 100%;
+      text-align: center;
+      font-size: 11.5px;
+      line-height: 1.15;
+      font-weight: 850;
+      letter-spacing: .035em;
+      text-shadow: 0 1px 8px rgba(0,0,0,.78);
+      color: inherit;
     }
 
     .adversary-rail-tooltip {
-      position: absolute;
-      left: calc(100% + 14px);
-      top: 50%;
-      z-index: 80;
-      transform: translateY(-50%) translateX(-4px);
-      width: max-content;
-      max-width: 180px;
-      padding: 7px 10px;
-      border: 1px solid rgba(246,201,21,.34);
-      border-radius: 8px;
-      background: rgba(2,4,7,.96);
-      color: #f5edd0;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: .02em;
-      white-space: nowrap;
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      box-shadow: 0 10px 30px rgba(0,0,0,.42), 0 0 12px rgba(246,201,21,.06);
-      transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
-    }
-
-    .adversary-sidebar .adversary-menu-button:hover .adversary-rail-tooltip,
-    .adversary-sidebar .adversary-menu-button:focus-visible .adversary-rail-tooltip {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(-50%) translateX(0);
+      display: none !important;
     }
 
     .adversary-sidebar > .adversary-rail-bottom {
@@ -3046,17 +3031,34 @@ const GLOBAL_PANEL_CSS = `
       display: flex;
       justify-content: center;
       padding-top: 14px !important;
-      padding-bottom: 1px;
-      z-index: 5;
+      padding-bottom: 2px;
+      z-index: 30;
     }
 
     .adversary-sidebar > .adversary-rail-bottom .adversary-menu-button {
-      width: 50px !important;
-      min-width: 50px !important;
-      height: 50px;
-      min-height: 50px !important;
+      width: 142px !important;
+      min-width: 142px !important;
+      min-height: 70px !important;
       color: rgba(246,201,21,.72) !important;
       background: rgba(1,3,5,.72) !important;
+    }
+
+    /* Orbs move freely underneath the readable navigation layer. */
+    .adversary-sidebar-class-orbs {
+      display: block !important;
+      z-index: 4 !important;
+      opacity: 1 !important;
+    }
+
+    .adversary-sidebar-nav-zone,
+    .adversary-sidebar > .adversary-rail-bottom {
+      z-index: 30 !important;
+    }
+
+    .adversary-sidebar .adversary-menu-button {
+      background-color: rgba(3,5,7,.50) !important;
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
     }
   }
 
@@ -3125,280 +3127,6 @@ const GLOBAL_PANEL_CSS = `
 `;
 
 
-const ALL_PAGES_NODEWARS_TECH_CSS = `
-  /* Unified visual language for every page except Node Wars, which already owns
-     its exact reference-match CSS. No calculations or page logic are changed. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content {
-    --tech-gold: #f2c216;
-    --tech-gold-bright: #ffdc46;
-    --tech-gold-rgb: 242, 194, 22;
-    --tech-line: rgba(242, 194, 22, .36);
-    --tech-line-hot: rgba(255, 218, 62, .74);
-    --adversary-tech-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20560%20220'%3E%0A%3Cg%20fill%3D'none'%20stroke%3D'%23d9aa17'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%0A%20%20%3Cg%20stroke-width%3D'1'%20stroke-opacity%3D'.34'%3E%0A%20%20%20%20%3Cpolygon%20points%3D'44,20%2060,11%2076,20%2076,38%2060,47%2044,38'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'77,39%2090,31%20103,39%20103,54%2090,62%2077,54'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'18,74%2035,64%2052,74%2052,94%2035,104%2018,94'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'52,74%2069,64%2086,74%2086,94%2069,104%2052,94'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'86,74%20103,64%20120,74%20120,94%20103,104%2086,94'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'211,24%20230,13%20249,24%20249,46%20230,57%20211,46'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'246,60%20258,53%20270,60%20270,74%20258,81%20246,74'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'387,24%20415,8%20443,24%20443,56%20415,72%20387,56'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'420,70%20438,60%20456,70%20456,91%20438,101%20420,91'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'468,126%20493,112%20518,126%20518,155%20493,169%20468,155'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'267,142%20292,128%20317,142%20317,171%20292,185%20267,171'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'136,144%20151,135%20166,144%20166,162%20151,171%20136,162'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'93,166%20111,156%20129,166%20129,187%20111,197%2093,187'%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20stroke-width%3D'.8'%20stroke-opacity%3D'.18'%3E%0A%20%20%20%20%3Cpolygon%20points%3D'154,22%20162,17%20170,22%20170,31%20162,36%20154,31'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'170,31%20178,26%20186,31%20186,40%20178,45%20170,40'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'186,22%20194,17%20202,22%20202,31%20194,36%20186,31'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'325,91%20334,86%20343,91%20343,101%20334,106%20325,101'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'343,101%20352,96%20361,101%20361,111%20352,116%20343,111'%2F%3E%0A%20%20%20%20%3Cpolygon%20points%3D'361,91%20370,86%20379,91%20379,101%20370,106%20361,101'%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20stroke-width%3D'1.05'%20stroke-opacity%3D'.38'%3E%0A%20%20%20%20%3Cpath%20d%3D'M4%20130%20H50%20L62%20118%20H103%20L118%20103%20H151'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M151%20103%20H186%20L198%2091%20H230'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M336%2036%20H365%20L379%2050%20H411'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M443%2056%20H484%20L496%2068%20H548'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M10%20203%20H62%20L78%20187%20H111'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M166%20153%20H204%20L219%20168%20H256'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M317%20156%20H354%20L370%20140%20H415%20L431%20124%20H461'%2F%3E%0A%20%20%20%20%3Cpath%20d%3D'M493%20169%20V190%20H536'%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fg%3E%0A%3Cg%20fill%3D'%23e5b61d'%3E%0A%20%20%3Cg%20fill-opacity%3D'.62'%3E%0A%20%20%20%20%3Ccircle%20cx%3D'4'%20cy%3D'130'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'50'%20cy%3D'130'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'103'%20cy%3D'118'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'151'%20cy%3D'103'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'198'%20cy%3D'91'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'230'%20cy%3D'91'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'336'%20cy%3D'36'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'411'%20cy%3D'50'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'548'%20cy%3D'68'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'10'%20cy%3D'203'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'111'%20cy%3D'187'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'166'%20cy%3D'153'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'256'%20cy%3D'168'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'317'%20cy%3D'156'%20r%3D'1.7'%2F%3E%3Ccircle%20cx%3D'461'%20cy%3D'124'%20r%3D'1.7'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'536'%20cy%3D'190'%20r%3D'1.7'%2F%3E%0A%20%20%3C%2Fg%3E%0A%20%20%3Cg%20fill-opacity%3D'.18'%3E%0A%20%20%20%20%3Ccircle%20cx%3D'145'%20cy%3D'57'%20r%3D'2.2'%2F%3E%3Ccircle%20cx%3D'282'%20cy%3D'36'%20r%3D'1.6'%2F%3E%3Ccircle%20cx%3D'382'%20cy%3D'113'%20r%3D'2.4'%2F%3E%0A%20%20%20%20%3Ccircle%20cx%3D'535'%20cy%3D'28'%20r%3D'1.8'%2F%3E%3Ccircle%20cx%3D'241'%20cy%3D'199'%20r%3D'2.1'%2F%3E%3Ccircle%20cx%3D'69'%20cy%3D'151'%20r%3D'1.5'%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fg%3E%0A%3C%2Fsvg%3E");
-  }
-
-  /* Use the same compact open header composition as Node Wars on every page. */
-  .adversary-page-brand.adversary-tech-brand {
-    min-height: 94px;
-    margin: 0 0 8px !important;
-    padding: 0 6px !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  .adversary-page-brand.adversary-tech-brand::after { display: none !important; }
-
-  .adversary-page-brand.adversary-tech-brand .adversary-nodewars-brand-icon {
-    border: 1px solid rgba(246,201,21,.55);
-    background: radial-gradient(circle at 50% 35%, rgba(255,218,55,.14), transparent 66%), rgba(1,3,5,.82);
-    box-shadow: inset 0 0 18px rgba(246,201,21,.055), 0 0 13px rgba(246,201,21,.11);
-  }
-
-  .adversary-page-brand.adversary-tech-brand .adversary-nodewars-brand-watermark {
-    opacity: .18;
-    filter: saturate(1.2) contrast(1.08) drop-shadow(0 0 34px rgba(246,201,21,.17));
-    -webkit-mask-image: linear-gradient(180deg, #000 0, rgba(0,0,0,.94) 50%, transparent 100%);
-    mask-image: linear-gradient(180deg, #000 0, rgba(0,0,0,.94) 50%, transparent 100%);
-  }
-
-  .adversary-page-brand.adversary-tech-brand .adversary-nodewars-brand-grid {
-    opacity: .32;
-    background-image:
-      linear-gradient(30deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%),
-      linear-gradient(150deg, rgba(246,201,21,.10) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.10) 87.5%);
-    background-size: 46px 80px;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 20%, #000 82%, transparent 100%);
-    mask-image: linear-gradient(90deg, transparent 0, #000 20%, #000 82%, transparent 100%);
-  }
-
-  .adversary-page-brand.adversary-tech-brand .adversary-nodewars-brand-circuit {
-    opacity: .48;
-    background-image:
-      linear-gradient(90deg, transparent 0 8%, rgba(246,201,21,.24) 8% 8.2%, transparent 8.2% 28%, rgba(246,201,21,.17) 28% 28.2%, transparent 28.2% 100%),
-      linear-gradient(0deg, transparent 0 28%, rgba(246,201,21,.18) 28% 29%, transparent 29% 62%, rgba(246,201,21,.15) 62% 63%, transparent 63% 100%);
-    background-size: 180px 100%, 100% 66px;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%, #000 100%);
-    mask-image: linear-gradient(90deg, transparent, #000 24%, #000 100%);
-  }
-
-  /* Major panels copy the Node Wars black-metal surface, gold edge and the
-     exact hex / connected-circuit texture used inside its cards. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(
-    .adversary-color-panel,
-    .monthly-guild-panel,
-    .overview-guild-panel,
-    .player-stats-guild-panel,
-    .player-stats-section-shell,
-    .player-stats-enemy-panel,
-    .player-stats-targets-panel,
-    .player-stats-match-panel,
-    .player-comparison-panel,
-    .adversary-panel
-  ) {
-    position: relative !important;
-    isolation: isolate;
-    overflow: hidden;
-    border-color: rgba(var(--tech-gold-rgb), .42) !important;
-    background-color: rgba(3,5,6,.90) !important;
-    background-image:
-      radial-gradient(circle at 14% -55%, rgba(var(--adversary-panel-accent-rgb, 242,194,22), .10), transparent 42%),
-      var(--adversary-tech-art),
-      radial-gradient(circle at 10% 28%, rgba(255,210,52,.075) 0 1px, transparent 2px),
-      radial-gradient(circle at 82% 66%, rgba(255,205,39,.06) 0 1px, transparent 2px),
-      linear-gradient(180deg, rgba(8,9,8,.92), rgba(2,4,5,.93)) !important;
-    background-size: 100% 100%, 650px 255px, 190px 155px, 250px 195px, 100% 100% !important;
-    background-position: center, 0 50%, 8% 24%, 80% 68%, center !important;
-    background-repeat: no-repeat, repeat, repeat, repeat, no-repeat !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255,232,125,.035),
-      inset 0 0 26px rgba(var(--tech-gold-rgb),.018),
-      0 8px 22px rgba(0,0,0,.26) !important;
-    backdrop-filter: blur(5px) saturate(112%) !important;
-    -webkit-backdrop-filter: blur(5px) saturate(112%) !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(
-    .adversary-color-panel, .monthly-guild-panel, .overview-guild-panel,
-    .player-stats-guild-panel, .player-stats-section-shell, .player-stats-enemy-panel,
-    .player-stats-targets-panel, .player-stats-match-panel, .player-comparison-panel, .adversary-panel
-  ):hover {
-    border-color: rgba(var(--tech-gold-rgb), .72) !important;
-    box-shadow: inset 0 0 30px rgba(var(--tech-gold-rgb),.026), 0 0 13px rgba(var(--tech-gold-rgb),.07), 0 10px 24px rgba(0,0,0,.28) !important;
-  }
-
-  /* Compact stat tiles: preserve their semantic icon/value colours, but use
-     the same gold frame and embedded circuit texture as Node Wars. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(
-    .adversary-stat-panel, .overview-battle-metric, .player-stats-summary-card, .monthly-panel-subtle
-  ) {
-    position: relative !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(var(--tech-gold-rgb), .34) !important;
-    border-radius: 13px !important;
-    background-color: rgba(3,5,6,.93) !important;
-    background-image:
-      radial-gradient(circle at 18% 8%, rgba(var(--adversary-panel-accent-rgb, 6,182,212), .13), transparent 52%),
-      var(--adversary-tech-art),
-      linear-gradient(145deg, rgba(13,13,11,.91), rgba(2,5,6,.93)) !important;
-    background-size: 100% 100%, 360px 142px, 100% 100% !important;
-    background-position: center, 12% 50%, center !important;
-    background-repeat: no-repeat, repeat, no-repeat !important;
-    box-shadow: inset 0 0 22px rgba(var(--adversary-panel-accent-rgb, 6,182,212),.018), 0 7px 18px rgba(0,0,0,.22) !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content .adversary-stat-panel:hover {
-    border-color: rgba(var(--tech-gold-rgb), .60) !important;
-    transform: translateY(-1px);
-  }
-
-  /* Hall of Fame uses custom PremiumPanel/PageFrame components rather than the
-     shared page panel classes, so give every large bordered Hall surface the
-     same treatment. */
-  body[data-adversary-page="hall"] .adversary-content .adversary-tech-hall-page,
-  body[data-adversary-page="hall"] .adversary-content .adversary-tech-hall-page :is(section,article,div)[class*="rounded"][class*="border"] {
-    border-color: rgba(var(--tech-gold-rgb), .38) !important;
-    background-color: rgba(3,5,6,.90) !important;
-    background-image: var(--adversary-tech-art), linear-gradient(180deg, rgba(8,9,8,.91), rgba(2,4,5,.93)) !important;
-    background-size: 620px 244px, 100% 100% !important;
-    background-position: 0 50%, center !important;
-    background-repeat: repeat, no-repeat !important;
-    box-shadow: inset 0 1px 0 rgba(255,232,125,.03), 0 8px 22px rgba(0,0,0,.24) !important;
-  }
-
-  /* The Guild page's dynamically generated cards and tier rows keep their
-     semantic values, while their shells follow the same Node Wars metalwork. */
-  body[data-adversary-page="guild"] .adversary-content .adversary-tech-guild-page :is(section,article,div)[class*="rounded"][class*="border"] {
-    border-color: rgba(var(--tech-gold-rgb), .36) !important;
-  }
-
-  /* Controls / tabs / selectors. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(button,select,input,textarea)[class*="border"] {
-    border-color: rgba(var(--tech-gold-rgb), .34) !important;
-    background-color: rgba(2,4,5,.92) !important;
-    color: #eee7d3 !important;
-    box-shadow: inset 0 1px 0 rgba(255,231,124,.02) !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(button,select,input,textarea)[class*="border"]:hover,
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(select,input,textarea)[class*="border"]:focus {
-    border-color: rgba(var(--tech-gold-rgb), .72) !important;
-    box-shadow: inset 0 0 12px rgba(var(--tech-gold-rgb),.035), 0 0 11px rgba(var(--tech-gold-rgb),.065) !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content select option {
-    background: #040505;
-    color: #eee7d3;
-  }
-
-  /* Tables / rankings / long lists. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(thead,.player-stats-table-header,.monthly-guild-ranking-header) {
-    border-color: rgba(var(--tech-gold-rgb), .30) !important;
-    background: linear-gradient(180deg, rgba(18,15,6,.82), rgba(3,5,6,.94)) !important;
-    color: #e9d995 !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content tbody tr {
-    border-color: rgba(var(--tech-gold-rgb), .11) !important;
-    background-color: rgba(2,4,5,.34) !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content tbody tr:hover {
-    background-color: rgba(var(--tech-gold-rgb), .035) !important;
-  }
-
-  /* Section dividers and headings use Node Wars' muted gold typography. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(.monthly-section-header,.overview-section-header,.player-stats-table-header) {
-    border-color: rgba(var(--tech-gold-rgb), .22) !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(.monthly-section-header,.overview-section-header) h1,
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(.monthly-section-header,.overview-section-header) h2,
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(.monthly-section-header,.overview-section-header) h3 {
-    color: #f6e7aa !important;
-  }
-
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(.text-slate-500,.text-slate-600) {
-    color: #837f70 !important;
-  }
-
-  /* Gold corner cut used by Node Wars rows, applied only to large panels so
-     tiny buttons/chips are not overloaded. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content .adversary-color-panel::after {
-    content: '';
-    position: absolute !important;
-    left: 0;
-    top: 0;
-    width: 18px;
-    height: 18px;
-    z-index: 8;
-    pointer-events: none;
-    background: linear-gradient(135deg, #ffdd43 0 40%, rgba(var(--tech-gold-rgb),.30) 41% 55%, transparent 56%);
-    filter: drop-shadow(0 0 6px rgba(var(--tech-gold-rgb),.18));
-  }
-
-  /* Prevent legacy page CSS from painting large blue/purple shell backgrounds
-     over the unified techno theme. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(.monthly-recap-guild-style,.overview-guild-page,.player-stats-page,.adversary-tech-guild-page,.adversary-tech-hall-page,.adversary-tech-rawlog-page) {
-    background: transparent !important;
-  }
-
-  /* Remove old page-level wrappers so content reads like the open Node Wars scene. */
-  body[data-adversary-page="hall"] .adversary-content .adversary-tech-hall-page {
-    padding: 0 !important;
-    overflow: visible !important;
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  body[data-adversary-page="players"] .adversary-content .adversary-tech-player-page {
-    padding: 0 !important;
-  }
-
-  /* The compact app header is now the page title; keep native contextual
-     subtitles/filters, but remove duplicate page-name headings. */
-  body[data-adversary-page="monthly"] .adversary-tech-monthly-page > .flex:first-of-type h1,
-  body[data-adversary-page="players"] .adversary-tech-player-page > h2 {
-    display: none !important;
-  }
-
-  /* Controls use the exact dark/gold treatment rather than retaining old
-     blue/violet background images from individual page styles. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(button,select,input,textarea)[class*="border"] {
-    background-image: linear-gradient(180deg, rgba(12,12,9,.96), rgba(2,4,5,.98)) !important;
-  }
-
-  /* Raw Logs has several legacy slate cards without borders. Pull those into
-     the same panel family without changing any editor actions. */
-  body[data-adversary-page="raw"] .adversary-tech-rawlog-page :is(div,details)[class*="rounded"][class*="bg-slate"] {
-    border: 1px solid rgba(var(--tech-gold-rgb), .28) !important;
-    background-color: rgba(3,5,6,.88) !important;
-    background-image: var(--adversary-tech-art), linear-gradient(180deg, rgba(8,9,8,.90), rgba(2,4,5,.93)) !important;
-    background-size: 520px 205px, 100% 100% !important;
-    background-repeat: repeat, no-repeat !important;
-  }
-
-  /* Ranking/tab strips get the same slim gold dividers as the Node Wars
-     filter strip instead of thick coloured blocks. */
-  body:not([data-adversary-page="nodewars"]) .adversary-content :is(
-    .monthly-guild-ranking-header, .player-stats-table-header, [role="tablist"]
-  ) {
-    border-color: rgba(var(--tech-gold-rgb), .28) !important;
-    box-shadow: inset 0 -1px 0 rgba(var(--tech-gold-rgb), .08) !important;
-  }
-
-  @media (max-width: 1023px) {
-    .adversary-page-brand.adversary-tech-brand { min-height: 82px; }
-  }
-`;
-
-
 const SIDEBAR_ORB_HOVER_SOUND = sidebarOrbHoverSound;
 
 
@@ -3410,16 +3138,6 @@ const PAGE_TITLES = {
   players: 'Player Stats',
   hall: 'Hall of Fame',
   raw: 'Raw Logs',
-};
-
-const PAGE_SUBTITLES = {
-  guild: 'Guild Intelligence',
-  monthly: 'Node Wars Performance Overview',
-  nodewars: 'Guild Warfare Analytics',
-  overview: 'Battle Analytics',
-  players: 'Player Performance Analytics',
-  hall: 'Elite Records & Milestones',
-  raw: 'Battle Log Operations',
 };
 
 const NODEWARS_RAIL_ICONS = Object.freeze({
@@ -5534,40 +5252,10 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       });
     };
 
-    const repelFromNavigation = (state, config, delta) => {
-      const centerX = state.x + config.size / 2;
-      const centerY = state.y + config.size / 2;
-
-      navigationObstacles.forEach((obstacle) => {
-        const nearestX = clampOrb(centerX, obstacle.left, obstacle.right);
-        const nearestY = clampOrb(centerY, obstacle.top, obstacle.bottom);
-        let deltaX = centerX - nearestX;
-        let deltaY = centerY - nearestY;
-        let distance = Math.hypot(deltaX, deltaY);
-        const safeRadius = config.size * 0.58 + 12;
-
-        if (distance >= safeRadius) return;
-
-        if (distance < 0.001) {
-          const distances = [
-            { x: centerX - obstacle.left, y: 0 },
-            { x: centerX - obstacle.right, y: 0 },
-            { x: 0, y: centerY - obstacle.top },
-            { x: 0, y: centerY - obstacle.bottom },
-          ];
-          const escape = distances.reduce((best, item) =>
-            Math.abs(item.x || item.y) < Math.abs(best.x || best.y) ? item : best
-          );
-          deltaX = escape.x;
-          deltaY = escape.y;
-          distance = Math.max(1, Math.hypot(deltaX, deltaY));
-        }
-
-        const force = (1 - distance / safeRadius) * 0.55 * delta;
-        state.vx += (deltaX / distance) * force;
-        state.vy += (deltaY / distance) * force;
-      });
-    };
+    // Let class orbs travel behind the translucent navigation labels instead of
+    // being trapped between menu buttons. Cursor repulsion and orb collisions
+    // remain active, so the bubbles still feel alive and interactive.
+    const repelFromNavigation = () => {};
 
     const animate = (time) => {
       const delta = Math.min(2.2, Math.max(0.35, (time - previousTime) / 16.667));
@@ -6518,20 +6206,55 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
 function ActivePageBrand({ page }) {
   const title = PAGE_TITLES[page] || 'Adversary';
-  const subtitle = PAGE_SUBTITLES[page] || 'Adversary Analytics';
+
+  if (page === 'nodewars') {
+    return (
+      <section className="adversary-page-brand adversary-nodewars-brand relative mb-2 overflow-hidden">
+        <div className="adversary-nodewars-brand-grid pointer-events-none absolute inset-0" />
+        <div
+          aria-hidden="true"
+          className="adversary-nodewars-brand-watermark pointer-events-none absolute left-1/2 top-[-122px] h-[300px] w-[420px] -translate-x-1/2 bg-contain bg-center bg-no-repeat"
+          style={{ backgroundImage: `url("${adversaryEmblem}")` }}
+        />
+        <div className="adversary-nodewars-brand-circuit pointer-events-none absolute inset-y-0 right-0 w-[48%]" />
+
+        <div className="relative z-10 flex min-h-[92px] items-start gap-3 pt-2">
+          <div className="adversary-nodewars-brand-icon relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl">
+            <img
+              src={adversaryEmblem}
+              alt=""
+              aria-hidden="true"
+              className="relative h-[88%] w-[88%] object-contain"
+            />
+          </div>
+
+          <div className="min-w-0 pt-0.5">
+            <h2 className="truncate text-[28px] font-black leading-none tracking-[-0.025em] text-white sm:text-[31px]">
+              Node Wars
+            </h2>
+            <div className="mt-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+              Guild Warfare Analytics
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="adversary-page-brand adversary-nodewars-brand adversary-tech-brand relative mb-2 overflow-hidden">
-      <div className="adversary-nodewars-brand-grid pointer-events-none absolute inset-0" />
+    <section className="adversary-page-brand relative mb-4 overflow-hidden rounded-[26px] border border-amber-300/15 bg-slate-950/72 px-4 py-3 shadow-[0_24px_75px_rgba(0,0,0,.30)] backdrop-blur-2xl sm:px-5 sm:py-4">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,rgba(250,204,21,.07),transparent_34%,rgba(59,130,246,.045))]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
+
       <div
         aria-hidden="true"
-        className="adversary-nodewars-brand-watermark pointer-events-none absolute left-1/2 top-[-122px] h-[300px] w-[420px] -translate-x-1/2 bg-contain bg-center bg-no-repeat"
+        className="pointer-events-none absolute -right-5 top-1/2 h-40 w-40 -translate-y-1/2 bg-contain bg-center bg-no-repeat opacity-20 drop-shadow-[0_0_35px_rgba(250,204,21,.20)] sm:right-4 sm:h-48 sm:w-48"
         style={{ backgroundImage: `url("${adversaryEmblem}")` }}
       />
-      <div className="adversary-nodewars-brand-circuit pointer-events-none absolute inset-y-0 right-0 w-[48%]" />
 
-      <div className="relative z-10 flex min-h-[92px] items-start gap-3 pt-2">
-        <div className="adversary-nodewars-brand-icon relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl">
+      <div className="relative flex min-w-0 items-center gap-3.5">
+        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/20 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_0_28px_rgba(250,204,21,.10)] sm:h-16 sm:w-16">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(250,204,21,.13),transparent_68%)]" />
           <img
             src={adversaryEmblem}
             alt=""
@@ -6540,13 +6263,10 @@ function ActivePageBrand({ page }) {
           />
         </div>
 
-        <div className="min-w-0 pt-0.5">
-          <h2 className="truncate text-[28px] font-black leading-none tracking-[-0.025em] text-white sm:text-[31px]">
+        <div className="min-w-0">
+          <h2 className="truncate text-xl font-black tracking-tight text-white sm:text-2xl">
             {title}
           </h2>
-          <div className="mt-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
-            {subtitle}
-          </div>
         </div>
       </div>
     </section>
@@ -7403,7 +7123,6 @@ export default function App() {
   return (
     <div className="adversary-app relative min-h-screen overflow-x-hidden text-slate-100">
       <style>{GLOBAL_PANEL_CSS}</style>
-      <style>{ALL_PAGES_NODEWARS_TECH_CSS}</style>
       <div
         aria-hidden="true"
         className="adversary-site-background pointer-events-none fixed inset-0 z-0 overflow-hidden"
