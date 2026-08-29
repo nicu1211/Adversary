@@ -111,8 +111,20 @@ const NODE_WARS_PANEL_CSS = `
   #root .adversary-content .nodewars-filter-panel {
     padding: 12px 14px !important;
     border-radius: 14px !important;
+    overflow: visible !important;
+    z-index: 120 !important;
     background:
-      linear-gradient(90deg, rgba(5,7,7,.92), rgba(2,4,5,.87) 58%, rgba(6,6,4,.91)) !important;
+      linear-gradient(90deg, rgba(5,7,7,.88), rgba(2,4,5,.82) 58%, rgba(6,6,4,.86)) !important;
+  }
+
+  #root .adversary-content .nodewars-filter-panel::before,
+  #root .adversary-content .nodewars-filter-panel::after {
+    border-radius: inherit;
+  }
+
+  #root .adversary-content .nodewars-period-menu {
+    z-index: 9999 !important;
+    isolation: isolate;
   }
 
   #root .adversary-content .nodewars-filter-panel::before {
@@ -634,7 +646,7 @@ function PeriodSelect({ value, onChange, loading = false }) {
     options.find((option) => option.value === value) || options[0];
 
   return (
-    <div className="relative z-50">
+    <div className="relative z-[9998]">
       <button
         type="button"
         disabled={loading}
@@ -650,7 +662,7 @@ function PeriodSelect({ value, onChange, loading = false }) {
       </button>
 
       {open && (
-        <div className="nodewars-period-menu absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border shadow-[0_20px_70px_rgba(0,0,0,0.65)]">
+        <div className="nodewars-period-menu absolute right-0 z-[9999] mt-2 w-44 overflow-hidden rounded-xl border shadow-[0_20px_70px_rgba(0,0,0,0.65)]">
           {options.map((option) => (
             <button
               key={option.value}
