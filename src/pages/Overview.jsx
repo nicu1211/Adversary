@@ -635,6 +635,29 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     overflow: visible !important;
   }
 
+  .overview-player-performance-dialog .overview-popup-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: .16;
+    background-image: var(--adversary-tech-art);
+    background-size: 680px 267px;
+    background-position: 18% 22%;
+    background-repeat: repeat;
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.78), rgba(0,0,0,.26) 72%, transparent);
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.78), rgba(0,0,0,.26) 72%, transparent);
+  }
+
+  .overview-player-performance-dialog .overview-popup-shell > * {
+    z-index: 1;
+  }
+
+  .overview-player-performance-dialog .overview-popup-shell > :not(:first-child) {
+    position: relative;
+  }
+
   .overview-player-performance-dialog .overview-popup-card:hover,
   .overview-player-performance-dialog .overview-popup-section:hover {
     background-image:
@@ -932,13 +955,16 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     z-index: 20 !important;
     overflow: visible !important;
     border: 1px solid rgba(var(--overview-tech-gold), .58) !important;
-    background-color: rgba(4, 6, 7, .88) !important;
+    background-color: rgba(4, 6, 7, .84) !important;
     background-image:
-      radial-gradient(ellipse at 14% -36%, rgba(var(--overview-tech-gold), .20), transparent 50%),
-      linear-gradient(30deg, rgba(var(--overview-tech-gold), .075) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .075) 87.5%),
-      linear-gradient(150deg, rgba(var(--overview-tech-gold), .065) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .065) 87.5%),
-      linear-gradient(180deg, rgba(11, 11, 9, .94), rgba(3, 5, 6, .94)) !important;
-    background-size: 100% 100%, 42px 72px, 42px 72px, 100% 100% !important;
+      radial-gradient(ellipse at 14% -36%, rgba(var(--overview-tech-gold), .18), transparent 50%),
+      var(--adversary-tech-art),
+      radial-gradient(circle at 11% 55%, rgba(255,214,50,.11) 0 1px, transparent 2px),
+      radial-gradient(circle at 83% 26%, rgba(255,214,50,.08) 0 1px, transparent 2px),
+      linear-gradient(180deg, rgba(11, 11, 9, .90), rgba(3, 5, 6, .91)) !important;
+    background-size: 100% 100%, 560px 220px, 170px 145px, 220px 180px, 100% 100% !important;
+    background-position: center, 0 50%, 7% 52%, 83% 28%, center !important;
+    background-repeat: no-repeat, repeat, repeat, repeat, no-repeat !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 239, 151, .08),
       inset 0 -1px 0 rgba(var(--overview-tech-gold), .20),
@@ -991,16 +1017,18 @@ const OVERVIEW_GUILD_PANEL_CSS = `
   .overview-player-performance-dialog .overview-popup-card,
   .overview-player-performance-dialog .overview-popup-section {
     border: 1px solid rgba(var(--overview-tech-gold), .28) !important;
-    background-color: rgba(4, 6, 7, .72) !important;
+    background-color: rgba(4, 6, 7, .66) !important;
     background-image:
-      radial-gradient(ellipse at 14% -8%, rgba(var(--overview-popup-card-rgb), .28), rgba(var(--overview-popup-card-rgb), .10) 44%, transparent 72%),
-      linear-gradient(30deg, rgba(var(--overview-tech-gold), .048) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .048) 87.5%),
-      linear-gradient(150deg, rgba(var(--overview-tech-gold), .040) 12%, transparent 12.5%, transparent 87%, rgba(var(--overview-tech-gold), .040) 87.5%),
-      linear-gradient(145deg, rgba(var(--overview-popup-card-rgb), .10), rgba(4, 6, 7, .74) 58%, rgba(2, 4, 5, .80)) !important;
-    background-size: 100% 100%, 40px 69px, 40px 69px, 100% 100% !important;
+      radial-gradient(ellipse at 14% -8%, rgba(var(--overview-popup-card-rgb), .30), rgba(var(--overview-popup-card-rgb), .11) 44%, transparent 72%),
+      var(--adversary-tech-art),
+      radial-gradient(circle at 18% 28%, rgba(255,214,50,.075) 0 1px, transparent 2px),
+      linear-gradient(145deg, rgba(var(--overview-popup-card-rgb), .10), rgba(4, 6, 7, .68) 58%, rgba(2, 4, 5, .74)) !important;
+    background-size: 100% 100%, 520px 204px, 190px 155px, 100% 100% !important;
+    background-position: center, 0 50%, 12% 30%, center !important;
+    background-repeat: no-repeat, repeat, repeat, no-repeat !important;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, .04),
-      inset 0 0 24px rgba(var(--overview-popup-card-rgb), .055),
+      inset 0 0 24px rgba(var(--overview-popup-card-rgb), .065),
       0 8px 20px rgba(0,0,0,.20) !important;
   }
 
