@@ -6877,9 +6877,11 @@ export default function App() {
 
     const video = startupVideoRef.current;
 
-    if (video) {
+    // If the browser already granted audible autoplay for this site, make sure
+    // the intro stays at full volume. If it did not, the muted fallback keeps
+    // the visual intro running rather than freezing.
+    if (video && !video.muted) {
       video.defaultMuted = false;
-      video.muted = false;
       video.volume = 1;
     }
 
@@ -6968,25 +6970,48 @@ export default function App() {
     const video = startupVideoRef.current;
     if (!video) return undefined;
 
-    // Restore the original successful behaviour: do not run a competing
-    // play()/mute fallback. Keep the element explicitly audible and let the
-    // browser's native autoplay path own startup playback.
+    let cancelled = false;
+
+    // Use the same startup path as the first version that played correctly:
+    // explicitly request the intro with sound once the element is mounted.
     video.defaultMuted = false;
     video.muted = false;
     video.volume = 1;
+    video.currentTime = 0;
 
-    const keepStartupAudible = () => {
-      video.defaultMuted = false;
-      video.muted = false;
-      video.volume = 1;
+    const startIntro = async () => {
+      try {
+        await video.play();
+
+        if (cancelled) return;
+
+        // Keep it audible if the browser accepted audible autoplay.
+        video.defaultMuted = false;
+        video.muted = false;
+        video.volume = 1;
+      } catch {
+        if (cancelled) return;
+
+        // Never leave the intro frozen. If this browser rejects audible
+        // autoplay, immediately fall back to muted playback so the clip still
+        // starts without requiring a click.
+        try {
+          video.muted = true;
+          video.defaultMuted = true;
+          video.volume = 0;
+          await video.play();
+        } catch {
+          // If media playback itself fails, reveal the site instead of leaving
+          // a dead black startup screen.
+          finishStartup();
+        }
+      }
     };
 
-    video.addEventListener('loadedmetadata', keepStartupAudible);
-    video.addEventListener('canplay', keepStartupAudible);
+    startIntro();
 
     return () => {
-      video.removeEventListener('loadedmetadata', keepStartupAudible);
-      video.removeEventListener('canplay', keepStartupAudible);
+      cancelled = true;
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -6998,7 +7023,7 @@ export default function App() {
         startupExitTimerRef.current = null;
       }
     };
-  }, []);
+  }, [finishStartup]);
 
   useEffect(() => {
     const audios = Array.from({ length: 3 }, () => {
@@ -8034,10 +8059,8 @@ export default function App() {
         )}
 
         <video
-          key="adversary-startup-audible"
           ref={startupVideoRef}
           src={adversaryStartupClip}
-          autoPlay
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
