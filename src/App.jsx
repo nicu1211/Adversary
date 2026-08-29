@@ -5482,8 +5482,13 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
     const measureLayer = () => {
       const bounds = layer.getBoundingClientRect();
-      layerWidth = Math.max(1, bounds.width);
-      layerHeight = Math.max(1, bounds.height);
+      const previousLayerWidth = layerWidth;
+      const previousLayerHeight = layerHeight;
+      const nextLayerWidth = Math.max(1, bounds.width);
+      const nextLayerHeight = Math.max(1, bounds.height);
+
+      layerWidth = nextLayerWidth;
+      layerHeight = nextLayerHeight;
 
       physicsRef.current = SIDEBAR_CLASS_ORBS.map((config, index) => {
         const previous = physicsRef.current[index];
@@ -5497,10 +5502,40 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         );
 
         if (previous) {
+          // The sidebar height changes after each page finishes rendering. Keep
+          // every orb at the same relative position when that happens instead
+          // of leaving all of them packed into the old, shorter top area.
+          const previousMaxX = Math.max(
+            ORB_EDGE_PADDING,
+            previousLayerWidth - config.size - ORB_EDGE_PADDING,
+          );
+          const previousMaxY = Math.max(
+            ORB_EDGE_PADDING,
+            previousLayerHeight - config.size - ORB_EDGE_PADDING,
+          );
+          const previousSpanX = Math.max(1, previousMaxX - ORB_EDGE_PADDING);
+          const previousSpanY = Math.max(1, previousMaxY - ORB_EDGE_PADDING);
+          const nextSpanX = Math.max(1, maxX - ORB_EDGE_PADDING);
+          const nextSpanY = Math.max(1, maxY - ORB_EDGE_PADDING);
+          const normalizedX = previousLayerWidth > 1
+            ? clampOrb((previous.x - ORB_EDGE_PADDING) / previousSpanX, 0, 1)
+            : config.startX;
+          const normalizedY = previousLayerHeight > 1
+            ? clampOrb((previous.y - ORB_EDGE_PADDING) / previousSpanY, 0, 1)
+            : config.startY;
+
           return {
             ...previous,
-            x: clampOrb(previous.x, ORB_EDGE_PADDING, maxX),
-            y: clampOrb(previous.y, ORB_EDGE_PADDING, maxY),
+            x: clampOrb(
+              ORB_EDGE_PADDING + normalizedX * nextSpanX,
+              ORB_EDGE_PADDING,
+              maxX,
+            ),
+            y: clampOrb(
+              ORB_EDGE_PADDING + normalizedY * nextSpanY,
+              ORB_EDGE_PADDING,
+              maxY,
+            ),
           };
         }
 
@@ -5798,6 +5833,18 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     });
     window.addEventListener('resize', handleResize);
 
+    // Page content is asynchronous and can make the sidebar much taller after
+    // the first render. Watch the real sidebar size so the orb physics field
+    // expands with it immediately instead of remaining at the initial height.
+    const sidebarResizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          handleResize();
+        })
+      : null;
+
+    sidebarResizeObserver?.observe(sidebar);
+    if (layer !== sidebar) sidebarResizeObserver?.observe(layer);
+
     if (!reducedMotion) {
       animationFrame = window.requestAnimationFrame(animate);
     }
@@ -5809,6 +5856,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         capture: true,
       });
       window.removeEventListener('resize', handleResize);
+      sidebarResizeObserver?.disconnect();
 
       orbAudioRefs.current.forEach((audio) => {
         if (!audio) return;
