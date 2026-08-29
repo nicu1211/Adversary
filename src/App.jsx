@@ -6814,6 +6814,7 @@ export default function App() {
   const backgroundLoopTransitionRef = useRef(false);
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
+  const startupMutedFallbackRef = useRef(false);
   const [startupFinished, setStartupFinished] = useState(false);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
@@ -6924,75 +6925,68 @@ export default function App() {
     if (!video) return undefined;
 
     let cancelled = false;
-    const retryTimers = [];
 
-    // Restore the first intro behaviour: the startup clip is always requested
-    // as audible playback. Do NOT switch it to a muted fallback just because
-    // one play() attempt rejects.
-    const keepIntroAudible = () => {
-      if (cancelled) return;
+    const unlockBackgroundAudio = () => {
+      if (cancelled || !startupMutedFallbackRef.current) return;
 
       try {
-        video.defaultMuted = false;
         video.muted = false;
         video.volume = 1;
-      } catch {
-        // Ignore media property failures.
-      }
-    };
+        startupMutedFallbackRef.current = false;
 
-    const requestAudiblePlayback = () => {
-      if (cancelled) return;
-
-      keepIntroAudible();
-
-      try {
         const playPromise = video.play();
         if (playPromise?.catch) {
-          // Keep the element unmuted and let the native autoplay/readiness
-          // retries below have another chance. There is deliberately no
-          // automatic silent fallback here.
-          playPromise.catch(() => {});
+          playPromise.catch(() => {
+            // If the browser still refuses audible playback, keep the video
+            // running muted rather than interrupting the background.
+            video.muted = true;
+            video.volume = 0;
+            startupMutedFallbackRef.current = true;
+            video.play().catch(() => {});
+          });
         }
       } catch {
-        // Leave native autoplay intact.
+        // Browser policy can still reject audible autoplay without a gesture.
       }
     };
 
-    const handleReady = () => {
-      keepIntroAudible();
-      requestAudiblePlayback();
+    const tryAutoplay = async () => {
+      try {
+        video.muted = false;
+        video.defaultMuted = false;
+        video.volume = 1;
+        await video.play();
+        startupMutedFallbackRef.current = false;
+      } catch {
+        if (cancelled) return;
+
+        // Modern browsers may block autoplay with audio. There is no standards-
+        // compliant way to bypass that policy without a user gesture, so keep
+        // the visual background running muted and unlock it on the first normal
+        // interaction instead of showing a click-to-start gate.
+        try {
+          video.muted = true;
+          video.volume = 0;
+          startupMutedFallbackRef.current = true;
+          await video.play();
+        } catch {
+          // If playback itself fails, reveal the UI and leave the static fallback.
+          finishStartup();
+        }
+      }
     };
 
-    const handlePlaying = () => {
-      // Make sure playback never inherits a muted fallback state.
-      keepIntroAudible();
-    };
+    document.addEventListener('pointerdown', unlockBackgroundAudio, { passive: true });
+    document.addEventListener('keydown', unlockBackgroundAudio);
+    document.addEventListener('touchstart', unlockBackgroundAudio, { passive: true });
 
-    video.addEventListener('loadedmetadata', handleReady);
-    video.addEventListener('loadeddata', handleReady);
-    video.addEventListener('canplay', handleReady);
-    video.addEventListener('canplaythrough', handleReady);
-    video.addEventListener('playing', handlePlaying);
-
-    // Let <video autoPlay muted={false}> make the first browser-native attempt,
-    // then retry with sound as the media becomes ready.
-    keepIntroAudible();
-    requestAudiblePlayback();
-
-    [80, 220, 500, 1000].forEach((delay) => {
-      retryTimers.push(window.setTimeout(requestAudiblePlayback, delay));
-    });
+    tryAutoplay();
 
     return () => {
       cancelled = true;
-      retryTimers.forEach((timer) => window.clearTimeout(timer));
-
-      video.removeEventListener('loadedmetadata', handleReady);
-      video.removeEventListener('loadeddata', handleReady);
-      video.removeEventListener('canplay', handleReady);
-      video.removeEventListener('canplaythrough', handleReady);
-      video.removeEventListener('playing', handlePlaying);
+      document.removeEventListener('pointerdown', unlockBackgroundAudio);
+      document.removeEventListener('keydown', unlockBackgroundAudio);
+      document.removeEventListener('touchstart', unlockBackgroundAudio);
 
       if (startupRevealTimerRef.current) {
         window.clearTimeout(startupRevealTimerRef.current);
@@ -7004,7 +6998,7 @@ export default function App() {
         startupExitTimerRef.current = null;
       }
     };
-  }, []);
+  }, [finishStartup]);
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || 'Adversary';
