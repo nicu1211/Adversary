@@ -368,9 +368,13 @@ const NODE_WARS_PANEL_CSS = `
   }
 
   #root .adversary-content .nodewars-kd-badge {
-    border-color: rgba(var(--nw-gold-rgb),.48) !important;
-    background: rgba(64,47,4,.34) !important;
-    color: #ffd847 !important;
+    --nodewars-kd-rgb: 242, 194, 22;
+    border-color: rgba(var(--nodewars-kd-rgb), .62) !important;
+    background: rgba(var(--nodewars-kd-rgb), .16) !important;
+    color: rgb(var(--nodewars-kd-rgb)) !important;
+    box-shadow:
+      inset 0 0 12px rgba(var(--nodewars-kd-rgb), .08),
+      0 0 9px rgba(var(--nodewars-kd-rgb), .06) !important;
   }
 
   #root .adversary-content .nodewars-enemy-pill {
@@ -523,6 +527,23 @@ function badgeColor(value) {
   }
 
   return 'border-rose-400/20 bg-rose-500/15 text-rose-300';
+}
+
+function kdBadgeRgb(value) {
+  const kdValue = Number(value) || 0;
+
+  // Any K/D below 1 stays clearly red. From 1 upward the badge moves
+  // continuously from gold through lime and reaches green around 2.25+.
+  if (kdValue < 1) return '244, 63, 94';
+
+  const start = [250, 204, 21];
+  const end = [34, 197, 94];
+  const amount = Math.max(0, Math.min(1, (kdValue - 1) / 1.25));
+  const rgb = start.map((channel, index) =>
+    Math.round(channel + (end[index] - channel) * amount),
+  );
+
+  return rgb.join(', ');
 }
 
 function formatWarDate(date) {
@@ -844,6 +865,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                   className={`nodewars-kd-badge inline-flex rounded-full border px-3 py-1 text-sm font-black ${badgeColor(
                     row.kd,
                   )}`}
+                  style={{ '--nodewars-kd-rgb': kdBadgeRgb(row.kd) }}
                 >
                   {row.kd}
                 </span>
