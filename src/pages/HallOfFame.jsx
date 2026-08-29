@@ -2508,7 +2508,7 @@ function getTone(tone) {
 
 function PageFrame({ children }) {
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
+    <div className="adversary-tech-page adversary-tech-hall-page relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,.12),transparent_28%),linear-gradient(180deg,rgba(15,23,42,.3),transparent)]" />
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
