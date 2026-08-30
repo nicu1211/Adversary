@@ -5529,7 +5529,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     const orbAudios = SIDEBAR_CLASS_ORBS.map(() => {
       const audio = new Audio(SIDEBAR_ORB_HOVER_SOUND);
       audio.preload = 'auto';
-      audio.volume = 0.12;
+      audio.volume = 0.06;
       return audio;
     });
 
@@ -5549,7 +5549,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = 0.12;
+      audio.volume = 0.06;
 
       const playback = audio.play();
 
@@ -6834,7 +6834,7 @@ export default function App() {
     try {
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = 0.21;
+      audio.volume = 0.105;
 
       const playback = audio.play();
       if (playback?.catch) playback.catch(() => {});
@@ -6953,7 +6953,7 @@ export default function App() {
 
       try {
         video.muted = false;
-        video.volume = 0.5;
+        video.volume = 0.25;
         startupMutedFallbackRef.current = false;
 
         const playPromise = video.play();
@@ -6976,7 +6976,7 @@ export default function App() {
       try {
         video.muted = false;
         video.defaultMuted = false;
-        video.volume = 0.5;
+        video.volume = 0.25;
         await video.play();
         startupMutedFallbackRef.current = false;
       } catch {
@@ -7026,7 +7026,7 @@ export default function App() {
     const audios = Array.from({ length: 3 }, () => {
       const audio = new Audio(panelHoverSound);
       audio.preload = 'auto';
-      audio.volume = 0.21;
+      audio.volume = 0.105;
       return audio;
     });
 
@@ -7046,7 +7046,7 @@ export default function App() {
             audio.pause();
             audio.currentTime = 0;
             audio.muted = previousMuted;
-            audio.volume = 0.21;
+            audio.volume = 0.105;
           };
 
           if (playback?.then) {
@@ -7108,7 +7108,7 @@ export default function App() {
     const audioPool = Array.from({ length: 4 }, () => {
       const audio = new Audio(PAGE_CLICK_SOUND);
       audio.preload = 'auto';
-      audio.volume = 0.24;
+      audio.volume = 0.12;
       return audio;
     });
     let audioIndex = 0;
