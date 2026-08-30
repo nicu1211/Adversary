@@ -5752,16 +5752,12 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     // remains active, so the bubbles still feel alive and interactive.
     const repelFromNavigation = () => {};
 
-    const ORB_INTERACTIVE_FRAME_INTERVAL = 1000 / 24;
-    const ORB_IDLE_FRAME_INTERVAL = 1000 / 15;
+    const ORB_FRAME_INTERVAL = 1000 / 24;
 
     const animate = (time) => {
       const pointer = pointerRef.current;
-      const frameInterval = pointer.active
-        ? ORB_INTERACTIVE_FRAME_INTERVAL
-        : ORB_IDLE_FRAME_INTERVAL;
 
-      if (time - previousTime < frameInterval) {
+      if (time - previousTime < ORB_FRAME_INTERVAL) {
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
