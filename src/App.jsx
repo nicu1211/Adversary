@@ -1084,17 +1084,11 @@ const GLOBAL_PANEL_CSS = `
     top: 0;
     width: var(--orb-size, 76px);
     height: var(--orb-size, 76px);
-    opacity: var(--orb-opacity, 0.68);
-    transform: translate3d(
-        var(--orb-x, 0px),
-        var(--orb-y, 0px),
-        0
-      )
-      rotate(var(--orb-rotation, 0deg))
-      scale(var(--orb-react-scale, 1));
+    opacity: 0.68;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
     transform-origin: center;
     will-change: transform, opacity;
-    transition: opacity 150ms ease, filter 150ms ease;
+    transition: opacity 150ms ease;
     pointer-events: auto;
     cursor: pointer;
     border: 0;
@@ -1107,7 +1101,6 @@ const GLOBAL_PANEL_CSS = `
   .adversary-sidebar-class-orb-shell:hover,
   .adversary-sidebar-class-orb-shell:focus-visible {
     opacity: 1;
-    filter: brightness(1.12);
     outline: none;
   }
 
@@ -1120,19 +1113,9 @@ const GLOBAL_PANEL_CSS = `
     box-shadow: 0 0 16px rgba(250, 204, 21, 0.48);
   }
 
+  /* Expensive moving blur glow removed for smoother software rendering. */
   .adversary-sidebar-class-orb-shell::before {
-    content: '';
-    position: absolute;
-    inset: 15%;
-    border-radius: 999px;
-    background: radial-gradient(
-      circle,
-      rgba(var(--orb-glow-rgb, 239, 68, 68), 0.18),
-      rgba(var(--orb-glow-rgb, 239, 68, 68), 0.055) 48%,
-      transparent 74%
-    );
-    filter: blur(11px);
-    transform: scale(1.38);
+    display: none;
   }
 
   .adversary-sidebar-class-orb {
@@ -1146,11 +1129,7 @@ const GLOBAL_PANEL_CSS = `
     animation: adversary-sidebar-orb-breathe var(--orb-duration, 8s)
       ease-in-out infinite;
     animation-delay: var(--orb-delay, 0s);
-    filter:
-      saturate(1.12)
-      contrast(1.05)
-      drop-shadow(0 0 10px rgba(var(--orb-glow-rgb, 239, 68, 68), 0.34))
-      drop-shadow(0 8px 16px rgba(0, 0, 0, 0.32));
+    /* Keep the moving image unfiltered so each frame is cheap to composite. */
   }
 
   .adversary-sidebar-class-orb-shell.is-red {
@@ -5706,51 +5685,23 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
         const eased = proximity * proximity;
 
-        orb.style.setProperty('--orb-x', `${state.x.toFixed(2)}px`);
-        orb.style.setProperty('--orb-y', `${state.y.toFixed(2)}px`);
-        orb.style.setProperty(
-          '--orb-rotation',
-          `${state.rotation.toFixed(2)}deg`,
-        );
-        orb.style.setProperty(
-          '--orb-react-scale',
-          String((1 + eased * 0.18).toFixed(3)),
-        );
-        orb.style.setProperty(
-          '--orb-opacity',
-          String(
-            Math.min(1, config.opacity + eased * 0.30).toFixed(3),
-          ),
-        );
+        const scale = (1 + eased * 0.18).toFixed(3);
+        const opacity = isHovered
+          ? 1
+          : Math.min(1, config.opacity + eased * 0.30).toFixed(3);
+
+        // Two DOM writes per orb/frame instead of five CSS-variable writes.
+        orb.style.transform = `translate3d(${state.x.toFixed(2)}px, ${state.y.toFixed(
+          2,
+        )}px, 0) rotate(${state.rotation.toFixed(2)}deg) scale(${scale})`;
+        orb.style.opacity = String(opacity);
       });
     };
 
     // Orb-to-orb collision physics removed for performance.
 
-    let navigationObstacles = [];
-
-    const measureNavigationObstacles = () => {
-      const layerBounds = layer.getBoundingClientRect();
-      navigationObstacles = Array.from(
-        sidebar.querySelectorAll('.adversary-sidebar-nav-zone .adversary-menu-button'),
-      ).map((element) => {
-        const bounds = element.getBoundingClientRect();
-        const paddingX = 13;
-        const paddingY = 10;
-
-        return {
-          left: bounds.left - layerBounds.left - paddingX,
-          right: bounds.right - layerBounds.left + paddingX,
-          top: bounds.top - layerBounds.top - paddingY,
-          bottom: bounds.bottom - layerBounds.top + paddingY,
-        };
-      });
-    };
-
-    // Let class orbs travel behind the translucent navigation labels instead of
-    // being trapped between menu buttons. Cursor repulsion
-    // remains active, so the bubbles still feel alive and interactive.
-    const repelFromNavigation = () => {};
+    // Navigation obstacle measurements removed: orbs intentionally travel
+    // behind the translucent navigation buttons.
 
     const ORB_FRAME_INTERVAL = 1000 / 24;
 
@@ -5806,8 +5757,6 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             (deltaY / distance) * radialForce +
             pointer.vy * sweepForce;
         }
-
-        repelFromNavigation(state, config, delta);
 
         state.vx *= Math.pow(ORB_AIR_DRAG, delta);
         state.vy *= Math.pow(ORB_AIR_DRAG, delta);
@@ -5886,12 +5835,10 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
 
     const handleResize = () => {
       measureLayer();
-      measureNavigationObstacles();
       writeOrbStyles(pointerRef.current.active);
     };
 
     measureLayer();
-    measureNavigationObstacles();
     writeOrbStyles(false);
 
     sidebar.addEventListener('pointermove', handlePointerMove, {
@@ -6707,7 +6654,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
             }}
             style={{
               '--orb-size': `${orb.size}px`,
-              '--orb-opacity': orb.opacity,
+              opacity: orb.opacity,
               '--orb-duration': orb.duration,
               '--orb-delay': orb.delay,
               '--orb-glow-rgb': orb.glow || '239, 68, 68',
