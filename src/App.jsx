@@ -754,8 +754,8 @@ const GLOBAL_PANEL_CSS = `
       var(--adversary-panel-bg-top),
       var(--adversary-panel-bg-bottom)
     ) !important;
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .adversary-content .adversary-color-panel {
@@ -781,8 +781,8 @@ const GLOBAL_PANEL_CSS = `
       inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.22),
       inset 0 0 42px rgba(var(--adversary-panel-accent-rgb), 0.075),
       0 12px 28px rgba(0, 0, 0, 0.22);
-    -webkit-backdrop-filter: blur(8px) saturate(122%);
-    backdrop-filter: blur(8px) saturate(122%);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     transition:
       border-color 180ms ease,
       box-shadow 180ms ease,
@@ -840,8 +840,8 @@ const GLOBAL_PANEL_CSS = `
       inset 0 1px 0 rgba(255, 255, 255, 0.045),
       inset 0 -1px 0 rgba(var(--adversary-panel-accent-rgb), 0.16),
       0 12px 28px rgba(0, 0, 0, 0.24) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(122%);
-    backdrop-filter: blur(8px) saturate(122%);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   body[data-adversary-page="guild"] .adversary-page-guild .adversary-color-panel:hover {
@@ -1174,8 +1174,8 @@ const GLOBAL_PANEL_CSS = `
     place-items: center;
     padding: 20px;
     background: rgba(2, 6, 23, 0.78);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .adversary-class-modal {
@@ -2670,8 +2670,8 @@ const GLOBAL_PANEL_CSS = `
     box-shadow:
       inset 0 0 36px rgba(var(--adversary-panel-accent-rgb, 6,182,212), 0.055),
       0 10px 24px rgba(0, 0, 0, 0.18) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(122%) !important;
-    backdrop-filter: blur(8px) saturate(122%) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .adversary-content .adversary-stat-panel:hover,
@@ -2732,8 +2732,8 @@ const GLOBAL_PANEL_CSS = `
   /* Preserve the existing Player Performance scrolling and sticky header. */
   .adversary-content .monthly-player-performance-header {
     background: rgba(2, 6, 17, 0.94) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42) !important;
   }
 
@@ -3067,7 +3067,7 @@ const GLOBAL_PANEL_CSS = `
       background: rgba(3,5,7,.68) !important;
       color: rgba(246,201,21,.72) !important;
       box-shadow: inset 0 0 14px rgba(246,201,21,.02) !important;
-      backdrop-filter: blur(10px);
+      backdrop-filter: none !important;
     }
 
     .adversary-sidebar-nav-zone > div:first-child .adversary-menu-button {
@@ -3216,8 +3216,8 @@ const GLOBAL_PANEL_CSS = `
 
     .adversary-sidebar .adversary-menu-button {
       background-color: rgba(3,5,7,.50) !important;
-      backdrop-filter: blur(7px);
-      -webkit-backdrop-filter: blur(7px);
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
     }
   }
 
@@ -3380,8 +3380,8 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
       inset 0 1px 0 rgba(255,232,125,.035),
       inset 0 0 26px rgba(var(--tech-gold-rgb),.018),
       0 8px 22px rgba(0,0,0,.26) !important;
-    backdrop-filter: blur(5px) saturate(112%) !important;
-    -webkit-backdrop-filter: blur(5px) saturate(112%) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   body:not([data-adversary-page="nodewars"]) .adversary-content :is(
@@ -5802,7 +5802,14 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     // remain active, so the bubbles still feel alive and interactive.
     const repelFromNavigation = () => {};
 
+    const ORB_FRAME_INTERVAL = 1000 / 30;
+
     const animate = (time) => {
+      if (time - previousTime < ORB_FRAME_INTERVAL) {
+        animationFrame = window.requestAnimationFrame(animate);
+        return;
+      }
+
       const delta = Math.min(2.2, Math.max(0.35, (time - previousTime) / 16.667));
       previousTime = time;
       const pointer = pointerRef.current;
@@ -8085,7 +8092,7 @@ export default function App() {
           Skip
         </button>
       )}
-      <div className={`sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 backdrop-blur-xl transition-opacity duration-500 lg:hidden ${
+      <div className={`sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 transition-opacity duration-500 lg:hidden ${
         startupFading || startupFinished ? 'opacity-100' : 'pointer-events-none opacity-0'
       }`}>
         <div className="mb-3 text-lg font-black tracking-[0.18em] text-amber-300 drop-shadow-[0_0_16px_rgba(250,204,21,.38)]">
@@ -8151,7 +8158,7 @@ export default function App() {
       <div className={`adversary-layout-grid relative z-10 grid transition-opacity duration-500 lg:grid-cols-[250px_1fr] ${
         startupFading || startupFinished ? 'opacity-100' : 'pointer-events-none opacity-0'
       }`}>
-        <aside className="adversary-sidebar relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 backdrop-blur-2xl lg:flex">
+        <aside className="adversary-sidebar relative hidden min-h-screen flex-col overflow-hidden border-r border-slate-800/90 bg-slate-950/82 p-4 lg:flex">
           <SidebarClassOrbs
             members={members}
             logs={Array.isArray(allLogs) ? allLogs : nodeLogs}
