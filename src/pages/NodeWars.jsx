@@ -1517,7 +1517,7 @@ export default function NodeWars({
           {/* War list. */}
           <div
             onScroll={handleWarsListScroll}
-            className={`${filtersVisible ? 'max-h-[calc(100vh-260px)]' : 'max-h-[calc(100vh-190px)]'} space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
+            className={`max-h-[1340px] space-y-2 overflow-auto px-1 py-1 transition-[max-height] duration-300 ${scrollCls}`}
           >
             {loading && !rows.length ? (
               <div className="nodewars-guild-panel rounded-xl border px-4 py-12 text-center text-sm font-bold text-slate-400">
