@@ -63,8 +63,8 @@ const NODE_WARS_PANEL_CSS = `
       inset 0 1px 0 rgba(255,232,125,.035),
       inset 0 0 26px rgba(var(--nw-gold-rgb), .018),
       0 8px 22px rgba(0,0,0,.26) !important;
-    backdrop-filter: blur(5px) saturate(112%);
-    -webkit-backdrop-filter: blur(5px) saturate(112%);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   #root .adversary-content .nodewars-guild-panel::before {
@@ -814,10 +814,6 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
       } lg:grid-cols-[118px_1fr]`}
       style={{ '--nodewars-accent-rgb': accent.rgb }}
     >
-      <div
-        className={`nodewars-card-glow pointer-events-none absolute -inset-[2px] -z-10 rounded-xl ${accent.glow} opacity-0 blur-xl transition duration-200 group-hover:opacity-30`}
-      />
-
       <div
         className="nodewars-war-date relative flex min-h-[94px] flex-col justify-between overflow-hidden rounded-l-xl p-3"
       >
