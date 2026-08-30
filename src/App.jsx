@@ -1068,7 +1068,7 @@ const GLOBAL_PANEL_CSS = `
 
   /* Floating class orbs live behind the desktop navigation. Their movement is
      handled by a small low-gravity physics loop: they drift across the full
-     sidebar, bounce softly from its edges, nudge one another, and are pushed
+     sidebar, bounce softly from its edges and are pushed
      away by the cursor without ever blocking the navigation. */
   .adversary-sidebar-class-orbs {
     position: absolute;
@@ -5725,57 +5725,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       });
     };
 
-    const resolveOrbCollision = () => {
-      const states = physicsRef.current;
-
-      for (let firstIndex = 0; firstIndex < states.length; firstIndex += 1) {
-        for (
-          let secondIndex = firstIndex + 1;
-          secondIndex < states.length;
-          secondIndex += 1
-        ) {
-          const first = states[firstIndex];
-          const second = states[secondIndex];
-          const firstConfig = SIDEBAR_CLASS_ORBS[firstIndex];
-          const secondConfig = SIDEBAR_CLASS_ORBS[secondIndex];
-
-          if (!first || !second || !firstConfig || !secondConfig) continue;
-
-          const firstCenterX = first.x + firstConfig.size / 2;
-          const firstCenterY = first.y + firstConfig.size / 2;
-          const secondCenterX = second.x + secondConfig.size / 2;
-          const secondCenterY = second.y + secondConfig.size / 2;
-          const deltaX = secondCenterX - firstCenterX;
-          const deltaY = secondCenterY - firstCenterY;
-          const distance = Math.max(0.001, Math.hypot(deltaX, deltaY));
-          const minimumDistance =
-            (firstConfig.size + secondConfig.size) * 0.40;
-
-          if (distance >= minimumDistance) continue;
-
-          const normalX = deltaX / distance;
-          const normalY = deltaY / distance;
-          const overlap = minimumDistance - distance;
-          const relativeVelocityX = second.vx - first.vx;
-          const relativeVelocityY = second.vy - first.vy;
-          const separatingSpeed =
-            relativeVelocityX * normalX + relativeVelocityY * normalY;
-
-          first.x -= normalX * overlap * 0.5;
-          first.y -= normalY * overlap * 0.5;
-          second.x += normalX * overlap * 0.5;
-          second.y += normalY * overlap * 0.5;
-
-          if (separatingSpeed < 0) {
-            const impulse = -(1 + 0.90) * separatingSpeed * 0.5;
-            first.vx -= impulse * normalX;
-            first.vy -= impulse * normalY;
-            second.vx += impulse * normalX;
-            second.vy += impulse * normalY;
-          }
-        }
-      }
-    };
+    // Orb-to-orb collision physics removed for performance.
 
     let navigationObstacles = [];
 
@@ -5798,21 +5748,26 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     };
 
     // Let class orbs travel behind the translucent navigation labels instead of
-    // being trapped between menu buttons. Cursor repulsion and orb collisions
-    // remain active, so the bubbles still feel alive and interactive.
+    // being trapped between menu buttons. Cursor repulsion
+    // remains active, so the bubbles still feel alive and interactive.
     const repelFromNavigation = () => {};
 
-    const ORB_FRAME_INTERVAL = 1000 / 30;
+    const ORB_INTERACTIVE_FRAME_INTERVAL = 1000 / 24;
+    const ORB_IDLE_FRAME_INTERVAL = 1000 / 15;
 
     const animate = (time) => {
-      if (time - previousTime < ORB_FRAME_INTERVAL) {
+      const pointer = pointerRef.current;
+      const frameInterval = pointer.active
+        ? ORB_INTERACTIVE_FRAME_INTERVAL
+        : ORB_IDLE_FRAME_INTERVAL;
+
+      if (time - previousTime < frameInterval) {
         animationFrame = window.requestAnimationFrame(animate);
         return;
       }
 
-      const delta = Math.min(2.2, Math.max(0.35, (time - previousTime) / 16.667));
+      const delta = Math.min(4.2, Math.max(0.35, (time - previousTime) / 16.667));
       previousTime = time;
-      const pointer = pointerRef.current;
 
       pointer.vx *= Math.pow(0.84, delta);
       pointer.vy *= Math.pow(0.84, delta);
@@ -5903,7 +5858,6 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
         }
       });
 
-      resolveOrbCollision();
       writeOrbStyles(pointer.active);
       animationFrame = window.requestAnimationFrame(animate);
     };
