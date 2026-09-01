@@ -460,7 +460,6 @@ const GUILD_ROSTER = Object.freeze([
   'Dovah',
   'Potetmos',
   'Jeung',
-  'Gandolfini',
   'Zyxzo',
   'Telvanis',
   'Scarmartem',
@@ -483,7 +482,7 @@ const GUILD_ROSTER = Object.freeze([
   'FartedNervously',
   'Ferz',
   'Attack',
-  'Nerros',
+  'Skilacci',
   'McPero'
 ]);
 
