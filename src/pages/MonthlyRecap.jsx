@@ -420,7 +420,6 @@ const GUILD_ROSTER = Object.freeze([
   'Alexvale',
   'Bertoweed',
   'Facetasm',
-  'Wallmann',
   'Askild',
   'Bazu19',
   'Reader',
