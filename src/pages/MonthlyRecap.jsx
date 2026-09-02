@@ -461,7 +461,7 @@ const GUILD_ROSTER = Object.freeze([
   'Jeung',
   'Zyxzo',
   'Telvanis',
-  'Scarmartem',
+  'XscarX',
   'INoGameNoLife',
   'RXJ',
   'ItsPretense',
@@ -471,7 +471,7 @@ const GUILD_ROSTER = Object.freeze([
   'Kyedae',
   'PeerIess',
   'Deathscyv1',
-  'Skillacci',
+  'Skilacci',
   'Kaelt',
   'Ain',
   'Echoe',
@@ -481,7 +481,6 @@ const GUILD_ROSTER = Object.freeze([
   'FartedNervously',
   'Ferz',
   'Attack',
-  'Skilacci',
   'Protect',
   'McPero'
 ]);
