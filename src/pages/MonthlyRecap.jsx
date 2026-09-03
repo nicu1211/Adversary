@@ -387,7 +387,6 @@ const MONTHLY_GUILD_PANEL_CSS = `
 const GUILD_ROSTER = Object.freeze([
   'TwinDsclplNs',
   'Kacp12',
-  'AstrilTrinity',
   'Revekk',
   'GamblingProblem',
   'XamaraX',
