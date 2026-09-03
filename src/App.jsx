@@ -5703,7 +5703,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     // Navigation obstacle measurements removed: orbs intentionally travel
     // behind the translucent navigation buttons.
 
-    const ORB_FRAME_INTERVAL = 1000 / 24;
+    const ORB_FRAME_INTERVAL = 1000 / 30;
 
     const animate = (time) => {
       const pointer = pointerRef.current;
