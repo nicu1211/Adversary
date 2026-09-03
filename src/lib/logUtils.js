@@ -944,8 +944,14 @@ function parseClassicEventLine(line, index, name, date, id) {
 
   if (families.length < 2) return null;
 
-  if (info.includes(' has killed ')) {
-    const [killer, rest] = info.split(' has killed ');
+  const killSeparator = info.includes(' has killed ')
+    ? ' has killed '
+    : info.includes(' killed ')
+      ? ' killed '
+      : null;
+
+  if (killSeparator) {
+    const [killer, rest] = info.split(killSeparator);
     const [victim, guild] = rest.split(' from ');
 
     return guild
