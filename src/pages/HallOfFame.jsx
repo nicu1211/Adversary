@@ -4084,18 +4084,14 @@ function CombatRecordsPanel({ data }) {
   );
 }
 
-function MilestoneEmblemBadge({ threshold, compact = false }) {
+function MilestoneEmblemBadge({ threshold }) {
   const label = threshold >= 1000 ? `${Math.round(threshold / 1000)}K` : String(threshold);
-  // Header emblems are not a separate compact design. They are an exact,
-  // uniformly scaled copy of the 92px emblem used inside each milestone card.
-  const compactScale = 40 / 92;
-
   return (
-    <div className={cls('relative shrink-0', compact ? 'h-10 w-10' : 'h-[92px] w-[92px]')}>
+    <div className="relative h-[92px] w-[92px] shrink-0">
       <div
         className="absolute left-1/2 top-1/2 h-[92px] w-[92px]"
         style={{
-          transform: `translate(-50%, -50%) scale(${compact ? compactScale : 1})`,
+          transform: 'translate(-50%, -50%)',
           transformOrigin: 'center',
         }}
       >
@@ -4137,15 +4133,6 @@ function MilestoneEmblemBadge({ threshold, compact = false }) {
   );
 }
 
-function MilestoneHeaderIcons({ thresholds = [] }) {
-  return (
-    <span className="ml-1 inline-flex items-center gap-1" aria-hidden="true">
-      {thresholds.map((threshold) => (
-        <MilestoneEmblemBadge key={`header-${threshold}`} threshold={threshold} compact />
-      ))}
-    </span>
-  );
-}
 
 function MilestoneLeaderboardCard({
   threshold,
@@ -4211,7 +4198,7 @@ function FirstMilestonesPanel({ data }) {
 
   return (
     <PremiumPanel className="p-5">
-      <SectionTitle icon={Trophy} title="First Milestones" titleExtra={<MilestoneHeaderIcons thresholds={thresholds} />} />
+      <SectionTitle icon={Trophy} title="First Milestones" />
       <div className="grid gap-5 xl:grid-cols-3">
         {thresholds.map((threshold) => (
           <MilestoneLeaderboardCard
@@ -4231,7 +4218,7 @@ function FastestMilestonesPanel({ data }) {
 
   return (
     <PremiumPanel className="p-5">
-      <SectionTitle icon={Zap} title="Fastest Milestones" titleExtra={<MilestoneHeaderIcons thresholds={thresholds} />} />
+      <SectionTitle icon={Zap} title="Fastest Milestones" />
       <div className="grid gap-5 xl:grid-cols-3">
         {thresholds.map((threshold) => (
           <MilestoneLeaderboardCard
