@@ -4086,45 +4086,51 @@ function CombatRecordsPanel({ data }) {
 
 function MilestoneEmblemBadge({ threshold, compact = false }) {
   const label = threshold >= 1000 ? `${Math.round(threshold / 1000)}K` : String(threshold);
+  // Header emblems are not a separate compact design. They are an exact,
+  // uniformly scaled copy of the 92px emblem used inside each milestone card.
+  const compactScale = 40 / 92;
 
   return (
     <div className={cls('relative shrink-0', compact ? 'h-10 w-10' : 'h-[92px] w-[92px]')}>
-      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
-        <defs>
-          <linearGradient id={`hall-milestone-blue-${label}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(165,220,255,0.98)" />
-            <stop offset="55%" stopColor="rgba(59,130,246,0.96)" />
-            <stop offset="100%" stopColor="rgba(30,64,175,0.96)" />
-          </linearGradient>
-        </defs>
-        <polygon
-          points="50,3 84,22 84,61 50,96 16,61 16,22"
-          fill="rgba(5,8,12,0.72)"
-          stroke={`url(#hall-milestone-blue-${label})`}
-          strokeWidth="2.5"
-        />
-        <polygon
-          points="50,12 76,27 76,56 50,82 24,56 24,27"
-          fill="rgba(10,14,18,0.84)"
-          stroke="rgba(125,211,252,0.62)"
-          strokeWidth="1.6"
-        />
-        <path d="M16 22 L50 40 L84 22" fill="none" stroke="rgba(96,165,250,0.42)" strokeWidth="1.5" />
-        <path d="M24 56 L50 40 L76 56" fill="none" stroke="rgba(96,165,250,0.36)" strokeWidth="1.5" />
-        <path d="M24 27 L50 54 L76 27" fill="none" stroke="rgba(96,165,250,0.24)" strokeWidth="1.2" />
-        <path d="M20 67 L9 58" fill="none" stroke="rgba(125,211,252,0.66)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M23 60 L8 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M80 67 L91 58" fill="none" stroke="rgba(125,211,252,0.66)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M77 60 L92 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div
-          className={cls(
-            'border border-sky-300/35 bg-blue-500/12 font-black tracking-tight text-sky-200 shadow-[0_0_16px_rgba(59,130,246,.22)]',
-            compact ? 'rounded-md px-1 py-0.5 text-[9px]' : 'rounded-xl px-2.5 py-1 text-[20px]',
-          )}
-        >
-          {label}
+      <div
+        className="absolute left-1/2 top-1/2 h-[92px] w-[92px]"
+        style={{
+          transform: `translate(-50%, -50%) scale(${compact ? compactScale : 1})`,
+          transformOrigin: 'center',
+        }}
+      >
+        <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
+          <defs>
+            <linearGradient id={`hall-milestone-blue-${label}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="rgba(165,220,255,0.98)" />
+              <stop offset="55%" stopColor="rgba(59,130,246,0.96)" />
+              <stop offset="100%" stopColor="rgba(30,64,175,0.96)" />
+            </linearGradient>
+          </defs>
+          <polygon
+            points="50,3 84,22 84,61 50,96 16,61 16,22"
+            fill="rgba(5,8,12,0.72)"
+            stroke={`url(#hall-milestone-blue-${label})`}
+            strokeWidth="2.5"
+          />
+          <polygon
+            points="50,12 76,27 76,56 50,82 24,56 24,27"
+            fill="rgba(10,14,18,0.84)"
+            stroke="rgba(125,211,252,0.62)"
+            strokeWidth="1.6"
+          />
+          <path d="M16 22 L50 40 L84 22" fill="none" stroke="rgba(96,165,250,0.42)" strokeWidth="1.5" />
+          <path d="M24 56 L50 40 L76 56" fill="none" stroke="rgba(96,165,250,0.36)" strokeWidth="1.5" />
+          <path d="M24 27 L50 54 L76 27" fill="none" stroke="rgba(96,165,250,0.24)" strokeWidth="1.2" />
+          <path d="M20 67 L9 58" fill="none" stroke="rgba(125,211,252,0.66)" strokeWidth="2.4" strokeLinecap="round" />
+          <path d="M23 60 L8 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
+          <path d="M80 67 L91 58" fill="none" stroke="rgba(125,211,252,0.66)" strokeWidth="2.4" strokeLinecap="round" />
+          <path d="M77 60 L92 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="rounded-xl border border-sky-300/35 bg-blue-500/12 px-2.5 py-1 text-[20px] font-black tracking-tight text-sky-200 shadow-[0_0_16px_rgba(59,130,246,.22)]">
+            {label}
+          </div>
         </div>
       </div>
     </div>
