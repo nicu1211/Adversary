@@ -8231,6 +8231,7 @@ export default function App() {
                   stats={stats}
                   allTimeStats={allTimeStats}
                   playerClassMap={monthlyPlayerClassMap}
+                  classIconByName={PLAYER_CLASS_ICON_BY_NAME}
                 />
               )}
             </Suspense>
