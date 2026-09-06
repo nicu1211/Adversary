@@ -4087,9 +4087,9 @@ function CombatRecordsPanel({ data }) {
 function MilestoneEmblemBadge({ threshold }) {
   const label = threshold >= 1000 ? `${Math.round(threshold / 1000)}K` : String(threshold);
   return (
-    <div className="relative h-[92px] w-[92px] shrink-0">
+    <div className="relative h-[58px] w-[58px] shrink-0">
       <div
-        className="absolute left-1/2 top-1/2 h-[92px] w-[92px]"
+        className="absolute left-1/2 top-1/2 h-[58px] w-[58px]"
         style={{
           transform: 'translate(-50%, -50%)',
           transformOrigin: 'center',
@@ -4124,7 +4124,7 @@ function MilestoneEmblemBadge({ threshold }) {
           <path d="M77 60 L92 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="rounded-xl border border-sky-300/35 bg-blue-500/12 px-2.5 py-1 text-[20px] font-black tracking-tight text-sky-200 shadow-[0_0_16px_rgba(59,130,246,.22)]">
+          <div className="rounded-xl border border-sky-300/35 bg-blue-500/12 px-1.5 py-0.5 text-[13px] font-black tracking-tight text-sky-200 shadow-[0_0_16px_rgba(59,130,246,.22)]">
             {label}
           </div>
         </div>
@@ -4153,8 +4153,8 @@ function MilestoneLeaderboardCard({
           'linear-gradient(30deg, rgba(59,130,246,.20) 12%, transparent 12.5%, transparent 87%, rgba(59,130,246,.20) 87.5%), linear-gradient(150deg, rgba(14,165,233,.17) 12%, transparent 12.5%, transparent 87%, rgba(14,165,233,.17) 87.5%), radial-gradient(circle at 18% 28%, rgba(125,211,252,.30) 0 1.5px, transparent 2.5px), radial-gradient(circle at 74% 62%, rgba(96,165,250,.22) 0 1px, transparent 2px)',
         backgroundSize: '30px 52px, 30px 52px, 120px 120px, 150px 150px',
       }} />
-      <div className="pointer-events-none absolute inset-y-0 left-[112px] w-px bg-gradient-to-b from-transparent via-sky-300/18 to-transparent" />
-      <div className="relative flex items-start gap-4">
+      <div className="pointer-events-none absolute inset-y-0 left-[76px] w-px bg-gradient-to-b from-transparent via-sky-300/18 to-transparent" />
+      <div className="relative flex items-start gap-3">
         <div className="sticky top-0 pt-1">
           <MilestoneEmblemBadge threshold={threshold} />
         </div>
