@@ -62,6 +62,23 @@ function compareChronology(a, b) {
   );
 }
 
+function compareMetricChronology(a, b, metricKey) {
+  const fallback = '9999-99-99 99999999 99999999';
+  const aKey = String(a?.metricChronology?.[metricKey] || a?.chronologyKey || fallback);
+  const bKey = String(b?.metricChronology?.[metricKey] || b?.chronologyKey || fallback);
+
+  return aKey.localeCompare(bKey) || compareChronology(a, b);
+}
+
+function normalizeHallPlayerKey(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
 function initials(name) {
   return String(name || '?')
     .split(/\s+/)
@@ -997,19 +1014,27 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
   // complete Combat Log inside every player and leaderboard calculation.
   const firstCombatKeyByPlayer = {};
   const firstCombatKeyByWarPlayer = {};
+  const lastCombatKeyByPlayer = {};
+  const lastKillKeyByPlayer = {};
 
   [...events]
     .sort((a, b) => eventSortKey(a).localeCompare(eventSortKey(b)))
     .forEach((event) => {
       const playerName = getGuildInvolvedPlayer(event);
-
-      if (!playerName) return;
-
+      const killPlayer = getGuildKillPlayer(event);
       const eventKey = eventSortKey(event);
-      const warPlayerKey = `${eventWarId(event)}::${playerName}`;
 
-      firstCombatKeyByPlayer[playerName] ||= eventKey;
-      firstCombatKeyByWarPlayer[warPlayerKey] ||= eventKey;
+      if (playerName) {
+        const warPlayerKey = `${eventWarId(event)}::${playerName}`;
+
+        firstCombatKeyByPlayer[playerName] ||= eventKey;
+        firstCombatKeyByWarPlayer[warPlayerKey] ||= eventKey;
+        lastCombatKeyByPlayer[playerName] = eventKey;
+      }
+
+      if (killPlayer) {
+        lastKillKeyByPlayer[killPlayer] = eventKey;
+      }
     });
 
   const totalWars = warList.length || new Set(events.map((event) => String(event.id || event.date))).size;
@@ -1084,6 +1109,55 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       firstCombatKeyByWarPlayer[`${warId}::${name}`] ||
       getPlayerChronologyKey(name)
     );
+  }
+
+  function getMatchChronologyKey(match, name) {
+    if (!match) return getPlayerChronologyKey(name);
+
+    return (
+      firstCombatKeyByWarPlayer[`${match.warId}::${name}`] ||
+      warSortKey(match.warId, match.date) ||
+      getPlayerChronologyKey(name)
+    );
+  }
+
+  function sortPlayerMatchesChronologically(name, matches) {
+    return [...(matches || [])].sort((a, b) =>
+      getMatchChronologyKey(a, name).localeCompare(getMatchChronologyKey(b, name)),
+    );
+  }
+
+  function getLastMetricChronologyKey(name, matches) {
+    const ordered = sortPlayerMatchesChronologically(name, matches);
+    return ordered.length
+      ? getMatchChronologyKey(ordered[ordered.length - 1], name)
+      : getPlayerChronologyKey(name);
+  }
+
+  function getFirstMaxMetricChronologyKey(name, matches, readValue) {
+    const ordered = sortPlayerMatchesChronologically(name, matches);
+    if (!ordered.length) return getPlayerChronologyKey(name);
+
+    const maximum = Math.max(
+      ...ordered.map((match) => Number(readValue(match)) || 0),
+    );
+    const firstMaximum = ordered.find(
+      (match) => (Number(readValue(match)) || 0) === maximum,
+    );
+
+    return getMatchChronologyKey(firstMaximum || ordered[0], name);
+  }
+
+  function getLastQualifyingChronologyKey(name, matches, predicate) {
+    const ordered = sortPlayerMatchesChronologically(name, matches).filter(predicate);
+    return ordered.length
+      ? getMatchChronologyKey(ordered[ordered.length - 1], name)
+      : getPlayerChronologyKey(name);
+  }
+
+  function latestChronologyKey(keys, fallback) {
+    const available = (keys || []).filter(Boolean).map(String).sort();
+    return available.length ? available[available.length - 1] : fallback;
   }
 
   function getPlayerMatchValues(name) {
@@ -1173,6 +1247,31 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     return best;
   }
 
+  function getLongestConsecutiveWarStreakChronologyKey(name) {
+    const indices = [...new Set(getPlayerWarIndices(name))];
+    if (!indices.length) return getPlayerChronologyKey(name);
+
+    let best = 1;
+    let current = 1;
+    let bestIndex = indices[0];
+
+    for (let index = 1; index < indices.length; index += 1) {
+      if (indices[index] === indices[index - 1] + 1) {
+        current += 1;
+      } else {
+        current = 1;
+      }
+
+      if (current > best) {
+        best = current;
+        bestIndex = indices[index];
+      }
+    }
+
+    const war = warList[bestIndex];
+    return war ? warSortKey(war.id, war.date) : getPlayerChronologyKey(name);
+  }
+
   function getJoinParticipation(name) {
     const playerWarIndices = getPlayerWarIndices(name);
 
@@ -1235,6 +1334,53 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
 
     return best;
   }
+
+  // Record when each player's best kill streak / kill feed value was first achieved.
+  // This is used only as the tie-breaker; the displayed values stay unchanged.
+  const streakChronologyByPlayer = {};
+  const feedChronologyByPlayer = {};
+  const bestStreakValueByPlayer = {};
+  const bestFeedValueByPlayer = {};
+
+  warList.forEach((war) => {
+    const currentStreakByPlayer = {};
+    const recentKillSecondsByPlayer = {};
+
+    getWarEventsSorted(war.events || []).forEach((event) => {
+      const involvedPlayer = getGuildInvolvedPlayer(event);
+      const killPlayer = getGuildKillPlayer(event);
+      const eventKey = eventSortKey(event);
+
+      if (event.type === 'death' && involvedPlayer) {
+        currentStreakByPlayer[involvedPlayer] = 0;
+      }
+
+      if (event.type !== 'kill' || !killPlayer) return;
+
+      const nextStreak = (currentStreakByPlayer[killPlayer] || 0) + 1;
+      currentStreakByPlayer[killPlayer] = nextStreak;
+
+      if (nextStreak > (bestStreakValueByPlayer[killPlayer] || 0)) {
+        bestStreakValueByPlayer[killPlayer] = nextStreak;
+        streakChronologyByPlayer[killPlayer] = eventKey;
+      }
+
+      const second = Number(event.sec) || 0;
+      const recentKills = recentKillSecondsByPlayer[killPlayer] || [];
+      recentKills.push(second);
+
+      while (recentKills.length && second - recentKills[0] > 10) {
+        recentKills.shift();
+      }
+
+      recentKillSecondsByPlayer[killPlayer] = recentKills;
+
+      if (recentKills.length > (bestFeedValueByPlayer[killPlayer] || 0)) {
+        bestFeedValueByPlayer[killPlayer] = recentKills.length;
+        feedChronologyByPlayer[killPlayer] = eventKey;
+      }
+    });
+  });
 
   // Average Rank uses the same formula as Overview -> Best Overall:
   // 1. Rank every available metric inside each war.
@@ -1941,6 +2087,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
   // in each Combat Log / Node War. If the first kill belongs to an enemy, no guild
   // player receives a First Blood for that war.
   const firstBloodsByPlayer = {};
+  const firstBloodChronologyByPlayer = {};
 
   warList.forEach((war) => {
     const firstKillEvent = getWarEventsSorted(war.events || []).find(
@@ -1957,6 +2104,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
 
     firstBloodsByPlayer[firstBloodPlayer] =
       (firstBloodsByPlayer[firstBloodPlayer] || 0) + 1;
+    firstBloodChronologyByPlayer[firstBloodPlayer] = eventSortKey(firstKillEvent);
   });
 
   const rows = (safe.players || [])
@@ -2097,6 +2245,95 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       const statsLogAppearances =
         statsLogAppearancesByPlayer[String(player.name || '').trim().toLowerCase()] || 0;
       const chronologyKey = getPlayerChronologyKey(player.name);
+      const allMatchesChronological = sortPlayerMatchesChronologically(
+        player.name,
+        Object.values(playerMatchMap[player.name] || {}),
+      );
+      const lastTrackedMatchKey = allMatchesChronological.length
+        ? getMatchChronologyKey(
+            allMatchesChronological[allMatchesChronological.length - 1],
+            player.name,
+          )
+        : (lastCombatKeyByPlayer[player.name] || chronologyKey);
+      const metricChronology = {
+        kills: latestChronologyKey(
+          [
+            lastKillKeyByPlayer[player.name],
+            getLastQualifyingChronologyKey(
+              player.name,
+              matchValues,
+              (match) => (Number(match.kills) || 0) > 0,
+            ),
+          ],
+          chronologyKey,
+        ),
+        kd: latestChronologyKey(
+          [
+            lastCombatKeyByPlayer[player.name],
+            getLastMetricChronologyKey(player.name, kdMatchValues),
+          ],
+          chronologyKey,
+        ),
+        streak: streakChronologyByPlayer[player.name] || chronologyKey,
+        feed: feedChronologyByPlayer[player.name] || chronologyKey,
+        wars: lastTrackedMatchKey,
+        joinParticipation: lastTrackedMatchKey,
+        consecutiveWars: getLongestConsecutiveWarStreakChronologyKey(player.name),
+        avgKillsPerMatch: getLastMetricChronologyKey(player.name, matchValues),
+        maxMatchKills: getFirstMaxMetricChronologyKey(
+          player.name,
+          matchValues,
+          (match) => Number(match.kills) || 0,
+        ),
+        fiftyPlusKillWars: getLastQualifyingChronologyKey(
+          player.name,
+          matchValues,
+          (match) => (Number(match.kills) || 0) >= 50,
+        ),
+        avgKdPerMatch: getLastMetricChronologyKey(player.name, kdMatchValues),
+        maxMatchKd: getFirstMaxMetricChronologyKey(
+          player.name,
+          kdMatchValues,
+          (match) => kd(Number(match.kills) || 0, Number(match.deaths) || 0),
+        ),
+        damageDealt: getLastQualifyingChronologyKey(
+          player.name,
+          damageMatchValues,
+          (match) => (Number(match.damageDealt) || 0) > 0,
+        ),
+        maxMatchDamageDealt: getFirstMaxMetricChronologyKey(
+          player.name,
+          damageMatchValues,
+          (match) => Number(match.damageDealt) || 0,
+        ),
+        avgDamageDealtPerMatch: getLastMetricChronologyKey(player.name, damageMatchValues),
+        maxMatchAllyProtection: getFirstMaxMetricChronologyKey(
+          player.name,
+          allyProtectionMatchValues,
+          (match) => Number(match.allyProtection) || 0,
+        ),
+        avgAllyProtectionPerMatch: getLastMetricChronologyKey(player.name, allyProtectionMatchValues),
+        maxMatchFortDamage: getFirstMaxMetricChronologyKey(
+          player.name,
+          fortDamageMatchValues,
+          (match) => Number(match.fortDamage) || 0,
+        ),
+        maxMatchCcHits: getFirstMaxMetricChronologyKey(
+          player.name,
+          ccHitsMatchValues,
+          (match) => Number(match.ccHits) || 0,
+        ),
+        avgCcHitsPerMatch: getLastMetricChronologyKey(player.name, ccHitsMatchValues),
+        maxMatchDpm: getFirstMaxMetricChronologyKey(
+          player.name,
+          dpmMatchValues,
+          (match) => Number(match.dpm) || 0,
+        ),
+        avgDpmPerMatch: getLastMetricChronologyKey(player.name, dpmMatchValues),
+        damageTakenPerDeath: getLastMetricChronologyKey(player.name, damageTakenDeathMatchValues),
+        averageRank: lastTrackedMatchKey,
+        firstBloods: firstBloodChronologyByPlayer[player.name] || chronologyKey,
+      };
       const score = Math.max(
         0,
         Math.round(
@@ -2110,6 +2347,11 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
             ccHits * 8 -
             deaths * 0.7,
         ),
+      );
+
+      metricChronology.score = latestChronologyKey(
+        Object.values(metricChronology),
+        chronologyKey,
       );
 
       let title = 'Guild Veteran';
@@ -2163,6 +2405,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         firstBloods,
         statsLogAppearances,
         chronologyKey,
+        metricChronology,
         score,
         title,
       };
@@ -2170,7 +2413,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     .sort(
       (a, b) =>
         b.score - a.score ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'score'),
     );
 
   const leaderboardRows = rows.filter((row) => {
@@ -2187,32 +2430,32 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
   const bestKd =
     [...leaderboardRows]
       .filter((row) => row.avgKdMatchCount >= MIN_HALL_METRIC_GAMES && row.kills >= 5)
-      .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0];
+      .sort((a, b) => b.kd - a.kd || compareMetricChronology(a, b, 'kd'))[0];
 
   const topKills =
     [...leaderboardRows]
       .filter((row) => row.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES)
       .sort(
-        (a, b) => b.kills - a.kills || compareChronology(a, b),
+        (a, b) => b.kills - a.kills || compareMetricChronology(a, b, 'kills'),
       )[0];
 
   const topStreak =
     [...leaderboardRows]
       .filter((row) => row.avgKdMatchCount >= MIN_HALL_METRIC_GAMES)
       .sort(
-        (a, b) => b.streak - a.streak || compareChronology(a, b),
+        (a, b) => b.streak - a.streak || compareMetricChronology(a, b, 'streak'),
       )[0];
 
   const topFeed =
     [...leaderboardRows]
       .filter((row) => row.avgKdMatchCount >= MIN_HALL_METRIC_GAMES)
       .sort(
-        (a, b) => b.feed - a.feed || compareChronology(a, b),
+        (a, b) => b.feed - a.feed || compareMetricChronology(a, b, 'feed'),
       )[0];
 
   const topWars =
     [...leaderboardRows].sort(
-      (a, b) => b.wars - a.wars || compareChronology(a, b),
+      (a, b) => b.wars - a.wars || compareMetricChronology(a, b, 'wars'),
     )[0] || leaderboardRows[0];
 
   const achievements = [
@@ -2272,11 +2515,11 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     thresholdLeaderboards,
     topKillers: [...leaderboardRows]
       .filter((row) => row.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES && row.kills > 0)
-      .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
+      .sort((a, b) => b.kills - a.kills || compareMetricChronology(a, b, 'kills'))
       .slice(0, 10),
     topDamagePlayers: [...leaderboardRows]
       .filter((row) => row.avgDamageDealtMatchCount >= MIN_HALL_METRIC_GAMES && row.damageDealt > 0)
-      .sort((a, b) => b.damageDealt - a.damageDealt || compareChronology(a, b))
+      .sort((a, b) => b.damageDealt - a.damageDealt || compareMetricChronology(a, b, 'damageDealt'))
       .slice(0, 10),
     totals: {
       kills: num(safe.kills) || rows.reduce((sum, row) => sum + row.kills, 0),
@@ -2506,6 +2749,89 @@ function getTone(tone) {
   return toneClasses[tone] || toneClasses.blue;
 }
 
+function getHallClassAssignment(playerClassMap, playerName) {
+  const assignment = playerClassMap?.[normalizeHallPlayerKey(playerName)];
+  return Array.isArray(assignment) ? assignment[0] || null : assignment || null;
+}
+
+function addClassAssignmentsToHallData(data, playerClassMap) {
+  if (!data || !playerClassMap) return data;
+
+  const enrichRow = (row) =>
+    row
+      ? {
+          ...row,
+          classAssignment:
+            row.classAssignment || getHallClassAssignment(playerClassMap, row.name),
+        }
+      : row;
+
+  const thresholdLeaderboards = Object.fromEntries(
+    Object.entries(data.thresholdLeaderboards || {}).map(([threshold, modes]) => [
+      threshold,
+      {
+        first: (modes?.first || []).map(enrichRow),
+        fastest: (modes?.fastest || []).map(enrichRow),
+      },
+    ]),
+  );
+
+  return {
+    ...data,
+    rows: (data.rows || []).map(enrichRow),
+    achievements: (data.achievements || []).map((item) => ({
+      ...item,
+      player: enrichRow(item.player),
+    })),
+    thresholdLeaderboards,
+    topKillers: (data.topKillers || []).map(enrichRow),
+    topDamagePlayers: (data.topDamagePlayers || []).map(enrichRow),
+  };
+}
+
+function HallClassOrb({ assignment, size = 'sm' }) {
+  if (!assignment?.src) return null;
+
+  const sizeClass = size === 'md' ? 'h-9 w-9' : 'h-7 w-7';
+  const title = [assignment.className, assignment.mode].filter(Boolean).join(' · ');
+
+  return (
+    <img
+      src={assignment.src}
+      alt=""
+      aria-hidden="true"
+      title={title || undefined}
+      className={cls(
+        'inline-block shrink-0 object-contain drop-shadow-[0_0_9px_rgba(255,255,255,.18)]',
+        sizeClass,
+      )}
+    />
+  );
+}
+
+function HallProgressLabel({ label, player }) {
+  if (!player?.classAssignment || typeof label !== 'string') return label;
+
+  const rankMatch = label.match(/^(\d+\.\s*)(.*)$/);
+
+  if (!rankMatch) {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-1.5">
+        <HallClassOrb assignment={player.classAssignment} />
+        <span className="truncate">{label}</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <span className="shrink-0">{rankMatch[1]}</span>
+      <HallClassOrb assignment={player.classAssignment} />
+      <span className="truncate">{rankMatch[2]}</span>
+    </span>
+  );
+}
+
 function PageFrame({ children }) {
   return (
     <div className="adversary-tech-page adversary-tech-hall-page relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[#050b16] p-4 shadow-2xl sm:p-5">
@@ -2625,7 +2951,10 @@ function LegendRow({ row, rank }) {
       <div className="flex min-w-0 items-center gap-3">
         <Avatar name={row.name} size="sm" rank={rank} />
         <div className="min-w-0">
-          <div className="truncate text-sm font-black text-white">{row.name}</div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <HallClassOrb assignment={row.classAssignment} />
+            <div className="truncate text-sm font-black text-white">{row.name}</div>
+          </div>
           <div className="truncate text-xs font-bold text-blue-300">{row.family || row.guild || 'Adversary'}</div>
         </div>
       </div>
@@ -2680,7 +3009,10 @@ function AchievementCard({ item, compact = false }) {
       <div className="relative mt-4 flex items-center gap-3 rounded-2xl border border-slate-800 bg-black/25 p-3">
         <Avatar name={item.player?.name} size="sm" />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-black text-slate-100">{item.player?.name || '-'}</div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <HallClassOrb assignment={item.player?.classAssignment} />
+            <div className="truncate text-sm font-black text-slate-100">{item.player?.name || '-'}</div>
+          </div>
           <div className="text-xs font-bold text-slate-500">{item.player?.title || 'Legend'}</div>
         </div>
         <div className={cls('text-lg font-black', toneInfo.text)}>{item.value}</div>
@@ -2719,7 +3051,10 @@ function TopLegendCard({ row, rank, wide = false, center = false }) {
         <RankBadge rank={rank} />
         <Avatar name={row.name} size={center ? 'xl' : 'lg'} rank={rank} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xl font-black text-white">{row.name}</div>
+          <div className="flex min-w-0 items-center gap-2">
+            <HallClassOrb assignment={row.classAssignment} size="md" />
+            <div className="truncate text-xl font-black text-white">{row.name}</div>
+          </div>
           <div className="truncate text-sm font-bold text-blue-300">{row.title}</div>
           <div className="mt-2 flex flex-wrap gap-2 text-xs font-black text-slate-400">
             <span>{nf.format(row.kills)} kills</span>
@@ -2744,7 +3079,7 @@ function EmptyState() {
   );
 }
 
-function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
+function HallProgressRow({ label, player, value, max, right, tone = 'blue' }) {
   const width = max ? Math.max(5, Math.min(100, (num(value) / max) * 100)) : 0;
   const colors = {
     blue: 'from-blue-500 to-sky-300',
@@ -2775,7 +3110,9 @@ function HallProgressRow({ label, value, max, right, tone = 'blue' }) {
   return (
     <div className="mb-3 last:mb-0">
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
-        <span className="truncate text-slate-200">{label}</span>
+        <span className="min-w-0 truncate text-slate-200">
+          <HallProgressLabel label={label} player={player} />
+        </span>
         <span className="shrink-0 text-slate-400">{right ?? shortNum(value)}</span>
       </div>
       <div className="h-2 rounded-full bg-slate-900/90">
@@ -2839,10 +3176,10 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 
   const bestKd = [...leaderboardRows]
     .filter((player) => player.kills >= 5)
-    .sort((a, b) => b.kd - a.kd || compareChronology(a, b))[0];
+    .sort((a, b) => b.kd - a.kd || compareMetricChronology(a, b, 'kd'))[0];
 
   const topStreak = [...leaderboardRows]
-    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))[0];
+    .sort((a, b) => b.streak - a.streak || compareMetricChronology(a, b, 'streak'))[0];
 
   const totalEligibleKills = leaderboardRows.reduce((sum, player) => sum + player.kills, 0);
   const totalEligibleDamage = leaderboardRows.reduce((sum, player) => sum + player.damageDealt, 0);
@@ -2897,7 +3234,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 function CombatOutputPanel({ data }) {
   const topTotalKills = [...data.rows]
     .filter((player) => player.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES && player.kills > 0)
-    .sort((a, b) => b.kills - a.kills || compareChronology(a, b))
+    .sort((a, b) => b.kills - a.kills || compareMetricChronology(a, b, 'kills'))
     .slice(0, 10);
 
   const topAverageKills = [...data.rows]
@@ -2909,7 +3246,7 @@ function CombatOutputPanel({ data }) {
     .sort(
       (a, b) =>
         b.avgKillsPerMatch - a.avgKillsPerMatch ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'avgKillsPerMatch'),
     )
     .slice(0, 10);
 
@@ -2919,7 +3256,7 @@ function CombatOutputPanel({ data }) {
         Number(player.avgKillsMatchCount) >= MIN_HALL_METRIC_GAMES &&
         player.maxMatchKills > 0,
     )
-    .sort((a, b) => b.maxMatchKills - a.maxMatchKills || compareChronology(a, b))
+    .sort((a, b) => b.maxMatchKills - a.maxMatchKills || compareMetricChronology(a, b, 'maxMatchKills'))
     .slice(0, 10);
 
   const maxTotalKills = Math.max(1, ...topTotalKills.map((player) => player.kills));
@@ -2937,6 +3274,7 @@ function CombatOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.kills}
                 max={maxTotalKills}
                 right={nf.format(player.kills)}
@@ -2955,6 +3293,7 @@ function CombatOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.avgKillsPerMatch}
                 max={maxAverageKills}
                 right={player.avgKillsPerMatch.toFixed(2)}
@@ -2973,6 +3312,7 @@ function CombatOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.maxMatchKills}
                 max={maxSingleMatchKills}
                 right={shortNum(player.maxMatchKills)}
@@ -2998,7 +3338,7 @@ function CombatRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.avgKdPerMatch - a.avgKdPerMatch ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'avgKdPerMatch'),
     )
     .slice(0, 10);
 
@@ -3012,7 +3352,7 @@ function CombatRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.maxMatchKd - a.maxMatchKd ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'maxMatchKd'),
     )
     .slice(0, 10);
 
@@ -3025,7 +3365,7 @@ function CombatRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.maxMatchAllyProtection - a.maxMatchAllyProtection ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'maxMatchAllyProtection'),
     )
     .slice(0, 10);
 
@@ -3038,7 +3378,7 @@ function CombatRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.avgAllyProtectionPerMatch - a.avgAllyProtectionPerMatch ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'avgAllyProtectionPerMatch'),
     )
     .slice(0, 10);
 
@@ -3051,18 +3391,18 @@ function CombatRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         a.averageRank - b.averageRank ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'averageRank'),
     )
     .slice(0, 10);
 
   const topStreaks = [...data.rows]
     .filter((player) => player.avgKdMatchCount >= MIN_HALL_METRIC_GAMES && player.streak > 0)
-    .sort((a, b) => b.streak - a.streak || compareChronology(a, b))
+    .sort((a, b) => b.streak - a.streak || compareMetricChronology(a, b, 'streak'))
     .slice(0, 10);
 
   const topFeeds = [...data.rows]
     .filter((player) => player.avgKdMatchCount >= MIN_HALL_METRIC_GAMES && player.feed > 0)
-    .sort((a, b) => b.feed - a.feed || compareChronology(a, b))
+    .sort((a, b) => b.feed - a.feed || compareMetricChronology(a, b, 'feed'))
     .slice(0, 10);
 
   const topFirstBloods = [...data.rows]
@@ -3074,7 +3414,7 @@ function CombatRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.firstBloods - a.firstBloods ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'firstBloods'),
     )
     .slice(0, 10);
 
@@ -3087,7 +3427,7 @@ function CombatRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.fiftyPlusKillWars - a.fiftyPlusKillWars ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'fiftyPlusKillWars'),
     )
     .slice(0, 10);
 
@@ -3121,6 +3461,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.avgKdPerMatch}
                 max={maxAverageKd}
                 right={player.avgKdPerMatch.toFixed(2)}
@@ -3139,6 +3480,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.maxMatchKd}
                 max={maxHighestMatchKd}
                 right={player.maxMatchKd.toFixed(2)}
@@ -3157,6 +3499,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.maxMatchAllyProtection}
                 max={maxHighestAllyProtection}
                 right={shortNum(player.maxMatchAllyProtection)}
@@ -3175,6 +3518,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.avgAllyProtectionPerMatch}
                 max={maxAverageAllyProtection}
                 right={shortNum(player.avgAllyProtectionPerMatch)}
@@ -3195,6 +3539,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={Math.max(0.01, maxAverageRank - player.averageRank + 1)}
                 max={maxAverageRank}
                 right={player.averageRank.toFixed(2)}
@@ -3213,6 +3558,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.streak}
                 max={maxStreak}
                 right={shortNum(player.streak)}
@@ -3231,6 +3577,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.feed}
                 max={maxFeed}
                 right={shortNum(player.feed)}
@@ -3249,6 +3596,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.fiftyPlusKillWars}
                 max={maxFiftyPlusKillWars}
                 right={`${shortNum(player.fiftyPlusKillWars)} Wars`}
@@ -3267,6 +3615,7 @@ function CombatRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.firstBloods}
                 max={maxFirstBloods}
                 right={shortNum(player.firstBloods)}
@@ -3365,6 +3714,7 @@ function MilestoneLeaderboardCard({
                   <HallProgressRow
                     key={`${mode}-${threshold}-${row.name}`}
                     label={`${index + 1}. ${row.name}`}
+                    player={row}
                     value={chargeValue}
                     max={rankBarMax}
                     right={right}
@@ -3437,6 +3787,7 @@ function ArsenalOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.kills}
                 max={maxKills}
                 right={shortNum(player.kills)}
@@ -3455,6 +3806,7 @@ function ArsenalOutputPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.damageDealt}
                 max={maxDamage}
                 right={shortNum(player.damageDealt)}
@@ -3476,7 +3828,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.maxMatchDamageDealt - a.maxMatchDamageDealt ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'maxMatchDamageDealt'),
     )
     .slice(0, 10);
 
@@ -3489,7 +3841,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.avgDamageDealtPerMatch - a.avgDamageDealtPerMatch ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'avgDamageDealtPerMatch'),
     )
     .slice(0, 10);
 
@@ -3502,7 +3854,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.maxMatchDpm - a.maxMatchDpm ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'maxMatchDpm'),
     )
     .slice(0, 10);
 
@@ -3515,7 +3867,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.avgDpmPerMatch - a.avgDpmPerMatch ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'avgDpmPerMatch'),
     )
     .slice(0, 10);
 
@@ -3524,7 +3876,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.maxMatchFortDamage - a.maxMatchFortDamage ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'maxMatchFortDamage'),
     )
     .slice(0, 10);
 
@@ -3533,7 +3885,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.maxMatchCcHits - a.maxMatchCcHits ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'maxMatchCcHits'),
     )
     .slice(0, 10);
 
@@ -3546,7 +3898,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.avgCcHitsPerMatch - a.avgCcHitsPerMatch ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'avgCcHitsPerMatch'),
     )
     .slice(0, 10);
 
@@ -3560,7 +3912,7 @@ function DamageRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.damageTakenPerDeath - a.damageTakenPerDeath ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'damageTakenPerDeath'),
     )
     .slice(0, 10);
 
@@ -3584,6 +3936,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.maxMatchDamageDealt}
                 max={maxSingleGameDamageDealt}
                 right={shortNum(player.maxMatchDamageDealt)}
@@ -3602,6 +3955,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.avgDamageDealtPerMatch}
                 max={maxAverageDamageDealt}
                 right={shortNum(player.avgDamageDealtPerMatch)}
@@ -3620,6 +3974,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.maxMatchDpm}
                 max={maxHighestDpmPerNodeWar}
                 right={`${shortNum(player.maxMatchDpm)}/min`}
@@ -3638,6 +3993,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.avgDpmPerMatch}
                 max={maxAverageDpm}
                 right={`${shortNum(player.avgDpmPerMatch)}/min`}
@@ -3656,6 +4012,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.maxMatchFortDamage}
                 max={maxSingleGameFortDamage}
                 right={shortNum(player.maxMatchFortDamage)}
@@ -3674,6 +4031,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.maxMatchCcHits}
                 max={maxSingleGameCcHits}
                 right={shortNum(player.maxMatchCcHits)}
@@ -3692,6 +4050,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.avgCcHitsPerMatch}
                 max={maxAverageCcHits}
                 right={player.avgCcHitsPerMatch.toFixed(1).replace(/\.0$/, '')}
@@ -3710,6 +4069,7 @@ function DamageRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.damageTakenPerDeath}
                 max={maxDamageTakenPerDeath}
                 right={shortNum(player.damageTakenPerDeath)}
@@ -3728,7 +4088,7 @@ function DamageRecordsPanel({ data }) {
 function NodeWarsRecordsPanel({ data }) {
   const topMostNodeWars = [...data.rows]
     .filter((player) => player.wars > 0)
-    .sort((a, b) => b.wars - a.wars || compareChronology(a, b))
+    .sort((a, b) => b.wars - a.wars || compareMetricChronology(a, b, 'wars'))
     .slice(0, 10);
 
   const topJoinParticipation = [...data.rows]
@@ -3736,7 +4096,7 @@ function NodeWarsRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.joinParticipation - a.joinParticipation ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'joinParticipation'),
     )
     .slice(0, 10);
 
@@ -3745,7 +4105,7 @@ function NodeWarsRecordsPanel({ data }) {
     .sort(
       (a, b) =>
         b.consecutiveWars - a.consecutiveWars ||
-        compareChronology(a, b),
+        compareMetricChronology(a, b, 'consecutiveWars'),
     )
     .slice(0, 10);
 
@@ -3764,6 +4124,7 @@ function NodeWarsRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.wars}
                 max={maxNodeWars}
                 right={shortNum(player.wars)}
@@ -3782,6 +4143,7 @@ function NodeWarsRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.joinParticipation}
                 max={maxJoinParticipation}
                 right={`${player.joinParticipation.toFixed(1).replace(/\.0$/, '')}%`}
@@ -3800,6 +4162,7 @@ function NodeWarsRecordsPanel({ data }) {
               <HallProgressRow
                 key={player.name}
                 label={`${index + 1}. ${player.name}`}
+                player={player}
                 value={player.consecutiveWars}
                 max={maxConsecutiveWars}
                 right={shortNum(player.consecutiveWars)}
@@ -3857,15 +4220,18 @@ function PreviewAll({ data }) {
   );
 }
 
-export default function HallOfFame({ stats, allTimeStats } = {}) {
+export default function HallOfFame({ stats, allTimeStats, playerClassMap = {} } = {}) {
   const previewMode = !stats && !allTimeStats;
   const data = useMemo(
     () =>
-      buildHallData(
-        allTimeStats?.players?.length ? allTimeStats : stats,
-        MIN_HALL_STATS_LOG_APPEARANCES,
+      addClassAssignmentsToHallData(
+        buildHallData(
+          allTimeStats?.players?.length ? allTimeStats : stats,
+          MIN_HALL_STATS_LOG_APPEARANCES,
+        ),
+        playerClassMap,
       ),
-    [stats, allTimeStats],
+    [stats, allTimeStats, playerClassMap],
   );
 
   if (previewMode) return <PreviewAll data={buildHallData(demoStats, 0)} />;
