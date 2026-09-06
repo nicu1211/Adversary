@@ -3088,6 +3088,8 @@ function addClassAssignmentsToHallData(data, playerClassMap, classIconByName) {
 
     // Lifetime/all-class leaderboards requested by the user.
     [
+      'kills',
+      'avgKdPerMatch',
       'avgAllyProtectionPerMatch',
       'averageRank',
       'avgDamageDealtPerMatch',
@@ -3339,7 +3341,7 @@ function StatCard({ icon: Icon, label, value, sub, tone = 'blue' }) {
   );
 }
 
-function SectionTitle({ icon: Icon, title, action }) {
+function SectionTitle({ icon: Icon, title, action, titleExtra }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
       <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-slate-300">
@@ -3347,6 +3349,7 @@ function SectionTitle({ icon: Icon, title, action }) {
           <Icon className="h-4 w-4" />
         </span>
         {title}
+        {titleExtra}
       </h3>
       {action && (
         <button className="group flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs font-black text-blue-300 transition hover:border-blue-400/30 hover:bg-blue-500/10 hover:text-blue-200">
@@ -4081,11 +4084,11 @@ function CombatRecordsPanel({ data }) {
   );
 }
 
-function MilestoneEmblemBadge({ threshold }) {
+function MilestoneEmblemBadge({ threshold, compact = false }) {
   const label = threshold >= 1000 ? `${Math.round(threshold / 1000)}K` : String(threshold);
 
   return (
-    <div className="relative h-[92px] w-[92px] shrink-0">
+    <div className={cls('relative shrink-0', compact ? 'h-10 w-10' : 'h-[92px] w-[92px]')}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden="true">
         <defs>
           <linearGradient id={`hall-milestone-blue-${label}`} x1="0" y1="0" x2="1" y2="1">
@@ -4115,11 +4118,26 @@ function MilestoneEmblemBadge({ threshold }) {
         <path d="M77 60 L92 49" fill="none" stroke="rgba(96,165,250,0.54)" strokeWidth="2.4" strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="rounded-xl border border-sky-300/35 bg-blue-500/12 px-2.5 py-1 text-[20px] font-black tracking-tight text-sky-200 shadow-[0_0_16px_rgba(59,130,246,.22)]">
+        <div
+          className={cls(
+            'border border-sky-300/35 bg-blue-500/12 font-black tracking-tight text-sky-200 shadow-[0_0_16px_rgba(59,130,246,.22)]',
+            compact ? 'rounded-md px-1 py-0.5 text-[9px]' : 'rounded-xl px-2.5 py-1 text-[20px]',
+          )}
+        >
           {label}
         </div>
       </div>
     </div>
+  );
+}
+
+function MilestoneHeaderIcons({ thresholds = [] }) {
+  return (
+    <span className="ml-1 inline-flex items-center gap-1" aria-hidden="true">
+      {thresholds.map((threshold) => (
+        <MilestoneEmblemBadge key={`header-${threshold}`} threshold={threshold} compact />
+      ))}
+    </span>
   );
 }
 
@@ -4187,7 +4205,7 @@ function FirstMilestonesPanel({ data }) {
 
   return (
     <PremiumPanel className="p-5">
-      <SectionTitle icon={Trophy} title="First Milestones" />
+      <SectionTitle icon={Trophy} title="First Milestones" titleExtra={<MilestoneHeaderIcons thresholds={thresholds} />} />
       <div className="grid gap-5 xl:grid-cols-3">
         {thresholds.map((threshold) => (
           <MilestoneLeaderboardCard
@@ -4207,7 +4225,7 @@ function FastestMilestonesPanel({ data }) {
 
   return (
     <PremiumPanel className="p-5">
-      <SectionTitle icon={Zap} title="Fastest Milestones" />
+      <SectionTitle icon={Zap} title="Fastest Milestones" titleExtra={<MilestoneHeaderIcons thresholds={thresholds} />} />
       <div className="grid gap-5 xl:grid-cols-3">
         {thresholds.map((threshold) => (
           <MilestoneLeaderboardCard
