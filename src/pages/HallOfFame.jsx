@@ -1209,6 +1209,38 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     return ordered.length ? getMatchClassInfo(ordered[ordered.length - 1]) : null;
   }
 
+  function getUniqueMatchClassInfos(matches) {
+    const unique = new Map();
+
+    (matches || []).forEach((match) => {
+      const info = getMatchClassInfo(match);
+      const key = String(info?.className || '').trim().toLowerCase();
+      if (!key || unique.has(key)) return;
+      unique.set(key, info);
+    });
+
+    return [...unique.values()];
+  }
+
+  function getHighestAvailableMetricClassInfo(name, matches, readValue) {
+    const candidates = sortPlayerMatchesChronologically(name, matches)
+      .map((match) => ({
+        match,
+        value: Number(readValue(match)) || 0,
+        classInfo: getMatchClassInfo(match),
+      }))
+      .filter((item) => item.classInfo)
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          getMatchChronologyKey(a.match, name).localeCompare(
+            getMatchChronologyKey(b.match, name),
+          ),
+      );
+
+    return candidates[0]?.classInfo || null;
+  }
+
   function latestChronologyKey(keys, fallback) {
     const available = (keys || []).filter(Boolean).map(String).sort();
     return available.length ? available[available.length - 1] : fallback;
@@ -2172,6 +2204,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
   const firstBloodsByPlayer = {};
   const firstBloodChronologyByPlayer = {};
   const firstBloodWarIdByPlayer = {};
+  const firstBloodWarIdsByPlayer = {};
 
   warList.forEach((war) => {
     const firstKillEvent = getWarEventsSorted(war.events || []).find(
@@ -2190,6 +2223,8 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       (firstBloodsByPlayer[firstBloodPlayer] || 0) + 1;
     firstBloodChronologyByPlayer[firstBloodPlayer] = eventSortKey(firstKillEvent);
     firstBloodWarIdByPlayer[firstBloodPlayer] = eventWarId(firstKillEvent);
+    firstBloodWarIdsByPlayer[firstBloodPlayer] ||= [];
+    firstBloodWarIdsByPlayer[firstBloodPlayer].push(eventWarId(firstKillEvent));
   });
 
   const rows = (safe.players || [])
@@ -2511,6 +2546,43 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         firstBloods: getPlayerWarClassInfo(player.name, firstBloodWarIdByPlayer[player.name]),
       };
 
+      const recordClassesByMetric = {
+        fiftyPlusKillWars: getUniqueMatchClassInfos(
+          matchValues.filter((match) => (Number(match.kills) || 0) >= 50),
+        ),
+        firstBloods: getUniqueMatchClassInfos(
+          (firstBloodWarIdsByPlayer[player.name] || [])
+            .map((warId) => playerMatchMap?.[player.name]?.[String(warId)])
+            .filter(Boolean),
+        ),
+      };
+
+      // Metric-specific fallback classes are only used when the exact record
+      // row has no class data. These deliberately stay metric-specific rather
+      // than falling back to the player's general/most-played class.
+      const recordFallbackClassByMetric = {
+        maxMatchDamageDealt: getHighestAvailableMetricClassInfo(
+          player.name,
+          damageMatchValues,
+          (match) => Number(match.damageDealt) || 0,
+        ),
+        maxMatchDpm: getHighestAvailableMetricClassInfo(
+          player.name,
+          dpmMatchValues,
+          (match) => Number(match.dpm) || 0,
+        ),
+        maxMatchFortDamage: getHighestAvailableMetricClassInfo(
+          player.name,
+          fortDamageMatchValues,
+          (match) => Number(match.fortDamage) || 0,
+        ),
+        maxMatchCcHits: getHighestAvailableMetricClassInfo(
+          player.name,
+          ccHitsMatchValues,
+          (match) => Number(match.ccHits) || 0,
+        ),
+      };
+
       let title = 'Guild Veteran';
       if (kills >= 1000) title = 'Top Fragger';
       if (ratio >= 4) title = 'Best K/D';
@@ -2564,6 +2636,8 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         chronologyKey,
         metricChronology,
         recordClassByMetric,
+        recordClassesByMetric,
+        recordFallbackClassByMetric,
         score,
         title,
       };
@@ -2942,11 +3016,42 @@ function resolveHallRecordClass(classInfo, playerClassMap, classIconByName) {
   };
 }
 
+function getHallPlayerClassAssignments(playerClassMap, playerName) {
+  const value = playerClassMap?.[normalizeHallPlayerKey(playerName)];
+  const assignments = Array.isArray(value) ? value : value ? [value] : [];
+  const seen = new Set();
+
+  return assignments.filter((assignment) => {
+    const className = String(assignment?.className || '').trim();
+    const key = className.toLowerCase();
+
+    if (!assignment?.src || !key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function resolveHallRecordClasses(classInfos, playerClassMap, classIconByName) {
+  const seen = new Set();
+
+  return (Array.isArray(classInfos) ? classInfos : [])
+    .map((classInfo) => resolveHallRecordClass(classInfo, playerClassMap, classIconByName))
+    .filter((assignment) => {
+      const key = String(assignment?.className || '').trim().toLowerCase();
+      if (!assignment?.src || !key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 function addClassAssignmentsToHallData(data, playerClassMap, classIconByName) {
   if (!data) return data;
 
   const enrichRow = (row) => {
     if (!row) return row;
+
+    const allClassAssignments = getHallPlayerClassAssignments(playerClassMap, row.name);
+    const mostPlayedClassAssignment = allClassAssignments[0] || null;
 
     const metricClassAssignments = Object.fromEntries(
       Object.entries(row.recordClassByMetric || {})
@@ -2957,12 +3062,64 @@ function addClassAssignmentsToHallData(data, playerClassMap, classIconByName) {
         .filter(([, assignment]) => Boolean(assignment)),
     );
 
+    const fallbackMetricClassAssignments = Object.fromEntries(
+      Object.entries(row.recordFallbackClassByMetric || {})
+        .map(([metricKey, classInfo]) => [
+          metricKey,
+          resolveHallRecordClass(classInfo, playerClassMap, classIconByName),
+        ])
+        .filter(([, assignment]) => Boolean(assignment)),
+    );
+
+    // Record boards with explicit fallbacks.
+    metricClassAssignments.maxMatchKills ||= mostPlayedClassAssignment;
+    metricClassAssignments.maxMatchKd ||= mostPlayedClassAssignment;
+    metricClassAssignments.streak ||= mostPlayedClassAssignment;
+    metricClassAssignments.maxMatchDamageDealt ||=
+      fallbackMetricClassAssignments.maxMatchDamageDealt || null;
+    metricClassAssignments.maxMatchDpm ||=
+      fallbackMetricClassAssignments.maxMatchDpm || null;
+    metricClassAssignments.maxMatchFortDamage ||=
+      fallbackMetricClassAssignments.maxMatchFortDamage || null;
+    metricClassAssignments.maxMatchCcHits ||=
+      fallbackMetricClassAssignments.maxMatchCcHits || null;
+
+    const metricClassAssignmentLists = {};
+
+    // Lifetime/all-class leaderboards requested by the user.
+    [
+      'avgAllyProtectionPerMatch',
+      'averageRank',
+      'avgDamageDealtPerMatch',
+      'avgDpmPerMatch',
+      'avgCcHitsPerMatch',
+      'damageTakenPerDeath',
+      'wars',
+      'joinParticipation',
+      'consecutiveWars',
+    ].forEach((metricKey) => {
+      metricClassAssignmentLists[metricKey] = allClassAssignments;
+    });
+
+    // Event-subset leaderboards only show classes used in those qualifying wars.
+    metricClassAssignmentLists.fiftyPlusKillWars = resolveHallRecordClasses(
+      row.recordClassesByMetric?.fiftyPlusKillWars,
+      playerClassMap,
+      classIconByName,
+    );
+    metricClassAssignmentLists.firstBloods = resolveHallRecordClasses(
+      row.recordClassesByMetric?.firstBloods,
+      playerClassMap,
+      classIconByName,
+    );
+
     return {
       ...row,
-      // Generic Hall rows are score-ranked, so their orb is the class from the
-      // exact war that finalized the displayed score. Never use most-played.
-      classAssignment: metricClassAssignments.score || null,
+      classAssignment: metricClassAssignments.score || mostPlayedClassAssignment || null,
+      classAssignments: allClassAssignments,
+      mostPlayedClassAssignment,
       metricClassAssignments,
+      metricClassAssignmentLists,
     };
   };
 
@@ -2980,22 +3137,42 @@ function addClassAssignmentsToHallData(data, playerClassMap, classIconByName) {
     Object.entries(data.thresholdLeaderboards || {}).map(([threshold, modes]) => [
       threshold,
       {
-        first: (modes?.first || []).map((row) => ({
-          ...row,
-          classAssignment: resolveHallRecordClass(
+        first: (modes?.first || []).map((row) => {
+          const allClassAssignments = getHallPlayerClassAssignments(playerClassMap, row.name);
+          const recordAssignment = resolveHallRecordClass(
             row.recordClass,
             playerClassMap,
             classIconByName,
-          ),
-        })),
-        fastest: (modes?.fastest || []).map((row) => ({
-          ...row,
-          classAssignment: resolveHallRecordClass(
+          );
+
+          return {
+            ...row,
+            classAssignment: recordAssignment,
+            classAssignments: allClassAssignments.length
+              ? allClassAssignments
+              : recordAssignment
+                ? [recordAssignment]
+                : [],
+          };
+        }),
+        fastest: (modes?.fastest || []).map((row) => {
+          const allClassAssignments = getHallPlayerClassAssignments(playerClassMap, row.name);
+          const recordAssignment = resolveHallRecordClass(
             row.recordClass,
             playerClassMap,
             classIconByName,
-          ),
-        })),
+          );
+
+          return {
+            ...row,
+            classAssignment: recordAssignment,
+            classAssignments: allClassAssignments.length
+              ? allClassAssignments
+              : recordAssignment
+                ? [recordAssignment]
+                : [],
+          };
+        }),
       },
     ]),
   );
@@ -3018,7 +3195,7 @@ function addClassAssignmentsToHallData(data, playerClassMap, classIconByName) {
 function HallClassOrb({ assignment, size = 'sm' }) {
   if (!assignment?.src) return null;
 
-  const sizeClass = size === 'md' ? 'h-9 w-9' : 'h-7 w-7';
+  const sizeClass = size === 'md' ? 'h-9 w-9' : size === 'xs' ? 'h-5 w-5' : 'h-7 w-7';
   const title = [assignment.className, assignment.mode].filter(Boolean).join(' · ');
 
   return (
@@ -3035,19 +3212,43 @@ function HallClassOrb({ assignment, size = 'sm' }) {
   );
 }
 
+function HallClassOrbs({ assignments = [] }) {
+  if (!assignments?.length) return null;
+
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5">
+      {assignments.map((assignment, index) => (
+        <HallClassOrb
+          key={`${assignment.className || 'class'}-${index}`}
+          assignment={assignment}
+          size="xs"
+        />
+      ))}
+    </span>
+  );
+}
+
 function HallProgressLabel({ label, player, metricKey }) {
-  const assignment = metricKey
+  const listAssignments = metricKey
+    ? player?.metricClassAssignmentLists?.[metricKey] || []
+    : player?.classAssignments || [];
+  const singleAssignment = metricKey
     ? player?.metricClassAssignments?.[metricKey] || null
     : player?.classAssignment || null;
+  const assignments = listAssignments.length
+    ? listAssignments
+    : singleAssignment
+      ? [singleAssignment]
+      : [];
 
-  if (!assignment || typeof label !== 'string') return label;
+  if (!assignments.length || typeof label !== 'string') return label;
 
   const rankMatch = label.match(/^(\d+\.\s*)(.*)$/);
 
   if (!rankMatch) {
     return (
       <span className="inline-flex min-w-0 items-center gap-1.5">
-        <HallClassOrb assignment={assignment} />
+        <HallClassOrbs assignments={assignments} />
         <span className="truncate">{label}</span>
       </span>
     );
@@ -3056,7 +3257,7 @@ function HallProgressLabel({ label, player, metricKey }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       <span className="shrink-0">{rankMatch[1]}</span>
-      <HallClassOrb assignment={assignment} />
+      <HallClassOrbs assignments={assignments} />
       <span className="truncate">{rankMatch[2]}</span>
     </span>
   );
@@ -3340,7 +3541,7 @@ function HallProgressRow({ label, player, metricKey, value, max, right, tone = '
   return (
     <div className="mb-3 last:mb-0">
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
-        <span className="min-w-0 truncate text-slate-200">
+        <span className="min-w-0 text-slate-200">
           <HallProgressLabel label={label} player={player} metricKey={metricKey} />
         </span>
         <span className="shrink-0 text-slate-400">{right ?? shortNum(value)}</span>
@@ -3675,6 +3876,13 @@ function CombatRecordsPanel({ data }) {
     ...topAverageAllyProtection.map((player) => player.avgAllyProtectionPerMatch),
   );
   const maxAverageRank = Math.max(1, ...topAverageRank.map((player) => player.averageRank));
+  const minAverageRank = topAverageRank.length
+    ? Math.min(...topAverageRank.map((player) => player.averageRank))
+    : 0;
+  const maxAverageRankBarValue = Math.max(
+    0.01,
+    maxAverageRank - minAverageRank + 1,
+  );
   const maxStreak = Math.max(1, ...topStreaks.map((player) => player.streak));
   const maxFeed = Math.max(1, ...topFeeds.map((player) => player.feed));
   const maxFirstBloods = Math.max(1, ...topFirstBloods.map((player) => player.firstBloods));
@@ -3779,7 +3987,7 @@ function CombatRecordsPanel({ data }) {
                 player={player}
                 metricKey="averageRank"
                 value={Math.max(0.01, maxAverageRank - player.averageRank + 1)}
-                max={maxAverageRank}
+                max={maxAverageRankBarValue}
                 right={player.averageRank.toFixed(2)}
                 tone="greenMint"
               />
