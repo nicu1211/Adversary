@@ -8227,7 +8227,11 @@ export default function App() {
               {!hallOfFameReady || loadingAllLogs ? (
                 <PageLoader text="Loading all logs for Hall of Fame..." />
               ) : (
-                <HallOfFame stats={stats} allTimeStats={allTimeStats} />
+                <HallOfFame
+                  stats={stats}
+                  allTimeStats={allTimeStats}
+                  playerClassMap={monthlyPlayerClassMap}
+                />
               )}
             </Suspense>
           )}
