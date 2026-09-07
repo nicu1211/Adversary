@@ -480,6 +480,7 @@ const GUILD_ROSTER = Object.freeze([
   'Ferz',
   'Attack',
   'Protect',
+  'Buenaa',
   'McPero'
 ]);
 
