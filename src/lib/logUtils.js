@@ -1035,13 +1035,16 @@ function parseClassicEventLine(line, index, name, date, id) {
 
   if (families.length < 2) return null;
 
+  const normalizedInfo = info.toLowerCase();
   const killMarker = [' has killed ', ' killed '].find((marker) =>
-    info.includes(marker),
+    normalizedInfo.includes(marker),
   );
 
   if (killMarker) {
-    const [killer, rest] = info.split(killMarker);
-    const [victim, guild] = rest.split(' from ');
+    const markerIndex = normalizedInfo.indexOf(killMarker);
+    const killer = info.slice(0, markerIndex);
+    const rest = info.slice(markerIndex + killMarker.length);
+    const [victim, guild] = rest.split(/\s+from\s+/i);
 
     return guild
       ? {
@@ -1070,12 +1073,14 @@ function parseClassicEventLine(line, index, name, date, id) {
     ' died to ',
     ' has died ',
     ' died ',
-  ].find((marker) => info.includes(marker));
+  ].find((marker) => normalizedInfo.includes(marker));
 
   if (deathMarker) {
-    const [victim, rawRest] = info.split(deathMarker);
+    const markerIndex = normalizedInfo.indexOf(deathMarker);
+    const victim = info.slice(0, markerIndex);
+    const rawRest = info.slice(markerIndex + deathMarker.length);
     const rest = String(rawRest || '').replace(/^to\s+/i, '');
-    const [killer, guild] = rest.split(' from ');
+    const [killer, guild] = rest.split(/\s+from\s+/i);
 
     return guild
       ? {
