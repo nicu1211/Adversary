@@ -544,21 +544,6 @@ function secondaryMetricFromHeader(value) {
       'member',
       'member name',
     ]),
-    className: new Set([
-      'class',
-      'class name',
-      'character class',
-    ]),
-    mode: new Set([
-      'spec',
-      'specialization',
-      'specialisation',
-      'mode',
-    ]),
-    role: new Set([
-      'role',
-      'guild role',
-    ]),
     kills: new Set(['kills', 'kill', 'k', 'total kills']),
     deaths: new Set(['deaths', 'death', 'd', 'total deaths']),
     kd: new Set(['kd', 'k d', 'ratio', 'kill death ratio', 'kills deaths ratio']),
@@ -611,9 +596,6 @@ function secondaryMetricFromHeader(value) {
 
   // Flexible fallbacks for slightly different exported header wording.
   if (/^(player|family|character|member)( name)?$/.test(header)) return 'player';
-  if (/^(character )?class( name)?$/.test(header)) return 'className';
-  if (/^(spec|speciali[sz]ation|mode)$/.test(header)) return 'mode';
-  if (/^(guild )?role$/.test(header)) return 'role';
   if (/^(total )?kills?$/.test(header)) return 'kills';
   if (/^(total )?deaths?$/.test(header)) return 'deaths';
   if (/^(k d|kd)( ratio)?$/.test(header)) return 'kd';
@@ -704,35 +686,10 @@ function parseSecondaryLineWithHeader(line, index, header) {
     };
   }
 
-  function readText(metric) {
-    const columnIndex = header.indexes[metric];
-
-    if (columnIndex === undefined || columnIndex >= columns.length) {
-      return '';
-    }
-
-    return String(columns[columnIndex] ?? '').trim();
-  }
-
   const playerIndex = header.indexes.player;
   const player = normalizeSecondaryPlayerName([
     playerIndex !== undefined ? columns[playerIndex] : '',
   ]);
-  const className = readText('className');
-  const rawMode = readText('mode');
-  const mode = /awak/i.test(rawMode)
-    ? 'Awakening'
-    : /succ|ascen/i.test(rawMode)
-      ? 'Succession'
-      : rawMode;
-  const rawRole = readText('role');
-  const role = /^flex$/i.test(rawRole)
-    ? 'Flex'
-    : /^utility$/i.test(rawRole)
-      ? 'Utility'
-      : /^main$/i.test(rawRole)
-        ? 'Main'
-        : rawRole;
 
   const kills = readMetric('kills');
   const deaths = readMetric('deaths');
@@ -756,9 +713,6 @@ function parseSecondaryLineWithHeader(line, index, header) {
 
   return {
     player,
-    className,
-    mode,
-    role,
     kills: kills.value,
     deaths: deaths.value,
     killStreak: killStreak.value,
@@ -790,175 +744,6 @@ function parseSecondaryLineWithHeader(line, index, header) {
     has_cc_hits: ccHits.present,
     has_fort_damage: fortDamage.present,
   };
-}
-
-function classFieldFromHeader(value) {
-  const header = normalizeSecondaryHeaderCell(value);
-
-  if (/^(player|family|character|member)( name)?$/.test(header)) {
-    return 'player';
-  }
-
-  if (/^(character )?class( name)?$/.test(header)) {
-    return 'className';
-  }
-
-  if (/^(spec|speciali[sz]ation|mode)$/.test(header)) {
-    return 'mode';
-  }
-
-  return '';
-}
-
-function buildClassHeader(columns, mode) {
-  const indexes = {};
-
-  columns.forEach((column, index) => {
-    const field = classFieldFromHeader(column);
-
-    if (field && indexes[field] === undefined) {
-      indexes[field] = index;
-    }
-  });
-
-  if (indexes.player === undefined || indexes.className === undefined) {
-    return null;
-  }
-
-  return {
-    indexes,
-    mode,
-    columnCount: columns.length,
-  };
-}
-
-function normalizeClassMode(value) {
-  const mode = String(value || '').trim();
-
-  if (/awak/i.test(mode)) return 'Awakening';
-  if (/succ|ascen/i.test(mode)) return 'Succession';
-
-  return mode;
-}
-
-function parseLegacyClassRow(line) {
-  const { columns } = splitSecondaryColumns(line);
-  const cleaned = columns
-    .map((column) => String(column || '').trim())
-    .filter(Boolean);
-
-  if (cleaned.length < 2) return null;
-
-  const normalized = cleaned.map((column) =>
-    normalizeSecondaryHeaderCell(column),
-  );
-
-  if (
-    normalized.some((column) => column === 'player') &&
-    normalized.some((column) => column === 'class')
-  ) {
-    return null;
-  }
-
-  const modeIndex = cleaned.findIndex((column) =>
-    /^(awakening|succession|ascension|talent)$/i.test(column),
-  );
-
-  if (modeIndex >= 2) {
-    const player = normalizeSecondaryPlayerName([cleaned[0]]);
-    const className = cleaned[modeIndex - 1];
-
-    if (!player || !className || isSecondaryNumber(className)) return null;
-
-    return {
-      player,
-      className,
-      mode: normalizeClassMode(cleaned[modeIndex]),
-    };
-  }
-
-  // Legacy standalone Class Log rows can also be just: Player Class.
-  if (
-    cleaned.length === 2 &&
-    !isSecondaryNumber(cleaned[0]) &&
-    !isSecondaryNumber(cleaned[1])
-  ) {
-    const player = normalizeSecondaryPlayerName([cleaned[0]]);
-
-    if (!player) return null;
-
-    return {
-      player,
-      className: cleaned[1],
-      mode: '',
-    };
-  }
-
-  return null;
-}
-
-export function parseClassRows(raw) {
-  const lines = String(raw || '')
-    .replace(/\r\n?/g, NL)
-    .split(NL)
-    .map((line) => line.trimEnd())
-    .filter((line) => {
-      const trimmed = line.trim();
-      return trimmed && !/^=====\s*ADVERSARY_.*_LOG_(?:START|END)\s*=====$/i.test(trimmed);
-    });
-
-  const rows = [];
-  let activeHeader = null;
-
-  lines.forEach((line) => {
-    const split = splitSecondaryColumns(line, activeHeader?.mode || '');
-    const detectedHeader = buildClassHeader(split.columns, split.mode);
-
-    if (detectedHeader) {
-      activeHeader = detectedHeader;
-      return;
-    }
-
-    if (activeHeader) {
-      const columns = [...split.columns];
-
-      while (columns.length < activeHeader.columnCount) {
-        columns.push('');
-      }
-
-      const player = normalizeSecondaryPlayerName([
-        columns[activeHeader.indexes.player] ?? '',
-      ]);
-      const className = String(
-        columns[activeHeader.indexes.className] ?? '',
-      ).trim();
-      const mode = normalizeClassMode(
-        activeHeader.indexes.mode === undefined
-          ? ''
-          : columns[activeHeader.indexes.mode],
-      );
-
-      if (player && className) {
-        rows.push({ player, className, mode });
-      }
-
-      return;
-    }
-
-    const legacyRow = parseLegacyClassRow(line);
-
-    if (legacyRow) rows.push(legacyRow);
-  });
-
-  const seen = new Set();
-
-  return rows.filter((row) => {
-    const key = `${row.player.toLowerCase()}@@${row.className.toLowerCase()}@@${String(row.mode || '').toLowerCase()}`;
-
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
 
 function parseSecondaryLineLegacy(line, index) {
@@ -1250,16 +1035,13 @@ function parseClassicEventLine(line, index, name, date, id) {
 
   if (families.length < 2) return null;
 
-  const normalizedInfo = info.toLowerCase();
   const killMarker = [' has killed ', ' killed '].find((marker) =>
-    normalizedInfo.includes(marker),
+    info.includes(marker),
   );
 
   if (killMarker) {
-    const markerIndex = normalizedInfo.indexOf(killMarker);
-    const killer = info.slice(0, markerIndex);
-    const rest = info.slice(markerIndex + killMarker.length);
-    const [victim, guild] = rest.split(/\s+from\s+/i);
+    const [killer, rest] = info.split(killMarker);
+    const [victim, guild] = rest.split(' from ');
 
     return guild
       ? {
@@ -1288,14 +1070,12 @@ function parseClassicEventLine(line, index, name, date, id) {
     ' died to ',
     ' has died ',
     ' died ',
-  ].find((marker) => normalizedInfo.includes(marker));
+  ].find((marker) => info.includes(marker));
 
   if (deathMarker) {
-    const markerIndex = normalizedInfo.indexOf(deathMarker);
-    const victim = info.slice(0, markerIndex);
-    const rawRest = info.slice(markerIndex + deathMarker.length);
+    const [victim, rawRest] = info.split(deathMarker);
     const rest = String(rawRest || '').replace(/^to\s+/i, '');
-    const [killer, guild] = rest.split(/\s+from\s+/i);
+    const [killer, guild] = rest.split(' from ');
 
     return guild
       ? {
