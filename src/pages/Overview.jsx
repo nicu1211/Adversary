@@ -1058,6 +1058,7 @@ function compactNumber(value, digits = 1) {
   if (abs >= 1_000_000_000_000) return format(1_000_000_000_000, 'T');
   if (abs >= 1_000_000_000) return format(1_000_000_000, 'B');
   if (abs >= 1_000_000) return format(1_000_000, 'M');
+  if (abs >= 1_000) return format(1_000, 'K');
 
   return number.toLocaleString('en-US');
 }
@@ -3155,6 +3156,7 @@ function PlayerOverview({
     if (abs >= 1_000_000_000_000) return formatCompact(1_000_000_000_000, 'T');
     if (abs >= 1_000_000_000) return formatCompact(1_000_000_000, 'B');
     if (abs >= 1_000_000) return formatCompact(1_000_000, 'M');
+    if (abs >= 1_000) return formatCompact(1_000, 'K');
 
     return new Intl.NumberFormat('en-US').format(number);
   }
@@ -5772,4 +5774,4 @@ export default function OverviewPage({
       </section>
     </div>
   );
-}s
+}
