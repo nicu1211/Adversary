@@ -42,6 +42,9 @@ function shortNum(value) {
     return `${(valueNumber / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   }
 
+  if (abs >= 1_000) {
+    return `${(valueNumber / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  }
 
   return nf.format(Math.round(valueNumber));
 }
