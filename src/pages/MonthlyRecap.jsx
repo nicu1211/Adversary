@@ -387,8 +387,10 @@ const MONTHLY_GUILD_PANEL_CSS = `
 const GUILD_ROSTER = Object.freeze([
   'TwinDsclplNs',
   'Kacp12',
+  'AstrilTrinity',
   'Revekk',
   'GamblingProblem',
+  'XamaraX',
   'Paddies',
   'Challenger_ADC',
   'Exolvuntur',
@@ -405,9 +407,9 @@ const GUILD_ROSTER = Object.freeze([
   'Nkys',
   'Form',
   'Emphonia',
-  'Cabbiie',
+  'MrDethsTV',
   'MrsRaccoon',
-  'Shizzai',
+  'Joeshot',
   'SexyCupquake',
   'FarewelI',
   'CelestialElixir',
@@ -457,6 +459,7 @@ const GUILD_ROSTER = Object.freeze([
   'Dovah',
   'Potetmos',
   'Jeung',
+  'Zyxzo',
   'Telvanis',
   'XscarX',
   'INoGameNoLife',
@@ -479,7 +482,6 @@ const GUILD_ROSTER = Object.freeze([
   'Ferz',
   'Attack',
   'Protect',
-  'Buenaa',
   'McPero'
 ]);
 
