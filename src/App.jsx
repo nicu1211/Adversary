@@ -83,7 +83,8 @@ const ADVERSARY_LOOP_VIDEO =
   '';
 
 const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
-const STARTUP_MUTE_STORAGE_KEY = 'adversary:mute-startup-intro';
+const GLOBAL_MUTE_STORAGE_KEY = 'adversary:mute-all-sounds';
+const LEGACY_STARTUP_MUTE_STORAGE_KEY = 'adversary:mute-startup-intro';
 
 function readStartupSkipPreference() {
   try {
@@ -93,9 +94,13 @@ function readStartupSkipPreference() {
   }
 }
 
-function readStartupMutePreference() {
+function readGlobalMutePreference() {
   try {
-    return window.localStorage.getItem(STARTUP_MUTE_STORAGE_KEY) === 'true';
+    const savedGlobalPreference = window.localStorage.getItem(GLOBAL_MUTE_STORAGE_KEY);
+    if (savedGlobalPreference !== null) return savedGlobalPreference === 'true';
+
+    // Preserve the user's existing mute choice from the earlier intro-only control.
+    return window.localStorage.getItem(LEGACY_STARTUP_MUTE_STORAGE_KEY) === 'true';
   } catch {
     return false;
   }
@@ -4849,7 +4854,7 @@ function buildOverallClassGradient(slices) {
   return `conic-gradient(${stops.join(', ')})`;
 }
 
-function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
+function SidebarClassOrbs({ members = [], logs = [], loadLogs, globalMuted = false }) {
   const layerRef = useRef(null);
   const orbRefs = useRef([]);
   const physicsRef = useRef([]);
@@ -4863,6 +4868,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   const orbAudioRefs = useRef([]);
   const orbHoverStateRef = useRef([]);
   const orbLastSoundAtRef = useRef([]);
+  const globalMutedRef = useRef(globalMuted);
   const [selectedClass, setSelectedClass] = useState(null);
   const [classModalView, setClassModalView] = useState('class');
   const [selectedClassMode, setSelectedClassMode] = useState(null);
@@ -5547,6 +5553,19 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
   );
 
   useEffect(() => {
+    globalMutedRef.current = globalMuted;
+
+    orbAudioRefs.current.forEach((audio) => {
+      if (!audio) return;
+      audio.muted = globalMuted;
+      if (globalMuted) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+  }, [globalMuted]);
+
+  useEffect(() => {
     if (!selectedClass) return undefined;
 
     const closeOnEscape = (event) => {
@@ -5573,6 +5592,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
       const audio = new Audio(SIDEBAR_ORB_HOVER_SOUND);
       audio.preload = 'auto';
       audio.volume = 0.06;
+      audio.muted = globalMutedRef.current;
       return audio;
     });
 
@@ -5581,6 +5601,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     orbLastSoundAtRef.current = SIDEBAR_CLASS_ORBS.map(() => 0);
 
     const playOrbHoverSound = (index) => {
+      if (globalMutedRef.current) return;
+
       const now = performance.now();
       const lastPlayed = orbLastSoundAtRef.current[index] || 0;
 
@@ -5606,6 +5628,8 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs }) {
     };
 
     const unlockOrbAudio = () => {
+      if (globalMutedRef.current) return;
+
       orbAudioRefs.current.forEach((audio) => {
         if (!audio) return;
 
@@ -6784,18 +6808,21 @@ export default function App() {
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
   const startupMutedFallbackRef = useRef(false);
-  const startupUserMutedRef = useRef(readStartupMutePreference());
+  const globalMutedRef = useRef(readGlobalMutePreference());
   const [skipStartupIntro, setSkipStartupIntro] = useState(readStartupSkipPreference);
   const [startupFinished, setStartupFinished] = useState(readStartupSkipPreference);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
-  const [startupMuted, setStartupMuted] = useState(readStartupMutePreference);
+  const [globalMuted, setGlobalMuted] = useState(readGlobalMutePreference);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
   const panelHoverAudioRef = useRef([]);
   const panelHoverAudioIndexRef = useRef(0);
+  const pageClickAudioRef = useRef([]);
 
   const playPanelHoverSound = useCallback(() => {
+    if (globalMutedRef.current) return;
+
     const pool = panelHoverAudioRef.current;
     if (!pool.length) return;
 
@@ -6910,9 +6937,9 @@ export default function App() {
         try {
           introVideo.pause();
           introVideo.currentTime = 0;
-          introVideo.muted = startupMuted;
-          introVideo.defaultMuted = startupMuted;
-          introVideo.volume = startupMuted ? 0 : 0.25;
+          introVideo.muted = globalMuted;
+          introVideo.defaultMuted = globalMuted;
+          introVideo.volume = globalMuted ? 0 : 0.25;
         } catch {
           // The autoplay effect below will make another playback attempt.
         }
@@ -6939,52 +6966,58 @@ export default function App() {
       startBackgroundLoop();
       finishStartup();
     }
-  }, [finishStartup, skipStartupIntro, startBackgroundLoop, startupFinished, startupMuted]);
+  }, [finishStartup, globalMuted, skipStartupIntro, startBackgroundLoop, startupFinished]);
 
-  const toggleStartupMute = useCallback(() => {
-    const nextMuted = !startupMuted;
-    const video = startupVideoRef.current;
+  const toggleGlobalMute = useCallback(() => {
+    const nextMuted = !globalMutedRef.current;
 
-    startupUserMutedRef.current = nextMuted;
+    globalMutedRef.current = nextMuted;
     startupMutedFallbackRef.current = false;
-    setStartupMuted(nextMuted);
+    setGlobalMuted(nextMuted);
 
     try {
-      window.localStorage.setItem(STARTUP_MUTE_STORAGE_KEY, String(nextMuted));
+      window.localStorage.setItem(GLOBAL_MUTE_STORAGE_KEY, String(nextMuted));
+      window.localStorage.removeItem(LEGACY_STARTUP_MUTE_STORAGE_KEY);
     } catch {
       // The current visit still follows the selected mute setting.
     }
 
-    // When the intro is not currently visible, this still updates the saved
-    // preference so the next replay/open uses the selected audio state.
-    if (!video || startupFinished) return;
+    // Immediately stop or update every sound source we own.
+    [...panelHoverAudioRef.current, ...pageClickAudioRef.current].forEach((audio) => {
+      if (!audio) return;
+      audio.muted = nextMuted;
+      if (nextMuted) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+
+    const introVideo = startupVideoRef.current;
+    if (!introVideo) return;
 
     try {
-      video.muted = nextMuted;
-      video.defaultMuted = nextMuted;
-      video.volume = nextMuted ? 0 : 0.25;
+      introVideo.muted = nextMuted;
+      introVideo.defaultMuted = nextMuted;
+      introVideo.volume = nextMuted ? 0 : 0.25;
 
-      if (!nextMuted) {
-        const playPromise = video.play();
+      if (!nextMuted && !startupFinished) {
+        const playPromise = introVideo.play();
         if (playPromise?.catch) {
           playPromise.catch(() => {
-            video.muted = true;
-            video.volume = 0;
-            startupUserMutedRef.current = true;
-            setStartupMuted(true);
-
-            try {
-              window.localStorage.setItem(STARTUP_MUTE_STORAGE_KEY, 'true');
-            } catch {
-              // Ignore storage failures after a browser autoplay rejection.
-            }
+            // Autoplay policy may still require the intro itself to stay muted
+            // until the next interaction; do not change the global mute choice.
+            introVideo.muted = true;
+            introVideo.volume = 0;
+            startupMutedFallbackRef.current = true;
+            introVideo.play().catch(() => {});
           });
         }
       }
     } catch {
       // Keep the control responsive if the browser rejects a media change.
     }
-  }, [startupFinished, startupMuted]);
+  }, [startupFinished]);
+
 
   useEffect(() => {
     if (!skipStartupIntro || !ADVERSARY_LOOP_VIDEO) return;
@@ -7036,13 +7069,12 @@ export default function App() {
     let cancelled = false;
 
     const unlockBackgroundAudio = () => {
-      if (cancelled || !startupMutedFallbackRef.current || startupUserMutedRef.current) return;
+      if (cancelled || !startupMutedFallbackRef.current || globalMutedRef.current) return;
 
       try {
         video.muted = false;
         video.volume = 0.25;
         startupMutedFallbackRef.current = false;
-        setStartupMuted(false);
 
         const playPromise = video.play();
         if (playPromise?.catch) {
@@ -7052,7 +7084,6 @@ export default function App() {
             video.muted = true;
             video.volume = 0;
             startupMutedFallbackRef.current = true;
-            setStartupMuted(true);
             video.play().catch(() => {});
           });
         }
@@ -7062,13 +7093,12 @@ export default function App() {
     };
 
     const tryAutoplay = async () => {
-      if (startupUserMutedRef.current) {
+      if (globalMutedRef.current) {
         try {
           video.muted = true;
           video.defaultMuted = true;
           video.volume = 0;
           await video.play();
-          setStartupMuted(true);
           return;
         } catch {
           finishStartup();
@@ -7082,7 +7112,6 @@ export default function App() {
         video.volume = 0.25;
         await video.play();
         startupMutedFallbackRef.current = false;
-        setStartupMuted(false);
       } catch {
         if (cancelled) return;
 
@@ -7094,7 +7123,6 @@ export default function App() {
           video.muted = true;
           video.volume = 0;
           startupMutedFallbackRef.current = true;
-          setStartupMuted(true);
           await video.play();
         } catch {
           // If playback itself fails, reveal the UI and leave the static fallback.
@@ -7132,12 +7160,15 @@ export default function App() {
       const audio = new Audio(panelHoverSound);
       audio.preload = 'auto';
       audio.volume = 0.105;
+      audio.muted = globalMutedRef.current;
       return audio;
     });
 
     panelHoverAudioRef.current = audios;
 
     const unlockPanelHoverAudio = () => {
+      if (globalMutedRef.current) return;
+
       panelHoverAudioRef.current.forEach((audio) => {
         if (!audio) return;
 
@@ -7214,8 +7245,10 @@ export default function App() {
       const audio = new Audio(PAGE_CLICK_SOUND);
       audio.preload = 'auto';
       audio.volume = 0.12;
+      audio.muted = globalMutedRef.current;
       return audio;
     });
+    pageClickAudioRef.current = audioPool;
     let audioIndex = 0;
 
     const clickableSelector = [
@@ -7229,6 +7262,7 @@ export default function App() {
     ].join(',');
 
     const playPageClick = (event) => {
+      if (globalMutedRef.current) return;
       if (!(event.target instanceof Element)) return;
 
       const clickable = event.target.closest(clickableSelector);
@@ -7248,6 +7282,7 @@ export default function App() {
         audio.pause();
         audio.currentTime = 0;
       });
+      pageClickAudioRef.current = [];
     };
   }, []);
 
@@ -8160,7 +8195,7 @@ export default function App() {
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
-          muted={startupMuted || skipStartupIntro}
+          muted={globalMuted || skipStartupIntro}
           disablePictureInPicture
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
             backgroundLoopActive ? 'opacity-0' : 'opacity-100'
@@ -8182,14 +8217,14 @@ export default function App() {
         <button
           type="button"
           data-no-page-click-sound="true"
-          onClick={toggleStartupMute}
-          aria-pressed={startupMuted}
-          aria-label={startupMuted ? 'Unmute intro' : 'Mute intro'}
-          title={startupMuted ? 'Unmute intro audio' : 'Mute intro audio'}
+          onClick={toggleGlobalMute}
+          aria-pressed={globalMuted}
+          aria-label={globalMuted ? 'Unmute all website sounds' : 'Mute all website sounds'}
+          title={globalMuted ? 'Unmute all website sounds' : 'Mute all website sounds'}
           className="adversary-intro-control flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
         >
-          {startupMuted ? <VolumeX size={14} strokeWidth={2.4} /> : <Volume2 size={14} strokeWidth={2.4} />}
-          <span>{startupMuted ? 'Muted' : 'Mute'}</span>
+          {globalMuted ? <VolumeX size={14} strokeWidth={2.4} /> : <Volume2 size={14} strokeWidth={2.4} />}
+          <span>{globalMuted ? 'Muted' : 'Mute'}</span>
         </button>
 
         <button
@@ -8274,6 +8309,7 @@ export default function App() {
             members={members}
             logs={Array.isArray(allLogs) ? allLogs : nodeLogs}
             loadLogs={loadAllLogs}
+            globalMuted={globalMuted}
           />
 
           <h1 className="pointer-events-none relative z-30 mb-6 text-2xl font-black tracking-[0.16em] text-amber-300 drop-shadow-[0_0_18px_rgba(250,204,21,.38)]">
