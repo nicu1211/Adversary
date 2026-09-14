@@ -83,10 +83,19 @@ const ADVERSARY_LOOP_VIDEO =
   '';
 
 const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
+const STARTUP_MUTE_STORAGE_KEY = 'adversary:mute-startup-intro';
 
 function readStartupSkipPreference() {
   try {
     return window.localStorage.getItem(STARTUP_SKIP_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function readStartupMutePreference() {
+  try {
+    return window.localStorage.getItem(STARTUP_MUTE_STORAGE_KEY) === 'true';
   } catch {
     return false;
   }
@@ -6775,12 +6784,12 @@ export default function App() {
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
   const startupMutedFallbackRef = useRef(false);
-  const startupUserMutedRef = useRef(false);
+  const startupUserMutedRef = useRef(readStartupMutePreference());
   const [skipStartupIntro, setSkipStartupIntro] = useState(readStartupSkipPreference);
   const [startupFinished, setStartupFinished] = useState(readStartupSkipPreference);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
-  const [startupMuted, setStartupMuted] = useState(false);
+  const [startupMuted, setStartupMuted] = useState(readStartupMutePreference);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
   const panelHoverAudioRef = useRef([]);
@@ -6869,6 +6878,55 @@ export default function App() {
   }, [backgroundLoopActive]);
 
   const handleSkipStartup = useCallback(() => {
+    if (skipStartupIntro) {
+      try {
+        window.localStorage.setItem(STARTUP_SKIP_STORAGE_KEY, 'false');
+      } catch {
+        // The preference still changes for the current visit.
+      }
+
+      if (startupRevealTimerRef.current) {
+        window.clearTimeout(startupRevealTimerRef.current);
+        startupRevealTimerRef.current = null;
+      }
+
+      if (startupExitTimerRef.current) {
+        window.clearTimeout(startupExitTimerRef.current);
+        startupExitTimerRef.current = null;
+      }
+
+      const loopVideo = backgroundLoopVideoRef.current;
+      if (loopVideo) {
+        try {
+          loopVideo.pause();
+          loopVideo.currentTime = 0;
+        } catch {
+          // The intro can still be restored if the loop cannot be reset.
+        }
+      }
+
+      const introVideo = startupVideoRef.current;
+      if (introVideo) {
+        try {
+          introVideo.pause();
+          introVideo.currentTime = 0;
+          introVideo.muted = startupMuted;
+          introVideo.defaultMuted = startupMuted;
+          introVideo.volume = startupMuted ? 0 : 0.25;
+        } catch {
+          // The autoplay effect below will make another playback attempt.
+        }
+      }
+
+      backgroundLoopTransitionRef.current = false;
+      setBackgroundLoopActive(false);
+      setSkipStartupIntro(false);
+      setStartupFinished(false);
+      setStartupFading(false);
+      setStartupStarted(false);
+      return;
+    }
+
     try {
       window.localStorage.setItem(STARTUP_SKIP_STORAGE_KEY, 'true');
     } catch {
@@ -6876,19 +6934,30 @@ export default function App() {
     }
 
     setSkipStartupIntro(true);
-    startBackgroundLoop();
-    finishStartup();
-  }, [finishStartup, startBackgroundLoop]);
+
+    if (!startupFinished) {
+      startBackgroundLoop();
+      finishStartup();
+    }
+  }, [finishStartup, skipStartupIntro, startBackgroundLoop, startupFinished, startupMuted]);
 
   const toggleStartupMute = useCallback(() => {
-    const video = startupVideoRef.current;
     const nextMuted = !startupMuted;
+    const video = startupVideoRef.current;
 
     startupUserMutedRef.current = nextMuted;
     startupMutedFallbackRef.current = false;
     setStartupMuted(nextMuted);
 
-    if (!video) return;
+    try {
+      window.localStorage.setItem(STARTUP_MUTE_STORAGE_KEY, String(nextMuted));
+    } catch {
+      // The current visit still follows the selected mute setting.
+    }
+
+    // When the intro is not currently visible, this still updates the saved
+    // preference so the next replay/open uses the selected audio state.
+    if (!video || startupFinished) return;
 
     try {
       video.muted = nextMuted;
@@ -6901,14 +6970,21 @@ export default function App() {
           playPromise.catch(() => {
             video.muted = true;
             video.volume = 0;
+            startupUserMutedRef.current = true;
             setStartupMuted(true);
+
+            try {
+              window.localStorage.setItem(STARTUP_MUTE_STORAGE_KEY, 'true');
+            } catch {
+              // Ignore storage failures after a browser autoplay rejection.
+            }
           });
         }
       }
     } catch {
       // Keep the control responsive if the browser rejects a media change.
     }
-  }, [startupMuted]);
+  }, [startupFinished, startupMuted]);
 
   useEffect(() => {
     if (!skipStartupIntro || !ADVERSARY_LOOP_VIDEO) return;
@@ -6986,6 +7062,20 @@ export default function App() {
     };
 
     const tryAutoplay = async () => {
+      if (startupUserMutedRef.current) {
+        try {
+          video.muted = true;
+          video.defaultMuted = true;
+          video.volume = 0;
+          await video.play();
+          setStartupMuted(true);
+          return;
+        } catch {
+          finishStartup();
+          return;
+        }
+      }
+
       try {
         video.muted = false;
         video.defaultMuted = false;
@@ -8088,36 +8178,31 @@ export default function App() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(1,3,7,.18),rgba(1,3,7,.05)_42%,rgba(1,3,7,.28))]" />
       </div>
 
-      {!startupFinished && (
-        <div
-          className={`fixed right-5 top-5 z-[100001] flex items-center gap-2 transition-opacity duration-300 ${
-            startupStarted ? 'opacity-70 hover:opacity-100' : 'pointer-events-none opacity-0'
-          }`}
+      <div className="fixed right-5 top-5 z-[100001] flex items-center gap-2 opacity-70 transition-opacity duration-300 hover:opacity-100">
+        <button
+          type="button"
+          data-no-page-click-sound="true"
+          onClick={toggleStartupMute}
+          aria-pressed={startupMuted}
+          aria-label={startupMuted ? 'Unmute intro' : 'Mute intro'}
+          title={startupMuted ? 'Unmute intro audio' : 'Mute intro audio'}
+          className="adversary-intro-control flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
         >
-          <button
-            type="button"
-            data-no-page-click-sound="true"
-            onClick={toggleStartupMute}
-            aria-pressed={startupMuted}
-            aria-label={startupMuted ? 'Unmute intro' : 'Mute intro'}
-            title={startupMuted ? 'Unmute intro' : 'Mute intro'}
-            className="adversary-intro-control flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
-          >
-            {startupMuted ? <VolumeX size={14} strokeWidth={2.4} /> : <Volume2 size={14} strokeWidth={2.4} />}
-            <span>{startupMuted ? 'Muted' : 'Mute'}</span>
-          </button>
+          {startupMuted ? <VolumeX size={14} strokeWidth={2.4} /> : <Volume2 size={14} strokeWidth={2.4} />}
+          <span>{startupMuted ? 'Muted' : 'Mute'}</span>
+        </button>
 
-          <button
-            type="button"
-            data-no-page-click-sound="true"
-            onClick={handleSkipStartup}
-            title="Skip intro now and on future visits"
-            className="adversary-intro-control rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
-          >
-            Skip
-          </button>
-        </div>
-      )}
+        <button
+          type="button"
+          data-no-page-click-sound="true"
+          onClick={handleSkipStartup}
+          aria-pressed={skipStartupIntro}
+          title={skipStartupIntro ? 'Show the intro again and stop auto-skipping it' : 'Skip the intro now and on future visits'}
+          className="adversary-intro-control rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
+        >
+          {skipStartupIntro ? 'Show Intro' : 'Skip'}
+        </button>
+      </div>
       <div className={`sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 transition-opacity duration-500 lg:hidden ${
         startupFading || startupFinished ? 'opacity-100' : 'pointer-events-none opacity-0'
       }`}>
