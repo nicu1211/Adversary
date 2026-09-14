@@ -15,6 +15,8 @@ import {
   Swords as MenuSwords,
   Trophy,
   UsersRound,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import NodeWars from './pages/NodeWars';
 import RawLog from './pages/RawLog';
@@ -79,6 +81,16 @@ const ADVERSARY_LOOP_VIDEO =
   LOOP_VIDEO_MODULES['./assets/Loop-video.webm'] ||
   LOOP_VIDEO_MODULES['./assets/Loop-video.mov'] ||
   '';
+
+const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
+
+function readStartupSkipPreference() {
+  try {
+    return window.localStorage.getItem(STARTUP_SKIP_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
 import {
   MEMBER_KEY,
   buildLogSummary,
@@ -697,6 +709,49 @@ const GLOBAL_PANEL_CSS = `
     isolation: isolate;
     background-color: transparent !important;
   }
+
+  /* Intro controls mirror the Hall of Fame gold-filled card treatment. */
+  .adversary-intro-control {
+    --intro-control-rgb: 250, 204, 21;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid rgba(var(--intro-control-rgb), .68);
+    background:
+      radial-gradient(ellipse at 18% 0%, rgba(var(--intro-control-rgb), .52), rgba(var(--intro-control-rgb), .28) 38%, rgba(var(--intro-control-rgb), .10) 70%, transparent 92%),
+      linear-gradient(145deg, rgba(24,20,4,.90), rgba(3,5,6,.90));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.12),
+      inset 0 0 28px rgba(var(--intro-control-rgb), .20),
+      0 8px 20px rgba(0,0,0,.22);
+    color: rgba(255, 244, 178, .94);
+  }
+
+  .adversary-intro-control::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(120deg, rgba(var(--intro-control-rgb), .30), rgba(var(--intro-control-rgb), .12) 58%, transparent 100%);
+    opacity: .58;
+    transition: opacity 160ms ease, filter 160ms ease;
+  }
+
+  .adversary-intro-control:hover {
+    border-color: rgba(var(--intro-control-rgb), 1);
+    color: rgb(255, 247, 196);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.16),
+      inset 0 0 36px rgba(var(--intro-control-rgb), .30),
+      0 0 22px rgba(var(--intro-control-rgb), .22),
+      0 10px 24px rgba(0,0,0,.24);
+  }
+
+  .adversary-intro-control:hover::before {
+    opacity: .86;
+  }
+
 
   .adversary-site-background {
     position: fixed;
@@ -6720,9 +6775,12 @@ export default function App() {
   const startupExitTimerRef = useRef(null);
   const startupRevealTimerRef = useRef(null);
   const startupMutedFallbackRef = useRef(false);
-  const [startupFinished, setStartupFinished] = useState(false);
+  const startupUserMutedRef = useRef(false);
+  const [skipStartupIntro, setSkipStartupIntro] = useState(readStartupSkipPreference);
+  const [startupFinished, setStartupFinished] = useState(readStartupSkipPreference);
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
+  const [startupMuted, setStartupMuted] = useState(false);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
   const panelHoverAudioRef = useRef([]);
@@ -6810,6 +6868,53 @@ export default function App() {
     }
   }, [backgroundLoopActive]);
 
+  const handleSkipStartup = useCallback(() => {
+    try {
+      window.localStorage.setItem(STARTUP_SKIP_STORAGE_KEY, 'true');
+    } catch {
+      // The current visit still skips even if browser storage is unavailable.
+    }
+
+    setSkipStartupIntro(true);
+    startBackgroundLoop();
+    finishStartup();
+  }, [finishStartup, startBackgroundLoop]);
+
+  const toggleStartupMute = useCallback(() => {
+    const video = startupVideoRef.current;
+    const nextMuted = !startupMuted;
+
+    startupUserMutedRef.current = nextMuted;
+    startupMutedFallbackRef.current = false;
+    setStartupMuted(nextMuted);
+
+    if (!video) return;
+
+    try {
+      video.muted = nextMuted;
+      video.defaultMuted = nextMuted;
+      video.volume = nextMuted ? 0 : 0.25;
+
+      if (!nextMuted) {
+        const playPromise = video.play();
+        if (playPromise?.catch) {
+          playPromise.catch(() => {
+            video.muted = true;
+            video.volume = 0;
+            setStartupMuted(true);
+          });
+        }
+      }
+    } catch {
+      // Keep the control responsive if the browser rejects a media change.
+    }
+  }, [startupMuted]);
+
+  useEffect(() => {
+    if (!skipStartupIntro || !ADVERSARY_LOOP_VIDEO) return;
+    startBackgroundLoop();
+  }, [skipStartupIntro, startBackgroundLoop]);
+
   const handleIntroTimeUpdate = useCallback((event) => {
     if (!ADVERSARY_LOOP_VIDEO || backgroundLoopActive) return;
 
@@ -6847,18 +6952,21 @@ export default function App() {
   }, [startBackgroundLoop]);
 
   useEffect(() => {
+    if (skipStartupIntro && ADVERSARY_LOOP_VIDEO) return undefined;
+
     const video = startupVideoRef.current;
     if (!video) return undefined;
 
     let cancelled = false;
 
     const unlockBackgroundAudio = () => {
-      if (cancelled || !startupMutedFallbackRef.current) return;
+      if (cancelled || !startupMutedFallbackRef.current || startupUserMutedRef.current) return;
 
       try {
         video.muted = false;
         video.volume = 0.25;
         startupMutedFallbackRef.current = false;
+        setStartupMuted(false);
 
         const playPromise = video.play();
         if (playPromise?.catch) {
@@ -6868,6 +6976,7 @@ export default function App() {
             video.muted = true;
             video.volume = 0;
             startupMutedFallbackRef.current = true;
+            setStartupMuted(true);
             video.play().catch(() => {});
           });
         }
@@ -6883,6 +6992,7 @@ export default function App() {
         video.volume = 0.25;
         await video.play();
         startupMutedFallbackRef.current = false;
+        setStartupMuted(false);
       } catch {
         if (cancelled) return;
 
@@ -6894,6 +7004,7 @@ export default function App() {
           video.muted = true;
           video.volume = 0;
           startupMutedFallbackRef.current = true;
+          setStartupMuted(true);
           await video.play();
         } catch {
           // If playback itself fails, reveal the UI and leave the static fallback.
@@ -6924,7 +7035,7 @@ export default function App() {
         startupExitTimerRef.current = null;
       }
     };
-  }, [finishStartup]);
+  }, [finishStartup, skipStartupIntro]);
 
   useEffect(() => {
     const audios = Array.from({ length: 3 }, () => {
@@ -7955,11 +8066,11 @@ export default function App() {
         <video
           ref={startupVideoRef}
           src={adversaryStartupClip}
-          autoPlay
+          autoPlay={!skipStartupIntro || !ADVERSARY_LOOP_VIDEO}
           playsInline
           preload="auto"
           loop={!ADVERSARY_LOOP_VIDEO}
-          muted={false}
+          muted={startupMuted || skipStartupIntro}
           disablePictureInPicture
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
             backgroundLoopActive ? 'opacity-0' : 'opacity-100'
@@ -7978,16 +8089,34 @@ export default function App() {
       </div>
 
       {!startupFinished && (
-        <button
-          type="button"
-          data-no-page-click-sound="true"
-          onClick={finishStartup}
-          className={`fixed right-5 top-5 z-[100001] rounded-lg border border-amber-300/25 bg-black/55 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-amber-100/75 transition-all duration-300 hover:border-amber-300/55 hover:bg-black/80 hover:text-amber-100 ${
-            startupStarted ? 'opacity-55 hover:opacity-100' : 'pointer-events-none opacity-0'
+        <div
+          className={`fixed right-5 top-5 z-[100001] flex items-center gap-2 transition-opacity duration-300 ${
+            startupStarted ? 'opacity-70 hover:opacity-100' : 'pointer-events-none opacity-0'
           }`}
         >
-          Skip
-        </button>
+          <button
+            type="button"
+            data-no-page-click-sound="true"
+            onClick={toggleStartupMute}
+            aria-pressed={startupMuted}
+            aria-label={startupMuted ? 'Unmute intro' : 'Mute intro'}
+            title={startupMuted ? 'Unmute intro' : 'Mute intro'}
+            className="adversary-intro-control flex items-center gap-2 rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
+          >
+            {startupMuted ? <VolumeX size={14} strokeWidth={2.4} /> : <Volume2 size={14} strokeWidth={2.4} />}
+            <span>{startupMuted ? 'Muted' : 'Mute'}</span>
+          </button>
+
+          <button
+            type="button"
+            data-no-page-click-sound="true"
+            onClick={handleSkipStartup}
+            title="Skip intro now and on future visits"
+            className="adversary-intro-control rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
+          >
+            Skip
+          </button>
+        </div>
       )}
       <div className={`sticky top-0 z-40 border-b border-slate-800 bg-slate-950/88 p-3 transition-opacity duration-500 lg:hidden ${
         startupFading || startupFinished ? 'opacity-100' : 'pointer-events-none opacity-0'
