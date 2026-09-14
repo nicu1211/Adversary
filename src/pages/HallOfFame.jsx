@@ -26,27 +26,8 @@ function num(value) {
   return Number(value) || 0;
 }
 
-function shortNum(value) {
-  const valueNumber = num(value);
-  const abs = Math.abs(valueNumber);
-
-  if (abs >= 1_000_000_000_000) {
-    return `${(valueNumber / 1_000_000_000_000).toFixed(1).replace(/\.0$/, '')}T`;
-  }
-
-  if (abs >= 1_000_000_000) {
-    return `${(valueNumber / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
-  }
-
-  if (abs >= 1_000_000) {
-    return `${(valueNumber / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  }
-
-  if (abs >= 1_000) {
-    return `${(valueNumber / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
-  }
-
-  return nf.format(Math.round(valueNumber));
+function exactNum(value) {
+  return nf.format(Math.round(num(value)));
 }
 
 function cls(...items) {
@@ -2691,7 +2672,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     )[0] || leaderboardRows[0];
 
   const achievements = [
-    { title: 'Hall MVP', icon: Crown, player: leaderboardRows[0], metricKey: 'score', value: shortNum(leaderboardRows[0]?.score), sub: 'Highest total score', tone: 'amber' },
+    { title: 'Hall MVP', icon: Crown, player: leaderboardRows[0], metricKey: 'score', value: exactNum(leaderboardRows[0]?.score), sub: 'Highest total score', tone: 'amber' },
     { title: 'Top Fragger', icon: Swords, player: topKills, metricKey: 'kills', value: nf.format(topKills?.kills || 0), sub: 'Most kills', tone: 'rose' },
     { title: 'Best K/D', icon: Target, player: bestKd, metricKey: 'kd', value: (bestKd?.kd || 0).toFixed(2), sub: 'Best ratio', tone: 'emerald' },
     { title: 'Clutch King', icon: Flame, player: topStreak, metricKey: 'streak', value: nf.format(topStreak?.streak || 0), sub: 'Longest streak', tone: 'orange' },
@@ -3393,7 +3374,7 @@ function LegendRow({ row, rank }) {
         </div>
       </div>
       <div className="truncate text-sm font-bold text-slate-300">{row.title}</div>
-      <div className="text-right text-sm font-black text-blue-200">{shortNum(row.score)}</div>
+      <div className="text-right text-sm font-black text-blue-200">{exactNum(row.score)}</div>
       <div className="text-right text-sm font-black text-emerald-300">{row.kd.toFixed(2)}</div>
       <div className="text-right text-sm font-black text-slate-200">{nf.format(row.kills)}</div>
     </div>
@@ -3495,7 +3476,7 @@ function TopLegendCard({ row, rank, wide = false, center = false }) {
             <span>·</span>
             <span>{row.kd.toFixed(2)} K/D</span>
             <span>·</span>
-            <span>{shortNum(row.score)} score</span>
+            <span>{exactNum(row.score)} score</span>
           </div>
         </div>
       </div>
@@ -3547,7 +3528,7 @@ function HallProgressRow({ label, player, metricKey, value, max, right, tone = '
         <span className="min-w-0 text-slate-200">
           <HallProgressLabel label={label} player={player} metricKey={metricKey} />
         </span>
-        <span className="shrink-0 text-slate-400">{right ?? shortNum(value)}</span>
+        <span className="shrink-0 text-slate-400">{right ?? exactNum(value)}</span>
       </div>
       <div className="h-2 rounded-full bg-slate-900/90">
         <div className={cls('h-2 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)} style={{ width: `${width}%` }} />
@@ -3635,7 +3616,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
           icon={Target}
           title="Highlights"
           value={bestKd ? bestKd.kd.toFixed(2) : '0.00'}
-          sub={topStreak ? `Best K/D · Streak ${shortNum(topStreak.streak)}` : 'Best K/D · Streak'}
+          sub={topStreak ? `Best K/D · Streak ${exactNum(topStreak.streak)}` : 'Best K/D · Streak'}
           tone="greenDeep"
           active={activeTab === 'highlights'}
           onClick={() => onTabChange('highlights')}
@@ -3644,7 +3625,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
         <HallHeaderCard
           icon={BarChart3}
           title="Damage"
-          value={shortNum(totalEligibleDamage)}
+          value={exactNum(totalEligibleDamage)}
           sub={`Min ${MIN_HALL_WARS} Wars · ${MIN_HALL_STATS_LOG_APPEARANCES} Stats Logs`}
           tone="yellowGold"
           active={activeTab === 'damage'}
@@ -3654,7 +3635,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
         <HallHeaderCard
           icon={CalendarDays}
           title="Node Wars"
-          value={shortNum(data.totals.wars)}
+          value={exactNum(data.totals.wars)}
           sub={`Min ${MIN_HALL_WARS} Wars · ${MIN_HALL_STATS_LOG_APPEARANCES} Stats Logs`}
           tone="redDeep"
           active={activeTab === 'nodeWars'}
@@ -3752,7 +3733,7 @@ function CombatOutputPanel({ data }) {
                 metricKey="maxMatchKills"
                 value={player.maxMatchKills}
                 max={maxSingleMatchKills}
-                right={shortNum(player.maxMatchKills)}
+                right={exactNum(player.maxMatchKills)}
                 tone="blueSky"
               />
             ))
@@ -3949,7 +3930,7 @@ function CombatRecordsPanel({ data }) {
                 metricKey="maxMatchAllyProtection"
                 value={player.maxMatchAllyProtection}
                 max={maxHighestAllyProtection}
-                right={shortNum(player.maxMatchAllyProtection)}
+                right={exactNum(player.maxMatchAllyProtection)}
                 tone="greenMint"
               />
             ))
@@ -3969,7 +3950,7 @@ function CombatRecordsPanel({ data }) {
                 metricKey="avgAllyProtectionPerMatch"
                 value={player.avgAllyProtectionPerMatch}
                 max={maxAverageAllyProtection}
-                right={shortNum(player.avgAllyProtectionPerMatch)}
+                right={exactNum(player.avgAllyProtectionPerMatch)}
                 tone="greenTeal"
               />
             ))
@@ -4011,7 +3992,7 @@ function CombatRecordsPanel({ data }) {
                 metricKey="streak"
                 value={player.streak}
                 max={maxStreak}
-                right={shortNum(player.streak)}
+                right={exactNum(player.streak)}
                 tone="greenLime"
               />
             ))
@@ -4031,7 +4012,7 @@ function CombatRecordsPanel({ data }) {
                 metricKey="feed"
                 value={player.feed}
                 max={maxFeed}
-                right={shortNum(player.feed)}
+                right={exactNum(player.feed)}
                 tone="greenTeal"
               />
             ))
@@ -4051,7 +4032,7 @@ function CombatRecordsPanel({ data }) {
                 metricKey="fiftyPlusKillWars"
                 value={player.fiftyPlusKillWars}
                 max={maxFiftyPlusKillWars}
-                right={`${shortNum(player.fiftyPlusKillWars)} Wars`}
+                right={`${exactNum(player.fiftyPlusKillWars)} Wars`}
                 tone="greenTeal"
               />
             ))
@@ -4071,7 +4052,7 @@ function CombatRecordsPanel({ data }) {
                 metricKey="firstBloods"
                 value={player.firstBloods}
                 max={maxFirstBloods}
-                right={shortNum(player.firstBloods)}
+                right={exactNum(player.firstBloods)}
                 tone="greenMint"
               />
             ))
@@ -4252,7 +4233,7 @@ function ArsenalOutputPanel({ data }) {
                 metricKey="kills"
                 value={player.kills}
                 max={maxKills}
-                right={shortNum(player.kills)}
+                right={exactNum(player.kills)}
                 tone="emerald"
               />
             ))
@@ -4272,7 +4253,7 @@ function ArsenalOutputPanel({ data }) {
                 metricKey="damageDealt"
                 value={player.damageDealt}
                 max={maxDamage}
-                right={shortNum(player.damageDealt)}
+                right={exactNum(player.damageDealt)}
                 tone="amber"
               />
             ))
@@ -4403,7 +4384,7 @@ function DamageRecordsPanel({ data }) {
                 metricKey="maxMatchDamageDealt"
                 value={player.maxMatchDamageDealt}
                 max={maxSingleGameDamageDealt}
-                right={shortNum(player.maxMatchDamageDealt)}
+                right={exactNum(player.maxMatchDamageDealt)}
                 tone="yellowGold"
               />
             ))
@@ -4423,7 +4404,7 @@ function DamageRecordsPanel({ data }) {
                 metricKey="avgDamageDealtPerMatch"
                 value={player.avgDamageDealtPerMatch}
                 max={maxAverageDamageDealt}
-                right={shortNum(player.avgDamageDealtPerMatch)}
+                right={exactNum(player.avgDamageDealtPerMatch)}
                 tone="yellowAmber"
               />
             ))
@@ -4443,7 +4424,7 @@ function DamageRecordsPanel({ data }) {
                 metricKey="maxMatchDpm"
                 value={player.maxMatchDpm}
                 max={maxHighestDpmPerNodeWar}
-                right={`${shortNum(player.maxMatchDpm)}/min`}
+                right={`${exactNum(player.maxMatchDpm)}/min`}
                 tone="yellowGold"
               />
             ))
@@ -4463,7 +4444,7 @@ function DamageRecordsPanel({ data }) {
                 metricKey="avgDpmPerMatch"
                 value={player.avgDpmPerMatch}
                 max={maxAverageDpm}
-                right={`${shortNum(player.avgDpmPerMatch)}/min`}
+                right={`${exactNum(player.avgDpmPerMatch)}/min`}
                 tone="yellowAmber"
               />
             ))
@@ -4483,7 +4464,7 @@ function DamageRecordsPanel({ data }) {
                 metricKey="maxMatchFortDamage"
                 value={player.maxMatchFortDamage}
                 max={maxSingleGameFortDamage}
-                right={shortNum(player.maxMatchFortDamage)}
+                right={exactNum(player.maxMatchFortDamage)}
                 tone="yellowLemon"
               />
             ))
@@ -4503,7 +4484,7 @@ function DamageRecordsPanel({ data }) {
                 metricKey="maxMatchCcHits"
                 value={player.maxMatchCcHits}
                 max={maxSingleGameCcHits}
-                right={shortNum(player.maxMatchCcHits)}
+                right={exactNum(player.maxMatchCcHits)}
                 tone="yellowHoney"
               />
             ))
@@ -4543,7 +4524,7 @@ function DamageRecordsPanel({ data }) {
                 metricKey="damageTakenPerDeath"
                 value={player.damageTakenPerDeath}
                 max={maxDamageTakenPerDeath}
-                right={shortNum(player.damageTakenPerDeath)}
+                right={exactNum(player.damageTakenPerDeath)}
                 tone="yellowHoney"
               />
             ))
@@ -4599,7 +4580,7 @@ function NodeWarsRecordsPanel({ data }) {
                 metricKey="wars"
                 value={player.wars}
                 max={maxNodeWars}
-                right={shortNum(player.wars)}
+                right={exactNum(player.wars)}
                 tone="redDeep"
               />
             ))
@@ -4639,7 +4620,7 @@ function NodeWarsRecordsPanel({ data }) {
                 metricKey="consecutiveWars"
                 value={player.consecutiveWars}
                 max={maxConsecutiveWars}
-                right={shortNum(player.consecutiveWars)}
+                right={exactNum(player.consecutiveWars)}
                 tone="redRose"
               />
             ))
