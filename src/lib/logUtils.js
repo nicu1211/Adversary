@@ -641,6 +641,7 @@ function parseSecondaryLine(line, index) {
     damageDealt === 0 &&
     damageTaken === 0 &&
     ccHits === 0 &&
+    allyProtection === 0 &&
     fortDamage === 0
   ) {
     return null;
@@ -915,6 +916,7 @@ function secondaryRowsTotals(rows) {
       damageDealt: totals.damageDealt + (Number(row.damageDealt) || 0),
       damageTaken: totals.damageTaken + (Number(row.damageTaken) || 0),
       ccHits: totals.ccHits + (Number(row.ccHits) || 0),
+      allyProtection: totals.allyProtection + (Number(row.allyProtection) || 0),
       fortDamage: totals.fortDamage + (Number(row.fortDamage) || 0),
     }),
     {
@@ -924,6 +926,7 @@ function secondaryRowsTotals(rows) {
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
+      allyProtection: 0,
       fortDamage: 0,
     },
   );
@@ -1440,6 +1443,8 @@ function calculateStatsFromRaw(items) {
       damageTaken:
         (Number(current.damageTaken) || 0) + (Number(row.damageTaken) || 0),
       ccHits: (Number(current.ccHits) || 0) + (Number(row.ccHits) || 0),
+      allyProtection:
+        (Number(current.allyProtection) || 0) + (Number(row.allyProtection) || 0),
       fortDamage:
         (Number(current.fortDamage) || 0) + (Number(row.fortDamage) || 0),
     };
@@ -1457,6 +1462,7 @@ function calculateStatsFromRaw(items) {
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
+      allyProtection: 0,
       fortDamage: 0,
     };
   }
@@ -1651,6 +1657,7 @@ function calculateStatsFromRaw(items) {
               damageDealt: secondary.damageDealt,
               damageTaken: secondary.damageTaken,
               ccHits: secondary.ccHits,
+              allyProtection: secondary.allyProtection,
               fortDamage: secondary.fortDamage,
             }
           : {}),
@@ -1730,6 +1737,7 @@ function mergeStatsFromSummaries(items) {
     damageDealt: 0,
     damageTaken: 0,
     ccHits: 0,
+    allyProtection: 0,
     fortDamage: 0,
   };
 
@@ -1760,6 +1768,7 @@ function mergeStatsFromSummaries(items) {
         player.damageDealt != null ||
         player.damageTaken != null ||
         player.ccHits != null ||
+        player.allyProtection != null ||
         player.fortDamage != null
       ) {
         const current = secondaryByPlayer[player.name] || {
@@ -1767,6 +1776,7 @@ function mergeStatsFromSummaries(items) {
           damageDealt: 0,
           damageTaken: 0,
           ccHits: 0,
+          allyProtection: 0,
           fortDamage: 0,
         };
 
@@ -1779,6 +1789,8 @@ function mergeStatsFromSummaries(items) {
           damageDealt: current.damageDealt + (Number(player.damageDealt) || 0),
           damageTaken: current.damageTaken + (Number(player.damageTaken) || 0),
           ccHits: current.ccHits + (Number(player.ccHits) || 0),
+          allyProtection:
+            current.allyProtection + (Number(player.allyProtection) || 0),
           fortDamage: current.fortDamage + (Number(player.fortDamage) || 0),
         };
       }
@@ -1800,6 +1812,8 @@ function mergeStatsFromSummaries(items) {
       secondaryTotals.damageDealt += Number(summary.secondary.totals.damageDealt) || 0;
       secondaryTotals.damageTaken += Number(summary.secondary.totals.damageTaken) || 0;
       secondaryTotals.ccHits += Number(summary.secondary.totals.ccHits) || 0;
+      secondaryTotals.allyProtection +=
+        Number(summary.secondary.totals.allyProtection) || 0;
       secondaryTotals.fortDamage += Number(summary.secondary.totals.fortDamage) || 0;
     }
 
@@ -1861,6 +1875,7 @@ function mergeStatsFromSummaries(items) {
               damageDealt: secondary.damageDealt,
               damageTaken: secondary.damageTaken,
               ccHits: secondary.ccHits,
+              allyProtection: secondary.allyProtection,
               fortDamage: secondary.fortDamage,
             }
           : {}),
@@ -2069,12 +2084,15 @@ export function buildNodeWarRow(log) {
       damageTaken:
         totals.damageTaken + (Number(player.damageTaken) || 0),
       ccHits: totals.ccHits + (Number(player.ccHits) || 0),
+      allyProtection:
+        totals.allyProtection + (Number(player.allyProtection) || 0),
       fortDamage: totals.fortDamage + (Number(player.fortDamage) || 0),
     }),
     {
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
+      allyProtection: 0,
       fortDamage: 0,
     },
   );
@@ -2092,6 +2110,10 @@ export function buildNodeWarRow(log) {
     damageTaken:
       Number(secondaryTotals.damageTaken) || playerSecondaryTotals.damageTaken || 0,
     ccHits: Number(secondaryTotals.ccHits) || playerSecondaryTotals.ccHits || 0,
+    allyProtection:
+      Number(secondaryTotals.allyProtection) ||
+      playerSecondaryTotals.allyProtection ||
+      0,
     fortDamage:
       Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0,
     topEnemies: summary.topEnemies || [],
