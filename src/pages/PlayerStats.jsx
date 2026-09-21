@@ -4248,7 +4248,7 @@ function MatchHistoryList({
   if (!safeMatches.length) return null;
 
   const gridCols =
-    'grid-cols-[38px_minmax(190px,1.65fr)_minmax(82px,.72fr)_minmax(82px,.72fr)_minmax(88px,.76fr)_minmax(112px,.95fr)_minmax(104px,.9fr)_minmax(126px,1.06fr)_minmax(126px,1.06fr)_minmax(96px,.82fr)_minmax(132px,1.1fr)]';
+    'grid-cols-[34px_minmax(160px,1.45fr)_minmax(68px,.62fr)_minmax(68px,.62fr)_minmax(72px,.66fr)_minmax(88px,.78fr)_minmax(84px,.75fr)_minmax(102px,.9fr)_minmax(102px,.9fr)_minmax(76px,.68fr)_minmax(96px,.82fr)_minmax(100px,.86fr)]';
 
   return (
     <div className="player-stats-guild-panel player-stats-accent-blue player-stats-match-panel rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
@@ -4262,10 +4262,10 @@ function MatchHistoryList({
       </div>
 
       <div className={`max-h-[420px] overflow-x-auto overflow-y-auto pr-2 ${scrollCls}`}>
-        <div className="w-full min-w-[1240px] space-y-2">
+        <div className="w-full min-w-[1135px] space-y-2">
           {/* Header */}
           <div
-            className={`player-stats-table-header sticky top-0 z-10 grid ${gridCols} gap-3 rounded-2xl border border-slate-800 bg-slate-950/34 px-3 py-2.5 backdrop-blur-[2px]`}
+            className={`player-stats-table-header sticky top-0 z-10 grid ${gridCols} gap-1.5 rounded-2xl border border-slate-800 bg-slate-950/34 px-2 py-2.5 backdrop-blur-[2px]`}
           >
             <div />
             <MatchHistoryHeaderCell
@@ -4381,7 +4381,7 @@ function MatchHistoryList({
                 type="button"
                 key={`${match.warId}-${match.date}-${index}`}
                 onClick={() => onOpenMatchOverview?.(match)}
-                className={`player-stats-match-row grid min-h-[44px] ${gridCols} w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-3 py-1 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
+                className={`player-stats-match-row grid min-h-[44px] ${gridCols} w-full cursor-pointer items-center gap-1.5 rounded-2xl border border-slate-800/90 bg-gradient-to-r from-slate-950/95 via-slate-900/70 to-slate-950/95 px-2 py-1 text-left shadow-[0_4px_14px_rgba(0,0,0,.18)] transition hover:border-slate-700`}
                 style={{ '--player-row-rgb': positive ? '59, 130, 246' : '244, 63, 94' }}
                 title="Open this match in Overview"
               >
