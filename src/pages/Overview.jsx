@@ -269,7 +269,7 @@ const OVERVIEW_GUILD_PANEL_CSS = `
     --overview-battle-rgb: 59, 130, 246;
     position: relative;
     min-width: 0;
-    min-height: 136px;
+    min-height: 108px;
     overflow: hidden;
     border-radius: 18px;
     border: 1px solid rgba(var(--overview-battle-rgb), 0.18) !important;
@@ -1307,19 +1307,19 @@ function BattleMetricCard({
   valueClass = 'text-white',
 }) {
   return (
-    <div className={`overview-battle-metric overview-battle-${tone} flex items-center gap-3 px-4 py-4`}>
-      <div className="grid h-12 w-12 shrink-0 place-items-center text-[2rem]">
+    <div className={`overview-battle-metric overview-battle-${tone} flex items-center gap-2 px-2.5 py-3`}>
+      <div className="grid h-9 w-9 shrink-0 place-items-center text-[1.55rem]">
         {icon}
       </div>
 
       <div className="min-w-0">
-        <p className="text-[13px] font-medium leading-tight text-slate-200">
+        <p className="truncate whitespace-nowrap text-[11px] font-medium leading-tight text-slate-200">
           {label}
         </p>
-        <p className={`mt-1 text-[1.75rem] font-black leading-none ${valueClass}`}>
+        <p className={`mt-1 truncate text-[1.35rem] font-black leading-none ${valueClass}`}>
           {value}
         </p>
-        <p className="mt-1 text-[12px] font-medium text-slate-400">
+        <p className="mt-1 truncate text-[10px] font-medium text-slate-400">
           {sub}
         </p>
       </div>
@@ -2813,7 +2813,7 @@ function AverageRank({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-1 text-center text-xs sm:grid-cols-5 xl:grid-cols-9">
+                <div className="grid grid-cols-3 gap-1 text-center text-xs sm:grid-cols-5 xl:grid-cols-10">
                   {[
                     [
                       'Kills',
@@ -3279,13 +3279,13 @@ function PlayerOverview({
 
   function Header({ id, children, className = '' }) {
     return (
-      <th className={`py-2 ${className}`}>
+      <th className={`px-0.5 py-2 ${className}`}>
         <button
           onClick={() => flip(id)}
           className={
             key === id
-              ? 'w-full font-black text-blue-300'
-              : 'w-full font-black hover:text-blue-300'
+              ? 'w-full text-[10px] font-black leading-tight tracking-[0.02em] text-blue-300'
+              : 'w-full text-[10px] font-black leading-tight tracking-[0.02em] hover:text-blue-300'
           }
         >
           {children} {key === id ? (direction === 'desc' ? '↓' : '↑') : '↕'}
@@ -4223,17 +4223,18 @@ function PlayerOverview({
           <div className={`h-full overflow-y-auto pr-1 ${scrollCls}`}>
             <table className="w-full table-fixed text-xs">
               <colgroup>
-                <col className="w-[14%]" />
-                <col className="w-[5%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
+                <col style={{ width: '8.4%' }} />
               </colgroup>
               <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase text-slate-400">
                 <tr>
@@ -5751,7 +5752,7 @@ export default function OverviewPage({
           <p className="text-slate-400">{label}</p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+        <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-9">
           <BattleMetricCard
             icon={<MetricGlyph type="kills" color="#60a5fa" />}
             label="Total Kills"
