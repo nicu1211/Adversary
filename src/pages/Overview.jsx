@@ -1621,6 +1621,17 @@ function AverageRank({
       'cc',
       'CC',
     ],
+    allyProtection: [
+      'allyProtection',
+      'ally_protection',
+      'ally protection',
+      'Ally Protection',
+      'AllyProtection',
+      'allyHealing',
+      'ally_healing',
+      'ally healing',
+      'Ally Healing',
+    ],
     fortDamage: [
       'fortDamage',
       'damageToFort',
@@ -1766,6 +1777,7 @@ function AverageRank({
       damageDealt: false,
       damageTaken: false,
       ccHits: false,
+      allyProtection: false,
       fortDamage: false,
     };
 
@@ -1802,6 +1814,8 @@ function AverageRank({
         /\bcc\s*hits?\b|\bcrowd\s*control\b/.test(
           normalizedSecondary,
         ),
+      allyProtection:
+        /\bally\s*(?:protection|healing)\b/.test(normalizedSecondary),
       fortDamage:
         /\bdamage\s*(?:to|on)\s*fort\b|\bfort\s*damage\b|\bdmg\s*to\s*fort\b/.test(
           normalizedSecondary,
@@ -1867,6 +1881,7 @@ function AverageRank({
             presence.damageTaken = true;
           }
           if (numericColumns.length >= 8) presence.ccHits = true;
+          if (numericColumns.length >= 10) presence.allyProtection = true;
           if (numericColumns.length >= 9) {
             presence.fortDamage = true;
           }
@@ -1879,6 +1894,7 @@ function AverageRank({
             presence.damageTaken = true;
           }
           if (numericColumns.length >= 6) presence.ccHits = true;
+          if (numericColumns.length >= 9) presence.allyProtection = true;
           if (numericColumns.length >= 9) {
             presence.fortDamage = true;
           }
@@ -2015,6 +2031,10 @@ function AverageRank({
     presence.ccHits = hasSummaryMetric('ccHits', [
       /\bcc\s*hits?\b/,
       /\bcrowd\s*control\b/,
+    ]);
+    presence.allyProtection = hasSummaryMetric('allyProtection', [
+      /\bally\s*protection\b/,
+      /\bally\s*healing\b/,
     ]);
     presence.fortDamage = hasSummaryMetric(
       'fortDamage',
@@ -2162,6 +2182,7 @@ function AverageRank({
         damageDealt: readOptionalMetric('damageDealt'),
         damageTaken: readOptionalMetric('damageTaken'),
         ccHits: readOptionalMetric('ccHits'),
+        allyProtection: readOptionalMetric('allyProtection'),
         fortDamage: readOptionalMetric('fortDamage'),
         available: {
           kills:
@@ -2180,6 +2201,7 @@ function AverageRank({
           damageDealt: optionalMetricExists('damageDealt'),
           damageTaken: optionalMetricExists('damageTaken'),
           ccHits: optionalMetricExists('ccHits'),
+          allyProtection: optionalMetricExists('allyProtection'),
           fortDamage: optionalMetricExists('fortDamage'),
         },
       };
@@ -2486,6 +2508,7 @@ function AverageRank({
             damageDealt: 0,
             damageTaken: 0,
             ccHits: 0,
+            allyProtection: 0,
             fortDamage: 0,
           },
           metricMatches: {
@@ -2497,6 +2520,7 @@ function AverageRank({
             damageDealt: 0,
             damageTaken: 0,
             ccHits: 0,
+            allyProtection: 0,
             fortDamage: 0,
           },
         };
@@ -2546,6 +2570,12 @@ function AverageRank({
         ccHits: rankOptionalMetric(
           rows,
           'ccHits',
+          true,
+          combatChronology,
+        ),
+        allyProtection: rankOptionalMetric(
+          rows,
+          'allyProtection',
           true,
           combatChronology,
         ),
@@ -2684,6 +2714,8 @@ function AverageRank({
       averageRankDamageTaken:
         rankData?.ranks?.damageTaken ?? null,
       averageRankCcHits: rankData?.ranks?.ccHits ?? null,
+      averageRankAllyProtection:
+        rankData?.ranks?.allyProtection ?? null,
       averageRankFortDamage:
         rankData?.ranks?.fortDamage ?? null,
       chronologyKey:
@@ -2826,6 +2858,13 @@ function AverageRank({
                       'CC',
                       formatAverageRank(player.averageRankCcHits),
                       'text-violet-300',
+                    ],
+                    [
+                      'Heal',
+                      formatAverageRank(
+                        player.averageRankAllyProtection,
+                      ),
+                      'text-emerald-300',
                     ],
                     [
                       'Fort',
@@ -3169,6 +3208,7 @@ function PlayerOverview({
       damageDealt: Number(player.damageDealt) || 0,
       damageTaken: Number(player.damageTaken) || 0,
       ccHits: Number(player.ccHits) || 0,
+      allyProtection: Number(player.allyProtection) || 0,
       fortDamage: Number(player.fortDamage) || 0,
     }))
     .filter((player) => normalizePlayerName(player.name).includes(normalizePlayerName(query)))
@@ -3190,6 +3230,7 @@ function PlayerOverview({
     damageDealt: Math.max(1, ...rows.map((player) => Number(player.damageDealt) || 0)),
     damageTaken: Math.max(1, ...rows.map((player) => Number(player.damageTaken) || 0)),
     ccHits: Math.max(1, ...rows.map((player) => Number(player.ccHits) || 0)),
+    allyProtection: Math.max(1, ...rows.map((player) => Number(player.allyProtection) || 0)),
     fortDamage: Math.max(1, ...rows.map((player) => Number(player.fortDamage) || 0)),
   };
 
@@ -3202,6 +3243,7 @@ function PlayerOverview({
     damageDealt: 'from-cyan-500 to-sky-300',
     damageTaken: 'from-rose-500 to-pink-300',
     ccHits: 'from-violet-500 to-fuchsia-300',
+    allyProtection: 'from-emerald-500 to-teal-300',
     fortDamage: 'from-amber-500 to-yellow-300',
   };
 
@@ -3375,6 +3417,7 @@ function PlayerOverview({
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
+      allyProtection: 0,
       fortDamage: 0,
     };
     const counts = {
@@ -3386,6 +3429,7 @@ function PlayerOverview({
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
+      allyProtection: 0,
       fortDamage: 0,
     };
     let participatedWars = 0;
@@ -3424,6 +3468,10 @@ function PlayerOverview({
         'CCHits',
         'cc',
         'CC',
+      ],
+      allyProtection: [
+        'allyProtection', 'ally_protection', 'ally protection', 'Ally Protection', 'AllyProtection',
+        'allyHealing', 'ally_healing', 'ally healing', 'Ally Healing',
       ],
       fortDamage: [
         'fortDamage',
@@ -3650,6 +3698,7 @@ function PlayerOverview({
         damageDealt: false,
         damageTaken: false,
         ccHits: false,
+        allyProtection: false,
         fortDamage: false,
       };
 
@@ -3685,6 +3734,10 @@ function PlayerOverview({
           ),
         ccHits:
           /\bcc hits?\b|\bcrowd control\b/.test(
+            normalizedSecondary,
+          ),
+        allyProtection:
+          /\bally (?:protection|healing)\b/.test(
             normalizedSecondary,
           ),
         fortDamage:
@@ -3753,6 +3806,9 @@ function PlayerOverview({
             if (numericColumns.length >= 8) {
               presence.ccHits = true;
             }
+            if (numericColumns.length >= 10) {
+              presence.allyProtection = true;
+            }
             if (numericColumns.length >= 9) {
               presence.fortDamage = true;
             }
@@ -3768,6 +3824,9 @@ function PlayerOverview({
             }
             if (numericColumns.length >= 6) {
               presence.ccHits = true;
+            }
+            if (numericColumns.length >= 9) {
+              presence.allyProtection = true;
             }
             if (numericColumns.length >= 9) {
               presence.fortDamage = true;
@@ -3857,6 +3916,7 @@ function PlayerOverview({
       presence.damageTaken =
         hasSummaryMetric('damageTaken');
       presence.ccHits = hasSummaryMetric('ccHits');
+      presence.allyProtection = hasSummaryMetric('allyProtection');
       presence.fortDamage =
         hasSummaryMetric('fortDamage');
 
@@ -4059,6 +4119,11 @@ function PlayerOverview({
         metricAliases.ccHits,
         0,
       );
+      const allyProtectionValue = readMetricValue(
+        [secondaryRow, playerRow],
+        metricAliases.allyProtection,
+        0,
+      );
       const fortDamageValue = readMetricValue(
         [secondaryRow, playerRow],
         metricAliases.fortDamage,
@@ -4079,6 +4144,11 @@ function PlayerOverview({
         'ccHits',
         ccHitsValue,
         columns.ccHits,
+      );
+      addAverageMetric(
+        'allyProtection',
+        allyProtectionValue,
+        columns.allyProtection,
       );
       addAverageMetric(
         'fortDamage',
@@ -4117,6 +4187,9 @@ function PlayerOverview({
         : null,
       ccHits: counts.ccHits
         ? totals.ccHits / counts.ccHits
+        : null,
+      allyProtection: counts.allyProtection
+        ? totals.allyProtection / counts.allyProtection
         : null,
       fortDamage: counts.fortDamage
         ? totals.fortDamage / counts.fortDamage
@@ -4193,6 +4266,9 @@ function PlayerOverview({
                   </Header>
                   <Header id="ccHits" className="text-center">
                     CC Hits
+                  </Header>
+                  <Header id="allyProtection" className="text-center">
+                    Ally Healing
                   </Header>
                   <Header id="fortDamage" className="text-center">
                     DMG to Fort
@@ -4279,6 +4355,12 @@ function PlayerOverview({
                     <td className="py-2 text-center font-black text-violet-300">
                       <ProgressValue id="ccHits" value={player.ccHits}>
                         {formatNumber(player.ccHits)}
+                      </ProgressValue>
+                    </td>
+
+                    <td className="py-2 text-center font-black text-emerald-300">
+                      <ProgressValue id="allyProtection" value={player.allyProtection}>
+                        {formatNumber(player.allyProtection)}
                       </ProgressValue>
                     </td>
 
@@ -4419,6 +4501,17 @@ function PlayerOverview({
                   }
                   type="average"
                   tone="violet"
+                />
+
+                <PlayerAverageComparisonCard
+                  label="Ally Healing"
+                  current={selected.allyProtection}
+                  average={selectedLifetimeAverageStats?.allyProtection}
+                  averageMatches={
+                    selectedLifetimeAverageStats?.metricWars?.allyProtection || 0
+                  }
+                  type="average"
+                  tone="emerald"
                 />
 
                 <PlayerAverageComparisonCard
@@ -5631,9 +5724,11 @@ export default function OverviewPage({
       damageTaken:
         totals.damageTaken + (Number(player.damageTaken) || 0),
       ccHits: totals.ccHits + (Number(player.ccHits) || 0),
+      allyProtection:
+        totals.allyProtection + (Number(player.allyProtection) || 0),
       fortDamage: totals.fortDamage + (Number(player.fortDamage) || 0),
     }),
-    { damageDealt: 0, damageTaken: 0, ccHits: 0, fortDamage: 0 },
+    { damageDealt: 0, damageTaken: 0, ccHits: 0, allyProtection: 0, fortDamage: 0 },
   );
 
   const secondaryTotals = stats.secondary?.totals || {};
@@ -5642,6 +5737,8 @@ export default function OverviewPage({
   const damageTaken =
     Number(secondaryTotals.damageTaken) || playerSecondaryTotals.damageTaken || 0;
   const ccHits = Number(secondaryTotals.ccHits) || playerSecondaryTotals.ccHits || 0;
+  const allyProtection =
+    Number(secondaryTotals.allyProtection) || playerSecondaryTotals.allyProtection || 0;
   const fortDamage =
     Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0;
 
@@ -5716,6 +5813,15 @@ export default function OverviewPage({
             sub="Control"
             tone="violet"
             valueClass="text-violet-300"
+          />
+
+          <BattleMetricCard
+            icon={<MetricGlyph type="damageTaken" color="#34d399" />}
+            label="Ally Healing"
+            value={compactNumber(allyProtection)}
+            sub="Support"
+            tone="emerald"
+            valueClass="text-emerald-300"
           />
 
           <BattleMetricCard
