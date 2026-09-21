@@ -1067,6 +1067,7 @@ function detectStatsLogColumns(log, oneStats) {
     damageDealt: false,
     damageTaken: false,
     ccHits: false,
+    allyProtection: false,
     fortDamage: false,
   };
   const aliases = {
@@ -1095,6 +1096,10 @@ function detectStatsLogColumns(log, oneStats) {
       'CCHits',
       'cc',
       'CC',
+    ],
+    allyProtection: [
+      'allyProtection', 'ally_protection', 'ally protection', 'Ally Protection', 'AllyProtection',
+      'allyHealing', 'ally_healing', 'ally healing', 'Ally Healing',
     ],
     fortDamage: [
       'fortDamage',
@@ -1126,6 +1131,7 @@ function detectStatsLogColumns(log, oneStats) {
       normalizedSecondary,
     ),
     ccHits: /\bcc hits?\b|\bcrowd control\b/.test(normalizedSecondary),
+    allyProtection: /\bally (?:protection|healing)\b/.test(normalizedSecondary),
     fortDamage:
       /\bdamage (?:to|on) fort\b|\bfort damage\b|\bdmg to fort\b/.test(
         normalizedSecondary,
@@ -1175,12 +1181,14 @@ function detectStatsLogColumns(log, oneStats) {
         if (numericColumns.length >= 6) presence.damageDealt = true;
         if (numericColumns.length >= 7) presence.damageTaken = true;
         if (numericColumns.length >= 8) presence.ccHits = true;
+        if (numericColumns.length >= 10) presence.allyProtection = true;
         if (numericColumns.length >= 9) presence.fortDamage = true;
       } else {
         if (numericColumns.length >= 3) presence.killFeed = true;
         if (numericColumns.length >= 4) presence.damageDealt = true;
         if (numericColumns.length >= 5) presence.damageTaken = true;
         if (numericColumns.length >= 6) presence.ccHits = true;
+        if (numericColumns.length >= 9) presence.allyProtection = true;
         if (numericColumns.length >= 9) presence.fortDamage = true;
       }
     });
@@ -1262,6 +1270,7 @@ function buildStatsMetricPresenceByWar(logs) {
       damageDealt: false,
       damageTaken: false,
       ccHits: false,
+      allyProtection: false,
       fortDamage: false,
     };
 
@@ -1272,6 +1281,8 @@ function buildStatsMetricPresenceByWar(logs) {
       damageTaken:
         current.damageTaken || Boolean(presence?.damageTaken),
       ccHits: current.ccHits || Boolean(presence?.ccHits),
+      allyProtection:
+        current.allyProtection || Boolean(presence?.allyProtection),
       fortDamage:
         current.fortDamage || Boolean(presence?.fortDamage),
     });
@@ -1495,6 +1506,7 @@ function buildPlayerStatsCompatiblePlayers(
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
+        allyProtection: 0,
         fortDamage: 0,
         role: 'Main',
         className: '',
@@ -1509,6 +1521,7 @@ function buildPlayerStatsCompatiblePlayers(
           damageDealt: false,
           damageTaken: false,
           ccHits: false,
+          allyProtection: false,
           fortDamage: false,
         },
       });
@@ -1657,6 +1670,10 @@ function buildPlayerStatsCompatiblePlayers(
         'cc',
         'CC',
       ],
+      allyProtection: [
+        'allyProtection', 'ally_protection', 'ally protection', 'Ally Protection', 'AllyProtection',
+        'allyHealing', 'ally_healing', 'ally healing', 'Ally Healing',
+      ],
       fortDamage: [
         'fortDamage',
         'damageToFort',
@@ -1691,6 +1708,12 @@ function buildPlayerStatsCompatiblePlayers(
       rowPresence,
       'ccHits',
       aliases.ccHits,
+    );
+    const hasAllyProtection = rowHasRecordedStatMetric(
+      row,
+      rowPresence,
+      'allyProtection',
+      aliases.allyProtection,
     );
     const hasFortDamage = rowHasRecordedStatMetric(
       row,
@@ -1737,6 +1760,11 @@ function buildPlayerStatsCompatiblePlayers(
     if (hasCcHits) {
       match.ccHits = readStatMetric(row, aliases.ccHits, 0);
       match.__has.ccHits = true;
+    }
+
+    if (hasAllyProtection) {
+      match.allyProtection = readStatMetric(row, aliases.allyProtection, 0);
+      match.__has.allyProtection = true;
     }
 
     if (hasFortDamage) {
@@ -1797,6 +1825,7 @@ function buildPlayerStatsCompatiblePlayers(
       const damageValues = metricValues(matches, 'damageDealt');
       const damageTakenValues = metricValues(matches, 'damageTaken');
       const ccValues = metricValues(matches, 'ccHits');
+      const allyProtectionValues = metricValues(matches, 'allyProtection');
       const fortValues = metricValues(matches, 'fortDamage');
       const kills = sum(killsValues);
       const deaths = sum(deathsValues);
@@ -1828,10 +1857,12 @@ function buildPlayerStatsCompatiblePlayers(
         damageDealt: sum(damageValues),
         damageTaken: sum(damageTakenValues),
         ccHits: sum(ccValues),
+        allyProtection: sum(allyProtectionValues),
         fortDamage: sum(fortValues),
         averageDamageDealt: average(damageValues),
         averageDamageTaken: average(damageTakenValues),
         averageCcHits: average(ccValues),
+        averageAllyProtection: average(allyProtectionValues),
         averageFortDamage: average(fortValues),
         statWarCounts: {
           kills: killsValues.length,
@@ -1842,6 +1873,7 @@ function buildPlayerStatsCompatiblePlayers(
           damageDealt: damageValues.length,
           damageTaken: damageTakenValues.length,
           ccHits: ccValues.length,
+          allyProtection: allyProtectionValues.length,
           fortDamage: fortValues.length,
         },
       };
@@ -1924,6 +1956,8 @@ function buildStatsLogPlayers(stats, logs = []) {
         ccHits: 0,
         ccAverageSum: 0,
         ccAverageCount: 0,
+        allyProtection: 0,
+        allyProtectionAverageCount: 0,
         fortDamage: 0,
         fortDamageAverageCount: 0,
       });
@@ -1970,6 +2004,17 @@ function buildStatsLogPlayers(stats, logs = []) {
       'cc',
       'CC',
     ];
+    const allyProtectionAliases = [
+      'allyProtection',
+      'ally_protection',
+      'ally protection',
+      'Ally Protection',
+      'AllyProtection',
+      'allyHealing',
+      'ally_healing',
+      'ally healing',
+      'Ally Healing',
+    ];
     const fortDamageAliases = [
       'fortDamage',
       'damageToFort',
@@ -1986,6 +2031,7 @@ function buildStatsLogPlayers(stats, logs = []) {
       0,
     );
     const rowCcHits = readStatMetric(row, ccAliases, 0);
+    const rowAllyProtection = readStatMetric(row, allyProtectionAliases, 0);
     const rowFortDamage = readStatMetric(
       row,
       fortDamageAliases,
@@ -2032,6 +2078,19 @@ function buildStatsLogPlayers(stats, logs = []) {
       player.ccAverageSum += rowCcHits;
       player.ccAverageCount += 1;
     }
+    player.allyProtection += rowAllyProtection;
+
+    if (
+      rowHasRecordedStatMetric(
+        row,
+        rowPresence,
+        'allyProtection',
+        allyProtectionAliases,
+      )
+    ) {
+      player.allyProtectionAverageCount += 1;
+    }
+
     player.fortDamage += rowFortDamage;
 
     if (
@@ -2108,6 +2167,9 @@ function buildStatsLogPlayers(stats, logs = []) {
       averageCcHits: player.ccAverageCount
         ? player.ccAverageSum / player.ccAverageCount
         : 0,
+      averageAllyProtection: player.allyProtectionAverageCount
+        ? player.allyProtection / player.allyProtectionAverageCount
+        : 0,
       averageFortDamage: player.fortDamageAverageCount
         ? player.fortDamage / player.fortDamageAverageCount
         : 0,
@@ -2119,6 +2181,7 @@ function buildStatsLogPlayers(stats, logs = []) {
         damageDealt: player.damageAverageCount,
         damageTaken: player.damageTakenAverageCount,
         ccHits: player.ccAverageCount,
+        allyProtection: player.allyProtectionAverageCount,
         fortDamage: player.fortDamageAverageCount,
       },
     }))
@@ -2488,6 +2551,9 @@ function buildMonthlyPerformancePlayers(
         averageCcHits: secondary
           ? num(secondary.averageCcHits)
           : 0,
+        averageAllyProtection: secondary
+          ? num(secondary.averageAllyProtection)
+          : 0,
         averageFortDamage: secondary
           ? num(secondary.averageFortDamage)
           : 0,
@@ -2499,6 +2565,7 @@ function buildMonthlyPerformancePlayers(
           damageDealt: 0,
           damageTaken: 0,
           ccHits: 0,
+          allyProtection: 0,
           fortDamage: 0,
         },
         killStreak: num(streakMetrics?.total),
@@ -2553,6 +2620,16 @@ function buildMonthlyPerformancePlayers(
                 'CC Hits',
                 'cc',
                 'CC',
+              ],
+              0,
+            ),
+        allyProtection: secondary
+          ? num(secondary.allyProtection)
+          : readStatMetric(
+              primary,
+              [
+                'allyProtection', 'ally_protection', 'ally protection', 'Ally Protection', 'AllyProtection',
+                'allyHealing', 'ally_healing', 'ally healing', 'Ally Healing',
               ],
               0,
             ),
@@ -2812,6 +2889,7 @@ function buildRosterPerformancePlayers(activePlayers) {
       averageDamageDealt: 0,
       averageDamageTaken: 0,
       averageCcHits: 0,
+      averageAllyProtection: 0,
       averageFortDamage: 0,
       statWarCounts: {
         kills: 0,
@@ -2821,6 +2899,7 @@ function buildRosterPerformancePlayers(activePlayers) {
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
+        allyProtection: 0,
         fortDamage: 0,
       },
       killStreak: 0,
@@ -2830,6 +2909,7 @@ function buildRosterPerformancePlayers(activePlayers) {
       damageDealt: 0,
       damageTaken: 0,
       ccHits: 0,
+      allyProtection: 0,
       fortDamage: 0,
       inactive: true,
     };
@@ -3520,6 +3600,7 @@ const DEFAULT_OVERALL_WEIGHTS = Object.freeze({
   damageDealt: 40,
   damageTaken: 0,
   ccHits: 10,
+  allyProtection: 0,
   fortDamage: 20,
 });
 
@@ -3571,6 +3652,12 @@ const OVERALL_WEIGHT_CONTROLS = Object.freeze([
     label: 'CC Hits',
     tone: 'text-violet-400',
     accent: '#a78bfa',
+  },
+  {
+    key: 'allyProtection',
+    label: 'Ally Healing',
+    tone: 'text-emerald-400',
+    accent: '#34d399',
   },
   {
     key: 'fortDamage',
@@ -3640,6 +3727,8 @@ function overallMetricValue(player, key, viewMode) {
         return num(player?.averageDamageTaken);
       case 'ccHits':
         return num(player?.averageCcHits);
+      case 'allyProtection':
+        return num(player?.averageAllyProtection);
       case 'fortDamage':
         return num(player?.averageFortDamage);
       default:
@@ -3664,6 +3753,8 @@ function overallMetricValue(player, key, viewMode) {
       return num(player?.damageTaken);
     case 'ccHits':
       return num(player?.ccHits);
+    case 'allyProtection':
+      return num(player?.allyProtection);
     case 'fortDamage':
       return num(player?.fortDamage);
     default:
@@ -3895,6 +3986,10 @@ const performanceColumnThemes = {
     text: 'text-violet-400',
     bar: 'bg-violet-400',
   },
+  allyProtection: {
+    text: 'text-emerald-400',
+    bar: 'bg-emerald-400',
+  },
   fortDamage: {
     text: 'text-amber-400',
     bar: 'bg-amber-400',
@@ -4124,6 +4219,7 @@ function PlayersTable({
       'damageDealt',
       'damageTaken',
       'ccHits',
+      'allyProtection',
       'fortDamage',
     ];
 
@@ -4193,7 +4289,7 @@ function PlayersTable({
 
 
   const gridColumns =
-    'grid-cols-[28px_minmax(170px,1.45fr)_minmax(92px,.72fr)_minmax(48px,.42fr)_minmax(72px,.58fr)_minmax(72px,.58fr)_minmax(62px,.5fr)_minmax(82px,.66fr)_minmax(80px,.64fr)_minmax(98px,.82fr)_minmax(98px,.82fr)_minmax(74px,.6fr)_minmax(100px,.84fr)]';
+    'grid-cols-[28px_minmax(170px,1.45fr)_minmax(92px,.72fr)_minmax(48px,.42fr)_minmax(72px,.58fr)_minmax(72px,.58fr)_minmax(62px,.5fr)_minmax(82px,.66fr)_minmax(80px,.64fr)_minmax(98px,.82fr)_minmax(98px,.82fr)_minmax(74px,.6fr)_minmax(96px,.8fr)_minmax(100px,.84fr)]';
 
   return (
     <>
@@ -4426,6 +4522,14 @@ function PlayersTable({
               toneClass="text-violet-400"
             />
             <SortHeader
+              label="Ally Healing"
+              sortKey="allyProtection"
+              sort={sort}
+              onSort={handleSort}
+              className="justify-center"
+              toneClass="text-emerald-400"
+            />
+            <SortHeader
               label="DMG to Fort"
               sortKey="fortDamage"
               sort={sort}
@@ -4544,6 +4648,12 @@ function PlayersTable({
                     player={player}
                     metricKey="ccHits"
                     max={metricMaximums.ccHits}
+                    viewMode={viewMode}
+                  />
+                  <PerformanceMetricCell
+                    player={player}
+                    metricKey="allyProtection"
+                    max={metricMaximums.allyProtection}
                     viewMode={viewMode}
                   />
                   <PerformanceMetricCell
