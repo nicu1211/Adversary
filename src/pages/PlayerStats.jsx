@@ -1106,6 +1106,12 @@ function PlayerComparisonPanel({
       format: (value) => formatCompactNumber(value),
     },
     {
+      key: 'allyProtection',
+      label: 'Ally Healing',
+      icon: '✚',
+      format: (value) => formatCompactNumber(value),
+    },
+    {
       key: 'damageToFort',
       label: 'Fort DMG',
       icon: '♜',
@@ -2503,6 +2509,7 @@ function buildCombatAverageRankRows(warEvents) {
         damageDealt: false,
         damageTaken: false,
         ccHits: false,
+        allyProtection: false,
         damageToFort: false,
       },
     };
@@ -2604,6 +2611,7 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
+        allyProtection: 0,
         damageToFort: 0,
         fallbackKey: averageRankFallbackKey(index),
         __has: {
@@ -2615,6 +2623,7 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
           damageDealt: false,
           damageTaken: false,
           ccHits: false,
+          allyProtection: false,
           damageToFort: false,
         },
       };
@@ -2648,6 +2657,11 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
     const hasCcHits = getSecondaryMetricExists(
       row,
       'ccHits',
+      warPresence,
+    );
+    const hasAllyProtection = getSecondaryMetricExists(
+      row,
+      'allyProtection',
       warPresence,
     );
     const hasDamageToFort = getSecondaryMetricExists(
@@ -2693,6 +2707,11 @@ function buildSecondaryAverageRankRows(rowsForWar, warPresence) {
     if (hasCcHits) {
       player.ccHits = Number(metrics.ccHits) || 0;
       player.__has.ccHits = true;
+    }
+
+    if (hasAllyProtection) {
+      player.allyProtection = Number(metrics.allyProtection) || 0;
+      player.__has.allyProtection = true;
     }
 
     if (hasDamageToFort) {
@@ -2743,6 +2762,7 @@ function mergeAverageRankWarRows(
       damageDealt: secondary?.damageDealt || 0,
       damageTaken: secondary?.damageTaken || 0,
       ccHits: secondary?.ccHits || 0,
+      allyProtection: secondary?.allyProtection || 0,
       damageToFort: secondary?.damageToFort || 0,
       firstKey: combat?.firstKey || '',
       lastKey: combat?.lastKey || '',
@@ -2768,6 +2788,7 @@ function mergeAverageRankWarRows(
           secondary?.__has?.damageTaken,
         ),
         ccHits: Boolean(secondary?.__has?.ccHits),
+        allyProtection: Boolean(secondary?.__has?.allyProtection),
         damageToFort: Boolean(
           secondary?.__has?.damageToFort,
         ),
@@ -2824,6 +2845,7 @@ function buildBestOverallAverageRankTable(stats) {
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
+        allyProtection: 0,
         damageToFort: 0,
       },
       metricMatches: {
@@ -2835,6 +2857,7 @@ function buildBestOverallAverageRankTable(stats) {
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
+        allyProtection: 0,
         damageToFort: 0,
       },
     };
@@ -2872,6 +2895,10 @@ function buildBestOverallAverageRankTable(stats) {
       chronology: ['firstKey', 'lastKey'],
     },
     ccHits: {
+      desc: true,
+      chronology: ['firstKey', 'lastKey'],
+    },
+    allyProtection: {
       desc: true,
       chronology: ['firstKey', 'lastKey'],
     },
@@ -3162,6 +3189,7 @@ const MATCH_HISTORY_COLORS = {
   damageDealt: '#67e8f9',
   damageTaken: '#fda4af',
   ccHits: '#c4b5fd',
+  allyProtection: '#6ee7b7',
   damageToFort: '#fde047',
 };
 
@@ -3198,6 +3226,10 @@ const SECONDARY_MATCH_METRIC_KEYS = {
     'DamageTaken',
   ],
   ccHits: ['ccHits', 'cc_hits', 'cc', 'CC Hits', 'CCHits'],
+  allyProtection: [
+    'allyProtection', 'ally_protection', 'Ally Protection', 'AllyProtection',
+    'allyHealing', 'ally_healing', 'Ally Healing',
+  ],
   damageToFort: [
     'damageToFort',
     'damage_to_fort',
@@ -3215,6 +3247,7 @@ const SECONDARY_DETAIL_METRICS = [
   'damageDealt',
   'damageTaken',
   'ccHits',
+  'allyProtection',
   'damageToFort',
 ];
 
@@ -3701,6 +3734,9 @@ function buildMatchHistoryAverages(matches) {
     ccHits: getAverageFromExistingMatches(matches, 'ccHits', (match) =>
       getMatchMetricValue(match, 'ccHits'),
     ),
+    allyProtection: getAverageFromExistingMatches(matches, 'allyProtection', (match) =>
+      getMatchMetricValue(match, 'allyProtection'),
+    ),
     damageToFort: getAverageFromExistingMatches(matches, 'damageToFort', (match) =>
       getMatchMetricValue(match, 'damageToFort'),
     ),
@@ -3716,6 +3752,7 @@ function getSecondaryMatchStats(row) {
     damageDealt: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageDealt),
     damageTaken: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageTaken),
     ccHits: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.ccHits),
+    allyProtection: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.allyProtection),
     damageToFort: readNumber(row, SECONDARY_MATCH_METRIC_KEYS.damageToFort),
   };
 }
@@ -4313,6 +4350,15 @@ function MatchHistoryList({
               CC Hits
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
+              color={MATCH_HISTORY_COLORS.allyProtection}
+              average={formatNullableMatchNumber(averages.allyProtection)}
+              sortKey="allyProtection"
+              sort={sort}
+              onSort={toggleSort}
+            >
+              Ally Healing
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageToFort}
               average={formatNullableMatchNumber(averages.damageToFort)}
               sortKey="damageToFort"
@@ -4400,6 +4446,11 @@ function MatchHistoryList({
                 {/* CC Hits */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.ccHits} icon="ccHits">
                   {formatMatchCell(match, 'ccHits')}
+                </MatchHistoryValue>
+
+                {/* Ally Healing */}
+                <MatchHistoryValue color={MATCH_HISTORY_COLORS.allyProtection} icon="allyProtection">
+                  {formatMatchCell(match, 'allyProtection')}
                 </MatchHistoryValue>
 
                 {/* Damage to Fort */}
@@ -4535,6 +4586,7 @@ export default function PlayerStats({
           damageDealt: 0,
           damageTaken: 0,
           ccHits: 0,
+          allyProtection: 0,
           damageToFort: 0,
           __has: {
             kills: false,
@@ -4544,6 +4596,7 @@ export default function PlayerStats({
             damageDealt: false,
             damageTaken: false,
             ccHits: false,
+            allyProtection: false,
             damageToFort: false,
           },
         });
@@ -4704,6 +4757,11 @@ export default function PlayerStats({
         'ccHits',
         warPresence,
       );
+      const hasAllyProtection = getSecondaryMetricExists(
+        row,
+        'allyProtection',
+        warPresence,
+      );
       const hasDamageToFort = getSecondaryMetricExists(
         row,
         'damageToFort',
@@ -4740,6 +4798,11 @@ export default function PlayerStats({
       if (hasCcHits) {
         match.ccHits = Number(rowStats.ccHits) || 0;
         match.__has.ccHits = true;
+      }
+
+      if (hasAllyProtection) {
+        match.allyProtection = Number(rowStats.allyProtection) || 0;
+        match.__has.allyProtection = true;
       }
 
       if (hasDamageToFort) {
@@ -4802,6 +4865,10 @@ export default function PlayerStats({
                 matches,
                 'ccHits',
               ),
+              allyProtection: comparisonMetricAverage(
+                matches,
+                'allyProtection',
+              ),
               damageToFort: comparisonMetricAverage(
                 matches,
                 'damageToFort',
@@ -4830,6 +4897,10 @@ export default function PlayerStats({
               ccHits: comparisonMetricSum(
                 matches,
                 'ccHits',
+              ),
+              allyProtection: comparisonMetricSum(
+                matches,
+                'allyProtection',
               ),
               damageToFort: comparisonMetricSum(
                 matches,
@@ -4876,6 +4947,7 @@ export default function PlayerStats({
       'killfeed',
       'damageDealt',
       'ccHits',
+      'allyProtection',
       'damageToFort',
     ];
 
@@ -5040,6 +5112,7 @@ export default function PlayerStats({
         damageDealt: 0,
         damageTaken: 0,
         ccHits: 0,
+        allyProtection: 0,
         damageToFort: 0,
         __has: {
           kills: true,
@@ -5049,6 +5122,7 @@ export default function PlayerStats({
           damageDealt: false,
           damageTaken: false,
           ccHits: false,
+          allyProtection: false,
           damageToFort: false,
         },
       };
@@ -5068,6 +5142,7 @@ export default function PlayerStats({
       const hasDamageDealt = getSecondaryMetricExists(row, 'damageDealt', warPresence);
       const hasDamageTaken = getSecondaryMetricExists(row, 'damageTaken', warPresence);
       const hasCcHits = getSecondaryMetricExists(row, 'ccHits', warPresence);
+      const hasAllyProtection = getSecondaryMetricExists(row, 'allyProtection', warPresence);
       const hasDamageToFort = getSecondaryMetricExists(row, 'damageToFort', warPresence);
 
       matchMap[warId] = {
@@ -5084,6 +5159,9 @@ export default function PlayerStats({
           ? statsFromRow.damageTaken
           : existing?.damageTaken || 0,
         ccHits: hasCcHits ? statsFromRow.ccHits : existing?.ccHits || 0,
+        allyProtection: hasAllyProtection
+          ? statsFromRow.allyProtection
+          : existing?.allyProtection || 0,
         damageToFort: hasDamageToFort
           ? statsFromRow.damageToFort
           : existing?.damageToFort || 0,
@@ -5095,6 +5173,8 @@ export default function PlayerStats({
           damageDealt: hasDamageDealt || Boolean(existingHas.damageDealt),
           damageTaken: hasDamageTaken || Boolean(existingHas.damageTaken),
           ccHits: hasCcHits || Boolean(existingHas.ccHits),
+          allyProtection:
+            hasAllyProtection || Boolean(existingHas.allyProtection),
           damageToFort: hasDamageToFort || Boolean(existingHas.damageToFort),
         },
       };
