@@ -312,7 +312,9 @@ export function normalizeLogs(data) {
 
       return !(
         name === '__ADVERSARY_MONTHLY_ROSTER__' ||
+        name.startsWith('__ADVERSARY_MONTHLY_ROSTER__:') ||
         id === 'adversary-monthly-roster-v1' ||
+        id.startsWith('adversary-monthly-roster-v1-') ||
         raw.includes('===== ADVERSARY_MONTHLY_ROSTER_V1 =====')
       );
     })
