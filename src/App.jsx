@@ -218,6 +218,20 @@ const MonthlyRecap = lazy(() => import('./pages/MonthlyRecap'));
 
 const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
+const ADMIN_ACCESS_EVENT = 'adversary-admin-token-changed';
+
+function hasStoredAdminToken() {
+  try {
+    return Boolean(window.localStorage.getItem(ADMIN_TOKEN_KEY));
+  } catch {
+    return false;
+  }
+}
+
+function notifyAdminTokenChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(ADMIN_ACCESS_EVENT));
+}
 
 const SECONDARY_LOG_START = '===== ADVERSARY_SECONDARY_LOG_START =====';
 const CLASS_LOG_START = '===== ADVERSARY_CLASS_LOG_START =====';
@@ -230,6 +244,7 @@ function getAdminToken() {
 
     if (token) {
       localStorage.setItem(ADMIN_TOKEN_KEY, token);
+      notifyAdminTokenChanged();
     }
   }
 
@@ -362,6 +377,7 @@ async function apiWrite(path, method, body, options = {}) {
 
     if (response.status === 401) {
       localStorage.removeItem(ADMIN_TOKEN_KEY);
+      notifyAdminTokenChanged();
       throw new Error(text || 'Invalid admin token');
     }
 
@@ -6814,6 +6830,7 @@ export default function App() {
   const [startupStarted, setStartupStarted] = useState(false);
   const [startupFading, setStartupFading] = useState(false);
   const [globalMuted, setGlobalMuted] = useState(readGlobalMutePreference);
+  const [adminAccess, setAdminAccess] = useState(hasStoredAdminToken);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
   const panelHoverAudioRef = useRef([]);
@@ -7755,6 +7772,54 @@ export default function App() {
   }, [page, selectedDays, selectedWars, nodeLogs, allLogs, loadAllLogs]);
 
   useEffect(() => {
+    const syncAdminAccess = () => setAdminAccess(hasStoredAdminToken());
+
+    window.addEventListener('storage', syncAdminAccess);
+    window.addEventListener(ADMIN_ACCESS_EVENT, syncAdminAccess);
+
+    return () => {
+      window.removeEventListener('storage', syncAdminAccess);
+      window.removeEventListener(ADMIN_ACCESS_EVENT, syncAdminAccess);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleAdminShortcut(event) {
+      if (!(event.ctrlKey && event.altKey && event.key.toLowerCase() === 'a')) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (hasStoredAdminToken()) {
+        setAdminAccess(true);
+        return;
+      }
+
+      const token = window.prompt('Admin token:') || '';
+      const cleanToken = token.trim();
+
+      if (!cleanToken) return;
+
+      try {
+        window.localStorage.setItem(ADMIN_TOKEN_KEY, cleanToken);
+        notifyAdminTokenChanged();
+      } catch {
+        // If local storage is unavailable, admin-only navigation stays hidden.
+      }
+    }
+
+    window.addEventListener('keydown', handleAdminShortcut);
+    return () => window.removeEventListener('keydown', handleAdminShortcut);
+  }, []);
+
+  useEffect(() => {
+    if (page === 'raw' && !adminAccess) {
+      setPage('nodewars');
+    }
+  }, [page, adminAccess]);
+
+  useEffect(() => {
     loadNodeLogs(30);
 
     apiGet('/api/members')
@@ -8070,7 +8135,7 @@ export default function App() {
     ['nodewars', 'Node Wars'],
     ['players', 'Player Stats'],
     ['hall', 'Hall of Fame'],
-    ['raw', 'Raw Logs'],
+    ...(adminAccess ? [['raw', 'Raw Logs']] : []),
   ];
 
   function isMenuActive(id) {
@@ -8122,6 +8187,8 @@ export default function App() {
   }
 
   function openPage(nextPage) {
+    if (nextPage === 'raw' && !adminAccess) return;
+
     setNodeWarsWarning('');
     setMatchHistoryDateFilter('');
     setPage(nextPage);
@@ -8372,26 +8439,28 @@ export default function App() {
             })}
           </nav>
 
-          <div className="adversary-rail-bottom pointer-events-none relative z-30 pt-4">
-            <button
-              type="button"
-              onPointerEnter={playPanelHoverSound}
-              onClick={() => openPage('raw')}
-              className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
-                isMenuActive('raw') ? 'is-active' : ''
-              }`}
-              style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
-              aria-label="Raw Logs"
-              title="Raw Logs"
-            >
-              <span className="adversary-sidebar-menu-icon">
-                <Settings size={22} strokeWidth={1.7} />
-              </span>
-              <span className="adversary-sidebar-menu-label">Raw Logs</span>
-              <span className="adversary-rail-active-dot" aria-hidden="true" />
-              <span className="adversary-rail-tooltip" aria-hidden="true">Raw Logs</span>
-            </button>
-          </div>
+          {adminAccess && (
+            <div className="adversary-rail-bottom pointer-events-none relative z-30 pt-4">
+              <button
+                type="button"
+                onPointerEnter={playPanelHoverSound}
+                onClick={() => openPage('raw')}
+                className={`adversary-menu-button pointer-events-auto relative w-full rounded-xl border px-4 py-3 text-left font-bold ${
+                  isMenuActive('raw') ? 'is-active' : ''
+                }`}
+                style={{ '--adversary-menu-rgb': MENU_ACCENTS.raw }}
+                aria-label="Raw Logs"
+                title="Raw Logs"
+              >
+                <span className="adversary-sidebar-menu-icon">
+                  <Settings size={22} strokeWidth={1.7} />
+                </span>
+                <span className="adversary-sidebar-menu-label">Raw Logs</span>
+                <span className="adversary-rail-active-dot" aria-hidden="true" />
+                <span className="adversary-rail-tooltip" aria-hidden="true">Raw Logs</span>
+              </button>
+            </div>
+          )}
         </aside>
 
         <main className={`adversary-content adversary-page-${page} relative min-w-0 ${page === 'nodewars' ? 'p-2 sm:p-3 lg:p-4' : 'p-3 sm:p-5 lg:p-6'}`}>
@@ -8487,7 +8556,7 @@ export default function App() {
             </Suspense>
           )}
 
-          {page === 'raw' && (
+          {page === 'raw' && adminAccess && (
             <>
               {loadingAllLogs && !allLogs && (
                 <div className="mb-4">
