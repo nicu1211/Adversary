@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Calendar, DeletePopup, Panel } from "../components/UI";
+import { Trash2, UserPlus, Users } from "lucide-react";
 import {
   dateOf,
   parseClassRows,
@@ -8,6 +9,11 @@ import {
   scrollCls,
   today,
 } from "../lib/logUtils";
+import {
+  normalizeMonthlyRosterKey,
+  readMonthlyRoster,
+  writeMonthlyRoster,
+} from "../lib/monthlyRoster";
 
 const SECONDARY_LOG_START = "===== ADVERSARY_SECONDARY_LOG_START =====";
 const SECONDARY_LOG_END = "===== ADVERSARY_SECONDARY_LOG_END =====";
@@ -267,6 +273,43 @@ export default function RawLog({
   const [secondaryRaw, setSecondaryRaw] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
+  const [roster, setRoster] = useState(readMonthlyRoster);
+  const [memberName, setMemberName] = useState("");
+  const [rosterMessage, setRosterMessage] = useState("");
+
+  useEffect(() => {
+    writeMonthlyRoster(roster);
+  }, [roster]);
+
+  function addRosterMember(event) {
+    event?.preventDefault?.();
+
+    const name = String(memberName || "").trim();
+    const key = normalizeMonthlyRosterKey(name);
+
+    if (!key) {
+      setRosterMessage("Enter a member name.");
+      return;
+    }
+
+    if (roster.some((item) => normalizeMonthlyRosterKey(item) === key)) {
+      setRosterMessage(`${name} is already in the roster.`);
+      return;
+    }
+
+    setRoster((current) => [...current, name]);
+    setMemberName("");
+    setRosterMessage(`${name} added.`);
+  }
+
+  function removeRosterMember(name) {
+    const key = normalizeMonthlyRosterKey(name);
+
+    setRoster((current) =>
+      current.filter((item) => normalizeMonthlyRosterKey(item) !== key),
+    );
+    setRosterMessage(`${name} removed.`);
+  }
 
 
   useEffect(() => {
@@ -723,6 +766,91 @@ export default function RawLog({
           )}
           </Panel>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <Panel>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 p-2.5 text-amber-200">
+                <Users size={18} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white">Manage Members</h2>
+                <p className="text-xs font-semibold text-slate-500">
+                  Controls the roster used by Monthly Recap. Changes are saved automatically in this browser.
+                </p>
+              </div>
+            </div>
+
+            <span className="self-start rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-black text-amber-200 sm:self-auto">
+              {roster.length} members
+            </span>
+          </div>
+
+          <form
+            onSubmit={addRosterMember}
+            className="flex flex-col gap-2 sm:flex-row"
+          >
+            <input
+              type="text"
+              value={memberName}
+              onChange={(event) => {
+                setMemberName(event.target.value);
+                if (rosterMessage) setRosterMessage("");
+              }}
+              placeholder="Member name"
+              autoComplete="off"
+              className="h-11 min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm font-bold text-white outline-none placeholder:text-slate-600 focus:border-amber-400"
+            />
+            <button
+              type="submit"
+              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-400/35 bg-amber-500/10 px-4 text-xs font-black uppercase tracking-[0.08em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-500/20"
+            >
+              <UserPlus size={15} />
+              Add Member
+            </button>
+          </form>
+
+          {rosterMessage && (
+            <p className="mt-2 text-xs font-bold text-amber-200/80">
+              {rosterMessage}
+            </p>
+          )}
+
+          <div className={`mt-4 max-h-72 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/45 p-2 ${scrollCls}`}>
+            {roster.length ? (
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                {roster.map((name, index) => (
+                  <div
+                    key={`${normalizeMonthlyRosterKey(name)}-${index}`}
+                    className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900/65 px-3 py-2"
+                  >
+                    <span
+                      className="min-w-0 truncate text-xs font-bold text-slate-200"
+                      title={name}
+                    >
+                      {name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeRosterMember(name)}
+                      className="shrink-0 rounded-md p-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300"
+                      aria-label={`Remove ${name}`}
+                      title={`Remove ${name}`}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="p-4 text-center text-sm font-semibold text-slate-500">
+                No members in the Monthly Recap roster yet.
+              </p>
+            )}
+          </div>
+        </Panel>
       </div>
 
       <DeletePopup
