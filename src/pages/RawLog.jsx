@@ -10,9 +10,10 @@ import {
   today,
 } from "../lib/logUtils";
 import {
+  loadSharedMonthlyRoster,
   normalizeMonthlyRosterKey,
   readMonthlyRoster,
-  writeMonthlyRoster,
+  saveSharedMonthlyRoster,
 } from "../lib/monthlyRoster";
 
 const SECONDARY_LOG_START = "===== ADVERSARY_SECONDARY_LOG_START =====";
@@ -275,14 +276,56 @@ export default function RawLog({
   const [editingLogId, setEditingLogId] = useState(null);
   const [roster, setRoster] = useState(readMonthlyRoster);
   const [memberName, setMemberName] = useState("");
-  const [rosterMessage, setRosterMessage] = useState("");
+  const [rosterMessage, setRosterMessage] = useState("Loading shared roster...");
+  const [rosterSaving, setRosterSaving] = useState(false);
 
   useEffect(() => {
-    writeMonthlyRoster(roster);
-  }, [roster]);
+    let active = true;
 
-  function addRosterMember(event) {
+    loadSharedMonthlyRoster({ fallbackToLocal: true })
+      .then(({ roster: nextRoster, shared, error }) => {
+        if (!active) return;
+        setRoster(nextRoster);
+        setRosterMessage(
+          shared
+            ? "Shared roster loaded. Changes here are visible to everyone."
+            : error
+              ? "Could not load the shared roster. Showing the cached roster until the server is reachable."
+              : "No shared roster exists yet. Your first change will create it for everyone.",
+        );
+      })
+      .catch((error) => {
+        if (!active) return;
+        setRosterMessage(error?.message || "Could not load shared roster.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function persistRoster(nextRoster, successMessage) {
+    setRosterSaving(true);
+    setRosterMessage("Saving roster to the shared database...");
+
+    try {
+      const savedRoster = await saveSharedMonthlyRoster(nextRoster);
+      setRoster(savedRoster);
+      setRosterMessage(successMessage);
+      return true;
+    } catch (error) {
+      setRosterMessage(
+        `Roster save failed: ${error?.message || error || "Unknown error"}`,
+      );
+      return false;
+    } finally {
+      setRosterSaving(false);
+    }
+  }
+
+  async function addRosterMember(event) {
     event?.preventDefault?.();
+    if (rosterSaving) return;
 
     const name = String(memberName || "").trim();
     const key = normalizeMonthlyRosterKey(name);
@@ -297,18 +340,23 @@ export default function RawLog({
       return;
     }
 
-    setRoster((current) => [...current, name]);
-    setMemberName("");
-    setRosterMessage(`${name} added.`);
+    const saved = await persistRoster(
+      [...roster, name],
+      `${name} added to the shared roster.`,
+    );
+
+    if (saved) setMemberName("");
   }
 
-  function removeRosterMember(name) {
-    const key = normalizeMonthlyRosterKey(name);
+  async function removeRosterMember(name) {
+    if (rosterSaving) return;
 
-    setRoster((current) =>
-      current.filter((item) => normalizeMonthlyRosterKey(item) !== key),
+    const key = normalizeMonthlyRosterKey(name);
+    const nextRoster = roster.filter(
+      (item) => normalizeMonthlyRosterKey(item) !== key,
     );
-    setRosterMessage(`${name} removed.`);
+
+    await persistRoster(nextRoster, `${name} removed from the shared roster.`);
   }
 
 
@@ -778,7 +826,7 @@ export default function RawLog({
               <div>
                 <h2 className="text-xl font-black text-white">Manage Members</h2>
                 <p className="text-xs font-semibold text-slate-500">
-                  Controls the roster used by Monthly Recap. Changes are saved automatically in this browser.
+                  Controls the shared roster used by Monthly Recap. Changes are saved to the same database as Combat/Stats Logs and are visible to everyone.
                 </p>
               </div>
             </div>
@@ -805,7 +853,8 @@ export default function RawLog({
             />
             <button
               type="submit"
-              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-400/35 bg-amber-500/10 px-4 text-xs font-black uppercase tracking-[0.08em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-500/20"
+              disabled={rosterSaving}
+              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-400/35 bg-amber-500/10 px-4 text-xs font-black uppercase tracking-[0.08em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-500/20 disabled:cursor-wait disabled:opacity-50"
             >
               <UserPlus size={15} />
               Add Member
@@ -844,7 +893,8 @@ export default function RawLog({
                     <button
                       type="button"
                       onClick={() => removeRosterMember(name)}
-                      className="shrink-0 rounded-md p-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300"
+                      disabled={rosterSaving}
+                      className="shrink-0 rounded-md p-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300 disabled:cursor-wait disabled:opacity-40"
                       aria-label={`Remove ${name}`}
                       title={`Remove ${name}`}
                     >
