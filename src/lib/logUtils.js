@@ -291,7 +291,33 @@ export function normalizeLogs(data) {
         ? data.data
         : [];
 
-  return arr.map(normalizeLog).filter((log) => log.raw || log.summary);
+  return arr
+    .filter((log) => {
+      const name = String(log?.name ?? log?.title ?? '').trim();
+      const raw = String(
+        log?.raw ?? log?.rawLog ?? log?.raw_log ?? log?.log ?? log?.content ?? '',
+      );
+      const id = String(
+        log?.id ??
+          log?._id ??
+          log?.log_id ??
+          log?.key ??
+          log?.objectKey ??
+          log?.filename ??
+          log?.fileName ??
+          log?.path ??
+          log?.slug ??
+          '',
+      );
+
+      return !(
+        name === '__ADVERSARY_MONTHLY_ROSTER__' ||
+        id === 'adversary-monthly-roster-v1' ||
+        raw.includes('===== ADVERSARY_MONTHLY_ROSTER_V1 =====')
+      );
+    })
+    .map(normalizeLog)
+    .filter((log) => log.raw || log.summary);
 }
 
 export function normalizeMembers(data) {
