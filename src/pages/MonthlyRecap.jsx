@@ -25,7 +25,12 @@ import {
   dateOf,
   scrollCls,
 } from '../lib/logUtils';
-import { DEFAULT_GUILD_ROSTER, readMonthlyRoster } from '../lib/monthlyRoster';
+import {
+  DEFAULT_GUILD_ROSTER,
+  loadSharedMonthlyRoster,
+  readMonthlyRoster,
+  sanitizeMonthlyRoster,
+} from '../lib/monthlyRoster';
 
 function normalizeClassPlayerKey(value) {
   return String(value || '')
@@ -4751,7 +4756,33 @@ export default function MonthlyRecap({
   const [daysAgo, setDaysAgo] = useState(
     DEFAULT_RECAP_DAYS_AGO,
   );
-  const [roster] = useState(readMonthlyRoster);
+  const [roster, setRoster] = useState(readMonthlyRoster);
+
+  useEffect(() => {
+    let active = true;
+
+    loadSharedMonthlyRoster({ fallbackToLocal: true }).then(({ roster: nextRoster }) => {
+      if (active) setRoster(nextRoster);
+    });
+
+    const handleRosterChanged = (event) => {
+      if (!active) return;
+      setRoster(sanitizeMonthlyRoster(event?.detail || []));
+    };
+
+    window.addEventListener(
+      'adversary-monthly-roster-changed',
+      handleRosterChanged,
+    );
+
+    return () => {
+      active = false;
+      window.removeEventListener(
+        'adversary-monthly-roster-changed',
+        handleRosterChanged,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     if (
