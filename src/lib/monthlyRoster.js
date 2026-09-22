@@ -1,9 +1,11 @@
-import { apiGet, apiWrite, logsPath } from './api';
+import { apiDeleteLog, apiGet, apiWrite, logsPath } from './api';
 
 export const MONTHLY_ROSTER_STORAGE_KEY = 'adversary_monthly_roster_v1';
 export const MONTHLY_ROSTER_LOG_NAME = '__ADVERSARY_MONTHLY_ROSTER__';
 export const MONTHLY_ROSTER_LOG_DATE = '1900-01-01';
 const MONTHLY_ROSTER_LOG_ID = 'adversary-monthly-roster-v1';
+const MONTHLY_ROSTER_LOG_NAME_PREFIX = `${MONTHLY_ROSTER_LOG_NAME}:`;
+const MONTHLY_ROSTER_LOG_ID_PREFIX = `${MONTHLY_ROSTER_LOG_ID}-`;
 const MONTHLY_ROSTER_MARKER = '===== ADVERSARY_MONTHLY_ROSTER_V1 =====';
 
 export const DEFAULT_GUILD_ROSTER = Object.freeze([
@@ -86,7 +88,6 @@ export const DEFAULT_GUILD_ROSTER = Object.freeze([
   'TheMidgets',
   'Deathscyv1',
   'Skilacci',
-  'Kaelt',
   'Ain',
   'Echoe',
   'AiryRyu',
@@ -95,7 +96,6 @@ export const DEFAULT_GUILD_ROSTER = Object.freeze([
   'Ferz',
   'Attack',
   'Protect',
-  'Cabbiie',
   'Shizzai',
   'Buenaa',
   'McPero'
@@ -160,17 +160,20 @@ export function isMonthlyRosterSystemLog(log) {
 
   return (
     name === MONTHLY_ROSTER_LOG_NAME ||
+    name.startsWith(MONTHLY_ROSTER_LOG_NAME_PREFIX) ||
     id === MONTHLY_ROSTER_LOG_ID ||
+    id.startsWith(MONTHLY_ROSTER_LOG_ID_PREFIX) ||
     raw.includes(MONTHLY_ROSTER_MARKER)
   );
 }
 
-function encodeRosterRaw(values) {
+function encodeRosterRaw(values, metadata = {}) {
   const members = sanitizeMonthlyRoster(values);
   return `${MONTHLY_ROSTER_MARKER}\n${JSON.stringify({
     type: 'adversary-monthly-roster',
     version: 1,
     members,
+    ...metadata,
   })}`;
 }
 
@@ -246,7 +249,33 @@ export function writeMonthlyRoster(values) {
   return roster;
 }
 
-async function getSharedRosterRecord() {
+function rosterRecordTimestamp(log) {
+  const candidates = [
+    log?.updatedAt,
+    log?.updated_at,
+    log?.createdAt,
+    log?.created_at,
+    log?.created,
+  ];
+
+  for (const value of candidates) {
+    const parsed = Date.parse(String(value || ''));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  const name = String(log?.name ?? log?.title ?? '');
+  const id = String(sourceId(log) ?? '');
+  const revisionMatch = `${name} ${id}`.match(/(?:roster-v1-|ROSTER__:)\s*(\d{10,})/i);
+
+  if (revisionMatch) {
+    const numeric = Number(revisionMatch[1]);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+
+  return 0;
+}
+
+async function getSharedRosterRecords() {
   const data = await apiGet(
     logsPath({
       range: 'all',
@@ -256,7 +285,14 @@ async function getSharedRosterRecord() {
     { timeoutMs: 30000 },
   );
 
-  return rosterArrayFromApi(data).find(isMonthlyRosterSystemLog) || null;
+  return rosterArrayFromApi(data)
+    .filter(isMonthlyRosterSystemLog)
+    .sort((a, b) => rosterRecordTimestamp(b) - rosterRecordTimestamp(a));
+}
+
+async function getSharedRosterRecord() {
+  const records = await getSharedRosterRecords();
+  return records[0] || null;
 }
 
 export async function loadSharedMonthlyRoster(options = {}) {
@@ -306,73 +342,48 @@ export async function loadSharedMonthlyRoster(options = {}) {
   }
 }
 
-async function updateRosterRecord(record, payload) {
-  const id = sourceId(record);
-
-  if (!id) {
-    throw new Error('Shared roster record has no database id.');
-  }
-
-  const encodedId = encodeURIComponent(String(id));
-  const body = { ...payload, id };
-  const attempts = [
-    [`/api/logs/${encodedId}`, 'PUT', payload],
-    [`/api/logs/${encodedId}`, 'PATCH', payload],
-    ['/api/logs', 'PUT', body],
-    ['/api/logs', 'PATCH', body],
-    ['/api/logs/update', 'POST', body],
-    ['/api/logs', 'POST', { ...body, action: 'update', _method: 'PUT' }],
-  ];
-  let lastError = null;
-
-  for (const [path, method, attemptBody] of attempts) {
-    try {
-      return await apiWrite(path, method, attemptBody, {
-        maxAttempts: 3,
-        baseDelayMs: 500,
-      });
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw new Error(
-    `Roster update failed. Backend rejected the available log update routes. ${
-      lastError?.message || lastError || ''
-    }`.trim(),
-  );
-}
-
 export async function saveSharedMonthlyRoster(values) {
   const roster = sanitizeMonthlyRoster(values);
-  const raw = encodeRosterRaw(roster);
+  const existingRecords = await getSharedRosterRecords();
+  const revision = Date.now();
+  const revisionToken = `${revision}-${Math.random().toString(36).slice(2, 8)}`;
+  const createdAt = new Date(revision).toISOString();
+  const raw = encodeRosterRaw(roster, {
+    revision,
+    updatedAt: createdAt,
+  });
   const payload = {
-    id: MONTHLY_ROSTER_LOG_ID,
-    name: MONTHLY_ROSTER_LOG_NAME,
+    id: `${MONTHLY_ROSTER_LOG_ID}-${revisionToken}`,
+    name: `${MONTHLY_ROSTER_LOG_NAME}:${revisionToken}`,
     date: MONTHLY_ROSTER_LOG_DATE,
     raw,
     hash: hashText(raw),
-    createdAt: new Date().toISOString(),
+    createdAt,
     summary: {
       system: true,
       type: 'monthly-roster',
+      revision,
       memberCount: roster.length,
     },
   };
-  const existing = await getSharedRosterRecord();
 
-  if (existing) {
-    payload.createdAt =
-      existing.createdAt ??
-      existing.created_at ??
-      existing.created ??
-      payload.createdAt;
-    await updateRosterRecord(existing, payload);
-  } else {
-    await apiWrite('/api/logs', 'POST', payload, {
-      maxAttempts: 5,
-      baseDelayMs: 700,
-    });
+  // This backend supports creating and deleting logs, but does not expose a
+  // reliable update route. Store each roster edit as a new hidden revision.
+  // Creating first prevents a failed cleanup from ever erasing the roster.
+  await apiWrite('/api/logs', 'POST', payload, {
+    maxAttempts: 5,
+    baseDelayMs: 700,
+  });
+
+  // Old roster revisions are no longer needed. Cleanup is deliberately
+  // best-effort: if a delete route fails, all revisions remain hidden from
+  // battle analytics and the newest revision is still used by visitors.
+  for (const record of existingRecords) {
+    try {
+      await apiDeleteLog(record);
+    } catch {
+      // Keep going; stale system revisions are harmless and stay filtered.
+    }
   }
 
   return writeMonthlyRoster(roster);
