@@ -14,7 +14,10 @@ import {
   Swords,
   Target,
   Trophy,
+  Trash2,
+  UserPlus,
   Users,
+  X,
   Zap,
 } from 'lucide-react';
 
@@ -384,7 +387,7 @@ const MONTHLY_GUILD_PANEL_CSS = `
 
 `;
 
-const GUILD_ROSTER = Object.freeze([
+const DEFAULT_GUILD_ROSTER = Object.freeze([
   'TwinDsclplNs',
   'Kacp12',
   'Revekk',
@@ -478,6 +481,48 @@ const GUILD_ROSTER = Object.freeze([
   'Buenaa',
   'McPero'
 ]);
+
+const MONTHLY_ROSTER_STORAGE_KEY = 'adversary_monthly_roster_v1';
+
+function sanitizeMonthlyRoster(values) {
+  const seen = new Set();
+
+  return (Array.isArray(values) ? values : [])
+    .map((value) =>
+      typeof value === 'string'
+        ? value.trim()
+        : String(value?.name || value?.player || '').trim(),
+    )
+    .filter((name) => {
+      if (!name) return false;
+      const key = normalizeClassPlayerKey(name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function readMonthlyRoster() {
+  if (typeof window === 'undefined') {
+    return [...DEFAULT_GUILD_ROSTER];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(MONTHLY_ROSTER_STORAGE_KEY);
+
+    if (raw === null) {
+      return [...DEFAULT_GUILD_ROSTER];
+    }
+
+    const stored = JSON.parse(raw);
+
+    return Array.isArray(stored)
+      ? sanitizeMonthlyRoster(stored)
+      : [...DEFAULT_GUILD_ROSTER];
+  } catch {
+    return [...DEFAULT_GUILD_ROSTER];
+  }
+}
 
 function num(value) {
   const parsed = Number(value);
@@ -2847,7 +2892,7 @@ function comparisonInfo(
   };
 }
 
-function buildRosterPerformancePlayers(activePlayers) {
+function buildRosterPerformancePlayers(activePlayers, roster = DEFAULT_GUILD_ROSTER) {
   const activeByName = new Map(
     (activePlayers || []).map((player) => [
       normalizePlayerName(player?.name),
@@ -2855,7 +2900,7 @@ function buildRosterPerformancePlayers(activePlayers) {
     ]),
   );
 
-  return GUILD_ROSTER.map((rosterName, rosterOrder) => {
+  return roster.map((rosterName, rosterOrder) => {
     const activePlayer = activeByName.get(
       normalizePlayerName(rosterName),
     );
@@ -2935,6 +2980,7 @@ function buildReview(
   logs,
   selectedMonth,
   daysAgo = DEFAULT_RECAP_DAYS_AGO,
+  roster = DEFAULT_GUILD_ROSTER,
 ) {
   const allHistorySelected = selectedMonth === ALL_HISTORY_MONTH;
   const selectedWindow = allHistorySelected
@@ -3090,15 +3136,18 @@ function buildReview(
     '',
     metricPresenceByWar,
   );
-  const players = buildRosterPerformancePlayers(activePlayers);
+  const players = buildRosterPerformancePlayers(activePlayers, roster);
   const mainRolePlayers = buildRosterPerformancePlayers(
     mainRoleActivePlayers,
+    roster,
   );
   const flexRolePlayers = buildRosterPerformancePlayers(
     flexRoleActivePlayers,
+    roster,
   );
   const utilityRolePlayers = buildRosterPerformancePlayers(
     utilityRoleActivePlayers,
+    roster,
   );
 
   // Class-specific player stats are calculated lazily in PlayersTable.
@@ -4083,6 +4132,7 @@ function PerformanceMetricCell({
 
 function PlayersTable({
   players,
+  roster = DEFAULT_GUILD_ROSTER,
   mainRolePlayers = [],
   flexRolePlayers = [],
   utilityRolePlayers = [],
@@ -4132,6 +4182,7 @@ function PlayersTable({
         classFilter,
         performanceMetricPresenceByWar,
       ),
+      roster,
     );
   }, [
     classFilter,
@@ -4139,6 +4190,7 @@ function PlayersTable({
     performanceStats,
     performanceLogs,
     performanceMetricPresenceByWar,
+    roster,
   ]);
 
   const displayedPlayers = useMemo(() => {
@@ -4837,6 +4889,51 @@ export default function MonthlyRecap({
   const [daysAgo, setDaysAgo] = useState(
     DEFAULT_RECAP_DAYS_AGO,
   );
+  const [roster, setRoster] = useState(readMonthlyRoster);
+  const [memberName, setMemberName] = useState('');
+  const [rosterOpen, setRosterOpen] = useState(false);
+  const [rosterMessage, setRosterMessage] = useState('');
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        MONTHLY_ROSTER_STORAGE_KEY,
+        JSON.stringify(roster),
+      );
+    } catch {
+      // Monthly Recap still works even if browser storage is unavailable.
+    }
+  }, [roster]);
+
+  function addRosterMember(event) {
+    event?.preventDefault?.();
+
+    const name = String(memberName || '').trim();
+    const key = normalizeClassPlayerKey(name);
+
+    if (!key) {
+      setRosterMessage('Enter a member name.');
+      return;
+    }
+
+    if (roster.some((item) => normalizeClassPlayerKey(item) === key)) {
+      setRosterMessage(`${name} is already in the roster.`);
+      return;
+    }
+
+    setRoster((current) => [...current, name]);
+    setMemberName('');
+    setRosterMessage(`${name} added.`);
+  }
+
+  function removeRosterMember(name) {
+    const key = normalizeClassPlayerKey(name);
+
+    setRoster((current) =>
+      current.filter((item) => normalizeClassPlayerKey(item) !== key),
+    );
+    setRosterMessage(`${name} removed.`);
+  }
 
   useEffect(() => {
     if (
@@ -4853,8 +4950,9 @@ export default function MonthlyRecap({
         logs,
         selectedMonth,
         daysAgo,
+        roster,
       ),
-    [logs, selectedMonth, daysAgo],
+    [logs, selectedMonth, daysAgo, roster],
   );
 
   const activeDateWindow = useMemo(
@@ -5026,8 +5124,121 @@ export default function MonthlyRecap({
                 : '0 = full month'}
             </span>
           </label>
+
+          <button
+            type="button"
+            onClick={() => {
+              setRosterOpen((open) => !open);
+              setRosterMessage('');
+            }}
+            className={`monthly-role-filter flex h-10 items-center gap-2 rounded-[8px] border px-3 text-[11px] font-black uppercase tracking-[0.05em] transition ${
+              rosterOpen ? 'is-active' : ''
+            }`}
+            aria-expanded={rosterOpen}
+          >
+            <Users size={15} />
+            Manage Members
+            <span className="rounded-full bg-black/25 px-1.5 py-0.5 text-[9px] tabular-nums">
+              {roster.length}
+            </span>
+          </button>
         </div>
       </div>
+
+      {rosterOpen && (
+        <section
+          className="monthly-guild-panel overflow-hidden rounded-[10px] border"
+          style={monthlyPanelStyle('amber')}
+        >
+          <div className="monthly-section-header flex flex-col gap-3 border-b border-white/5 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-2">
+              <Users size={17} className="text-amber-300" />
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.08em] text-white">
+                  Monthly Recap Members
+                </p>
+                <p className="text-[10px] font-semibold text-[#6f8098]">
+                  Add or remove members here. Changes are saved automatically in this browser.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setRosterOpen(false)}
+              className="self-start rounded-md border border-white/10 bg-black/20 p-1.5 text-slate-400 transition hover:border-white/20 hover:text-white lg:self-auto"
+              aria-label="Close member manager"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="p-3">
+            <form
+              onSubmit={addRosterMember}
+              className="flex flex-col gap-2 sm:flex-row"
+            >
+              <input
+                type="text"
+                value={memberName}
+                onChange={(event) => {
+                  setMemberName(event.target.value);
+                  if (rosterMessage) setRosterMessage('');
+                }}
+                placeholder="Member name"
+                autoComplete="off"
+                className="h-10 min-w-0 flex-1 rounded-[8px] border border-[#23364f] bg-slate-950/45 px-3 text-[12px] font-bold text-[#d8e5f7] outline-none placeholder:text-[#52637b] focus:border-[#d9a514]"
+              />
+              <button
+                type="submit"
+                className="flex h-10 items-center justify-center gap-2 rounded-[8px] border border-amber-400/45 bg-amber-500/10 px-4 text-[11px] font-black uppercase tracking-[0.05em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-500/20"
+              >
+                <UserPlus size={15} />
+                Add Member
+              </button>
+            </form>
+
+            {rosterMessage && (
+              <p className="mt-2 text-[10px] font-bold text-amber-200/80">
+                {rosterMessage}
+              </p>
+            )}
+
+            <div className="mt-3 max-h-64 overflow-y-auto rounded-[8px] border border-white/5 bg-black/15 p-2">
+              {roster.length ? (
+                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {roster.map((name, index) => (
+                    <div
+                      key={`${normalizeClassPlayerKey(name)}-${index}`}
+                      className="flex min-w-0 items-center justify-between gap-2 rounded-[7px] border border-white/5 bg-slate-950/35 px-2.5 py-2"
+                    >
+                      <span
+                        className="min-w-0 truncate text-[11px] font-bold text-[#cbd8e8]"
+                        title={name}
+                      >
+                        {name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeRosterMember(name)}
+                        className="shrink-0 rounded-md p-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300"
+                        aria-label={`Remove ${name}`}
+                        title={`Remove ${name}`}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="p-3 text-center text-[11px] font-semibold text-slate-500">
+                  No members in the Monthly Recap roster yet.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         <KpiCard
@@ -5300,6 +5511,7 @@ export default function MonthlyRecap({
       <SectionShell icon={Activity} title="Players Performance" accent="cyan" subtle>
         <PlayersTable
           players={players}
+          roster={roster}
           mainRolePlayers={mainRolePlayers}
           flexRolePlayers={flexRolePlayers}
           utilityRolePlayers={utilityRolePlayers}
