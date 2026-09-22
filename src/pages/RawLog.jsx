@@ -818,7 +818,7 @@ export default function RawLog({
             </p>
           )}
 
-          <div className={`mt-4 max-h-72 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950/45 p-2 ${scrollCls}`}>
+          <div className={`mt-4 max-h-[320px] overflow-y-scroll rounded-xl border border-slate-800 bg-slate-950/45 p-2 pr-1 ${scrollCls}`}>
             {roster.length ? (
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {roster.map((name, index) => (
