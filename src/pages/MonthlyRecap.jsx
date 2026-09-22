@@ -167,17 +167,22 @@ function MonthlyPlayerClassIcons({ assignments = [] }) {
   if (!visibleAssignments.length) return null;
 
   return (
-    <span className="inline-flex shrink-0 items-center gap-1">
-      {visibleAssignments.map((assignment, index) => (
-        <img
-          key={`${assignment.className}-${index}`}
-          src={assignment.src}
-          alt=""
-          aria-hidden="true"
-          title={classAssignmentTitle(assignment)}
-          className="inline-block h-8 w-8 shrink-0 rounded-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,.14)]"
-        />
-      ))}
+    <span
+      className={`min-w-0 flex-1 overflow-x-auto overflow-y-hidden pb-1 ${scrollCls}`}
+      title="Scroll sideways to view all class orbs"
+    >
+      <span className="inline-flex w-max items-center gap-1 pr-1">
+        {visibleAssignments.map((assignment, index) => (
+          <img
+            key={`${assignment.className}-${index}`}
+            src={assignment.src}
+            alt=""
+            aria-hidden="true"
+            title={classAssignmentTitle(assignment)}
+            className="inline-block h-8 w-8 shrink-0 rounded-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,.14)]"
+          />
+        ))}
+      </span>
     </span>
   );
 }
@@ -4484,7 +4489,7 @@ function PlayersTable({
                     {index + 1}
                   </span>
 
-                  <div className="flex min-w-0 items-center gap-1.5 pr-3">
+                  <div className="flex min-w-0 overflow-hidden items-center gap-1.5 pr-3">
                     <span
                       className={`truncate font-black ${
                         inactive ? 'text-slate-500' : 'text-white'
