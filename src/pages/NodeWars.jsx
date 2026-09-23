@@ -8,6 +8,7 @@ import {
   Crosshair,
   Gauge,
   Hand,
+  HeartPulse,
   Search,
   Shield,
   Skull,
@@ -226,10 +227,10 @@ const NODE_WARS_PANEL_CSS = `
     border-color: rgba(var(--nw-gold-rgb),.56) !important;
   }
 
-  /* Eight separate semantic stat tiles. */
+  /* Nine separate semantic stat tiles. */
   #root .adversary-content .nodewars-summary-grid {
     display: grid !important;
-    grid-template-columns: repeat(8, minmax(108px,1fr)) !important;
+    grid-template-columns: repeat(9, minmax(96px,1fr)) !important;
     gap: 8px !important;
     overflow: visible !important;
     background: transparent !important;
@@ -390,7 +391,7 @@ const NODE_WARS_PANEL_CSS = `
 
   #root .adversary-content .nodewars-war-metrics {
     display: grid !important;
-    grid-template-columns: repeat(8, minmax(84px,1fr)) !important;
+    grid-template-columns: repeat(9, minmax(76px,1fr)) !important;
     gap: 8px !important;
   }
 
@@ -938,6 +939,13 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
               />
 
               <WarMetric
+                label="Ally Healing"
+                value={compactNumber(row.allyProtection)}
+                valueClass="text-emerald-300"
+                icon={<HeartPulse size={17} className="text-emerald-300" />}
+              />
+
+              <WarMetric
                 label="Fort"
                 value={compactNumber(row.fortDamage)}
                 valueClass="text-violet-300"
@@ -1244,6 +1252,11 @@ export default function NodeWars({
         bv = Number(b.ccHits) || 0;
       }
 
+      if (sort.key === 'allyProtection') {
+        av = Number(a.allyProtection) || 0;
+        bv = Number(b.allyProtection) || 0;
+      }
+
       if (sort.key === 'fortDamage') {
         av = Number(a.fortDamage) || 0;
         bv = Number(b.fortDamage) || 0;
@@ -1289,6 +1302,10 @@ export default function NodeWars({
       0,
     );
     const ccHits = rows.reduce((sum, row) => sum + (Number(row.ccHits) || 0), 0);
+    const allyProtection = rows.reduce(
+      (sum, row) => sum + (Number(row.allyProtection) || 0),
+      0,
+    );
     const fortDamage = rows.reduce(
       (sum, row) => sum + (Number(row.fortDamage) || 0),
       0,
@@ -1302,6 +1319,7 @@ export default function NodeWars({
       damageDealt,
       damageTaken,
       ccHits,
+      allyProtection,
       fortDamage,
     };
   }, [rows]);
@@ -1404,6 +1422,7 @@ export default function NodeWars({
                 <SortHeader id="damageDealt" label="Damage" sort={sort} onSort={toggleSort} />
                 <SortHeader id="damageTaken" label="Taken" sort={sort} onSort={toggleSort} />
                 <SortHeader id="ccHits" label="CC" sort={sort} onSort={toggleSort} />
+                <SortHeader id="allyProtection" label="Ally Healing" sort={sort} onSort={toggleSort} />
                 <SortHeader id="fortDamage" label="Fort" sort={sort} onSort={toggleSort} />
               </div>
 
@@ -1444,7 +1463,7 @@ export default function NodeWars({
             </div>
           )}
 
-          {/* Eight separate tiles, exactly like the reference row. */}
+          {/* Nine separate tiles, including Ally Healing. */}
           <div className="nodewars-summary-grid">
             <SummaryStat
               label="Total Matches"
@@ -1501,6 +1520,14 @@ export default function NodeWars({
               barClass="bg-cyan-300"
               icon={<Hand size={20} className="text-cyan-300" />}
               accentRgb="6, 182, 212"
+            />
+            <SummaryStat
+              label="Ally Healing"
+              value={compactNumber(totals.allyProtection)}
+              valueClass="text-emerald-300"
+              barClass="bg-emerald-300"
+              icon={<HeartPulse size={20} className="text-emerald-300" />}
+              accentRgb="52, 211, 153"
             />
             <SummaryStat
               label="Fort Damage"
