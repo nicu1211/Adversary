@@ -287,7 +287,14 @@ function overviewWarsFromLocation() {
   )];
 }
 
-function pageRouteUrl(pageId, wars = []) {
+function playerStatsPlayerFromLocation() {
+  if (typeof window === 'undefined') return '';
+
+  const params = new URLSearchParams(window.location.search || '');
+  return String(params.get('player') || '').trim();
+}
+
+function pageRouteUrl(pageId, wars = [], playerName = '') {
   const segment = PAGE_ROUTE_SEGMENTS[pageId] || PAGE_ROUTE_SEGMENTS.nodewars;
   const base = routeBasePath();
   const params = new URLSearchParams();
@@ -301,6 +308,12 @@ function pageRouteUrl(pageId, wars = []) {
     params.set('war', cleanWars[0]);
   } else if (pageId === 'overview' && cleanWars.length > 1) {
     params.set('wars', cleanWars.join(','));
+  }
+
+  const cleanPlayerName = String(playerName || '').trim();
+
+  if (pageId === 'players' && cleanPlayerName) {
+    params.set('player', cleanPlayerName);
   }
 
   const query = params.toString();
@@ -7690,7 +7703,10 @@ export default function App() {
         ? options.wars
         : []
       : [];
-    const nextUrl = pageRouteUrl(nextPage, nextWars);
+    const nextPlayer = nextPage === 'players'
+      ? String(options.player || '').trim()
+      : '';
+    const nextUrl = pageRouteUrl(nextPage, nextWars, nextPlayer);
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     const historyMethod = options.replace ? 'replaceState' : 'pushState';
 
@@ -8385,6 +8401,20 @@ export default function App() {
     navigateToPage(nextPage);
   }
 
+  function updatePlayerStatsRoute(playerName) {
+    const cleanPlayerName = String(playerName || '').trim();
+    const nextUrl = pageRouteUrl('players', [], cleanPlayerName);
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+    if (currentUrl === nextUrl) return;
+
+    window.history.replaceState(
+      { page: 'players', player: cleanPlayerName },
+      '',
+      nextUrl,
+    );
+  }
+
   function openMatchOverviewFromPlayerStats(match) {
     const warId = String(match?.warId || '').trim();
 
@@ -8731,6 +8761,8 @@ export default function App() {
                   logs={Array.isArray(allLogs) ? allLogs : []}
                   classIconByName={PLAYER_CLASS_ICON_BY_NAME}
                   getClassRowsForLog={classRowsForLog}
+                  initialPlayer={playerStatsPlayerFromLocation()}
+                  onPlayerChange={updatePlayerStatsRoute}
                   onOpenMatchOverview={openMatchOverviewFromPlayerStats}
                 />
               )}
