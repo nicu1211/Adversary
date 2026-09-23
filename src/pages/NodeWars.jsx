@@ -1310,7 +1310,7 @@ export default function NodeWars({
     clearWarnings();
     setSelectedDays([row.date]);
     setSelectedWars([String(row.id)]);
-    setPage('overview');
+    setPage('overview', { wars: [String(row.id)] });
   }
 
   function toggleWar(row) {
@@ -1361,7 +1361,9 @@ export default function NodeWars({
 
     clearWarnings();
     setSelectedDays(['all']);
-    setPage('overview');
+    setPage('overview', {
+      wars: allSavedLogsSelected ? ['all'] : selectedRealWars,
+    });
   }
 
   return (
