@@ -8197,6 +8197,16 @@ export default function App() {
       : logs.find((log) => String(log.id) === String(editingLogId)) || null;
     const localHash = hashLog(rawToSave);
 
+    // Updating an unchanged saved log does not need to create another database row.
+    if (
+      editingLog &&
+      ((editingLog.hash && editingLog.hash === localHash) ||
+        (editingLog.raw && hashLog(editingLog.raw) === localHash))
+    ) {
+      setMessage('No changes detected. The saved log is already up to date.');
+      return editingLog;
+    }
+
     const duplicate = logs.find((log) => {
       if (editingLog && String(log.id) === String(editingLog.id)) return false;
       if (log.hash && log.hash === localHash) return true;
@@ -8211,10 +8221,14 @@ export default function App() {
       return null;
     }
 
+    // A replacement gets a fresh id. This lets us use the same reliable POST +
+    // DELETE flow as normal Raw Logs instead of depending on backend PUT/PATCH
+    // routes that can leave the previous database row behind.
+    const replacementId = `${date}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
     const draftLog = {
-      id:
-        editingLog?.id ||
-        `${date}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: replacementId,
       name: editingLog?.name || date,
       date,
       raw: rawToSave,
@@ -8227,24 +8241,52 @@ export default function App() {
       ...draftLog,
       summary,
     };
-    const actionLabel = editingLog ? 'Updating' : 'Saving';
+    const actionLabel = editingLog ? 'Replacing' : 'Saving';
 
     setMessage(`${actionLabel} log in database...\nattempt 1/5`);
 
-    try {
-      const response = editingLog
-        ? await updateApiLog(editingLog, payload)
-        : await apiWriteWithRetry('/api/logs', 'POST', payload, {
-            maxAttempts: 5,
-            baseDelayMs: 700,
-          });
+    let savedLog = null;
 
-      const savedLog = normalizeLog({
+    try {
+      const response = await apiWriteWithRetry('/api/logs', 'POST', payload, {
+        maxAttempts: 5,
+        baseDelayMs: 700,
+      });
+
+      savedLog = normalizeLog({
         ...payload,
         ...response,
         id: response?.id ?? response?._id ?? payload.id,
         summary: response?.summary || payload.summary,
       });
+
+      if (editingLog) {
+        setMessage('Replacement saved. Deleting old log from database...');
+
+        try {
+          await deleteApiLog(editingLog);
+        } catch (deleteOldError) {
+          // Avoid leaving an extra replacement behind if the old row could not
+          // be removed. Roll the new row back when the backend allows it.
+          let rollbackNote = '';
+
+          try {
+            await deleteApiLog(savedLog);
+            rollbackNote = ' The new replacement was rolled back, so the old log is still the only saved copy.';
+          } catch (rollbackError) {
+            rollbackNote = ` Rollback also failed: ${
+              rollbackError?.message || rollbackError || 'unknown error'
+            }`;
+          }
+
+          throw new Error(
+            `Replacement was saved, but the old log could not be deleted: ${
+              deleteOldError?.message || deleteOldError || 'unknown error'
+            }.${rollbackNote}`,
+          );
+        }
+      }
+
       const replaceOrAdd = (currentLogs) => {
         if (!Array.isArray(currentLogs)) return currentLogs;
 
@@ -8265,7 +8307,7 @@ export default function App() {
       setSelectedWars([String(savedLog.id)]);
       setMessage(
         editingLog
-          ? 'Log updated in database.\nCombat, Stats and Class data remain attached to the same war.'
+          ? 'Log updated in database.\nThe previous Raw Logs entry was deleted automatically.'
           : 'Log saved to database.\nSummary calculated and saved.',
       );
 
@@ -8273,11 +8315,11 @@ export default function App() {
     } catch (error) {
       const text = String(error?.message || error || 'Unknown error');
 
-      console.error(editingLog ? 'Database update failed:' : 'Database save failed:', error);
+      console.error(editingLog ? 'Database replacement failed:' : 'Database save failed:', error);
 
       if (text.includes('Duplicate log')) {
         setMessage(
-          `Database refused ${editingLog ? 'update' : 'save'}: ${text}.\nLogul NU a fost salvat local în browser.`,
+          `Database refused ${editingLog ? 'replacement' : 'save'}: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
         return null;
       }
@@ -8288,13 +8330,13 @@ export default function App() {
         text.includes('ResourceNotFound')
       ) {
         setMessage(
-          `API ${editingLog ? 'update' : 'save'} endpoint is not available: ${text}.\nLogul NU a fost salvat local în browser.`,
+          `API ${editingLog ? 'replacement' : 'save'} endpoint is not available: ${text}.\nLogul NU a fost salvat local în browser.`,
         );
         return null;
       }
 
       setMessage(
-        `Database ${editingLog ? 'update' : 'save'} failed: ${text}.\nLogul NU a fost salvat local în browser.`,
+        `Database ${editingLog ? 'replacement' : 'save'} failed: ${text}.\nLogul NU a fost salvat local în browser.`,
       );
       return null;
     }
