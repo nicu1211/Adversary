@@ -220,6 +220,93 @@ const API_BASE = '';
 const ADMIN_TOKEN_KEY = 'bdo_admin_token';
 const ADMIN_ACCESS_EVENT = 'adversary-admin-token-changed';
 
+const PAGE_ROUTE_SEGMENTS = Object.freeze({
+  guild: 'guild',
+  monthly: 'monthly-recap',
+  nodewars: 'node-wars',
+  overview: 'overview',
+  players: 'player-stats',
+  hall: 'hall-of-fame',
+  raw: 'raw-logs',
+});
+
+const ROUTE_SEGMENT_TO_PAGE = Object.freeze(
+  Object.fromEntries(
+    Object.entries(PAGE_ROUTE_SEGMENTS).map(([pageId, segment]) => [segment, pageId]),
+  ),
+);
+
+function routeBasePath() {
+  const configuredBase = String(import.meta.env.BASE_URL || '/').trim() || '/';
+  const withLeadingSlash = configuredBase.startsWith('/')
+    ? configuredBase
+    : `/${configuredBase}`;
+
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+function routePageFromLocation() {
+  if (typeof window === 'undefined') return 'nodewars';
+
+  const base = routeBasePath();
+  let pathname = window.location.pathname || '/';
+
+  if (base !== '/' && pathname.startsWith(base)) {
+    pathname = pathname.slice(base.length);
+  } else {
+    pathname = pathname.replace(/^\/+/, '');
+  }
+
+  const segment = pathname.replace(/\/+$/, '').split('/').filter(Boolean).pop() || '';
+  return ROUTE_SEGMENT_TO_PAGE[segment] || 'nodewars';
+}
+
+function locationHasKnownPageRoute() {
+  if (typeof window === 'undefined') return false;
+
+  const segment = (window.location.pathname || '')
+    .replace(/\/+$/, '')
+    .split('/')
+    .filter(Boolean)
+    .pop() || '';
+
+  return Boolean(ROUTE_SEGMENT_TO_PAGE[segment]);
+}
+
+function overviewWarsFromLocation() {
+  if (typeof window === 'undefined') return [];
+
+  const params = new URLSearchParams(window.location.search || '');
+  const rawWars = params.get('wars') || params.get('war') || '';
+
+  return [...new Set(
+    rawWars
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  )];
+}
+
+function pageRouteUrl(pageId, wars = []) {
+  const segment = PAGE_ROUTE_SEGMENTS[pageId] || PAGE_ROUTE_SEGMENTS.nodewars;
+  const base = routeBasePath();
+  const params = new URLSearchParams();
+  const cleanWars = [...new Set(
+    (Array.isArray(wars) ? wars : [])
+      .map((value) => String(value || '').trim())
+      .filter((value) => value && value !== 'current'),
+  )];
+
+  if (pageId === 'overview' && cleanWars.length === 1) {
+    params.set('war', cleanWars[0]);
+  } else if (pageId === 'overview' && cleanWars.length > 1) {
+    params.set('wars', cleanWars.join(','));
+  }
+
+  const query = params.toString();
+  return `${base}${segment}${query ? `?${query}` : ''}`;
+}
+
 function hasStoredAdminToken() {
   try {
     return Boolean(window.localStorage.getItem(ADMIN_TOKEN_KEY));
@@ -6817,7 +6904,7 @@ function ActivePageBrand({ page }) {
 }
 
 export default function App() {
-  const [page, setPage] = useState('nodewars');
+  const [page, setPageState] = useState(routePageFromLocation);
   const startupVideoRef = useRef(null);
   const backgroundLoopVideoRef = useRef(null);
   const backgroundLoopTransitionRef = useRef(false);
@@ -7595,6 +7682,27 @@ export default function App() {
   const [selectedDays, setSelectedDays] = useState(['current']);
   const [selectedWars, setSelectedWars] = useState(['current']);
 
+  const navigateToPage = useCallback((nextPage, options = {}) => {
+    if (nextPage === 'raw' && !hasStoredAdminToken()) return;
+
+    const nextWars = nextPage === 'overview'
+      ? Array.isArray(options.wars)
+        ? options.wars
+        : []
+      : [];
+    const nextUrl = pageRouteUrl(nextPage, nextWars);
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    const historyMethod = options.replace ? 'replaceState' : 'pushState';
+
+    if (!options.replace && currentUrl === nextUrl) {
+      setPageState(nextPage);
+      return;
+    }
+
+    window.history[historyMethod]({ page: nextPage }, '', nextUrl);
+    setPageState(nextPage);
+  }, []);
+
   const [message, setMessage] = useState('');
   const [rawMonth, setRawMonth] = useState(monthId(new Date()));
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -7814,10 +7922,52 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (page === 'raw' && !adminAccess) {
-      setPage('nodewars');
+    const syncFromBrowserHistory = () => {
+      const nextPage = routePageFromLocation();
+
+      if (nextPage === 'raw' && !hasStoredAdminToken()) {
+        window.history.replaceState(
+          { page: 'nodewars' },
+          '',
+          pageRouteUrl('nodewars'),
+        );
+        setPageState('nodewars');
+        return;
+      }
+
+      setPageState(nextPage);
+      setNodeWarsWarning('');
+      setMatchHistoryDateFilter('');
+
+      if (nextPage === 'overview') {
+        const routeWars = overviewWarsFromLocation();
+
+        if (routeWars.length) {
+          setSelectedDays(['all']);
+          setSelectedWars(routeWars);
+        }
+      }
+    };
+
+    if (!locationHasKnownPageRoute()) {
+      window.history.replaceState(
+        { page: routePageFromLocation() },
+        '',
+        pageRouteUrl(routePageFromLocation()),
+      );
     }
-  }, [page, adminAccess]);
+
+    syncFromBrowserHistory();
+    window.addEventListener('popstate', syncFromBrowserHistory);
+
+    return () => window.removeEventListener('popstate', syncFromBrowserHistory);
+  }, []);
+
+  useEffect(() => {
+    if (page === 'raw' && !adminAccess) {
+      navigateToPage('nodewars', { replace: true });
+    }
+  }, [page, adminAccess, navigateToPage]);
 
   useEffect(() => {
     loadNodeLogs(30);
@@ -7842,6 +7992,47 @@ export default function App() {
       loadAllLogs();
     }
   }, [page, loadAllLogs]);
+
+  useEffect(() => {
+    if (page !== 'overview' || overviewWarsFromLocation().length) return;
+
+    const sourceLogs = [
+      ...(Array.isArray(nodeLogs) ? nodeLogs : []),
+      ...(Array.isArray(allLogs) ? allLogs : []),
+    ];
+    const uniqueLogs = [...new Map(
+      sourceLogs
+        .filter((log) => log?.id != null)
+        .map((log) => [String(log.id), log]),
+    ).values()];
+    const latestWar = uniqueLogs.sort((a, b) => {
+      const dateCompare = String(dateOf(b) || '').localeCompare(
+        String(dateOf(a) || ''),
+      );
+
+      if (dateCompare) return dateCompare;
+
+      const bCreated = String(
+        b?.createdAt || b?.created_at || b?.timestamp || '',
+      );
+      const aCreated = String(
+        a?.createdAt || a?.created_at || a?.timestamp || '',
+      );
+
+      return bCreated.localeCompare(aCreated);
+    })[0];
+
+    if (!latestWar) return;
+
+    const latestWarId = String(latestWar.id);
+    setSelectedDays([dateOf(latestWar)]);
+    setSelectedWars([latestWarId]);
+    window.history.replaceState(
+      { page: 'overview' },
+      '',
+      pageRouteUrl('overview', [latestWarId]),
+    );
+  }, [page, nodeLogs, allLogs]);
 
   useEffect(() => {
     loadOverviewLogs();
@@ -8175,7 +8366,7 @@ export default function App() {
 
     if (!latestWar) {
       setNodeWarsWarning('No saved node wars are available yet.');
-      setPage('nodewars');
+      navigateToPage('nodewars');
       return;
     }
 
@@ -8183,7 +8374,7 @@ export default function App() {
     setMatchHistoryDateFilter('');
     setSelectedDays([dateOf(latestWar)]);
     setSelectedWars([String(latestWar.id)]);
-    setPage('overview');
+    navigateToPage('overview', { wars: [String(latestWar.id)] });
   }
 
   function openPage(nextPage) {
@@ -8191,7 +8382,7 @@ export default function App() {
 
     setNodeWarsWarning('');
     setMatchHistoryDateFilter('');
-    setPage(nextPage);
+    navigateToPage(nextPage);
   }
 
   function openMatchOverviewFromPlayerStats(match) {
@@ -8206,13 +8397,18 @@ export default function App() {
     setMatchHistoryDateFilter('');
     setSelectedDays(['all']);
     setSelectedWars([warId]);
-    setPage('overview');
+    navigateToPage('overview', { wars: [warId] });
   }
 
   function openMatchOverviewFromMonthlyRecap(match) {
-    const warId = String(match?.id || match?.warId || '').trim();
+    const matches = Array.isArray(match) ? match : [match];
+    const warIds = [...new Set(
+      matches
+        .map((item) => String(item?.id || item?.warId || '').trim())
+        .filter(Boolean),
+    )];
 
-    if (!warId) {
+    if (!warIds.length) {
       setMessage('This match has no valid war ID.');
       return;
     }
@@ -8220,8 +8416,8 @@ export default function App() {
     setNodeWarsWarning('');
     setMatchHistoryDateFilter('');
     setSelectedDays(['all']);
-    setSelectedWars([warId]);
-    setPage('overview');
+    setSelectedWars(warIds);
+    navigateToPage('overview', { wars: warIds });
   }
 
   const rawHistoryLogs = allLogs || nodeLogs;
@@ -8481,7 +8677,7 @@ export default function App() {
               loading={loadingNodeLogs}
               periodDays={periodDays}
               onPeriodChange={changePeriod}
-              setPage={setPage}
+              setPage={navigateToPage}
               setSelectedDays={setSelectedDays}
               setSelectedWars={setSelectedWars}
               selectedWars={selectedWars}
