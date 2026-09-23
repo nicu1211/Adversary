@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AveragePerformanceChart } from '../components/Charts';
 import { add, dateOf, scrollCls } from '../lib/logUtils';
 
@@ -4473,9 +4473,11 @@ export default function PlayerStats({
   logs = [],
   classIconByName = {},
   getClassRowsForLog = () => [],
+  initialPlayer = '',
+  onPlayerChange,
   onOpenMatchOverview,
 }) {
-  const [player, setPlayer] = useState('');
+  const [player, setPlayer] = useState(() => String(initialPlayer || '').trim());
   const [comparedPlayerNames, setComparedPlayerNames] = useState([]);
   const [compareDaysAgo, setCompareDaysAgo] = useState(30);
   const [compareMode, setCompareMode] = useState('average');
@@ -4487,6 +4489,20 @@ export default function PlayerStats({
       ),
     [stats?.players],
   );
+
+  useEffect(() => {
+    const routePlayer = String(initialPlayer || '').trim();
+
+    setPlayer((currentPlayer) =>
+      samePlayerName(currentPlayer, routePlayer) ? currentPlayer : routePlayer,
+    );
+  }, [initialPlayer]);
+
+  const handlePlayerChange = useCallback((playerName) => {
+    const nextPlayer = String(playerName || '').trim();
+    setPlayer(nextPlayer);
+    onPlayerChange?.(nextPlayer);
+  }, [onPlayerChange]);
 
   const averageRankTable = useMemo(
     () => (player ? buildBestOverallAverageRankTable(stats) : {}),
@@ -5287,7 +5303,7 @@ export default function PlayerStats({
         <PlayerSelect
           players={sortedPlayers}
           value={player}
-          onChange={setPlayer}
+          onChange={handlePlayerChange}
           playerClassHistoryMap={playerClassHistoryMap}
           classIconByName={classIconByName}
         />
