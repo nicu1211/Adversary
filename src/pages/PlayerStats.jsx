@@ -1012,10 +1012,17 @@ function comparisonMetricSum(matches, key) {
     );
 }
 
-function comparisonMetricMax(matches, key) {
+function comparisonMetricMax(matches, key, getValue = null) {
   const values = matches
     .filter((match) => getMatchMetricExists(match, key))
-    .map((match) => Number(getMatchMetricValue(match, key)) || 0);
+    .map((match) =>
+      Number(
+        getValue
+          ? getValue(match)
+          : getMatchMetricValue(match, key),
+      ),
+    )
+    .filter((value) => Number.isFinite(value));
 
   return values.length ? Math.max(...values) : 0;
 }
@@ -1288,7 +1295,9 @@ function PlayerComparisonPanel({
               {' · '}
               {mode === 'average'
                 ? 'Average per war'
-                : 'Totals and best records'}
+                : mode === 'best'
+                  ? 'Best single-war records'
+                  : 'Totals and best records'}
             </p>
           </div>
         </div>
@@ -1326,6 +1335,7 @@ function PlayerComparisonPanel({
               {[
                 ['total', 'Total'],
                 ['average', 'Average'],
+                ['best', 'Best'],
               ].map(([id, label]) => (
                 <button
                   type="button"
@@ -4890,39 +4900,77 @@ export default function PlayerStats({
                 'damageToFort',
               ),
             }
-          : {
-              kills: totalKills,
-              deaths: totalDeaths,
-              kd: totalKd,
-              killstreak: comparisonMetricMax(
-                matches,
-                'killstreak',
-              ),
-              killfeed: comparisonMetricMax(
-                matches,
-                'killfeed',
-              ),
-              damageDealt: comparisonMetricSum(
-                matches,
-                'damageDealt',
-              ),
-              damageTaken: comparisonMetricSum(
-                matches,
-                'damageTaken',
-              ),
-              ccHits: comparisonMetricSum(
-                matches,
-                'ccHits',
-              ),
-              allyProtection: comparisonMetricSum(
-                matches,
-                'allyProtection',
-              ),
-              damageToFort: comparisonMetricSum(
-                matches,
-                'damageToFort',
-              ),
-            };
+          : compareMode === 'best'
+            ? {
+                kills: comparisonMetricMax(matches, 'kills'),
+                deaths: comparisonMetricMax(matches, 'deaths'),
+                kd: comparisonMetricMax(
+                  matches,
+                  'kd',
+                  getMatchKdValue,
+                ),
+                killstreak: comparisonMetricMax(
+                  matches,
+                  'killstreak',
+                ),
+                killfeed: comparisonMetricMax(
+                  matches,
+                  'killfeed',
+                ),
+                damageDealt: comparisonMetricMax(
+                  matches,
+                  'damageDealt',
+                ),
+                damageTaken: comparisonMetricMax(
+                  matches,
+                  'damageTaken',
+                ),
+                ccHits: comparisonMetricMax(
+                  matches,
+                  'ccHits',
+                ),
+                allyProtection: comparisonMetricMax(
+                  matches,
+                  'allyProtection',
+                ),
+                damageToFort: comparisonMetricMax(
+                  matches,
+                  'damageToFort',
+                ),
+              }
+            : {
+                kills: totalKills,
+                deaths: totalDeaths,
+                kd: totalKd,
+                killstreak: comparisonMetricMax(
+                  matches,
+                  'killstreak',
+                ),
+                killfeed: comparisonMetricMax(
+                  matches,
+                  'killfeed',
+                ),
+                damageDealt: comparisonMetricSum(
+                  matches,
+                  'damageDealt',
+                ),
+                damageTaken: comparisonMetricSum(
+                  matches,
+                  'damageTaken',
+                ),
+                ccHits: comparisonMetricSum(
+                  matches,
+                  'ccHits',
+                ),
+                allyProtection: comparisonMetricSum(
+                  matches,
+                  'allyProtection',
+                ),
+                damageToFort: comparisonMetricSum(
+                  matches,
+                  'damageToFort',
+                ),
+              };
 
       return {
         name: playerRow.name,
