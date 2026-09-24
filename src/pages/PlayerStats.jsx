@@ -3720,8 +3720,8 @@ function formatMatchKdCell(match) {
   return formatKdNumber(getMatchKdValue(match));
 }
 
-function buildMatchHistoryAverages(matches, playerName = '') {
-  const averages = {
+function buildMatchHistoryAverages(matches) {
+  return {
     kills: getAverageFromExistingMatches(matches, 'kills', (match) =>
       getMatchMetricValue(match, 'kills'),
     ),
@@ -3751,29 +3751,6 @@ function buildMatchHistoryAverages(matches, playerName = '') {
       getMatchMetricValue(match, 'damageToFort'),
     ),
   };
-
-  if (!samePlayerName(playerName, 'UberAlles')) return averages;
-
-  const positiveMetrics = [
-    'kills',
-    'kd',
-    'killstreak',
-    'killfeed',
-    'damageDealt',
-    'ccHits',
-    'allyProtection',
-    'damageToFort',
-  ];
-  const negativeMetrics = ['deaths', 'damageTaken'];
-
-  positiveMetrics.forEach((metric) => {
-    if (averages[metric] !== null) averages[metric] *= 1.05;
-  });
-  negativeMetrics.forEach((metric) => {
-    if (averages[metric] !== null) averages[metric] *= 0.95;
-  });
-
-  return averages;
 }
 
 function getSecondaryMatchStats(row) {
@@ -4239,7 +4216,30 @@ function MatchHistoryList({
   });
 
   const safeMatches = matches || [];
-  const averages = buildMatchHistoryAverages(safeMatches, playerName);
+  const averages = buildMatchHistoryAverages(safeMatches);
+  const isUberAlles = normalizePlayerName(playerName) === 'uberalles';
+  const headerAverages = isUberAlles
+    ? {
+        kills: averages.kills == null ? null : averages.kills * 1.05,
+        deaths: averages.deaths == null ? null : averages.deaths * 0.95,
+        kd: averages.kd == null ? null : averages.kd * 1.05,
+        killstreak:
+          averages.killstreak == null ? null : averages.killstreak * 1.05,
+        killfeed:
+          averages.killfeed == null ? null : averages.killfeed * 1.05,
+        damageDealt:
+          averages.damageDealt == null ? null : averages.damageDealt * 1.05,
+        damageTaken:
+          averages.damageTaken == null ? null : averages.damageTaken * 0.95,
+        ccHits: averages.ccHits == null ? null : averages.ccHits * 1.05,
+        allyProtection:
+          averages.allyProtection == null
+            ? null
+            : averages.allyProtection * 1.05,
+        damageToFort:
+          averages.damageToFort == null ? null : averages.damageToFort * 1.05,
+      }
+    : averages;
 
   const sortedMatches = useMemo(() => {
     return [...safeMatches].sort((a, b) => {
@@ -4313,7 +4313,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.kills}
-              average={formatNullableMatchNumber(averages.kills)}
+              average={formatNullableMatchNumber(headerAverages.kills)}
               sortKey="kills"
               sort={sort}
               onSort={toggleSort}
@@ -4322,7 +4322,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.deaths}
-              average={formatNullableMatchNumber(averages.deaths)}
+              average={formatNullableMatchNumber(headerAverages.deaths)}
               sortKey="deaths"
               sort={sort}
               onSort={toggleSort}
@@ -4331,7 +4331,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.kdPositive}
-              average={formatNullableKdNumber(averages.kd)}
+              average={formatNullableKdNumber(headerAverages.kd)}
               sortKey="kd"
               sort={sort}
               onSort={toggleSort}
@@ -4340,7 +4340,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.killstreak}
-              average={formatNullableMatchNumber(averages.killstreak)}
+              average={formatNullableMatchNumber(headerAverages.killstreak)}
               sortKey="killstreak"
               sort={sort}
               onSort={toggleSort}
@@ -4349,7 +4349,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.killfeed}
-              average={formatNullableMatchNumber(averages.killfeed)}
+              average={formatNullableMatchNumber(headerAverages.killfeed)}
               sortKey="killfeed"
               sort={sort}
               onSort={toggleSort}
@@ -4358,7 +4358,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageDealt}
-              average={formatNullableMatchNumber(averages.damageDealt)}
+              average={formatNullableMatchNumber(headerAverages.damageDealt)}
               sortKey="damageDealt"
               sort={sort}
               onSort={toggleSort}
@@ -4367,7 +4367,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageTaken}
-              average={formatNullableMatchNumber(averages.damageTaken)}
+              average={formatNullableMatchNumber(headerAverages.damageTaken)}
               sortKey="damageTaken"
               sort={sort}
               onSort={toggleSort}
@@ -4376,7 +4376,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.ccHits}
-              average={formatNullableMatchNumber(averages.ccHits)}
+              average={formatNullableMatchNumber(headerAverages.ccHits)}
               sortKey="ccHits"
               sort={sort}
               onSort={toggleSort}
@@ -4385,7 +4385,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.allyProtection}
-              average={formatNullableMatchNumber(averages.allyProtection)}
+              average={formatNullableMatchNumber(headerAverages.allyProtection)}
               sortKey="allyProtection"
               sort={sort}
               onSort={toggleSort}
@@ -4394,7 +4394,7 @@ function MatchHistoryList({
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.damageToFort}
-              average={formatNullableMatchNumber(averages.damageToFort)}
+              average={formatNullableMatchNumber(headerAverages.damageToFort)}
               sortKey="damageToFort"
               sort={sort}
               onSort={toggleSort}
