@@ -7734,9 +7734,57 @@ export default function App() {
     try {
       setLoadingNodeLogs(true);
 
-      const params = nextPeriod === 'all' ? { range: 'all' } : { days: nextPeriod };
+      // Node Wars needs the raw Stats Log too, not only the cached summary.
+      // Historical summaries may predate newer fields such as Ally Healing,
+      // while Overview already fetches the raw record when a war is opened.
+      // Loading raw here keeps the Node Wars cards/sorting consistent with Overview.
+      const params =
+        nextPeriod === 'all'
+          ? { range: 'all', includeRaw: 1 }
+          : { days: nextPeriod, includeRaw: 1 };
       const data = await apiGet(logsPath(params));
-      const normalized = normalizeLogs(data);
+      let normalized = normalizeLogs(data);
+
+      // Some deployments can still return summary-only records even when
+      // includeRaw=1 is requested. Overview already hydrates those records
+      // through /api/logs/:id/raw, so do the same here for any Node Wars row
+      // that is still missing its raw Stats Log.
+      const missingRawLogs = normalized.filter(
+        (log) => log?.id != null && !log?.raw,
+      );
+
+      if (missingRawLogs.length) {
+        const hydratedById = new Map(
+          normalized.map((log) => [String(log.id), log]),
+        );
+        const batchSize = 8;
+
+        for (let start = 0; start < missingRawLogs.length; start += batchSize) {
+          const batch = missingRawLogs.slice(start, start + batchSize);
+          const loaded = await Promise.allSettled(
+            batch.map(async (log) => {
+              const fullLog = normalizeLog(
+                await apiGet(`/api/logs/${encodeURIComponent(log.id)}/raw`),
+              );
+
+              return {
+                ...log,
+                ...fullLog,
+                date: dateOf(fullLog) || dateOf(log),
+              };
+            }),
+          );
+
+          loaded.forEach((result) => {
+            if (result.status !== 'fulfilled' || !result.value?.raw) return;
+            hydratedById.set(String(result.value.id), result.value);
+          });
+        }
+
+        normalized = normalized.map(
+          (log) => hydratedById.get(String(log.id)) || log,
+        );
+      }
 
       setNodeLogs(normalized);
       setMessage('');
