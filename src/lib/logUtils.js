@@ -2103,9 +2103,14 @@ export function getLogSummary(log) {
 }
 
 export function buildNodeWarRow(log) {
-  const summary = getLogSummary(log);
-  const secondaryTotals = summary.secondary?.totals || {};
-  const playerSecondaryTotals = (summary.players || []).reduce(
+  const storedSummary = getLogSummary(log);
+
+  // Node Wars should use the same raw-log calculation path as Overview whenever
+  // raw data is available. Older cached summaries can predate newer stats such
+  // as Ally Healing even though the raw Stats Log still contains them.
+  const stats = log?.raw ? calculateStats([log]) : storedSummary;
+  const secondaryTotals = stats.secondary?.totals || {};
+  const playerSecondaryTotals = (stats.players || []).reduce(
     (totals, player) => ({
       damageDealt:
         totals.damageDealt + (Number(player.damageDealt) || 0),
@@ -2125,14 +2130,39 @@ export function buildNodeWarRow(log) {
     },
   );
 
+  const topEnemies = log?.raw
+    ? [...(stats.guilds || [])]
+        .map((guild) => {
+          const ourKills = Number(guild.kills) || 0;
+          const ourDeaths = Number(guild.deaths) || 0;
+          const total = ourKills + ourDeaths;
+
+          return {
+            name: guild.name,
+            kills: ourDeaths,
+            deaths: ourKills,
+            total,
+            kd: ourKills
+              ? (ourDeaths / ourKills).toFixed(2)
+              : ourDeaths.toFixed(2),
+          };
+        })
+        .sort((a, b) => b.total - a.total || b.kills - a.kills)
+        .slice(0, 5)
+    : storedSummary.topEnemies || [];
+
+  const enemyNames = (stats.guilds || [])
+    .map((guild) => guild.name)
+    .filter(Boolean);
+
   return {
     ...log,
     date: dateOf(log),
-    players: Number(summary.playersCount) || Number(summary.players?.length) || 0,
-    kills: Number(summary.kills) || 0,
-    deaths: Number(summary.deaths) || 0,
-    kd: summary.kd || '0.00',
-    kdNumber: Number(summary.kd) || 0,
+    players: Number(stats.playersCount) || Number(stats.players?.length) || 0,
+    kills: Number(stats.kills) || 0,
+    deaths: Number(stats.deaths) || 0,
+    kd: stats.kd || '0.00',
+    kdNumber: Number(stats.kd) || 0,
     damageDealt:
       Number(secondaryTotals.damageDealt) || playerSecondaryTotals.damageDealt || 0,
     damageTaken:
@@ -2144,12 +2174,16 @@ export function buildNodeWarRow(log) {
       0,
     fortDamage:
       Number(secondaryTotals.fortDamage) || playerSecondaryTotals.fortDamage || 0,
-    topEnemies: summary.topEnemies || [],
+    topEnemies,
     allEnemyNames:
-      summary.enemyNames?.length > 0
-        ? summary.enemyNames
-        : (summary.guilds || []).map((guild) => guild.name).filter(Boolean),
-    hasTimeline: Boolean(summary.hasTimeline),
-    summaryOnly: Boolean(summary.summaryOnly),
+      enemyNames.length > 0
+        ? enemyNames
+        : storedSummary.enemyNames?.length > 0
+          ? storedSummary.enemyNames
+          : (storedSummary.guilds || [])
+              .map((guild) => guild.name)
+              .filter(Boolean),
+    hasTimeline: Boolean(stats.hasTimeline),
+    summaryOnly: Boolean(stats.summaryOnly),
   };
 }
