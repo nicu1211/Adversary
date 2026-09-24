@@ -617,7 +617,6 @@ function parseSecondaryLine(line, index) {
   const thirdNumber = parseSecondaryNumber(thirdColumn);
   const looksLikeKdColumn =
     player &&
-    !className &&
     numericColumns.length >= 9 &&
     /[.,]/.test(thirdColumn) &&
     thirdNumber >= 0 &&
@@ -641,22 +640,38 @@ function parseSecondaryLine(line, index) {
     parseSecondaryNumber(numericColumns[ccHitsIndex]),
   );
 
-  // New combined rows contain Heal and Ally Protection before Fort Damage.
-  // Old rows remain supported because Fort Damage is still read from the
-  // final numeric column when nine or more numeric columns are present.
-  const hasExtendedSupportColumns = !looksLikeKdColumn && numericColumns.length >= 9;
+  // Support-column layouts exist in two forms:
+  //
+  // Current/no-KD:
+  //   Kills, Deaths, Kill Feed, Damage, Taken, CC, Heal, Ally Protection, Fort
+  //
+  // Older/KD layout:
+  //   Kills, Deaths, K/D, Killstreak, Kill Feed, Damage, Taken, CC,
+  //   Heal, Ally Protection, Fort
+  //
+  // Previously the K/D layout was deliberately excluded from the extended
+  // support-column branch, which made Ally Healing parse as zero even though
+  // the raw log contained it.
+  const hasExtendedSupportColumns = looksLikeKdColumn
+    ? numericColumns.length >= 11
+    : numericColumns.length >= 9;
+  const healIndex = looksLikeKdColumn ? 8 : 6;
+  const allyProtectionIndex = looksLikeKdColumn ? 9 : 7;
   const heal = hasExtendedSupportColumns
-    ? Math.round(parseSecondaryNumber(numericColumns[6]))
+    ? Math.round(parseSecondaryNumber(numericColumns[healIndex]))
     : 0;
   const allyProtection = hasExtendedSupportColumns
-    ? Math.round(parseSecondaryNumber(numericColumns[7]))
+    ? Math.round(parseSecondaryNumber(numericColumns[allyProtectionIndex]))
     : 0;
-  // Fort Damage is not present in short legacy rows such as
-  // `Name Kills Deaths`. Only treat the final value as Fort Damage when the
-  // row has the full legacy metric set (7+ numeric values) or the new
-  // extended combined layout (9 numeric values).
+
+  // Legacy rows without Heal/Ally Protection still keep Fort Damage as the
+  // final numeric value. Extended rows use the explicit Fort position.
   const hasFortDamageColumn = numericColumns.length >= 7;
-  const fortDamageIndex = numericColumns.length >= 9 ? 8 : numericColumns.length - 1;
+  const fortDamageIndex = hasExtendedSupportColumns
+    ? looksLikeKdColumn
+      ? 10
+      : 8
+    : numericColumns.length - 1;
   const fortDamage = hasFortDamageColumn
     ? Math.round(parseSecondaryNumber(numericColumns[fortDamageIndex]))
     : 0;
