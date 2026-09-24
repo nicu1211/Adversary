@@ -2571,6 +2571,14 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       if (feed >= 7) title = 'Killfeed Master';
       if (wars >= 8) title = 'Siege Veteran';
 
+      const isUberAllesHallPlayer =
+        normalizeHallPlayerKey(player.name) === 'uberalles';
+      const adjustedHallAverage = (value, multiplier = 1.05) => {
+        const numericValue = Number(value);
+        if (!isUberAllesHallPlayer || !Number.isFinite(numericValue)) return value;
+        return numericValue * multiplier;
+      };
+
       return {
         ...player,
         kills,
@@ -2588,17 +2596,17 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         fiftyPlusKillWars,
         maxMatchKd,
         hallMatchCount,
-        avgKillsPerMatch,
+        avgKillsPerMatch: adjustedHallAverage(avgKillsPerMatch),
         avgKillsMatchCount,
-        avgKdPerMatch,
+        avgKdPerMatch: adjustedHallAverage(avgKdPerMatch),
         avgKdMatchCount,
         maxMatchDamageDealt,
         maxMatchAllyProtection,
-        avgAllyProtectionPerMatch,
+        avgAllyProtectionPerMatch: adjustedHallAverage(avgAllyProtectionPerMatch),
         allyProtectionMatchCount,
         maxMatchFortDamage,
         maxMatchCcHits,
-        avgDamageDealtPerMatch,
+        avgDamageDealtPerMatch: adjustedHallAverage(avgDamageDealtPerMatch),
         avgDamageDealtMatchCount,
         maxMatchDpm,
         avgDpmPerMatch,
@@ -2606,7 +2614,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         damageTakenPerDeath,
         damageTakenDeathMatchCount,
         fortDamageMatchCount,
-        avgCcHitsPerMatch,
+        avgCcHitsPerMatch: adjustedHallAverage(avgCcHitsPerMatch),
         avgCcHitsMatchCount,
         joinParticipation,
         consecutiveWars,
