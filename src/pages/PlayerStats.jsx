@@ -4208,7 +4208,7 @@ function MatchHistoryList({
   matches,
   onOpenMatchOverview,
   classIconByName = {},
-  applyUberAllesHeaderAdjustment = false,
+  playerName = '',
 }) {
   const [sort, setSort] = useState({
     key: 'date',
@@ -4221,10 +4221,25 @@ function MatchHistoryList({
   // UberAlles adjustment is DISPLAY-ONLY and applies exclusively to the AVG
   // numbers in the Match History header. Match rows and every other Player
   // Stats calculation continue to use the untouched raw values.
+  // Detect from both the selected player state and the route so this cannot
+  // silently fail when Player Stats is restored through browser history.
+  const routePlayerName =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search || '').get('player') || ''
+      : '';
+  const uberKey = (value) =>
+    String(value || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/gi, '')
+      .toLowerCase();
+  const isUberAllesHeader =
+    uberKey(playerName) === 'uberalles' || uberKey(routePlayerName) === 'uberalles';
+
   const headerAverage = (metric, multiplier) => {
     const value = averages?.[metric];
     if (value == null) return null;
-    return applyUberAllesHeaderAdjustment ? Number(value) * multiplier : value;
+    return isUberAllesHeader ? Number(value) * multiplier : value;
   };
 
   const sortedMatches = useMemo(() => {
@@ -5448,10 +5463,7 @@ export default function PlayerStats({
               matches={selectedStats.matchList}
               classIconByName={classIconByName}
               onOpenMatchOverview={onOpenMatchOverview}
-              applyUberAllesHeaderAdjustment={
-                normalizePlayerName(player) === 'uberalles' ||
-                normalizePlayerName(selectedStats?.name) === 'uberalles'
-              }
+              playerName={player}
             />
           </div>
 
