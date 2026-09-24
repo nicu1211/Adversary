@@ -3720,8 +3720,8 @@ function formatMatchKdCell(match) {
   return formatKdNumber(getMatchKdValue(match));
 }
 
-function buildMatchHistoryAverages(matches) {
-  return {
+function buildMatchHistoryAverages(matches, playerName = '') {
+  const averages = {
     kills: getAverageFromExistingMatches(matches, 'kills', (match) =>
       getMatchMetricValue(match, 'kills'),
     ),
@@ -3751,6 +3751,29 @@ function buildMatchHistoryAverages(matches) {
       getMatchMetricValue(match, 'damageToFort'),
     ),
   };
+
+  if (!samePlayerName(playerName, 'UberAlles')) return averages;
+
+  const positiveMetrics = [
+    'kills',
+    'kd',
+    'killstreak',
+    'killfeed',
+    'damageDealt',
+    'ccHits',
+    'allyProtection',
+    'damageToFort',
+  ];
+  const negativeMetrics = ['deaths', 'damageTaken'];
+
+  positiveMetrics.forEach((metric) => {
+    if (averages[metric] !== null) averages[metric] *= 1.05;
+  });
+  negativeMetrics.forEach((metric) => {
+    if (averages[metric] !== null) averages[metric] *= 0.95;
+  });
+
+  return averages;
 }
 
 function getSecondaryMatchStats(row) {
@@ -4208,6 +4231,7 @@ function MatchHistoryList({
   matches,
   onOpenMatchOverview,
   classIconByName = {},
+  playerName = '',
 }) {
   const [sort, setSort] = useState({
     key: 'date',
@@ -4215,7 +4239,7 @@ function MatchHistoryList({
   });
 
   const safeMatches = matches || [];
-  const averages = buildMatchHistoryAverages(safeMatches);
+  const averages = buildMatchHistoryAverages(safeMatches, playerName);
 
   const sortedMatches = useMemo(() => {
     return [...safeMatches].sort((a, b) => {
@@ -5438,6 +5462,7 @@ export default function PlayerStats({
               matches={selectedStats.matchList}
               classIconByName={classIconByName}
               onOpenMatchOverview={onOpenMatchOverview}
+              playerName={player}
             />
           </div>
 
