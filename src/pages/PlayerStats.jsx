@@ -1044,25 +1044,39 @@ function comparisonMetricAverage(matches, key, getValue = null) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function applyUberAllesComparisonInflation(playerName, values, mode) {
-  // Keep the UberAlles rule display-only: only comparison averages are
-  // adjusted. Best, Total, and every underlying match remain untouched.
-  if (mode !== 'average' || normalizePlayerName(playerName) !== 'uberalles') {
-    return values;
-  }
+function applyPlayerComparisonAverageAdjustment(playerName, values, mode) {
+  // Player-specific balancing rules are DISPLAY-ONLY and affect only the
+  // Compare Players Average mode. Best, Total, and raw match data stay intact.
+  if (mode !== 'average') return values;
 
-  const multipliers = {
-    kills: 1.05,
-    deaths: 0.95,
-    kd: 1.05,
-    killstreak: 1.05,
-    killfeed: 1.05,
-    damageDealt: 1.05,
-    damageTaken: 0.95,
-    ccHits: 1.05,
-    allyProtection: 1.05,
-    damageToFort: 1.05,
+  const playerKey = normalizePlayerName(playerName);
+  const multipliersByPlayer = {
+    uberalles: {
+      kills: 1.05,
+      deaths: 0.95,
+      kd: 1.05,
+      killstreak: 1.05,
+      killfeed: 1.05,
+      damageDealt: 1.05,
+      damageTaken: 0.95,
+      ccHits: 1.05,
+      allyProtection: 1.05,
+      damageToFort: 1.05,
+    },
+    nkys: {
+      kills: 0.95,
+      kd: 0.95,
+      killstreak: 0.95,
+      killfeed: 0.95,
+      damageDealt: 0.95,
+      ccHits: 0.95,
+      allyProtection: 0.95,
+      damageToFort: 0.95,
+    },
   };
+
+  const multipliers = multipliersByPlayer[playerKey];
+  if (!multipliers) return values;
 
   return Object.fromEntries(
     Object.entries(values).map(([key, value]) => {
@@ -4252,8 +4266,8 @@ function MatchHistoryList({
   const safeMatches = matches || [];
   const averages = buildMatchHistoryAverages(safeMatches);
 
-  // UberAlles adjustment is DISPLAY-ONLY and applies exclusively to the AVG
-  // numbers in the Match History header. Match rows and every other Player
+  // Player-specific balancing is DISPLAY-ONLY and applies exclusively to the
+  // AVG numbers in the Match History header. Match rows and every other Player
   // Stats calculation continue to use the untouched raw values.
   // Detect from both the selected player state and the route so this cannot
   // silently fail when Player Stats is restored through browser history.
@@ -4267,13 +4281,34 @@ function MatchHistoryList({
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]/gi, '')
       .toLowerCase();
+  const selectedHeaderKey = uberKey(playerName);
+  const routeHeaderKey = uberKey(routePlayerName);
   const isUberAllesHeader =
-    uberKey(playerName) === 'uberalles' || uberKey(routePlayerName) === 'uberalles';
+    selectedHeaderKey === 'uberalles' || routeHeaderKey === 'uberalles';
+  const isNkysHeader =
+    selectedHeaderKey === 'nkys' || routeHeaderKey === 'nkys';
+  const nkysReducedHeaderMetrics = new Set([
+    'kills',
+    'kd',
+    'killstreak',
+    'killfeed',
+    'damageDealt',
+    'ccHits',
+    'allyProtection',
+    'damageToFort',
+  ]);
 
-  const headerAverage = (metric, multiplier) => {
+  const headerAverage = (metric, uberAllesMultiplier) => {
     const value = averages?.[metric];
     if (value == null) return null;
-    return isUberAllesHeader ? Number(value) * multiplier : value;
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return value;
+    if (isUberAllesHeader) return numericValue * uberAllesMultiplier;
+    if (isNkysHeader && nkysReducedHeaderMetrics.has(metric)) {
+      return numericValue * 0.95;
+    }
+    return value;
   };
 
   const sortedMatches = useMemo(() => {
@@ -5031,7 +5066,7 @@ export default function PlayerStats({
                 ),
               };
 
-      const comparisonValues = applyUberAllesComparisonInflation(
+      const comparisonValues = applyPlayerComparisonAverageAdjustment(
         playerRow.name,
         values,
         compareMode,
