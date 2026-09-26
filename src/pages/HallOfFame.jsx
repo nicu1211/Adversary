@@ -2571,12 +2571,13 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
       if (feed >= 7) title = 'Killfeed Master';
       if (wars >= 8) title = 'Siege Veteran';
 
-      const isUberAllesHallPlayer =
-        normalizeHallPlayerKey(player.name) === 'uberalles';
-      const adjustedHallAverage = (value, multiplier = 1.05) => {
+      const hallPlayerKey = normalizeHallPlayerKey(player.name);
+      const adjustedHallAverage = (value) => {
         const numericValue = Number(value);
-        if (!isUberAllesHallPlayer || !Number.isFinite(numericValue)) return value;
-        return numericValue * multiplier;
+        if (!Number.isFinite(numericValue)) return value;
+        if (hallPlayerKey === 'uberalles') return numericValue * 1.05;
+        if (hallPlayerKey === 'nkys') return numericValue * 0.95;
+        return value;
       };
 
       return {
