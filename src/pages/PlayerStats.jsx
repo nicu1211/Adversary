@@ -1044,6 +1044,40 @@ function comparisonMetricAverage(matches, key, getValue = null) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function applyUberAllesComparisonInflation(playerName, values, mode) {
+  // Keep the UberAlles rule display-only: only comparison averages are
+  // adjusted. Best, Total, and every underlying match remain untouched.
+  if (mode !== 'average' || normalizePlayerName(playerName) !== 'uberalles') {
+    return values;
+  }
+
+  const multipliers = {
+    kills: 1.05,
+    deaths: 0.95,
+    kd: 1.05,
+    killstreak: 1.05,
+    killfeed: 1.05,
+    damageDealt: 1.05,
+    damageTaken: 0.95,
+    ccHits: 1.05,
+    allyProtection: 1.05,
+    damageToFort: 1.05,
+  };
+
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => {
+      const multiplier = multipliers[key];
+      const numericValue = Number(value);
+
+      if (!multiplier || !Number.isFinite(numericValue)) {
+        return [key, value];
+      }
+
+      return [key, numericValue * multiplier];
+    }),
+  );
+}
+
 function radarPoint(cx, cy, radius, index, count) {
   const angle = -Math.PI / 2 + (index * Math.PI * 2) / count;
 
@@ -4997,10 +5031,16 @@ export default function PlayerStats({
                 ),
               };
 
+      const comparisonValues = applyUberAllesComparisonInflation(
+        playerRow.name,
+        values,
+        compareMode,
+      );
+
       return {
         name: playerRow.name,
         wars: matches.length,
-        ...values,
+        ...comparisonValues,
       };
     });
   }, [
