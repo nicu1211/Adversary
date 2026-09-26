@@ -4159,7 +4159,7 @@ function PlayerOverview({
 
     if (!participatedWars) return null;
 
-    return {
+    const lifetimeAverages = {
       wars: participatedWars,
       metricWars: {
         ...counts,
@@ -4195,6 +4195,51 @@ function PlayerOverview({
         ? totals.fortDamage / counts.fortDamage
         : null,
     };
+
+    // Keep the player-specific balancing rules display-only here as well.
+    // They affect only the Lifetime Average side of War Performance; the
+    // selected war and all underlying log data remain untouched.
+    const playerKey = normalizePlayerName(selected.name);
+    const averageMultipliersByPlayer = {
+      uberalles: {
+        kills: 1.05,
+        deaths: 0.95,
+        kd: 1.05,
+        streak: 1.05,
+        feed: 1.05,
+        damageDealt: 1.05,
+        damageTaken: 0.95,
+        ccHits: 1.05,
+        allyProtection: 1.05,
+        fortDamage: 1.05,
+      },
+      nkys: {
+        kills: 0.95,
+        kd: 0.95,
+        streak: 0.95,
+        feed: 0.95,
+        damageDealt: 0.95,
+        ccHits: 0.95,
+        allyProtection: 0.95,
+        fortDamage: 0.95,
+      },
+    };
+
+    const averageMultipliers = averageMultipliersByPlayer[playerKey];
+    if (!averageMultipliers) return lifetimeAverages;
+
+    return Object.fromEntries(
+      Object.entries(lifetimeAverages).map(([key, value]) => {
+        const multiplier = averageMultipliers[key];
+        if (!multiplier || value == null) return [key, value];
+
+        const numericValue = Number(value);
+        return [
+          key,
+          Number.isFinite(numericValue) ? numericValue * multiplier : value,
+        ];
+      }),
+    );
   }, [selected, lifetimeLogs]);
   return (
     <OverviewPlayerAnalyticsPane
