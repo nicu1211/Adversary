@@ -2740,7 +2740,23 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     values: Object.fromEntries(
       leaderboardRows.map((row) => {
         const match = playerMatchMap?.[row.name]?.[String(war.id)];
-        return [row.name, { kills: Number(match?.kills) || 0, played: Boolean(match) }];
+        const durationSeconds = Number(warDurationSecondsById?.[String(war.id)]) || 0;
+        const warEvents = events.filter((event) => eventWarId(event) === String(war.id));
+        return [row.name, {
+          ...(match || {}),
+          kills: Number(match?.kills) || 0,
+          deaths: Number(match?.deaths) || 0,
+          damageDealt: Number(match?.damageDealt) || 0,
+          damageTaken: Number(match?.damageTaken) || 0,
+          allyProtection: Number(match?.allyProtection) || 0,
+          fortDamage: Number(match?.fortDamage) || 0,
+          ccHits: Number(match?.ccHits) || 0,
+          durationSeconds,
+          streak: getBestWarKillstreak(warEvents, row.name),
+          feed: getBestWarKillfeed(warEvents, row.name),
+          firstBlood: firstBloodWarIdsByPlayer?.[row.name]?.includes(String(war.id)) ? 1 : 0,
+          played: Boolean(match),
+        }];
       }),
     ),
   }));
@@ -3548,15 +3564,15 @@ function HallProgressRow({ label, player, metricKey, value, max, right, tone = '
   };
 
   return (
-    <div className="mb-3 last:mb-0">
+    <div className="hall-progress-row mb-3 last:mb-0" data-player={player?.name || ''} data-metric={metricKey || ''}>
       <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
         <span className="min-w-0 text-slate-200">
           <HallProgressLabel label={label} player={player} metricKey={metricKey} />
         </span>
-        <span className="shrink-0 text-slate-400">{right ?? exactNum(value)}</span>
+        <span className="hall-progress-value shrink-0 text-slate-400">{right ?? exactNum(value)}</span>
       </div>
       <div className="h-2 rounded-full bg-slate-900/90">
-        <div className={cls('h-2 rounded-full bg-gradient-to-r', colors[tone] || colors.blue)} style={{ width: `${width}%` }} />
+        <div className={cls('hall-progress-bar h-2 rounded-full bg-gradient-to-r transition-[width] duration-150 ease-linear', colors[tone] || colors.blue)} style={{ width: `${width}%` }} />
       </div>
     </div>
   );
@@ -3672,7 +3688,6 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 }
 
 function CombatOutputPanel({ data }) {
-  const [raceBoard, setRaceBoard] = useState(null);
   const topTotalKills = [...data.rows]
     .filter((player) => player.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES && player.kills > 0)
     .sort((a, b) => b.kills - a.kills || compareMetricChronology(a, b, 'kills'))
@@ -3709,8 +3724,7 @@ function CombatOutputPanel({ data }) {
       <SectionTitle icon={Swords} title="Kills" />
       <div className="grid gap-5 md:grid-cols-3">
         <div>
-          <RaceLeaderboardHeader title="Total Kills" open={raceBoard === 'total'} onToggle={() => setRaceBoard((v) => v === 'total' ? null : 'total')} />
-          {raceBoard === 'total' && <div className="mb-4"><HallOfFameRace data={data} mode="total" compact /></div>}
+          <RaceLeaderboardHeader title="Total Kills" data={data} metricKey="kills" />
           {topTotalKills.length ? (
             topTotalKills.map((player, index) => (
               <HallProgressRow
@@ -3730,8 +3744,7 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <RaceLeaderboardHeader title="AVG Kills" open={raceBoard === 'average'} onToggle={() => setRaceBoard((v) => v === 'average' ? null : 'average')} />
-          {raceBoard === 'average' && <div className="mb-4"><HallOfFameRace data={data} mode="average" compact /></div>}
+          <RaceLeaderboardHeader title="AVG Kills" data={data} metricKey="avgKillsPerMatch" />
           {topAverageKills.length ? (
             topAverageKills.map((player, index) => (
               <HallProgressRow
@@ -3751,8 +3764,7 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <RaceLeaderboardHeader title="Top Fraggers" open={raceBoard === 'max'} onToggle={() => setRaceBoard((v) => v === 'max' ? null : 'max')} />
-          {raceBoard === 'max' && <div className="mb-4"><HallOfFameRace data={data} mode="max" compact /></div>}
+          <RaceLeaderboardHeader title="Top Fraggers" data={data} metricKey="maxMatchKills" />
           {topFraggers.length ? (
             topFraggers.map((player, index) => (
               <HallProgressRow
@@ -3909,7 +3921,7 @@ function CombatRecordsPanel({ data }) {
       <SectionTitle icon={Target} title="Highlights" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Best Average K/D</p>
+          <RaceLeaderboardHeader title="Best Average K/D" data={data} metricKey="avgKdPerMatch" />
           {topAverageKd.length ? (
             topAverageKd.map((player, index) => (
               <HallProgressRow
@@ -3929,7 +3941,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest K/D</p>
+          <RaceLeaderboardHeader title="Highest K/D" data={data} metricKey="maxMatchKd" />
           {topHighestMatchKd.length ? (
             topHighestMatchKd.map((player, index) => (
               <HallProgressRow
@@ -3949,7 +3961,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Healing</p>
+          <RaceLeaderboardHeader title="Highest Healing" data={data} metricKey="maxMatchAllyProtection" />
           {topHighestAllyProtection.length ? (
             topHighestAllyProtection.map((player, index) => (
               <HallProgressRow
@@ -3969,7 +3981,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">AVG Healing</p>
+          <RaceLeaderboardHeader title="AVG Healing" data={data} metricKey="avgAllyProtectionPerMatch" />
           {topAverageAllyProtection.length ? (
             topAverageAllyProtection.map((player, index) => (
               <HallProgressRow
@@ -3991,7 +4003,7 @@ function CombatRecordsPanel({ data }) {
 
       <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Best Average Rank</p>
+          <RaceLeaderboardHeader title="Best Average Rank" data={data} metricKey="averageRank" />
           {topAverageRank.length ? (
             topAverageRank.map((player, index) => (
               <HallProgressRow
@@ -4011,7 +4023,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Highest Kill Streak</p>
+          <RaceLeaderboardHeader title="Highest Kill Streak" data={data} metricKey="streak" />
           {topStreaks.length ? (
             topStreaks.map((player, index) => (
               <HallProgressRow
@@ -4031,7 +4043,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">Biggest Kill Feed</p>
+          <RaceLeaderboardHeader title="Biggest Kill Feed" data={data} metricKey="feed" />
           {topFeeds.length ? (
             topFeeds.map((player, index) => (
               <HallProgressRow
@@ -4051,7 +4063,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">50+ Kills in Wars</p>
+          <RaceLeaderboardHeader title="50+ Kills in Wars" data={data} metricKey="fiftyPlusKillWars" />
           {topFiftyPlusKillWars.length ? (
             topFiftyPlusKillWars.map((player, index) => (
               <HallProgressRow
@@ -4071,7 +4083,7 @@ function CombatRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 flex h-[32px] items-end text-xs font-black uppercase leading-[1.15] tracking-[0.18em] text-slate-500">First Bloods</p>
+          <RaceLeaderboardHeader title="First Bloods" data={data} metricKey="firstBloods" />
           {topFirstBloods.length ? (
             topFirstBloods.map((player, index) => (
               <HallProgressRow
@@ -4403,7 +4415,7 @@ function DamageRecordsPanel({ data }) {
       <SectionTitle icon={BarChart3} title="Damage" />
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top DMG</p>
+          <RaceLeaderboardHeader title="Top DMG" data={data} metricKey="maxMatchDamageDealt" />
           {topSingleGameDamageDealt.length ? (
             topSingleGameDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -4423,7 +4435,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DMG Dealt</p>
+          <RaceLeaderboardHeader title="Average DMG Dealt" data={data} metricKey="avgDamageDealtPerMatch" />
           {topAverageDamageDealt.length ? (
             topAverageDamageDealt.map((player, index) => (
               <HallProgressRow
@@ -4443,7 +4455,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest DPM / NW</p>
+          <RaceLeaderboardHeader title="Highest DPM / NW" data={data} metricKey="maxMatchDpm" />
           {topHighestDpmPerNodeWar.length ? (
             topHighestDpmPerNodeWar.map((player, index) => (
               <HallProgressRow
@@ -4463,7 +4475,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average DPM</p>
+          <RaceLeaderboardHeader title="Average DPM" data={data} metricKey="avgDpmPerMatch" />
           {topAverageDpm.length ? (
             topAverageDpm.map((player, index) => (
               <HallProgressRow
@@ -4483,7 +4495,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fort DMG</p>
+          <RaceLeaderboardHeader title="Top Fort DMG" data={data} metricKey="maxMatchFortDamage" />
           {topSingleGameFortDamage.length ? (
             topSingleGameFortDamage.map((player, index) => (
               <HallProgressRow
@@ -4503,7 +4515,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top CC Hits</p>
+          <RaceLeaderboardHeader title="Top CC Hits" data={data} metricKey="maxMatchCcHits" />
           {topSingleGameCcHits.length ? (
             topSingleGameCcHits.map((player, index) => (
               <HallProgressRow
@@ -4523,7 +4535,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Average CC Hits</p>
+          <RaceLeaderboardHeader title="Average CC Hits" data={data} metricKey="avgCcHitsPerMatch" />
           {topAverageCcHits.length ? (
             topAverageCcHits.map((player, index) => (
               <HallProgressRow
@@ -4543,7 +4555,7 @@ function DamageRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG DMG Taken / Death</p>
+          <RaceLeaderboardHeader title="AVG DMG Taken / Death" data={data} metricKey="damageTakenPerDeath" />
           {topDamageTakenPerDeath.length ? (
             topDamageTakenPerDeath.map((player, index) => (
               <HallProgressRow
@@ -4599,7 +4611,7 @@ function NodeWarsRecordsPanel({ data }) {
       <SectionTitle icon={CalendarDays} title="Node Wars" />
       <div className="grid gap-5 md:grid-cols-3">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Node Wars</p>
+          <RaceLeaderboardHeader title="Most Node Wars" data={data} metricKey="wars" />
           {topMostNodeWars.length ? (
             topMostNodeWars.map((player, index) => (
               <HallProgressRow
@@ -4619,7 +4631,7 @@ function NodeWarsRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Highest Join Participation</p>
+          <RaceLeaderboardHeader title="Highest Join Participation" data={data} metricKey="joinParticipation" />
           {topJoinParticipation.length ? (
             topJoinParticipation.map((player, index) => (
               <HallProgressRow
@@ -4639,7 +4651,7 @@ function NodeWarsRecordsPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Most Consecutive Matches</p>
+          <RaceLeaderboardHeader title="Most Consecutive Matches" data={data} metricKey="consecutiveWars" />
           {topConsecutiveWars.length ? (
             topConsecutiveWars.map((player, index) => (
               <HallProgressRow
@@ -4764,16 +4776,122 @@ function HallOfFameRace({ data, mode = 'total', compact = false }) {
   );
 }
 
-function RaceLeaderboardHeader({ title, open, onToggle }) {
-  return (
-    <div className="mb-4 flex items-center justify-between gap-2">
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
-      <button type="button" onClick={onToggle} className={cls('flex h-7 items-center gap-1 rounded-lg border px-2 text-[10px] font-black uppercase tracking-[0.08em] transition', open ? 'border-amber-400/40 bg-amber-400/15 text-amber-200' : 'border-slate-800 bg-slate-950/60 text-slate-500 hover:border-amber-400/25 hover:text-amber-200')} title={open ? 'Close timeline' : `Play ${title} through time`}>
-        {open ? <ChevronRight className="h-3.5 w-3.5 rotate-90" /> : <Play className="h-3.5 w-3.5" />}
-        {open ? 'Close' : 'Play'}
-      </button>
+function hallRaceAdjustedValue(playerName, metricKey, value) {
+  const key = normalizeHallPlayerKey(playerName);
+  const averageAdjustedMetrics = new Set([
+    'avgKillsPerMatch', 'avgKdPerMatch', 'avgAllyProtectionPerMatch',
+    'avgDamageDealtPerMatch', 'avgCcHitsPerMatch',
+  ]);
+  if (!averageAdjustedMetrics.has(metricKey)) return value;
+  if (key === 'uberalles') return value * 1.05;
+  if (key === 'nkys') return value * 0.95;
+  return value;
+}
+
+function hallRaceFormat(metricKey, value) {
+  if (['avgKillsPerMatch', 'avgKdPerMatch', 'maxMatchKd', 'averageRank'].includes(metricKey)) return Number(value || 0).toFixed(2);
+  if (metricKey === 'joinParticipation') return `${Number(value || 0).toFixed(1)}%`;
+  return exactNum(value);
+}
+
+function buildHallRaceSnapshots(data, metricKey) {
+  const wars = Array.isArray(data?.raceWars) ? data.raceWars : [];
+  const players = Array.isArray(data?.rows) ? data.rows : [];
+  const state = Object.fromEntries(players.map((p) => [p.name, {
+    played: 0, kills: 0, killGames: 0, deaths: 0, kdTotal: 0, kdGames: 0, damage: 0, damageGames: 0, healing: 0, healingGames: 0,
+    cc: 0, ccGames: 0, damageTaken: 0, damageTakenDeaths: 0, maxKills: 0, maxKd: 0,
+    maxDamage: 0, maxHealing: 0, maxFort: 0, maxCc: 0, maxDpm: 0, dpmTotal: 0, dpmGames: 0,
+    streak: 0, feed: 0, fifty: 0, firstBloods: 0, consecutive: 0, bestConsecutive: 0,
+  }]));
+  const snapshots = [];
+  const read = (name, st, warNumber) => {
+    let v = 0;
+    switch (metricKey) {
+      case 'kills': v = st.kills; break;
+      case 'avgKillsPerMatch': v = st.killGames ? st.kills / st.killGames : 0; break;
+      case 'maxMatchKills': v = st.maxKills; break;
+      case 'avgKdPerMatch': v = st.kdGames ? st.kdTotal / st.kdGames : 0; break;
+      case 'maxMatchKd': v = st.maxKd; break;
+      case 'maxMatchAllyProtection': v = st.maxHealing; break;
+      case 'avgAllyProtectionPerMatch': v = st.healingGames ? st.healing / st.healingGames : 0; break;
+      case 'streak': v = st.streak; break;
+      case 'feed': v = st.feed; break;
+      case 'fiftyPlusKillWars': v = st.fifty; break;
+      case 'firstBloods': v = st.firstBloods; break;
+      case 'maxMatchDamageDealt': v = st.maxDamage; break;
+      case 'avgDamageDealtPerMatch': v = st.damageGames ? st.damage / st.damageGames : 0; break;
+      case 'maxMatchDpm': v = st.maxDpm; break;
+      case 'avgDpmPerMatch': v = st.dpmGames ? st.dpmTotal / st.dpmGames : 0; break;
+      case 'maxMatchFortDamage': v = st.maxFort; break;
+      case 'maxMatchCcHits': v = st.maxCc; break;
+      case 'avgCcHitsPerMatch': v = st.ccGames ? st.cc / st.ccGames : 0; break;
+      case 'damageTakenPerDeath': v = st.damageTakenDeaths ? st.damageTaken / st.damageTakenDeaths : 0; break;
+      case 'wars': v = st.played; break;
+      case 'joinParticipation': v = warNumber ? (st.played / warNumber) * 100 : 0; break;
+      case 'consecutiveWars': v = st.bestConsecutive; break;
+      default: v = Number(players.find((p) => p.name === name)?.[metricKey]) || 0;
+    }
+    return hallRaceAdjustedValue(name, metricKey, v);
+  };
+  snapshots.push({ date: 'Beginning', values: Object.fromEntries(players.map((p) => [p.name, 0])) });
+  wars.forEach((war, warIndex) => {
+    players.forEach((p) => {
+      const e = war.values?.[p.name] || {};
+      const st = state[p.name];
+      if (e.played) { st.played += 1; st.consecutive += 1; st.bestConsecutive = Math.max(st.bestConsecutive, st.consecutive); } else st.consecutive = 0;
+      const kills = Number(e.kills) || 0, deaths = Number(e.deaths) || 0;
+      st.kills += kills; st.deaths += deaths; if (e.hasKills) st.killGames += 1; if (e.hasKills || e.hasDeaths) { st.kdTotal += kd(kills, deaths); st.kdGames += 1; } st.maxKills = Math.max(st.maxKills, kills); st.maxKd = Math.max(st.maxKd, kd(kills, deaths));
+      if (e.hasDamageDealt) { const x=Number(e.damageDealt)||0; st.damage += x; st.damageGames += 1; st.maxDamage=Math.max(st.maxDamage,x); if (e.durationSeconds>0) { const dpm=x/e.durationSeconds*60; st.dpmTotal+=dpm; st.dpmGames+=1; st.maxDpm=Math.max(st.maxDpm,dpm); } }
+      if (e.hasAllyProtection) { const x=Number(e.allyProtection)||0; st.healing+=x; st.healingGames+=1; st.maxHealing=Math.max(st.maxHealing,x); }
+      if (e.hasCcHits) { const x=Number(e.ccHits)||0; st.cc+=x; st.ccGames+=1; st.maxCc=Math.max(st.maxCc,x); }
+      if (e.hasFortDamage) st.maxFort=Math.max(st.maxFort,Number(e.fortDamage)||0);
+      if (e.hasDamageTaken && e.hasDeaths) { st.damageTaken += Number(e.damageTaken)||0; st.damageTakenDeaths += deaths; }
+      st.streak=Math.max(st.streak,Number(e.streak)||0); st.feed=Math.max(st.feed,Number(e.feed)||0);
+      if (kills >= 50) st.fifty += 1; st.firstBloods += Number(e.firstBlood)||0;
+    });
+    snapshots.push({ date: war.date || war.label || `War ${warIndex + 1}`, values: Object.fromEntries(players.map((p) => [p.name, read(p.name, state[p.name], warIndex + 1)])) });
+  });
+  return snapshots;
+}
+
+function RaceLeaderboardHeader({ title, data, metricKey }) {
+  const hostRef = useRef(null);
+  const frameRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [label, setLabel] = useState('');
+  const snapshots = useMemo(() => buildHallRaceSnapshots(data, metricKey), [data, metricKey]);
+
+  const paint = (index, progress = 0) => {
+    const host = hostRef.current?.parentElement;
+    if (!host) return;
+    const rows = [...host.querySelectorAll(':scope > .hall-progress-row')];
+    if (!rows.length) return;
+    const a=snapshots[Math.min(index,snapshots.length-1)] || snapshots[0];
+    const b=snapshots[Math.min(index+1,snapshots.length-1)] || a;
+    const values=rows.map((el) => { const name=el.dataset.player; const av=Number(a?.values?.[name])||0; const bv=Number(b?.values?.[name])||av; return {el,name,value:av+(bv-av)*progress}; });
+    const ranked=[...values].sort((x,y) => metricKey==='averageRank' ? x.value-y.value : y.value-x.value || x.name.localeCompare(y.name));
+    const max=Math.max(1,...ranked.map((x)=> metricKey==='averageRank' ? (x.value ? 1/x.value : 0) : x.value));
+    ranked.forEach((item,rank)=>{ const original=rows.indexOf(item.el); const y=(rank-original)*(item.el.getBoundingClientRect().height+12); item.el.style.transform=`translateY(${y}px)`; item.el.style.transition='transform 420ms cubic-bezier(.2,.8,.2,1)'; item.el.style.zIndex=String(rows.length-rank); const val=item.el.querySelector('.hall-progress-value'); if(val) val.textContent=hallRaceFormat(metricKey,item.value); const bar=item.el.querySelector('.hall-progress-bar'); if(bar){ const basis=metricKey==='averageRank' ? (item.value ? 1/item.value : 0) : item.value; bar.style.width=`${Math.max(5,Math.min(100,basis/max*100))}%`; }});
+    setLabel(b?.date || 'Beginning');
+  };
+  const restore = () => { const host=hostRef.current?.parentElement; if(!host)return; [...host.querySelectorAll(':scope > .hall-progress-row')].forEach((el)=>{el.style.transform='';el.style.zIndex='';}); setLabel(''); };
+  useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
+  const start = () => {
+    cancelAnimationFrame(frameRef.current); setPlaying(true); setFinished(false); let index=0, progress=0, last=performance.now(); paint(0,0);
+    const tick=(now)=>{ const delta=now-last; last=now; progress += delta/(900/speed); if(progress>=1){ index+=1; progress=0; if(index>=snapshots.length-1){ paint(snapshots.length-1,0); setPlaying(false); setFinished(true); return; }} paint(index,progress); frameRef.current=requestAnimationFrame(tick); };
+    frameRef.current=requestAnimationFrame(tick);
+  };
+  const stop = () => { cancelAnimationFrame(frameRef.current); setPlaying(false); };
+  return <div ref={hostRef} className="mb-4 flex min-h-[32px] items-end justify-between gap-2">
+    <div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>{label && <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300/80">{label}</p>}</div>
+    <div className="flex items-center gap-1">
+      {(playing || finished) && [1,2,4].map((v)=><button key={v} type="button" onClick={()=>setSpeed(v)} className={cls('h-7 rounded-md border px-1.5 text-[9px] font-black',speed===v?'border-amber-400/40 bg-amber-400/15 text-amber-200':'border-slate-800 text-slate-500')}>{v}x</button>)}
+      <button type="button" onClick={()=> playing ? stop() : start()} className="flex h-7 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 text-[10px] font-black uppercase text-amber-200 hover:bg-amber-500/20">{playing?<Pause className="h-3.5 w-3.5"/>:finished?<RotateCcw className="h-3.5 w-3.5"/>:<Play className="h-3.5 w-3.5"/>}{playing?'Pause':finished?'Replay':'Play'}</button>
+      {(playing || finished) && <button type="button" onClick={()=>{stop();restore();setFinished(false);}} className="h-7 rounded-lg border border-slate-800 px-2 text-[9px] font-black uppercase text-slate-500">Reset</button>}
     </div>
-  );
+  </div>;
 }
 
 function Variant1({ data }) {
