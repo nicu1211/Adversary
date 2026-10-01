@@ -4819,6 +4819,7 @@ function buildHallRaceSnapshots(data, metricKey) {
       case 'fiftyPlusKillWars': v = st.fifty; break;
       case 'firstBloods': v = st.firstBloods; break;
       case 'maxMatchDamageDealt': v = st.maxDamage; break;
+      case 'damageDealt': v = st.damage; break;
       case 'avgDamageDealtPerMatch': v = st.damageGames ? st.damage / st.damageGames : 0; break;
       case 'maxMatchDpm': v = st.maxDpm; break;
       case 'avgDpmPerMatch': v = st.dpmGames ? st.dpmTotal / st.dpmGames : 0; break;
@@ -4857,41 +4858,150 @@ function buildHallRaceSnapshots(data, metricKey) {
 function RaceLeaderboardHeader({ title, data, metricKey }) {
   const hostRef = useRef(null);
   const frameRef = useRef(null);
+  const speedRef = useRef(1);
   const [playing, setPlaying] = useState(false);
+  const [active, setActive] = useState(false);
   const [finished, setFinished] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [label, setLabel] = useState('');
+  const [warIndex, setWarIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
   const snapshots = useMemo(() => buildHallRaceSnapshots(data, metricKey), [data, metricKey]);
+  const players = Array.isArray(data?.rows) ? data.rows : [];
 
-  const paint = (index, progress = 0) => {
+  useEffect(() => { speedRef.current = speed; }, [speed]);
+
+  // The historical race REPLACES the existing rows in-place while it is active.
+  // Before Play, the original/current Hall of Fame remains completely untouched.
+  useEffect(() => {
     const host = hostRef.current?.parentElement;
-    if (!host) return;
+    if (!host) return undefined;
     const rows = [...host.querySelectorAll(':scope > .hall-progress-row')];
-    if (!rows.length) return;
-    const a=snapshots[Math.min(index,snapshots.length-1)] || snapshots[0];
-    const b=snapshots[Math.min(index+1,snapshots.length-1)] || a;
-    const values=rows.map((el) => { const name=el.dataset.player; const av=Number(a?.values?.[name])||0; const bv=Number(b?.values?.[name])||av; return {el,name,value:av+(bv-av)*progress}; });
-    const ranked=[...values].sort((x,y) => metricKey==='averageRank' ? x.value-y.value : y.value-x.value || x.name.localeCompare(y.name));
-    const max=Math.max(1,...ranked.map((x)=> metricKey==='averageRank' ? (x.value ? 1/x.value : 0) : x.value));
-    ranked.forEach((item,rank)=>{ const original=rows.indexOf(item.el); const y=(rank-original)*(item.el.getBoundingClientRect().height+12); item.el.style.transform=`translateY(${y}px)`; item.el.style.transition='transform 420ms cubic-bezier(.2,.8,.2,1)'; item.el.style.zIndex=String(rows.length-rank); const val=item.el.querySelector('.hall-progress-value'); if(val) val.textContent=hallRaceFormat(metricKey,item.value); const bar=item.el.querySelector('.hall-progress-bar'); if(bar){ const basis=metricKey==='averageRank' ? (item.value ? 1/item.value : 0) : item.value; bar.style.width=`${Math.max(5,Math.min(100,basis/max*100))}%`; }});
-    setLabel(b?.date || 'Beginning');
-  };
-  const restore = () => { const host=hostRef.current?.parentElement; if(!host)return; [...host.querySelectorAll(':scope > .hall-progress-row')].forEach((el)=>{el.style.transform='';el.style.zIndex='';}); setLabel(''); };
+    rows.forEach((row) => { row.style.display = active ? 'none' : ''; });
+    return () => rows.forEach((row) => { row.style.display = ''; });
+  }, [active]);
+
   useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
-  const start = () => {
-    cancelAnimationFrame(frameRef.current); setPlaying(true); setFinished(false); let index=0, progress=0, last=performance.now(); paint(0,0);
-    const tick=(now)=>{ const delta=now-last; last=now; progress += delta/(900/speed); if(progress>=1){ index+=1; progress=0; if(index>=snapshots.length-1){ paint(snapshots.length-1,0); setPlaying(false); setFinished(true); return; }} paint(index,progress); frameRef.current=requestAnimationFrame(tick); };
-    frameRef.current=requestAnimationFrame(tick);
+
+  useEffect(() => {
+    if (!playing || snapshots.length <= 1) return undefined;
+    if (warIndex >= snapshots.length - 1) {
+      setPlaying(false);
+      setFinished(true);
+      return undefined;
+    }
+    let last = performance.now();
+    const duration = 1050;
+    const tick = (now) => {
+      const delta = now - last;
+      last = now;
+      setProgress((current) => {
+        const next = current + (delta / duration) * speedRef.current;
+        if (next >= 1) {
+          setWarIndex((index) => Math.min(index + 1, snapshots.length - 1));
+          return 0;
+        }
+        return next;
+      });
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [playing, snapshots.length, warIndex]);
+
+  const begin = () => {
+    cancelAnimationFrame(frameRef.current);
+    setActive(true);
+    setFinished(false);
+    setWarIndex(0);
+    setProgress(0);
+    setPlaying(true);
   };
-  const stop = () => { cancelAnimationFrame(frameRef.current); setPlaying(false); };
-  return <div ref={hostRef} className="mb-4 flex min-h-[32px] items-end justify-between gap-2">
-    <div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>{label && <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300/80">{label}</p>}</div>
-    <div className="flex items-center gap-1">
-      {(playing || finished) && [1,2,4].map((v)=><button key={v} type="button" onClick={()=>setSpeed(v)} className={cls('h-7 rounded-md border px-1.5 text-[9px] font-black',speed===v?'border-amber-400/40 bg-amber-400/15 text-amber-200':'border-slate-800 text-slate-500')}>{v}x</button>)}
-      <button type="button" onClick={()=> playing ? stop() : start()} className="flex h-7 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 text-[10px] font-black uppercase text-amber-200 hover:bg-amber-500/20">{playing?<Pause className="h-3.5 w-3.5"/>:finished?<RotateCcw className="h-3.5 w-3.5"/>:<Play className="h-3.5 w-3.5"/>}{playing?'Pause':finished?'Replay':'Play'}</button>
-      {(playing || finished) && <button type="button" onClick={()=>{stop();restore();setFinished(false);}} className="h-7 rounded-lg border border-slate-800 px-2 text-[9px] font-black uppercase text-slate-500">Reset</button>}
+  const reset = () => {
+    cancelAnimationFrame(frameRef.current);
+    setPlaying(false);
+    setFinished(false);
+    setWarIndex(0);
+    setProgress(0);
+    setActive(false);
+  };
+
+  const from = snapshots[Math.min(warIndex, snapshots.length - 1)] || { values: {} };
+  const to = snapshots[Math.min(warIndex + 1, snapshots.length - 1)] || from;
+  const isLowerBetter = metricKey === 'averageRank';
+  const ranked = players
+    .map((player) => {
+      const a = Number(from.values?.[player.name]) || 0;
+      const b = Number(to.values?.[player.name]) || a;
+      return { player, value: a + (b - a) * progress };
+    })
+    .filter((item) => item.value > 0)
+    .sort((a, b) => isLowerBetter
+      ? a.value - b.value || a.player.name.localeCompare(b.player.name)
+      : b.value - a.value || a.player.name.localeCompare(b.player.name))
+    .slice(0, 10);
+
+  const barBasis = (value) => isLowerBetter ? (value > 0 ? 1 / value : 0) : value;
+  const maxValue = Math.max(1e-9, ...ranked.map((item) => barBasis(item.value)));
+  const currentLabel = (to?.date || to?.label || 'Beginning');
+  const currentWar = Math.min(warIndex + 1, Math.max(1, snapshots.length - 1));
+
+  return (
+    <div ref={hostRef} className="mb-4">
+      <div className="flex min-h-[32px] items-end justify-between gap-2">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
+          {active && <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300/80">{currentLabel} · War {currentWar}/{Math.max(1, snapshots.length - 1)}</p>}
+        </div>
+        <div className="flex items-center gap-1">
+          {active && [1, 2, 4].map((v) => (
+            <button key={v} type="button" onClick={() => setSpeed(v)} className={cls('h-7 rounded-md border px-1.5 text-[9px] font-black', speed === v ? 'border-amber-400/40 bg-amber-400/15 text-amber-200' : 'border-slate-800 text-slate-500')}>{v}x</button>
+          ))}
+          <button type="button" onClick={() => {
+            if (!active || finished) begin();
+            else setPlaying((value) => !value);
+          }} className="flex h-7 items-center gap-1 rounded-lg border border-amber-400/25 bg-amber-500/10 px-2 text-[10px] font-black uppercase text-amber-200 hover:bg-amber-500/20">
+            {playing ? <Pause className="h-3.5 w-3.5" /> : finished ? <RotateCcw className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            {playing ? 'Pause' : finished ? 'Replay' : 'Play'}
+          </button>
+          {active && <button type="button" onClick={reset} className="h-7 rounded-lg border border-slate-800 px-2 text-[9px] font-black uppercase text-slate-500">Reset</button>}
+        </div>
+      </div>
+
+      {active && (
+        <div className="mt-3">
+          {ranked.length ? ranked.map((item, index) => {
+            const basis = barBasis(item.value);
+            const width = Math.max(5, Math.min(100, (basis / maxValue) * 100));
+            return (
+              <div key={item.player.name} className="mb-3 last:mb-0 transition-all duration-500 ease-out">
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black">
+                  <span className="flex min-w-0 items-center gap-1.5 text-slate-200">
+                    <span className={cls('w-5 shrink-0 text-right tabular-nums', index === 0 ? 'text-amber-300' : index === 1 ? 'text-slate-200' : index === 2 ? 'text-orange-300' : 'text-slate-500')}>{index + 1}.</span>
+                    <HallClassOrb assignment={item.player.metricClassAssignments?.[metricKey] || item.player.classAssignment} />
+                    <span className="truncate">{item.player.name}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-slate-300">{hallRaceFormat(metricKey, item.value)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-900/90">
+                  <div className="h-2 rounded-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-200 transition-[width] duration-150 ease-linear" style={{ width: `${width}%` }} />
+                </div>
+              </div>
+            );
+          }) : <p className="py-3 text-xs font-bold text-slate-600">No recorded value yet.</p>}
+
+          <input
+            type="range"
+            min="0"
+            max={Math.max(0, snapshots.length - 1)}
+            value={warIndex}
+            onChange={(event) => { setPlaying(false); setWarIndex(Number(event.target.value)); setProgress(0); }}
+            className="mt-3 w-full accent-amber-400"
+            aria-label={`${title} history timeline`}
+          />
+        </div>
+      )}
     </div>
-  </div>;
+  );
 }
 
 function Variant1({ data }) {
