@@ -6,6 +6,9 @@ import {
   ChevronRight,
   Crown,
   Flame,
+  Play,
+  Pause,
+  RotateCcw,
   Shield,
   Skull,
   Sparkles,
@@ -2737,7 +2740,7 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     values: Object.fromEntries(
       leaderboardRows.map((row) => {
         const match = playerMatchMap?.[row.name]?.[String(war.id)];
-        return [row.name, Number(match?.kills) || 0];
+        return [row.name, { kills: Number(match?.kills) || 0, played: Boolean(match) }];
       }),
     ),
   }));
@@ -3669,6 +3672,7 @@ function HallTopHeaders({ data, activeTab, onTabChange }) {
 }
 
 function CombatOutputPanel({ data }) {
+  const [raceBoard, setRaceBoard] = useState(null);
   const topTotalKills = [...data.rows]
     .filter((player) => player.avgKillsMatchCount >= MIN_HALL_METRIC_GAMES && player.kills > 0)
     .sort((a, b) => b.kills - a.kills || compareMetricChronology(a, b, 'kills'))
@@ -3705,7 +3709,8 @@ function CombatOutputPanel({ data }) {
       <SectionTitle icon={Swords} title="Kills" />
       <div className="grid gap-5 md:grid-cols-3">
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Total Kills</p>
+          <RaceLeaderboardHeader title="Total Kills" open={raceBoard === 'total'} onToggle={() => setRaceBoard((v) => v === 'total' ? null : 'total')} />
+          {raceBoard === 'total' && <div className="mb-4"><HallOfFameRace data={data} mode="total" compact /></div>}
           {topTotalKills.length ? (
             topTotalKills.map((player, index) => (
               <HallProgressRow
@@ -3725,7 +3730,8 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">AVG Kills</p>
+          <RaceLeaderboardHeader title="AVG Kills" open={raceBoard === 'average'} onToggle={() => setRaceBoard((v) => v === 'average' ? null : 'average')} />
+          {raceBoard === 'average' && <div className="mb-4"><HallOfFameRace data={data} mode="average" compact /></div>}
           {topAverageKills.length ? (
             topAverageKills.map((player, index) => (
               <HallProgressRow
@@ -3745,7 +3751,8 @@ function CombatOutputPanel({ data }) {
         </div>
 
         <div>
-          <p className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Top Fraggers</p>
+          <RaceLeaderboardHeader title="Top Fraggers" open={raceBoard === 'max'} onToggle={() => setRaceBoard((v) => v === 'max' ? null : 'max')} />
+          {raceBoard === 'max' && <div className="mb-4"><HallOfFameRace data={data} mode="max" compact /></div>}
           {topFraggers.length ? (
             topFraggers.map((player, index) => (
               <HallProgressRow
@@ -4656,7 +4663,7 @@ function NodeWarsRecordsPanel({ data }) {
 }
 
 
-function HallOfFameRace({ data }) {
+function HallOfFameRace({ data, mode = 'total', compact = false }) {
   const wars = Array.isArray(data?.raceWars) ? data.raceWars : [];
   const players = Array.isArray(data?.rows) ? data.rows : [];
   const [playing, setPlaying] = useState(false);
@@ -4666,177 +4673,106 @@ function HallOfFameRace({ data }) {
   const [speed, setSpeed] = useState(1);
 
   const snapshots = useMemo(() => {
-    const totals = Object.fromEntries(players.map((player) => [player.name, 0]));
-    const result = [
-      {
-        id: 'start',
-        date: wars[0]?.date || '',
-        label: 'Beginning',
-        values: { ...totals },
-      },
-    ];
-
+    const state = Object.fromEntries(players.map((player) => [player.name, { total: 0, games: 0, max: 0 }]));
+    const makeValues = () => Object.fromEntries(players.map((player) => {
+      const item = state[player.name];
+      const value = mode === 'average' ? (item.games ? item.total / item.games : 0) : mode === 'max' ? item.max : item.total;
+      return [player.name, value];
+    }));
+    const result = [{ id: 'start', date: wars[0]?.date || '', label: 'Beginning', values: makeValues() }];
     wars.forEach((war) => {
       players.forEach((player) => {
-        totals[player.name] = (totals[player.name] || 0) + (Number(war.values?.[player.name]) || 0);
+        const entry = war.values?.[player.name];
+        const kills = Number(entry?.kills ?? entry) || 0;
+        const played = typeof entry === 'object' ? Boolean(entry?.played) : true;
+        const item = state[player.name];
+        item.total += kills;
+        if (played) item.games += 1;
+        item.max = Math.max(item.max, kills);
       });
-      result.push({ ...war, values: { ...totals } });
+      result.push({ ...war, values: makeValues() });
     });
-
     return result;
-  }, [players, wars]);
+  }, [players, wars, mode]);
 
-  useEffect(() => {
-    speedRef.current = speed;
-  }, [speed]);
-
+  useEffect(() => { speedRef.current = speed; }, [speed]);
   useEffect(() => {
     if (!playing || snapshots.length <= 1) return undefined;
-    if (warIndex >= snapshots.length - 1) {
-      setPlaying(false);
-      return undefined;
-    }
-
+    if (warIndex >= snapshots.length - 1) { setPlaying(false); return undefined; }
     let frame;
     let last = performance.now();
     const duration = 1250;
-
     const tick = (now) => {
-      const delta = now - last;
-      last = now;
+      const delta = now - last; last = now;
       setProgress((current) => {
         const next = current + (delta / duration) * speedRef.current;
-        if (next >= 1) {
-          setWarIndex((index) => Math.min(index + 1, snapshots.length - 1));
-          return 0;
-        }
+        if (next >= 1) { setWarIndex((index) => Math.min(index + 1, snapshots.length - 1)); return 0; }
         return next;
       });
       frame = requestAnimationFrame(tick);
     };
-
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [playing, snapshots.length, warIndex]);
 
   const from = snapshots[Math.min(warIndex, snapshots.length - 1)] || { values: {} };
   const to = snapshots[Math.min(warIndex + 1, snapshots.length - 1)] || from;
-  const interpolated = players.map((player) => {
-    const start = Number(from.values?.[player.name]) || 0;
-    const end = Number(to.values?.[player.name]) || start;
-    return { player, value: start + (end - start) * progress };
-  });
-
-  const ranked = interpolated
-    .filter((item) => item.value > 0 || warIndex > 0)
+  const ranked = players.map((player) => {
+    const a = Number(from.values?.[player.name]) || 0;
+    const b = Number(to.values?.[player.name]) || a;
+    return { player, value: a + (b - a) * progress };
+  }).filter((item) => item.value > 0 || warIndex > 0)
     .sort((a, b) => b.value - a.value || a.player.name.localeCompare(b.player.name));
   const visible = ranked.slice(0, 10);
   const maxValue = Math.max(1, ...visible.map((item) => item.value));
   const currentLabel = to.date || to.label || 'Beginning';
-  const rowHeight = 58;
-
-  const restart = () => {
-    setWarIndex(0);
-    setProgress(0);
-    setPlaying(true);
-  };
-
+  const rowHeight = compact ? 44 : 58;
+  const restart = () => { setWarIndex(0); setProgress(0); setPlaying(true); };
+  const formatValue = (value) => mode === 'average' ? value.toFixed(2) : exactNum(value);
   if (snapshots.length <= 1) return null;
 
   return (
-    <PremiumPanel className="overflow-hidden p-5">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+    <div className={cls('overflow-hidden rounded-xl border border-amber-400/15 bg-slate-950/45', compact ? 'p-2.5' : 'p-4')}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 pb-2.5">
         <div>
-          <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-amber-300" />
-            <h2 className="text-lg font-black uppercase tracking-[0.16em] text-white">Kills Through Time</h2>
-          </div>
-          <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Watch the all-time leaderboard change after every Node War
-          </p>
+          <div className="text-base font-black tabular-nums text-white">{currentLabel}</div>
+          <div className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">War {Math.min(warIndex + 1, wars.length)} / {wars.length}</div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (warIndex >= snapshots.length - 1) restart();
-              else setPlaying((value) => !value);
-            }}
-            className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-500/20"
-          >
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => { if (warIndex >= snapshots.length - 1) restart(); else setPlaying((v) => !v); }} className="flex h-8 items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 text-[10px] font-black uppercase text-amber-200 transition hover:bg-amber-500/20">
+            {playing ? <Pause className="h-3.5 w-3.5" /> : warIndex >= snapshots.length - 1 ? <RotateCcw className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
             {playing ? 'Pause' : warIndex >= snapshots.length - 1 ? 'Replay' : 'Play'}
           </button>
-          {[1, 2, 4].map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setSpeed(value)}
-              className={cls(
-                'rounded-lg border px-2.5 py-2 text-[11px] font-black transition',
-                speed === value
-                  ? 'border-amber-400/40 bg-amber-400/15 text-amber-200'
-                  : 'border-slate-800 bg-slate-950/60 text-slate-500 hover:text-slate-300',
-              )}
-            >
-              {value}x
-            </button>
-          ))}
+          {[1, 2, 4].map((value) => <button key={value} type="button" onClick={() => setSpeed(value)} className={cls('h-8 rounded-lg border px-2 text-[10px] font-black transition', speed === value ? 'border-amber-400/40 bg-amber-400/15 text-amber-200' : 'border-slate-800 bg-slate-950/60 text-slate-500')}>{value}x</button>)}
         </div>
       </div>
-
-      <div className="mb-4 flex items-end justify-between gap-4 border-b border-slate-800/80 pb-4">
-        <div className="text-3xl font-black tabular-nums text-white">{currentLabel}</div>
-        <div className="text-right text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-          Node War {Math.min(warIndex + 1, wars.length)} / {wars.length}
-        </div>
-      </div>
-
       <div className="relative" style={{ height: `${rowHeight * Math.max(1, visible.length)}px` }}>
         {visible.map((item, index) => {
           const assignment = item.player.classAssignments?.[0] || item.player.mostPlayedClassAssignment;
           const width = Math.max(4, (item.value / maxValue) * 100);
-          return (
-            <div
-              key={item.player.name}
-              className="absolute left-0 right-0 flex h-[52px] items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-950/65 px-3 transition-transform duration-300 ease-out"
-              style={{ transform: `translateY(${index * rowHeight}px)` }}
-            >
-              <div className={cls(
-                'w-7 shrink-0 text-center text-sm font-black tabular-nums',
-                index === 0 ? 'text-amber-300' : index === 1 ? 'text-slate-200' : index === 2 ? 'text-orange-300' : 'text-slate-500',
-              )}>
-                {index + 1}
-              </div>
-              <HallClassOrb assignment={assignment} size="md" />
-              <div className="w-36 shrink-0 truncate text-sm font-black text-slate-100">{item.player.name}</div>
-              <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-slate-900/90">
-                <div
-                  className="h-full rounded-md bg-gradient-to-r from-amber-600/80 to-yellow-300/90 shadow-[0_0_18px_rgba(245,158,11,.22)] transition-[width] duration-150 ease-linear"
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-              <div className="w-24 shrink-0 text-right text-lg font-black tabular-nums text-white">
-                {exactNum(item.value)}
-              </div>
-            </div>
-          );
+          return <div key={item.player.name} className={cls('absolute left-0 right-0 flex items-center rounded-lg border border-slate-800/70 bg-slate-950/65 transition-transform duration-300 ease-out', compact ? 'h-[38px] gap-1.5 px-2' : 'h-[52px] gap-3 px-3')} style={{ transform: `translateY(${index * rowHeight}px)` }}>
+            <div className={cls('w-5 shrink-0 text-center text-xs font-black tabular-nums', index === 0 ? 'text-amber-300' : index === 1 ? 'text-slate-200' : index === 2 ? 'text-orange-300' : 'text-slate-500')}>{index + 1}</div>
+            <HallClassOrb assignment={assignment} size={compact ? 'xs' : 'md'} />
+            <div className={cls('shrink-0 truncate font-black text-slate-100', compact ? 'w-24 text-[11px]' : 'w-36 text-sm')}>{item.player.name}</div>
+            <div className={cls('relative flex-1 overflow-hidden rounded bg-slate-900/90', compact ? 'h-5' : 'h-7')}><div className="h-full rounded bg-gradient-to-r from-amber-600/80 to-yellow-300/90 shadow-[0_0_18px_rgba(245,158,11,.22)] transition-[width] duration-150 ease-linear" style={{ width: `${width}%` }} /></div>
+            <div className={cls('shrink-0 text-right font-black tabular-nums text-white', compact ? 'w-14 text-xs' : 'w-24 text-lg')}>{formatValue(item.value)}</div>
+          </div>;
         })}
       </div>
+      <input type="range" min="0" max={Math.max(0, snapshots.length - 1)} value={warIndex} onChange={(event) => { setPlaying(false); setWarIndex(Number(event.target.value)); setProgress(0); }} className="mt-3 w-full accent-amber-400" aria-label="Hall of Fame history timeline" />
+    </div>
+  );
+}
 
-      <input
-        type="range"
-        min="0"
-        max={Math.max(0, snapshots.length - 1)}
-        value={warIndex}
-        onChange={(event) => {
-          setPlaying(false);
-          setWarIndex(Number(event.target.value));
-          setProgress(0);
-        }}
-        className="mt-5 w-full accent-amber-400"
-        aria-label="Hall of Fame history timeline"
-      />
-    </PremiumPanel>
+function RaceLeaderboardHeader({ title, open, onToggle }) {
+  return (
+    <div className="mb-4 flex items-center justify-between gap-2">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
+      <button type="button" onClick={onToggle} className={cls('flex h-7 items-center gap-1 rounded-lg border px-2 text-[10px] font-black uppercase tracking-[0.08em] transition', open ? 'border-amber-400/40 bg-amber-400/15 text-amber-200' : 'border-slate-800 bg-slate-950/60 text-slate-500 hover:border-amber-400/25 hover:text-amber-200')} title={open ? 'Close timeline' : `Play ${title} through time`}>
+        {open ? <ChevronRight className="h-3.5 w-3.5 rotate-90" /> : <Play className="h-3.5 w-3.5" />}
+        {open ? 'Close' : 'Play'}
+      </button>
+    </div>
   );
 }
 
@@ -4853,8 +4789,6 @@ function Variant1({ data }) {
 
       {activeTab === 'kills' ? (
         <>
-          <HallOfFameRace data={data} />
-
           <CombatOutputPanel data={data} />
 
           <FirstMilestonesPanel data={data} />
