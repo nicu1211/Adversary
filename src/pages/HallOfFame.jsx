@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Award,
   BarChart3,
@@ -2730,8 +2730,21 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     ]),
   );
 
+  const raceWars = warList.map((war) => ({
+    id: war.id,
+    date: war.date || '',
+    label: war.date || war.id,
+    values: Object.fromEntries(
+      leaderboardRows.map((row) => {
+        const match = playerMatchMap?.[row.name]?.[String(war.id)];
+        return [row.name, Number(match?.kills) || 0];
+      }),
+    ),
+  }));
+
   return {
     rows: leaderboardRows,
+    raceWars,
     achievements,
     months,
     thresholdLeaderboards,
@@ -4642,6 +4655,191 @@ function NodeWarsRecordsPanel({ data }) {
   );
 }
 
+
+function HallOfFameRace({ data }) {
+  const wars = Array.isArray(data?.raceWars) ? data.raceWars : [];
+  const players = Array.isArray(data?.rows) ? data.rows : [];
+  const [playing, setPlaying] = useState(false);
+  const [warIndex, setWarIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const speedRef = useRef(1);
+  const [speed, setSpeed] = useState(1);
+
+  const snapshots = useMemo(() => {
+    const totals = Object.fromEntries(players.map((player) => [player.name, 0]));
+    const result = [
+      {
+        id: 'start',
+        date: wars[0]?.date || '',
+        label: 'Beginning',
+        values: { ...totals },
+      },
+    ];
+
+    wars.forEach((war) => {
+      players.forEach((player) => {
+        totals[player.name] = (totals[player.name] || 0) + (Number(war.values?.[player.name]) || 0);
+      });
+      result.push({ ...war, values: { ...totals } });
+    });
+
+    return result;
+  }, [players, wars]);
+
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
+
+  useEffect(() => {
+    if (!playing || snapshots.length <= 1) return undefined;
+    if (warIndex >= snapshots.length - 1) {
+      setPlaying(false);
+      return undefined;
+    }
+
+    let frame;
+    let last = performance.now();
+    const duration = 1250;
+
+    const tick = (now) => {
+      const delta = now - last;
+      last = now;
+      setProgress((current) => {
+        const next = current + (delta / duration) * speedRef.current;
+        if (next >= 1) {
+          setWarIndex((index) => Math.min(index + 1, snapshots.length - 1));
+          return 0;
+        }
+        return next;
+      });
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, snapshots.length, warIndex]);
+
+  const from = snapshots[Math.min(warIndex, snapshots.length - 1)] || { values: {} };
+  const to = snapshots[Math.min(warIndex + 1, snapshots.length - 1)] || from;
+  const interpolated = players.map((player) => {
+    const start = Number(from.values?.[player.name]) || 0;
+    const end = Number(to.values?.[player.name]) || start;
+    return { player, value: start + (end - start) * progress };
+  });
+
+  const ranked = interpolated
+    .filter((item) => item.value > 0 || warIndex > 0)
+    .sort((a, b) => b.value - a.value || a.player.name.localeCompare(b.player.name));
+  const visible = ranked.slice(0, 10);
+  const maxValue = Math.max(1, ...visible.map((item) => item.value));
+  const currentLabel = to.date || to.label || 'Beginning';
+  const rowHeight = 58;
+
+  const restart = () => {
+    setWarIndex(0);
+    setProgress(0);
+    setPlaying(true);
+  };
+
+  if (snapshots.length <= 1) return null;
+
+  return (
+    <PremiumPanel className="overflow-hidden p-5">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-amber-300" />
+            <h2 className="text-lg font-black uppercase tracking-[0.16em] text-white">Kills Through Time</h2>
+          </div>
+          <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Watch the all-time leaderboard change after every Node War
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (warIndex >= snapshots.length - 1) restart();
+              else setPlaying((value) => !value);
+            }}
+            className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-500/20"
+          >
+            {playing ? 'Pause' : warIndex >= snapshots.length - 1 ? 'Replay' : 'Play'}
+          </button>
+          {[1, 2, 4].map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setSpeed(value)}
+              className={cls(
+                'rounded-lg border px-2.5 py-2 text-[11px] font-black transition',
+                speed === value
+                  ? 'border-amber-400/40 bg-amber-400/15 text-amber-200'
+                  : 'border-slate-800 bg-slate-950/60 text-slate-500 hover:text-slate-300',
+              )}
+            >
+              {value}x
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-4 flex items-end justify-between gap-4 border-b border-slate-800/80 pb-4">
+        <div className="text-3xl font-black tabular-nums text-white">{currentLabel}</div>
+        <div className="text-right text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+          Node War {Math.min(warIndex + 1, wars.length)} / {wars.length}
+        </div>
+      </div>
+
+      <div className="relative" style={{ height: `${rowHeight * Math.max(1, visible.length)}px` }}>
+        {visible.map((item, index) => {
+          const assignment = item.player.classAssignments?.[0] || item.player.mostPlayedClassAssignment;
+          const width = Math.max(4, (item.value / maxValue) * 100);
+          return (
+            <div
+              key={item.player.name}
+              className="absolute left-0 right-0 flex h-[52px] items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-950/65 px-3 transition-transform duration-300 ease-out"
+              style={{ transform: `translateY(${index * rowHeight}px)` }}
+            >
+              <div className={cls(
+                'w-7 shrink-0 text-center text-sm font-black tabular-nums',
+                index === 0 ? 'text-amber-300' : index === 1 ? 'text-slate-200' : index === 2 ? 'text-orange-300' : 'text-slate-500',
+              )}>
+                {index + 1}
+              </div>
+              <HallClassOrb assignment={assignment} size="md" />
+              <div className="w-36 shrink-0 truncate text-sm font-black text-slate-100">{item.player.name}</div>
+              <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-slate-900/90">
+                <div
+                  className="h-full rounded-md bg-gradient-to-r from-amber-600/80 to-yellow-300/90 shadow-[0_0_18px_rgba(245,158,11,.22)] transition-[width] duration-150 ease-linear"
+                  style={{ width: `${width}%` }}
+                />
+              </div>
+              <div className="w-24 shrink-0 text-right text-lg font-black tabular-nums text-white">
+                {exactNum(item.value)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <input
+        type="range"
+        min="0"
+        max={Math.max(0, snapshots.length - 1)}
+        value={warIndex}
+        onChange={(event) => {
+          setPlaying(false);
+          setWarIndex(Number(event.target.value));
+          setProgress(0);
+        }}
+        className="mt-5 w-full accent-amber-400"
+        aria-label="Hall of Fame history timeline"
+      />
+    </PremiumPanel>
+  );
+}
+
 function Variant1({ data }) {
   const [activeTab, setActiveTab] = useState('kills');
 
@@ -4655,6 +4853,8 @@ function Variant1({ data }) {
 
       {activeTab === 'kills' ? (
         <>
+          <HallOfFameRace data={data} />
+
           <CombatOutputPanel data={data} />
 
           <FirstMilestonesPanel data={data} />
