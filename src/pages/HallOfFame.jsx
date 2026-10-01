@@ -2733,15 +2733,26 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
     ]),
   );
 
-  const raceWars = warList.map((war) => ({
+  // Build the event buckets once. The race used to filter the entire event log
+  // once per player, per war, which made Hall of Fame startup unnecessarily expensive.
+  const raceEventsByWarId = new Map();
+  events.forEach((event) => {
+    const warId = eventWarId(event);
+    if (!raceEventsByWarId.has(warId)) raceEventsByWarId.set(warId, []);
+    raceEventsByWarId.get(warId).push(event);
+  });
+
+  const raceWars = warList.map((war) => {
+    const warId = String(war.id);
+    const durationSeconds = Number(warDurationSecondsById?.[warId]) || 0;
+    const warEvents = raceEventsByWarId.get(warId) || [];
+    return {
     id: war.id,
     date: war.date || '',
     label: war.date || war.id,
     values: Object.fromEntries(
       leaderboardRows.map((row) => {
-        const match = playerMatchMap?.[row.name]?.[String(war.id)];
-        const durationSeconds = Number(warDurationSecondsById?.[String(war.id)]) || 0;
-        const warEvents = events.filter((event) => eventWarId(event) === String(war.id));
+        const match = playerMatchMap?.[row.name]?.[warId];
         return [row.name, {
           ...(match || {}),
           kills: Number(match?.kills) || 0,
@@ -2759,7 +2770,8 @@ function computeHallData(stats, minimumStatsLogAppearances = MIN_HALL_STATS_LOG_
         }];
       }),
     ),
-  }));
+  };
+  });
 
   return {
     rows: leaderboardRows,
@@ -4865,7 +4877,12 @@ function RaceLeaderboardHeader({ title, data, metricKey }) {
   const [speed, setSpeed] = useState(1);
   const [warIndex, setWarIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const snapshots = useMemo(() => buildHallRaceSnapshots(data, metricKey), [data, metricKey]);
+  // Do not build historical snapshots for every leaderboard on page load.
+  // There are 20+ boards; generate a board's history only after the user presses Play.
+  const snapshots = useMemo(
+    () => (active ? buildHallRaceSnapshots(data, metricKey) : []),
+    [active, data, metricKey],
+  );
   const players = Array.isArray(data?.rows) ? data.rows : [];
 
   useEffect(() => { speedRef.current = speed; }, [speed]);
