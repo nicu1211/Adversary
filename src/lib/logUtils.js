@@ -225,6 +225,7 @@ function normalizeSummary(summary) {
 
   return {
     version: summary.version || 1,
+    warTier: summary.warTier ?? summary.war_tier ?? null,
     kills: Number(summary.kills) || 0,
     deaths: Number(summary.deaths) || 0,
     kd: String(summary.kd ?? '0.00'),
@@ -266,6 +267,15 @@ export function normalizeLog(log) {
     log.fileName ??
     log.path ??
     log.slug;
+  const warTier =
+    log.warTier ??
+    log.war_tier ??
+    log.tier ??
+    log.summary?.warTier ??
+    log.summary?.war_tier ??
+    log.stats?.warTier ??
+    log.stats?.war_tier ??
+    null;
 
   return {
     id: String(apiId ?? Date.now() + Math.random()),
@@ -275,6 +285,7 @@ export function normalizeLog(log) {
     date: dateOf(log),
     raw: log.raw ?? log.rawLog ?? log.raw_log ?? log.log ?? log.content ?? '',
     hash: log.hash,
+    warTier,
     summary: normalizeSummary(log.summary || log.stats || log.analytics),
     created: log.created ?? log.createdAt ?? log.created_at,
     createdAt: log.createdAt ?? log.created_at ?? log.created,
@@ -2072,6 +2083,7 @@ export function buildLogSummary(log) {
 
   return {
     version: 1,
+    warTier: log?.warTier ?? log?.war_tier ?? null,
     kills: stats.kills,
     deaths: stats.deaths,
     kd: stats.kd,
