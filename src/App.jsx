@@ -8188,6 +8188,22 @@ export default function App() {
     );
   }, [page, aggregateLogs]);
 
+  // Player Stats uses competitive data for every aggregate/ranking, but its
+  // Match History should still display Siege rows. Build a second stats snapshot
+  // from all logs exclusively for the visible per-match table.
+  const playerStatsMatchHistoryStats = useMemo(() => {
+    if (page !== 'players') return calculateStats([]);
+
+    return calculateStats(
+      (Array.isArray(allLogs) ? allLogs : [])
+        .filter((log) => Boolean(log.raw))
+        .map((log) => ({
+          ...log,
+          date: dateOf(log),
+        })),
+    );
+  }, [page, allLogs]);
+
   const playerStatsReady =
     page !== 'players' ||
     (Array.isArray(allLogs) &&
@@ -9066,7 +9082,8 @@ export default function App() {
               ) : (
                 <PlayerStats
                   stats={allTimeStats}
-                  logs={aggregateLogs}
+                  matchHistoryStats={playerStatsMatchHistoryStats}
+                  logs={Array.isArray(allLogs) ? allLogs : []}
                   classIconByName={PLAYER_CLASS_ICON_BY_NAME}
                   getClassRowsForLog={classRowsForLog}
                   initialPlayer={playerStatsPlayerFromLocation()}
