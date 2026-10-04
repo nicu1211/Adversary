@@ -109,6 +109,7 @@ import {
   MEMBER_KEY,
   buildLogSummary,
   calculateStats,
+  competitiveLogs,
   dateOf,
   hashLog,
   monthId,
@@ -8157,12 +8158,17 @@ export default function App() {
     [activeLogs],
   );
 
-  const monthlyPlayerClassMap = useMemo(
-    () =>
-      buildMonthlyPlayerClassMap(
-        Array.isArray(allLogs) ? allLogs : [],
-      ),
+  // Siege is a view-only tier. Keep those wars available to Node Wars and to a
+  // directly opened Overview, but remove them before any lifetime/monthly/player
+  // aggregation is built. This is the single source used by every aggregate page.
+  const aggregateLogs = useMemo(
+    () => competitiveLogs(Array.isArray(allLogs) ? allLogs : []),
     [allLogs],
+  );
+
+  const monthlyPlayerClassMap = useMemo(
+    () => buildMonthlyPlayerClassMap(aggregateLogs),
+    [aggregateLogs],
   );
 
   const stats = useMemo(() => calculateStats(activeLogs), [activeLogs]);
@@ -8172,17 +8178,15 @@ export default function App() {
       return calculateStats([]);
     }
 
-    const sourceLogs = Array.isArray(allLogs) ? allLogs : [];
-
     return calculateStats(
-      sourceLogs
+      aggregateLogs
         .filter((log) => Boolean(log.raw))
         .map((log) => ({
           ...log,
           date: dateOf(log),
         })),
     );
-  }, [page, allLogs]);
+  }, [page, aggregateLogs]);
 
   const playerStatsReady =
     page !== 'players' ||
@@ -9000,7 +9004,7 @@ export default function App() {
               {!guildReady || loadingAllLogs ? (
                 <PageLoader text="Loading all logs for Guild..." />
               ) : (
-                <Guild stats={allTimeStats} logs={Array.isArray(allLogs) ? allLogs : []} />
+                <Guild stats={allTimeStats} logs={aggregateLogs} />
               )}
             </Suspense>
           )}
@@ -9031,7 +9035,7 @@ export default function App() {
                   label={overviewLabel}
                   members={members}
                   selectedLogs={activeLogs}
-                  lifetimeLogs={Array.isArray(allLogs) ? allLogs : []}
+                  lifetimeLogs={aggregateLogs}
                   loadLifetimeLogs={loadAllLogs}
                   playerClassMap={overviewPlayerClassMap}
                 />
@@ -9047,7 +9051,7 @@ export default function App() {
                 <PageLoader text="Loading all logs for Monthly Recap..." />
               ) : (
                 <MonthlyRecap
-                  logs={Array.isArray(allLogs) ? allLogs : []}
+                  logs={aggregateLogs}
                   playerClassMap={monthlyPlayerClassMap}
                   onOpenMatchOverview={openMatchOverviewFromMonthlyRecap}
                 />
@@ -9062,7 +9066,7 @@ export default function App() {
               ) : (
                 <PlayerStats
                   stats={allTimeStats}
-                  logs={Array.isArray(allLogs) ? allLogs : []}
+                  logs={aggregateLogs}
                   classIconByName={PLAYER_CLASS_ICON_BY_NAME}
                   getClassRowsForLog={classRowsForLog}
                   initialPlayer={playerStatsPlayerFromLocation()}
@@ -9079,7 +9083,7 @@ export default function App() {
                 <PageLoader text="Loading all logs for Hall of Fame..." />
               ) : (
                 <HallOfFame
-                  stats={stats}
+                  stats={allTimeStats}
                   allTimeStats={allTimeStats}
                   playerClassMap={monthlyPlayerClassMap}
                   classIconByName={PLAYER_CLASS_ICON_BY_NAME}
