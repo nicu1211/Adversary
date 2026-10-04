@@ -617,12 +617,29 @@ async function updateApiLog(log, payload) {
 
   const id = String(apiId);
   const body = { ...payload, id: apiId };
+
+  // Metadata-only edits (date/tier) must not trip the backend's duplicate-hash
+  // protection. Try merge-style routes first without resending raw/hash. If a
+  // deployment only understands full PUT updates, the full payload attempts
+  // remain as a compatibility fallback below.
+  const metadataBody = {
+    id: apiId,
+    name: payload?.name,
+    date: payload?.date,
+    warTier: payload?.warTier,
+    createdAt: payload?.createdAt,
+    summary: payload?.summary,
+  };
+  const metadataForItem = { ...metadataBody };
+  delete metadataForItem.id;
+
   const attempts = [
+    [`/api/logs/${encodeURIComponent(id)}`, 'PATCH', metadataForItem],
+    ['/api/logs', 'PATCH', metadataBody],
+    ['/api/logs/update', 'POST', metadataBody],
+    ['/api/logs', 'POST', { ...metadataBody, action: 'update', _method: 'PATCH' }],
     [`/api/logs/${encodeURIComponent(id)}`, 'PUT', payload],
-    [`/api/logs/${encodeURIComponent(id)}`, 'PATCH', payload],
     ['/api/logs', 'PUT', body],
-    ['/api/logs', 'PATCH', body],
-    ['/api/logs/update', 'POST', body],
     ['/api/logs', 'POST', { ...body, action: 'update', _method: 'PUT' }],
   ];
   let lastError = null;
@@ -643,6 +660,38 @@ async function updateApiLog(log, payload) {
       lastError?.message || lastError || 'unknown error'
     }`,
   );
+}
+
+async function createLogAfterDelete(payload, options = {}) {
+  const maxAttempts = options.maxAttempts || 7;
+  const baseDelayMs = options.baseDelayMs || 650;
+  let lastError = null;
+
+  // Some database adapters acknowledge DELETE before their duplicate-hash index
+  // has released the old row. A normal POST aborts immediately on Duplicate log,
+  // so metadata edits such as changing only the date can fail even though the
+  // delete succeeded. Retry only that short-lived duplicate condition here.
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (attempt > 1) {
+      await sleep(baseDelayMs * Math.min(attempt - 1, 3));
+    }
+
+    try {
+      return await apiWriteWithRetry('/api/logs', 'POST', payload, {
+        maxAttempts: 3,
+        baseDelayMs: 500,
+      });
+    } catch (error) {
+      lastError = error;
+      const text = String(error?.message || error || '');
+
+      if (!text.includes('Duplicate log') || attempt >= maxAttempts) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error('Could not recreate the edited log after delete.');
 }
 
 function PageLoader({ text = 'Loading...' }) {
@@ -3714,6 +3763,47 @@ const ALL_PAGES_NODEWARS_TECH_CSS = `
     background-image: var(--adversary-tech-art), linear-gradient(180deg, rgba(8,9,8,.90), rgba(2,4,5,.93)) !important;
     background-size: 520px 205px, 100% 100% !important;
     background-repeat: repeat, no-repeat !important;
+  }
+
+  /* Raw Logs calendar is a true anchored popover. Keep it directly below the
+     War Date button even when the global panel decorator scans the page. */
+  body[data-adversary-page="raw"] .adversary-content .rawlog-calendar-popover {
+    position: absolute !important;
+    left: 0 !important;
+    top: 100% !important;
+    z-index: 12000 !important;
+    margin-top: .5rem !important;
+    overflow: visible !important;
+  }
+
+  /* Match Monthly Recap's persistent gold ON state for the selected war tier.
+     The high-specificity rule is intentional because the global control skin
+     sets button background-image with !important. */
+  body[data-adversary-page="raw"] .adversary-content .rawlog-tier-button.is-active {
+    border-color: rgba(255, 224, 71, 1) !important;
+    color: #fff9d7 !important;
+    background-color: rgb(157, 105, 0) !important;
+    background-image:
+      radial-gradient(circle at 25% 18%, rgba(255, 244, 157, .58), transparent 44%),
+      linear-gradient(135deg, rgba(244, 184, 8, .96), rgba(125, 79, 0, .94)) !important;
+    box-shadow:
+      inset 0 0 0 999px rgba(246, 201, 21, .18),
+      inset 0 1px 0 rgba(255, 251, 215, .34),
+      inset 0 0 22px rgba(255, 225, 72, .24),
+      0 0 16px rgba(246, 201, 21, .30) !important;
+    text-shadow: 0 1px 8px rgba(59, 35, 0, .86);
+  }
+
+  body[data-adversary-page="raw"] .adversary-content .rawlog-tier-button.is-active:hover {
+    border-color: #ffe66a !important;
+    background-color: rgb(177, 121, 0) !important;
+    background-image:
+      radial-gradient(circle at 25% 18%, rgba(255, 246, 173, .64), transparent 46%),
+      linear-gradient(135deg, rgba(255, 195, 14, .98), rgba(139, 88, 0, .94)) !important;
+    box-shadow:
+      inset 0 0 0 999px rgba(255, 215, 42, .22),
+      inset 0 1px 0 rgba(255,255,230,.42),
+      0 0 19px rgba(246,201,21,.36) !important;
   }
 
   /* Ranking/tab strips get the same slim gold dividers as the Node Wars
@@ -7417,6 +7507,12 @@ export default function App() {
       if (contentRoot && page !== 'nodewars') {
         const panels = [...contentRoot.querySelectorAll(MAJOR_PANEL_SELECTOR)].filter(
           (panel) => {
+            // Popovers are controls, not layout panels. Decorating the Raw Logs
+            // calendar as a major panel forces `position: relative !important`
+            // and pulls it into document flow, which is why it used to open
+            // hundreds of pixels below the War Date control.
+            if (panel.matches?.('.rawlog-calendar-popover')) return false;
+
             const bounds = panel.getBoundingClientRect();
             return bounds.width >= 140 && bounds.height >= 48;
           },
@@ -8295,9 +8391,14 @@ export default function App() {
       (!editingTierMatches || !editingDateMatches)
     ) {
       const existingApiId = editingLog.apiId ?? editingLog.id;
+      const originalDate = dateOf(editingLog);
+      const originalName = String(editingLog.name || '').trim();
+      const nextName = !originalName || originalName === originalDate
+        ? date
+        : originalName;
       const updatedDraft = {
         id: existingApiId,
-        name: editingLog.name || date,
+        name: nextName,
         date,
         warTier: normalizedWarTier,
         raw: rawToSave,
@@ -8337,7 +8438,7 @@ export default function App() {
         setSelectedWars([String(nextLog.id)]);
       };
 
-      setMessage('Updating tier on existing log in database...');
+      setMessage('Updating saved log details in database...');
 
       try {
         const response = await updateApiLog(editingLog, updatePayload);
@@ -8355,7 +8456,10 @@ export default function App() {
         });
 
         applyUpdatedLog(updatedLog);
-        setMessage(`Tier updated to ${normalizedWarTier}.`);
+        const changedParts = [];
+        if (!editingDateMatches) changedParts.push(`date to ${date}`);
+        if (!editingTierMatches) changedParts.push(`tier to ${normalizedWarTier}`);
+        setMessage(`Updated ${changedParts.join(' and ')}.`);
 
         return updatedLog;
       } catch (updateError) {
@@ -8371,18 +8475,17 @@ export default function App() {
         if (!backendHasNoUsableUpdateRoute) {
           console.error('Database metadata update failed:', updateError);
           setMessage(
-            `Could not update the existing log tier in the database: ${updateText}.\nThe original log was left unchanged.`,
+            `Could not update the existing log details in the database: ${updateText}.\nThe original log was left unchanged.`,
           );
           return null;
         }
 
-        // Some older API deployments only support POST + DELETE. For a tier-only
-        // migration, POST-first cannot work because duplicate protection sees the
-        // old raw hash. Delete the old row first, create the updated row, and if
-        // that creation fails immediately restore the original row from the raw
-        // data already loaded in the editor.
+        // Some older API deployments only support POST + DELETE. For a
+        // metadata-only edit, POST-first cannot work because duplicate protection
+        // sees the unchanged raw hash. Delete the old row first, wait for the
+        // duplicate index to release it, then recreate the edited record.
         setMessage(
-          'This database does not support in-place tier updates. Migrating the existing log safely...',
+          'This database does not support in-place date/tier updates. Migrating the existing log safely...',
         );
 
         const fallbackId = `${date}-${Date.now()}-${Math.random()
@@ -8421,19 +8524,17 @@ export default function App() {
           let fallbackResponse;
 
           try {
-            fallbackResponse = await apiWriteWithRetry(
-              '/api/logs',
-              'POST',
-              fallbackPayload,
-              { maxAttempts: 5, baseDelayMs: 700 },
-            );
+            fallbackResponse = await createLogAfterDelete(fallbackPayload, {
+              maxAttempts: 7,
+              baseDelayMs: 650,
+            });
           } catch (fallbackSaveError) {
             let restoreNote = '';
 
             try {
-              await apiWriteWithRetry('/api/logs', 'POST', originalPayload, {
+              await createLogAfterDelete(originalPayload, {
                 maxAttempts: 5,
-                baseDelayMs: 700,
+                baseDelayMs: 650,
               });
               restoreNote = ' The original log was restored.';
             } catch (restoreError) {
@@ -8443,7 +8544,7 @@ export default function App() {
             }
 
             throw new Error(
-              `Tier migration failed after removing the old row: ${
+              `Date/tier migration failed after removing the old row: ${
                 fallbackSaveError?.message ||
                 fallbackSaveError ||
                 'unknown error'
@@ -8467,7 +8568,10 @@ export default function App() {
           });
 
           applyUpdatedLog(migratedLog);
-          setMessage(`Tier updated to ${normalizedWarTier}.`);
+          const changedParts = [];
+          if (!editingDateMatches) changedParts.push(`date to ${date}`);
+          if (!editingTierMatches) changedParts.push(`tier to ${normalizedWarTier}`);
+          setMessage(`Updated ${changedParts.join(' and ')}.`);
 
           return migratedLog;
         } catch (fallbackError) {
@@ -8475,8 +8579,8 @@ export default function App() {
             fallbackError?.message || fallbackError || 'Unknown error',
           );
 
-          console.error('Database tier migration failed:', fallbackError);
-          setMessage(`Could not assign the tier: ${fallbackText}`);
+          console.error('Database date/tier migration failed:', fallbackError);
+          setMessage(`Could not update the date/tier: ${fallbackText}`);
           return null;
         }
       }
