@@ -8253,14 +8253,217 @@ export default function App() {
       ? null
       : logs.find((log) => String(log.id) === String(editingLogId)) || null;
     const localHash = hashLog(rawToSave);
+    const editingRawMatches = Boolean(
+      editingLog &&
+        ((editingLog.hash && editingLog.hash === localHash) ||
+          (editingLog.raw && hashLog(editingLog.raw) === localHash)),
+    );
+    const editingDateMatches = editingLog
+      ? dateOf(editingLog) === date
+      : false;
+    const editingTierMatches = editingLog
+      ? editingLog.warTier === normalizedWarTier
+      : false;
 
-    // Updating an unchanged saved log does not need to create another database row.
+    // Old logs did not have warTier. When only metadata such as Tier/date changes,
+    // update the existing database row in place. Posting a replacement with the
+    // same raw hash is rejected by the backend as a duplicate before the old row
+    // can be removed.
     if (
       editingLog &&
-      editingLog.warTier === normalizedWarTier &&
-      ((editingLog.hash && editingLog.hash === localHash) ||
-        (editingLog.raw && hashLog(editingLog.raw) === localHash))
+      editingRawMatches &&
+      (!editingTierMatches || !editingDateMatches)
     ) {
+      const existingApiId = editingLog.apiId ?? editingLog.id;
+      const updatedDraft = {
+        id: existingApiId,
+        name: editingLog.name || date,
+        date,
+        warTier: normalizedWarTier,
+        raw: rawToSave,
+        hash: localHash,
+        createdAt:
+          editingLog.createdAt ||
+          editingLog.created ||
+          editingLog._src?.createdAt ||
+          editingLog._src?.created_at ||
+          new Date().toISOString(),
+      };
+      const updatedSummary = buildLogSummary(updatedDraft);
+      const updatePayload = {
+        ...updatedDraft,
+        summary: updatedSummary,
+      };
+
+      const replaceExisting = (currentLogs, nextLog) => {
+        if (!Array.isArray(currentLogs)) return currentLogs;
+
+        return currentLogs.map((log) =>
+          String(log.id) === String(editingLog.id) ? nextLog : log,
+        );
+      };
+
+      const applyUpdatedLog = (nextLog) => {
+        setNodeLogs((currentLogs) => replaceExisting(currentLogs, nextLog));
+        setAllLogs((currentLogs) =>
+          Array.isArray(currentLogs)
+            ? replaceExisting(currentLogs, nextLog)
+            : currentLogs,
+        );
+        setOverviewLogs((currentLogs) =>
+          replaceExisting(currentLogs, nextLog),
+        );
+        setSelectedDays([nextLog.date]);
+        setSelectedWars([String(nextLog.id)]);
+      };
+
+      setMessage('Updating tier on existing log in database...');
+
+      try {
+        const response = await updateApiLog(editingLog, updatePayload);
+        const responseObject =
+          response && typeof response === 'object' ? response : {};
+        const updatedLog = normalizeLog({
+          ...(editingLog._src || {}),
+          ...updatePayload,
+          ...responseObject,
+          id:
+            responseObject.id ??
+            responseObject._id ??
+            existingApiId,
+          summary: responseObject.summary || updatePayload.summary,
+        });
+
+        applyUpdatedLog(updatedLog);
+        setMessage(`Tier updated to ${normalizedWarTier}.`);
+
+        return updatedLog;
+      } catch (updateError) {
+        const updateText = String(
+          updateError?.message || updateError || 'Unknown error',
+        );
+        const backendHasNoUsableUpdateRoute =
+          updateText.includes('UnsupportedHttpVerb') ||
+          updateText.includes('ResourceNotFound') ||
+          updateText.includes('404') ||
+          updateText.includes('Duplicate log');
+
+        if (!backendHasNoUsableUpdateRoute) {
+          console.error('Database metadata update failed:', updateError);
+          setMessage(
+            `Could not update the existing log tier in the database: ${updateText}.\nThe original log was left unchanged.`,
+          );
+          return null;
+        }
+
+        // Some older API deployments only support POST + DELETE. For a tier-only
+        // migration, POST-first cannot work because duplicate protection sees the
+        // old raw hash. Delete the old row first, create the updated row, and if
+        // that creation fails immediately restore the original row from the raw
+        // data already loaded in the editor.
+        setMessage(
+          'This database does not support in-place tier updates. Migrating the existing log safely...',
+        );
+
+        const fallbackId = `${date}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+        const fallbackPayload = {
+          ...updatePayload,
+          id: fallbackId,
+        };
+        const originalRaw = editingLog.raw || rawToSave;
+        const originalDraft = {
+          id: existingApiId,
+          name: editingLog.name || dateOf(editingLog),
+          date: dateOf(editingLog),
+          warTier: editingLog.warTier || null,
+          raw: originalRaw,
+          hash: editingLog.hash || hashLog(originalRaw),
+          createdAt:
+            editingLog.createdAt ||
+            editingLog.created ||
+            editingLog._src?.createdAt ||
+            editingLog._src?.created_at ||
+            new Date().toISOString(),
+        };
+        const originalPayload = {
+          ...originalDraft,
+          summary:
+            editingLog.summary ||
+            editingLog._src?.summary ||
+            buildLogSummary(originalDraft),
+        };
+
+        try {
+          await deleteApiLog(editingLog);
+
+          let fallbackResponse;
+
+          try {
+            fallbackResponse = await apiWriteWithRetry(
+              '/api/logs',
+              'POST',
+              fallbackPayload,
+              { maxAttempts: 5, baseDelayMs: 700 },
+            );
+          } catch (fallbackSaveError) {
+            let restoreNote = '';
+
+            try {
+              await apiWriteWithRetry('/api/logs', 'POST', originalPayload, {
+                maxAttempts: 5,
+                baseDelayMs: 700,
+              });
+              restoreNote = ' The original log was restored.';
+            } catch (restoreError) {
+              restoreNote = ` Automatic restore also failed: ${
+                restoreError?.message || restoreError || 'unknown error'
+              }`;
+            }
+
+            throw new Error(
+              `Tier migration failed after removing the old row: ${
+                fallbackSaveError?.message ||
+                fallbackSaveError ||
+                'unknown error'
+              }.${restoreNote}`,
+            );
+          }
+
+          const fallbackResponseObject =
+            fallbackResponse && typeof fallbackResponse === 'object'
+              ? fallbackResponse
+              : {};
+          const migratedLog = normalizeLog({
+            ...fallbackPayload,
+            ...fallbackResponseObject,
+            id:
+              fallbackResponseObject.id ??
+              fallbackResponseObject._id ??
+              fallbackPayload.id,
+            summary:
+              fallbackResponseObject.summary || fallbackPayload.summary,
+          });
+
+          applyUpdatedLog(migratedLog);
+          setMessage(`Tier updated to ${normalizedWarTier}.`);
+
+          return migratedLog;
+        } catch (fallbackError) {
+          const fallbackText = String(
+            fallbackError?.message || fallbackError || 'Unknown error',
+          );
+
+          console.error('Database tier migration failed:', fallbackError);
+          setMessage(`Could not assign the tier: ${fallbackText}`);
+          return null;
+        }
+      }
+    }
+
+    // Updating an unchanged saved log does not need to create another database row.
+    if (editingLog && editingRawMatches && editingTierMatches && editingDateMatches) {
       setMessage('No changes detected. The saved log is already up to date.');
       return editingLog;
     }
