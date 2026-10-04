@@ -3769,6 +3769,10 @@ function formatMatchKdCell(match) {
   return formatKdNumber(getMatchKdValue(match));
 }
 
+function isSiegeMatch(match) {
+  return String(match?.warTier || '').trim().toLocaleLowerCase() === 'siege';
+}
+
 function buildMatchHistoryAverages(matches) {
   return {
     kills: getAverageFromExistingMatches(matches, 'kills', (match) =>
@@ -4265,7 +4269,9 @@ function MatchHistoryList({
   });
 
   const safeMatches = matches || [];
-  const averages = buildMatchHistoryAverages(safeMatches);
+  // Siege rows stay visible in Match History, but never influence the AVG header.
+  const averageEligibleMatches = safeMatches.filter((match) => !isSiegeMatch(match));
+  const averages = buildMatchHistoryAverages(averageEligibleMatches);
 
   // Player-specific balancing is DISPLAY-ONLY and applies exclusively to the
   // AVG numbers in the Match History header. Match rows and every other Player
@@ -4588,6 +4594,7 @@ function MatchHistoryList({
 
 export default function PlayerStats({
   stats,
+  matchHistoryStats = null,
   logs = [],
   classIconByName = {},
   getClassRowsForLog = () => [],
@@ -5282,10 +5289,26 @@ export default function PlayerStats({
       };
     });
 
-    // ── Build per-match list from warMap + secondary rows ─────────────────────
+    // ── Build per-match list from ALL logs, including Siege ───────────────────
+    // Everything above this point is intentionally built from competitive `stats`.
+    // Only this visible Match History table uses the all-log snapshot.
+    const visibleMatchStats = matchHistoryStats || stats;
+    const historyWarMap = {};
+
+    (visibleMatchStats?.ev || []).forEach((event) => {
+      historyWarMap[String(event.id)] ||= [];
+      historyWarMap[String(event.id)].push(event);
+    });
+
+    const historySecondaryRows = visibleMatchStats?.secondary?.rows || [];
+    const historySecondaryWarPresence =
+      getSecondaryWarMetricPresence(historySecondaryRows);
+    const historySecondaryRowsForPlayer = historySecondaryRows.filter((row) =>
+      samePlayerName(row.player, player),
+    );
     const matchMap = {};
 
-    Object.entries(warMap).forEach(([warId, events]) => {
+    Object.entries(historyWarMap).forEach(([warId, events]) => {
       const playerEvents = events.filter(
         (event) => samePlayerName(getGuildPlayerFromEvent(event), player),
       );
@@ -5323,14 +5346,14 @@ export default function PlayerStats({
       };
     });
 
-    secondaryRowsForPlayer.forEach((row, index) => {
+    historySecondaryRowsForPlayer.forEach((row, index) => {
       const warId = secondaryWarId(row, index);
       const statsFromRow = getSecondaryMatchStats(row);
       const existing = matchMap[warId];
       const existingHas = existing?.__has || {};
       const date = row.date || row.war || existing?.date || warId;
 
-      const warPresence = secondaryWarPresence[warId] || {};
+      const warPresence = historySecondaryWarPresence[warId] || {};
       const hasKills = getSecondaryMetricExists(row, 'kills', warPresence);
       const hasDeaths = getSecondaryMetricExists(row, 'deaths', warPresence);
       const hasKillfeed = getSecondaryMetricExists(row, 'killfeed', warPresence);
@@ -5441,6 +5464,7 @@ export default function PlayerStats({
     const feedItems = matchList
       .filter(
         (match) =>
+          !isSiegeMatch(match) &&
           getMatchMetricExists(match, 'killfeed') &&
           Number(match.killfeed) > 0,
       )
@@ -5472,7 +5496,14 @@ export default function PlayerStats({
       streakItems,
       feedItems,
     };
-  }, [player, stats, averageRankTable, matchPlayerClassMap, logs]);
+  }, [
+    player,
+    stats,
+    matchHistoryStats,
+    averageRankTable,
+    matchPlayerClassMap,
+    logs,
+  ]);
 
   return (
     <div className="adversary-tech-page adversary-tech-player-page player-stats-page player-stats-guild-style player-stats-root-transparent p-4">
