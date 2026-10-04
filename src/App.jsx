@@ -7771,6 +7771,7 @@ export default function App() {
                 ...log,
                 ...fullLog,
                 date: dateOf(fullLog) || dateOf(log),
+                warTier: fullLog.warTier || log.warTier || null,
               };
             }),
           );
@@ -8232,11 +8233,19 @@ export default function App() {
     [logs],
   );
 
-  async function saveLog(rawOverride, editingLogId = null) {
+  async function saveLog(rawOverride, editingLogId = null, warTier = '') {
     const rawToSave = rawOverride == null ? raw : rawOverride;
+    const normalizedWarTier = ['Tier 1', 'Tier 2', 'Siege'].includes(warTier)
+      ? warTier
+      : '';
 
     if (!parseLog(rawToSave, date, date, 'x').length) {
       setMessage('Invalid log');
+      return null;
+    }
+
+    if (!normalizedWarTier) {
+      setMessage('Select Tier 1, Tier 2 or Siege before saving the log.');
       return null;
     }
 
@@ -8248,6 +8257,7 @@ export default function App() {
     // Updating an unchanged saved log does not need to create another database row.
     if (
       editingLog &&
+      editingLog.warTier === normalizedWarTier &&
       ((editingLog.hash && editingLog.hash === localHash) ||
         (editingLog.raw && hashLog(editingLog.raw) === localHash))
     ) {
@@ -8279,6 +8289,7 @@ export default function App() {
       id: replacementId,
       name: editingLog?.name || date,
       date,
+      warTier: normalizedWarTier,
       raw: rawToSave,
       hash: localHash,
       createdAt: editingLog?.createdAt || new Date().toISOString(),
