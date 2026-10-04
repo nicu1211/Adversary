@@ -3740,6 +3740,7 @@ function getMatchMetricExists(match, key) {
 
 function getMatchSortValue(match, key) {
   if (key === 'date') return String(match?.date || '');
+  if (key === 'tier') return String(match?.warTier || '');
   if (key === 'kd') return getMatchKdValue(match);
 
   return getMatchMetricValue(match, key);
@@ -4352,7 +4353,7 @@ function MatchHistoryList({
   if (!safeMatches.length) return null;
 
   const gridCols =
-    'grid-cols-[34px_minmax(160px,1.45fr)_minmax(68px,.62fr)_minmax(68px,.62fr)_minmax(72px,.66fr)_minmax(88px,.78fr)_minmax(84px,.75fr)_minmax(102px,.9fr)_minmax(102px,.9fr)_minmax(76px,.68fr)_minmax(96px,.82fr)_minmax(100px,.86fr)]';
+    'grid-cols-[34px_minmax(150px,1.3fr)_minmax(72px,.58fr)_minmax(68px,.62fr)_minmax(68px,.62fr)_minmax(72px,.66fr)_minmax(88px,.78fr)_minmax(84px,.75fr)_minmax(102px,.9fr)_minmax(102px,.9fr)_minmax(76px,.68fr)_minmax(96px,.82fr)_minmax(100px,.86fr)]';
 
   return (
     <div className="player-stats-guild-panel player-stats-accent-blue player-stats-match-panel rounded-[28px] border border-slate-700/70 bg-slate-950/14 p-4 shadow-[0_24px_80px_rgba(0,0,0,.22)] backdrop-blur-[2px]">
@@ -4366,7 +4367,7 @@ function MatchHistoryList({
       </div>
 
       <div className={`max-h-[420px] overflow-x-auto overflow-y-auto pr-2 ${scrollCls}`}>
-        <div className="w-full min-w-[1135px] space-y-2">
+        <div className="w-full min-w-[1210px] space-y-2">
           {/* Header */}
           <div
             className={`player-stats-table-header sticky top-0 z-10 grid ${gridCols} gap-1.5 rounded-2xl border border-slate-800 bg-slate-950/34 px-2 py-2.5 backdrop-blur-[2px]`}
@@ -4380,6 +4381,14 @@ function MatchHistoryList({
               align="left"
             >
               Date
+            </MatchHistoryHeaderCell>
+            <MatchHistoryHeaderCell
+              color="#fcd34d"
+              sortKey="tier"
+              sort={sort}
+              onSort={toggleSort}
+            >
+              Tier
             </MatchHistoryHeaderCell>
             <MatchHistoryHeaderCell
               color={MATCH_HISTORY_COLORS.kills}
@@ -4504,6 +4513,11 @@ function MatchHistoryList({
                     classIconByName={classIconByName}
                   />
                 </div>
+
+                {/* Tier */}
+                <p className="text-center text-[11px] font-black uppercase tracking-wide text-amber-300">
+                  {match.warTier || '—'}
+                </p>
 
                 {/* Kills */}
                 <MatchHistoryValue color={MATCH_HISTORY_COLORS.kills} icon="kills">
@@ -5150,6 +5164,22 @@ export default function PlayerStats({
     const involvedWarIds = new Set();
     const eventWarIdsForPlayer = new Set();
     const warMap = {};
+    const tierByWarId = new Map();
+
+    (Array.isArray(logs) ? logs : []).forEach((log) => {
+      const warId = String(log?.id ?? log?._id ?? log?.log_id ?? '');
+      const tier =
+        log?.warTier ??
+        log?.war_tier ??
+        log?.tier ??
+        log?.summary?.warTier ??
+        log?.summary?.war_tier ??
+        null;
+
+      if (warId && tier) tierByWarId.set(warId, tier);
+    });
+
+    const tierForWar = (warId) => tierByWarId.get(String(warId)) || null;
 
     stats.ev.forEach((event) => {
       warMap[String(event.id)] ||= [];
@@ -5269,6 +5299,7 @@ export default function PlayerStats({
       matchMap[warId] = {
         warId,
         date,
+        warTier: tierForWar(warId),
         kills,
         deaths,
         killstreak: getBestKillstreakForWar(events, player),
@@ -5312,6 +5343,7 @@ export default function PlayerStats({
       matchMap[warId] = {
         warId,
         date,
+        warTier: tierForWar(warId) || existing?.warTier || null,
         kills: hasKills ? statsFromRow.kills : existing?.kills || 0,
         deaths: hasDeaths ? statsFromRow.deaths : existing?.deaths || 0,
         killstreak: existing?.killstreak || 0,
@@ -5440,7 +5472,7 @@ export default function PlayerStats({
       streakItems,
       feedItems,
     };
-  }, [player, stats, averageRankTable, matchPlayerClassMap]);
+  }, [player, stats, averageRankTable, matchPlayerClassMap, logs]);
 
   return (
     <div className="adversary-tech-page adversary-tech-player-page player-stats-page player-stats-guild-style player-stats-root-transparent p-4">
