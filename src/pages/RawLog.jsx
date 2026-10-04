@@ -20,6 +20,7 @@ const SECONDARY_LOG_START = "===== ADVERSARY_SECONDARY_LOG_START =====";
 const SECONDARY_LOG_END = "===== ADVERSARY_SECONDARY_LOG_END =====";
 const CLASS_LOG_START = "===== ADVERSARY_CLASS_LOG_START =====";
 const CLASS_LOG_END = "===== ADVERSARY_CLASS_LOG_END =====";
+const WAR_TIERS = ["Tier 1", "Tier 2", "Siege"];
 
 function cleanText(text) {
   return String(text || "")
@@ -272,6 +273,7 @@ export default function RawLog({
   deleteLog,
 }) {
   const [secondaryRaw, setSecondaryRaw] = useState("");
+  const [warTier, setWarTier] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingLogId, setEditingLogId] = useState(null);
   const [roster, setRoster] = useState(readMonthlyRoster);
@@ -411,7 +413,8 @@ export default function RawLog({
   );
 
   const hasSecondaryOnlyStats = secondaryRows.length > 0;
-  const canSave = (parsedEntries > 0 || hasSecondaryOnlyStats) && !saving;
+  const canSave =
+    (parsedEntries > 0 || hasSecondaryOnlyStats) && Boolean(warTier) && !saving;
 
   async function handleSave() {
     if (!canSave) return;
@@ -425,7 +428,7 @@ export default function RawLog({
     try {
       setSaving(true);
 
-      const savedLog = await saveLog(rawToSave, editingLogId);
+      const savedLog = await saveLog(rawToSave, editingLogId, warTier);
 
       if (savedLog?.id != null) {
         setEditingLogId(savedLog.id);
@@ -449,6 +452,7 @@ export default function RawLog({
     const savedClass = getClassLog(log.raw);
 
     setDate(dateOf(log));
+    setWarTier(log.warTier || "");
     setRaw(savedMain);
     // Legacy standalone Class Log rows are migrated into the single
     // Stats + Class editor when an older saved log is loaded.
@@ -467,54 +471,83 @@ export default function RawLog({
         <div className="space-y-6">
           <Panel>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="relative w-full sm:max-w-[260px]">
-                <button
-                  type="button"
-                  onClick={() => setCalendarOpen(!calendarOpen)}
-                  className="w-full rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-left hover:bg-blue-500/20"
-                >
-                  <span className="block text-xs font-black uppercase tracking-[0.18em] text-blue-200">
-                    War date
+              <div className="flex w-full flex-col gap-3 sm:max-w-[560px] sm:flex-row">
+                <div className="relative w-full sm:max-w-[260px]">
+                  <button
+                    type="button"
+                    onClick={() => setCalendarOpen(!calendarOpen)}
+                    className="w-full rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-left hover:bg-blue-500/20"
+                  >
+                    <span className="block text-xs font-black uppercase tracking-[0.18em] text-blue-200">
+                      War date
+                    </span>
+                    <span className="font-bold text-white">{date}</span>
+                  </button>
+
+                  {calendarOpen && (
+                    <div className="absolute left-0 top-full z-50 mt-2 w-[320px] rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl">
+                      <Calendar
+                        month={rawMonth}
+                        setMonth={setRawMonth}
+                        selected={date}
+                        marked={markedDates}
+                        onPick={(nextDate) => {
+                          setDate(nextDate);
+                          setCalendarOpen(false);
+                        }}
+                        footer={
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDate(today());
+                                setCalendarOpen(false);
+                              }}
+                              className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold hover:bg-slate-900"
+                            >
+                              Today
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setCalendarOpen(false)}
+                              className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold hover:bg-slate-900"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-full rounded-xl border border-violet-500/30 bg-violet-500/10 p-2.5 sm:flex-1">
+                  <span className="mb-2 block px-1 text-xs font-black uppercase tracking-[0.18em] text-violet-200">
+                    War tier
                   </span>
-                  <span className="font-bold text-white">{date}</span>
-                </button>
+                  <div className="grid grid-cols-3 gap-2">
+                    {WAR_TIERS.map((tier) => {
+                      const selected = warTier === tier;
 
-                {calendarOpen && (
-                  <div className="absolute left-0 top-full z-50 mt-2 w-[320px] rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl">
-                    <Calendar
-                      month={rawMonth}
-                      setMonth={setRawMonth}
-                      selected={date}
-                      marked={markedDates}
-                      onPick={(nextDate) => {
-                        setDate(nextDate);
-                        setCalendarOpen(false);
-                      }}
-                      footer={
-                        <div className="mt-3 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDate(today());
-                              setCalendarOpen(false);
-                            }}
-                            className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold hover:bg-slate-900"
-                          >
-                            Today
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setCalendarOpen(false)}
-                            className="rounded-xl border border-slate-700 px-2 py-2 text-xs font-bold hover:bg-slate-900"
-                          >
-                            Close
-                          </button>
-                        </div>
-                      }
-                    />
+                      return (
+                        <button
+                          key={tier}
+                          type="button"
+                          onClick={() => setWarTier(tier)}
+                          aria-pressed={selected}
+                          className={`rounded-lg border px-2 py-2 text-xs font-black transition ${
+                            selected
+                              ? "border-violet-300 bg-violet-500 text-white shadow-[0_0_18px_rgba(139,92,246,0.25)]"
+                              : "border-violet-500/25 bg-slate-950/60 text-violet-100 hover:border-violet-400/60 hover:bg-violet-500/15"
+                          }`}
+                        >
+                          {tier}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -549,6 +582,12 @@ export default function RawLog({
             {editingLogId != null && (
               <p className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-bold text-amber-100">
                 Editing a saved log. Update log will replace the loaded History entry.
+              </p>
+            )}
+
+            {!warTier && (
+              <p className="mb-4 rounded-xl border border-violet-500/25 bg-violet-500/10 p-3 text-sm font-bold text-violet-100">
+                Select Tier 1, Tier 2 or Siege before saving this log.
               </p>
             )}
 
@@ -758,6 +797,7 @@ export default function RawLog({
 
                         <p className="mt-1 text-xs text-slate-500">
                           {dateOf(log)}
+                          {log.warTier ? ` · ${log.warTier}` : " · tier unassigned"}
                           {log.localOnly ? " · local only" : ""}
                           {savedStats.secondaryRaw || savedStats.classRaw
                             ? ` · stats ${savedStats.secondaryLines + savedStats.classLines} lines`
