@@ -485,7 +485,7 @@ export default function RawLog({
                   </button>
 
                   {calendarOpen && (
-                    <div className="absolute left-0 top-full z-50 mt-2 w-[320px] rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl">
+                    <div className="rawlog-calendar-popover absolute left-0 top-full z-[12000] mt-2 w-[320px] rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-2xl">
                       <Calendar
                         month={rawMonth}
                         setMonth={setRawMonth}
@@ -536,10 +536,10 @@ export default function RawLog({
                           type="button"
                           onClick={() => setWarTier(tier)}
                           aria-pressed={selected}
-                          className={`rounded-lg border px-2 py-2 text-xs font-black transition ${
+                          className={`rawlog-tier-button ${selected ? "is-active" : ""} rounded-lg border px-2 py-2 text-xs font-black transition ${
                             selected
-                              ? "border-violet-300 bg-violet-500 text-white shadow-[0_0_18px_rgba(139,92,246,0.25)]"
-                              : "border-violet-500/25 bg-slate-950/60 text-violet-100 hover:border-violet-400/60 hover:bg-violet-500/15"
+                              ? "border-yellow-300/90 text-yellow-50"
+                              : "border-violet-500/25 bg-slate-950/60 text-violet-100 hover:border-amber-300/60 hover:text-amber-100"
                           }`}
                         >
                           {tier}
