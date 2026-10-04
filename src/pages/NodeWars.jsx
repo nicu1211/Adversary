@@ -156,6 +156,15 @@ const NODE_WARS_PANEL_CSS = `
     letter-spacing: .08em;
     text-transform: uppercase;
     appearance: none;
+    background-color: #050505 !important;
+    color: #fff !important;
+    color-scheme: dark;
+  }
+
+  #root .adversary-content .nodewars-tier-filter select option {
+    background: #050505 !important;
+    color: #fff !important;
+    font-weight: 800;
   }
 
   #root .adversary-content .nodewars-tier-badge {
