@@ -2185,6 +2185,12 @@ export function buildNodeWarRow(log) {
   return {
     ...log,
     date: dateOf(log),
+    warTier:
+      log?.warTier ??
+      log?.war_tier ??
+      log?.tier ??
+      storedSummary?.warTier ??
+      null,
     players: Number(stats.playersCount) || Number(stats.players?.length) || 0,
     kills: Number(stats.kills) || 0,
     deaths: Number(stats.deaths) || 0,
