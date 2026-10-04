@@ -471,7 +471,7 @@ export default function RawLog({
         <div className="space-y-6">
           <Panel>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex w-full flex-col gap-3 sm:max-w-[560px] sm:flex-row">
+              <div className="flex w-full flex-col gap-3 sm:max-w-[620px] sm:flex-row">
                 <div className="relative w-full sm:max-w-[260px]">
                   <button
                     type="button"
@@ -522,7 +522,7 @@ export default function RawLog({
                   )}
                 </div>
 
-                <div className="w-full rounded-xl border border-violet-500/30 bg-violet-500/10 p-2.5 sm:flex-1">
+                <div className="w-full rounded-xl border border-violet-500/30 bg-violet-500/10 p-2.5 sm:ml-12 sm:flex-1">
                   <span className="mb-2 block px-1 text-xs font-black uppercase tracking-[0.18em] text-violet-200">
                     War tier
                   </span>
