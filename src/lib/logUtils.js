@@ -218,6 +218,31 @@ export function dateOf(log) {
   );
 }
 
+export function warTierOf(log) {
+  return String(
+    log?.warTier ??
+      log?.war_tier ??
+      log?.tier ??
+      log?.summary?.warTier ??
+      log?.summary?.war_tier ??
+      log?.stats?.warTier ??
+      log?.stats?.war_tier ??
+      '',
+  ).trim();
+}
+
+// Siege logs are intentionally view-only for competitive analytics. They stay
+// available in Raw Logs / Node Wars / single-war Overview, but must never
+// influence lifetime rankings, averages, monthly recap totals, or similar
+// aggregate statistics.
+export function isSiegeLog(log) {
+  return warTierOf(log).toLocaleLowerCase() === 'siege';
+}
+
+export function competitiveLogs(logs = []) {
+  return (Array.isArray(logs) ? logs : []).filter((log) => !isSiegeLog(log));
+}
+
 function normalizeSummary(summary) {
   if (!summary || typeof summary !== 'object') return null;
 
