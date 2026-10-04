@@ -136,9 +136,43 @@ const NODE_WARS_PANEL_CSS = `
 
   #root .adversary-content .nodewars-filter-main {
     display: grid;
-    grid-template-columns: minmax(270px, 1fr) auto auto;
+    grid-template-columns: minmax(190px, 240px) auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  #root .adversary-content .nodewars-tier-filter {
+    min-width: 96px;
+  }
+
+  #root .adversary-content .nodewars-tier-filter select {
+    min-height: 36px;
+    width: 100%;
+    cursor: pointer;
+    border-radius: 9px;
+    padding: 8px 28px 8px 10px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    appearance: none;
+  }
+
+  #root .adversary-content .nodewars-tier-badge {
+    display: inline-flex;
+    min-width: 68px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(var(--nw-gold-rgb), .52);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(65,49,7,.62), rgba(8,8,5,.9));
+    padding: 5px 9px;
+    color: #ffe36b;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 
   #root .adversary-content .nodewars-sort-row,
@@ -468,7 +502,7 @@ const NODE_WARS_PANEL_CSS = `
 
   @media (max-width: 1500px) {
     #root .adversary-content .nodewars-filter-main {
-      grid-template-columns: minmax(240px,1fr) auto;
+      grid-template-columns: minmax(190px, 240px) auto minmax(0, 1fr);
     }
     #root .adversary-content .nodewars-actions-row {
       grid-column: 1 / -1;
@@ -759,6 +793,30 @@ function EnemySearch({ value, onChange, suggestions, onPick }) {
   );
 }
 
+/* -------------------- TIER FILTER -------------------- */
+function TierFilter({ value, onChange }) {
+  return (
+    <div className="nodewars-tier-filter relative">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="nodewars-dark-control outline-none"
+        aria-label="Filter node wars by tier"
+        title="Filter by tier"
+      >
+        <option value="all">TIER</option>
+        <option value="Tier 1">Tier 1</option>
+        <option value="Tier 2">Tier 2</option>
+        <option value="Siege">Siege</option>
+      </select>
+      <ChevronDown
+        size={13}
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-amber-300/70"
+      />
+    </div>
+  );
+}
+
 /* -------------------- ENEMY PILL -------------------- */
 function EnemyPill({ enemy }) {
   return (
@@ -852,7 +910,7 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
 
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="grid min-w-0 gap-3 xl:grid-cols-[150px_1fr]">
+            <div className="grid min-w-0 gap-3 xl:grid-cols-[150px_minmax(0,1fr)_82px]">
               <div>
                 <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Kills/Deaths Ratio
@@ -884,6 +942,15 @@ function WarCard({ row, index, checked, onOpen, onToggle }) {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="min-w-0 xl:text-right">
+                <div className="mb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                  Tier
+                </div>
+                <span className="nodewars-tier-badge">
+                  {row.warTier || '—'}
+                </span>
               </div>
             </div>
 
@@ -1105,6 +1172,7 @@ export default function NodeWars({
   clearExternalWarning = () => {},
 }) {
   const [query, setQuery] = useState('');
+  const [tierFilter, setTierFilter] = useState('all');
   const [warning, setWarning] = useState('');
   const [sort, setSort] = useState({
     key: 'time',
@@ -1211,7 +1279,8 @@ export default function NodeWars({
         return row.allEnemyNames.some((name) =>
           name.toLowerCase().includes(cleanQuery),
         );
-      });
+      })
+      .filter((row) => tierFilter === 'all' || row.warTier === tierFilter);
 
     return filtered.sort((a, b) => {
       let av = 0;
@@ -1268,7 +1337,7 @@ export default function NodeWars({
 
       return sort.dir === 'asc' ? av - bv : bv - av;
     });
-  }, [allRows, latestWarTime, periodDays, query, sort]);
+  }, [allRows, latestWarTime, periodDays, query, sort, tierFilter]);
 
   const visibleIds = rows.map((row) => String(row.id));
 
@@ -1410,6 +1479,14 @@ export default function NodeWars({
                 }}
                 onPick={(enemy) => {
                   setQuery(enemy);
+                  clearWarnings();
+                }}
+              />
+
+              <TierFilter
+                value={tierFilter}
+                onChange={(value) => {
+                  setTierFilter(value);
                   clearWarnings();
                 }}
               />
