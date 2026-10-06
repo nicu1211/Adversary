@@ -5734,6 +5734,27 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
   }, [playing, cursor, speed, filteredEvents.length]);
 
   const decoratedEvents = useMemo(() => {
+    // Precompute uninterrupted same-type streak lengths so feed cards can show
+    // the complete Blue/Red Feed size (for example 12 Kills or 18 Deaths).
+    const feedRunLengths = new Map();
+    let scanStart = 0;
+    while (scanStart < filteredEvents.length) {
+      const first = filteredEvents[scanStart];
+      let scanEnd = scanStart + 1;
+      while (scanEnd < filteredEvents.length) {
+        const next = filteredEvents[scanEnd];
+        if (
+          next.type !== first.type ||
+          next.battleKey !== first.battleKey ||
+          String(next.date || '') !== String(first.date || '')
+        ) break;
+        scanEnd += 1;
+      }
+      const runLength = scanEnd - scanStart;
+      for (let i = scanStart; i < scanEnd; i += 1) feedRunLengths.set(i, runLength);
+      scanStart = scanEnd;
+    }
+
     let runType = null;
     let runBattleKey = null;
     let runDate = null;
@@ -5741,7 +5762,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
     let feedTriggeredForRun = false;
     const playerKillWindows = new Map();
 
-    return filteredEvents.map((event) => {
+    return filteredEvents.map((event, eventIndex) => {
       const eventDate = String(event.date || '');
       const startsNewRun =
         event.type !== runType ||
@@ -5761,6 +5782,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
       let blueFeed = false;
       let redFeed = false;
       let feedGuild = null;
+      let feedCount = 0;
 
       // A Blue/Red Feed is emitted once per uninterrupted kill/death streak.
       // It triggers when any 10 consecutive events in that streak occur inside
@@ -5778,6 +5800,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
             guildCounts.set(guild, (guildCounts.get(guild) || 0) + 1);
           });
           feedGuild = [...guildCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || event.enemyGuild;
+          feedCount = feedRunLengths.get(eventIndex) || windowEvents.length;
           feedTriggeredForRun = true;
         }
       }
@@ -5802,6 +5825,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
         blueFeed,
         redFeed,
         feedGuild,
+        feedCount,
       };
     });
   }, [filteredEvents]);
@@ -5990,7 +6014,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
 
           <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-3">
             <div className="mb-3"><h4 className="font-black">Important Events</h4></div>
-            {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className={`max-h-[470px] space-y-2 overflow-auto pr-1 ${scrollCls}`}>{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-2.5 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-2"><b className="text-xs">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="shrink-0 text-[9px] text-slate-500">{event.time}</span></div><p className="mt-1 truncate text-[11px] text-slate-300">{event.redFeed || event.blueFeed ? (event.feedGuild || event.enemyGuild) : `${event.ourPlayer} · ${event.enemyGuild}`}</p></div>)}</div>}
+            {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className={`max-h-[470px] space-y-2 overflow-auto pr-1 ${scrollCls}`}>{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-2.5 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-2"><b className="text-xs">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="shrink-0 text-[9px] text-slate-500">{event.time}</span></div><p className="mt-1 truncate text-[11px] text-slate-300">{event.redFeed || event.blueFeed ? `against ${event.feedGuild || event.enemyGuild} · ${event.feedCount || 10} ${event.blueFeed ? 'Kills' : 'Deaths'}` : `${event.ourPlayer} · ${event.enemyGuild}`}</p></div>)}</div>}
           </div>
 
           <div className="min-w-0 rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.055] p-3">
