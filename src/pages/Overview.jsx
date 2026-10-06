@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Chart as ChartJS,
@@ -5654,6 +5654,301 @@ function KillFeedPanel({ killFeeds, events, playerClassMap }) {
   );
 }
 
+
+function GlobalTimelineReplayPopup({ events = [], close }) {
+  const playableEvents = useMemo(
+    () =>
+      [...events]
+        .filter((event) => event?.type === 'kill' || event?.type === 'death')
+        .map((event, sourceIndex) => ({
+          ...event,
+          sourceIndex,
+          ourPlayer: event.type === 'kill' ? event.killer : event.victim,
+          enemyPlayer: event.type === 'kill' ? event.victim : event.killer,
+          enemyGuild: cleanGuild(event.guild) || 'Unknown Guild',
+          battleKey: String(event.matchId || event.match_id || event.logId || event.log_id || event.sourceLogId || event.source_log_id || event.war || event.date || 'battle'),
+          seconds: timeToSecondsValue(event.time),
+        }))
+        .sort((a, b) => {
+          const dateCompare = String(a.date || '').localeCompare(String(b.date || ''));
+          if (dateCompare) return dateCompare;
+          if (a.seconds !== b.seconds) return a.seconds - b.seconds;
+          return a.sourceIndex - b.sourceIndex;
+        }),
+    [events],
+  );
+
+  const players = useMemo(
+    () =>
+      [...new Set(playableEvents.map((event) => String(event.ourPlayer || '').trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b)),
+    [playableEvents],
+  );
+  const guilds = useMemo(
+    () =>
+      [...new Set(playableEvents.map((event) => event.enemyGuild).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b)),
+    [playableEvents],
+  );
+
+  const [selectedPlayers, setSelectedPlayers] = useState(() => new Set(players));
+  const [selectedGuilds, setSelectedGuilds] = useState(() => new Set(guilds));
+  const [playing, setPlaying] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const [speed, setSpeed] = useState(1);
+
+  useEffect(() => {
+    setSelectedPlayers(new Set(players));
+  }, [players.join('|')]);
+
+  useEffect(() => {
+    setSelectedGuilds(new Set(guilds));
+  }, [guilds.join('|')]);
+
+  const filteredEvents = useMemo(
+    () =>
+      playableEvents.filter(
+        (event) =>
+          selectedPlayers.has(event.ourPlayer) && selectedGuilds.has(event.enemyGuild),
+      ),
+    [playableEvents, selectedPlayers, selectedGuilds],
+  );
+
+  useEffect(() => {
+    setPlaying(false);
+    setCursor(0);
+  }, [selectedPlayers, selectedGuilds]);
+
+  useEffect(() => {
+    if (!playing || !filteredEvents.length) return undefined;
+    if (cursor >= filteredEvents.length) {
+      setPlaying(false);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(
+      () => setCursor((value) => Math.min(filteredEvents.length, value + 1)),
+      Math.max(55, 360 / speed),
+    );
+    return () => window.clearTimeout(timer);
+  }, [playing, cursor, speed, filteredEvents.length]);
+
+  const decoratedEvents = useMemo(() => {
+    let runType = null;
+    let run = [];
+    const playerKillWindows = new Map();
+
+    return filteredEvents.map((event) => {
+      if (event.type !== runType) {
+        runType = event.type;
+        run = [event];
+      } else {
+        run.push(event);
+      }
+
+      const runWindow = run.filter((item) => {
+        if (item.battleKey !== event.battleKey) return false;
+        if (String(item.date || '') !== String(event.date || '')) return false;
+        return event.seconds - item.seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS;
+      });
+      run = runWindow;
+
+      let multiKillCount = 0;
+      if (event.type === 'kill') {
+        const playerKey = `${event.battleKey}|${normalizePlayerName(event.ourPlayer)}`;
+        const previous = playerKillWindows.get(playerKey) || [];
+        const window = previous.filter(
+          (item) =>
+            String(item.date || '') === String(event.date || '') &&
+            event.seconds - item.seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS,
+        );
+        window.push(event);
+        playerKillWindows.set(playerKey, window);
+        multiKillCount = window.length;
+      }
+
+      return {
+        ...event,
+        multiKillCount,
+        blueFeed: event.type === 'kill' && runWindow.length >= 10,
+        redFeed: event.type === 'death' && runWindow.length >= 10,
+      };
+    });
+  }, [filteredEvents]);
+
+  const visibleEvents = decoratedEvents.slice(0, cursor);
+  const currentEvent = visibleEvents[visibleEvents.length - 1] || null;
+  const ourKills = visibleEvents.filter((event) => event.type === 'kill').length;
+  const ourDeaths = visibleEvents.filter((event) => event.type === 'death').length;
+  const ourKd = ourDeaths ? ourKills / ourDeaths : ourKills;
+
+  const guildStats = useMemo(() => {
+    const map = new Map();
+    visibleEvents.forEach((event) => {
+      const key = event.enemyGuild;
+      if (!map.has(key)) map.set(key, { name: key, kills: 0, deaths: 0 });
+      const row = map.get(key);
+      if (event.type === 'kill') row.kills += 1;
+      else row.deaths += 1;
+    });
+    return [...map.values()]
+      .map((row) => ({ ...row, kd: row.deaths ? row.kills / row.deaths : row.kills }))
+      .sort((a, b) => b.kills + b.deaths - (a.kills + a.deaths));
+  }, [visibleEvents]);
+
+  const playerStats = useMemo(() => {
+    const map = new Map();
+    visibleEvents.forEach((event) => {
+      const key = event.ourPlayer;
+      if (!map.has(key)) map.set(key, { name: key, kills: 0, deaths: 0 });
+      const row = map.get(key);
+      if (event.type === 'kill') row.kills += 1;
+      else row.deaths += 1;
+    });
+    return [...map.values()]
+      .map((row) => ({ ...row, kd: row.deaths ? row.kills / row.deaths : row.kills }))
+      .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+  }, [visibleEvents]);
+
+  const importantEvents = visibleEvents
+    .filter((event) => event.multiKillCount >= 2 || event.blueFeed || event.redFeed)
+    .slice(-8)
+    .reverse();
+
+  const progress = filteredEvents.length ? (cursor / filteredEvents.length) * 100 : 0;
+
+  function toggleSelection(setter, value) {
+    setter((current) => {
+      const next = new Set(current);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  }
+
+  function togglePlayback() {
+    if (!filteredEvents.length) return;
+    if (cursor >= filteredEvents.length) setCursor(0);
+    setPlaying((value) => !value || cursor >= filteredEvents.length);
+  }
+
+  function ListFilter({ title, values, selected, setter, side }) {
+    const allSelected = values.length > 0 && selected.size === values.length;
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-black/25 p-3">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{side}</p>
+            <h4 className="font-black text-white">{title}</h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => setter(allSelected ? new Set() : new Set(values))}
+            className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-black text-slate-300 hover:border-blue-400/50 hover:text-white"
+          >
+            {allSelected ? 'Clear' : 'All'}
+          </button>
+        </div>
+        <div className={`max-h-[330px] space-y-1 overflow-auto pr-1 ${scrollCls}`}>
+          {values.map((value) => {
+            const active = selected.has(value);
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggleSelection(setter, value)}
+                className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-bold transition ${
+                  active
+                    ? 'border-blue-400/35 bg-blue-500/12 text-blue-100'
+                    : 'border-slate-800 bg-slate-950/60 text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                <span className="truncate">{value}</span>
+                <span className={`h-2 w-2 shrink-0 rounded-full ${active ? 'bg-blue-400' : 'bg-slate-700'}`} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Popup title="Global Kill/Death Timeline Replay" close={close} maxWidth="max-w-[1500px]">
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-blue-400/20 bg-slate-950/70 p-4">
+          <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3"><p className="text-[10px] font-black uppercase text-blue-300">Our Kills</p><b className="text-2xl text-blue-200">{ourKills}</b></div>
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3"><p className="text-[10px] font-black uppercase text-rose-300">Our Deaths</p><b className="text-2xl text-rose-200">{ourDeaths}</b></div>
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3"><p className="text-[10px] font-black uppercase text-emerald-300">Our K/D</p><b className="text-2xl text-emerald-200">{ourKd.toFixed(2)}</b></div>
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-3"><p className="text-[10px] font-black uppercase text-violet-300">Events</p><b className="text-2xl text-violet-200">{cursor}/{filteredEvents.length}</b></div>
+            <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3 lg:col-span-2"><p className="text-[10px] font-black uppercase text-orange-300">Current</p><b className="block truncate text-sm text-orange-100">{currentEvent ? `${currentEvent.date || ''} ${currentEvent.time || ''} · ${currentEvent.ourPlayer} ${currentEvent.type === 'kill' ? 'killed' : 'died to'} ${currentEvent.enemyPlayer} · ${currentEvent.enemyGuild}` : 'Ready to replay'}</b></div>
+          </div>
+
+          <div className="relative h-16 overflow-hidden rounded-xl border border-slate-800 bg-black/40 px-3 py-2">
+            <div className="absolute left-3 right-3 top-1/2 h-px bg-slate-700" />
+            <div className="absolute left-3 top-1/2 h-[2px] -translate-y-1/2 bg-blue-400 transition-all" style={{ width: `calc((100% - 24px) * ${progress / 100})` }} />
+            {decoratedEvents.map((event, index) => {
+              const left = decoratedEvents.length <= 1 ? 50 : (index / (decoratedEvents.length - 1)) * 100;
+              const isImportant = event.multiKillCount >= 2 || event.blueFeed || event.redFeed;
+              return (
+                <button
+                  key={`${event.sourceIndex}-${index}`}
+                  type="button"
+                  onClick={() => { setPlaying(false); setCursor(index + 1); }}
+                  className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition ${isImportant ? 'h-3.5 w-3.5 ring-2 ring-amber-300/50' : 'h-2 w-2'} ${event.type === 'kill' ? 'bg-blue-400' : 'bg-rose-400'} ${index < cursor ? 'opacity-100' : 'opacity-30'}`}
+                  style={{ left: `calc(12px + (100% - 24px) * ${left / 100})` }}
+                  title={`${event.date || ''} ${event.time || ''} · ${event.type === 'kill' ? 'Kill' : 'Death'} · ${event.enemyGuild}`}
+                />
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={togglePlayback} disabled={!filteredEvents.length} className="rounded-xl border border-blue-400/40 bg-blue-500/15 px-5 py-2 text-sm font-black text-blue-100 transition hover:bg-blue-500/25 disabled:opacity-40">{playing ? '❚❚ Pause' : cursor >= filteredEvents.length && filteredEvents.length ? '↻ Replay' : '▶ Play'}</button>
+            {[1, 2, 4].map((value) => <button key={value} type="button" onClick={() => setSpeed(value)} className={`rounded-lg border px-3 py-2 text-xs font-black ${speed === value ? 'border-amber-300/50 bg-amber-500/15 text-amber-200' : 'border-slate-700 bg-slate-900 text-slate-400'}`}>{value}×</button>)}
+            <input type="range" min="0" max={Math.max(0, filteredEvents.length)} value={cursor} onChange={(event) => { setPlaying(false); setCursor(Number(event.target.value)); }} className="min-w-[220px] flex-1 accent-blue-400" />
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
+          <div className="space-y-3">
+            <ListFilter title="Enemy Guilds" side="Left side" values={guilds} selected={selectedGuilds} setter={setSelectedGuilds} />
+            <div className="rounded-2xl border border-rose-500/15 bg-rose-500/[0.055] p-3">
+              <h4 className="mb-2 text-sm font-black text-rose-200">Guild Stats · Our Perspective</h4>
+              <div className={`max-h-[250px] space-y-1 overflow-auto ${scrollCls}`}>
+                {guildStats.map((guild) => <div key={guild.name} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 rounded-lg bg-black/25 px-2 py-2 text-[11px]"><b className="truncate">{guild.name}</b><span className="text-blue-300">K {guild.kills}</span><span className="text-rose-300">D {guild.deaths}</span><span className="text-emerald-300">{guild.kd.toFixed(2)}</span></div>)}
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-4">
+            <div className="mb-3 flex items-center justify-between"><h4 className="font-black">Important Events</h4><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">2+ kills / 10s · feeds</span></div>
+            {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className="space-y-2">{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-3 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-3"><b className="text-sm">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="text-[10px] text-slate-500">{event.date} · {event.time}</span></div><p className="mt-1 truncate text-xs text-slate-300">{event.ourPlayer} · {event.enemyGuild}{event.multiKillCount >= 2 ? ` · ${event.multiKillCount} kills inside 10 seconds` : ''}</p></div>)}</div>}
+
+            <div className="mt-5 border-t border-slate-800 pt-4">
+              <h4 className="mb-2 font-black">Live Combat Feed</h4>
+              <div className={`max-h-[320px] space-y-1 overflow-auto pr-1 ${scrollCls}`}>
+                {[...visibleEvents].slice(-30).reverse().map((event, index) => <div key={`${event.sourceIndex}-feed-${index}`} className="grid grid-cols-[92px_1fr_auto] gap-2 rounded-lg border border-slate-800/80 bg-slate-950/60 px-3 py-2 text-xs"><span className="text-slate-500">{event.time || '-'} </span><span className="truncate"><b className={event.type === 'kill' ? 'text-blue-300' : 'text-rose-300'}>{event.ourPlayer}</b> {event.type === 'kill' ? 'killed' : 'died to'} <b>{event.enemyPlayer}</b></span><span className="max-w-[160px] truncate font-bold text-slate-400">{event.enemyGuild}</span></div>)}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <ListFilter title="Players" side="Right side" values={players} selected={selectedPlayers} setter={setSelectedPlayers} />
+            <div className="rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.055] p-3">
+              <h4 className="mb-2 text-sm font-black text-cyan-200">Player Stats</h4>
+              <div className={`max-h-[250px] space-y-1 overflow-auto ${scrollCls}`}>
+                {playerStats.map((player) => <div key={player.name} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 rounded-lg bg-black/25 px-2 py-2 text-[11px]"><b className="truncate">{player.name}</b><span className="text-blue-300">K {player.kills}</span><span className="text-rose-300">D {player.deaths}</span><span className="text-emerald-300">{player.kd.toFixed(2)}</span></div>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Popup>
+  );
+}
+
 export default function OverviewPage({
   stats,
   label,
@@ -5663,6 +5958,7 @@ export default function OverviewPage({
   loadLifetimeLogs,
   playerClassMap = {},
 }) {
+  const [timelineReplayOpen, setTimelineReplayOpen] = useState(false);
   const timelineKillFeeds = calculateKillFeed(
     stats.ev,
     DISPLAY_KILL_FEED_WINDOW_SECONDS,
@@ -5881,13 +6177,28 @@ export default function OverviewPage({
         </div>
       </header>
 
-      <div className="overview-guild-panel overview-panel-transparent overview-accent-blue overview-chart-shell">
+      <div className="overview-guild-panel overview-panel-transparent overview-accent-blue overview-chart-shell relative">
+        <button
+          type="button"
+          onClick={() => setTimelineReplayOpen(true)}
+          className="absolute right-5 top-4 z-20 rounded-xl border border-blue-400/45 bg-slate-950/90 px-4 py-2 text-xs font-black text-blue-100 shadow-lg transition hover:border-blue-300 hover:bg-blue-500/20"
+          title="Open interactive timeline replay"
+        >
+          ▶ Play Timeline
+        </button>
         <KillDeathChart
           data={stats.line}
           title="▧ Global Kill/Death Timeline"
           killFeedMarkers={[...topKillFeedMarkers, ...flowMarkers]}
         />
       </div>
+
+      {timelineReplayOpen && (
+        <GlobalTimelineReplayPopup
+          events={stats.ev || []}
+          close={() => setTimelineReplayOpen(false)}
+        />
+      )}
 
       <section className="overview-guild-panel overview-player-rank-unified overflow-hidden rounded-3xl border border-transparent">
         <div className="grid items-stretch xl:grid-cols-[520px_minmax(0,1fr)]">
