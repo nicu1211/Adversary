@@ -5815,8 +5815,16 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
             event.seconds - item.seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS,
         );
         window.push(event);
-        playerKillWindows.set(playerKey, window);
-        multiKillCount = window.length;
+
+        // Once a multikill is emitted, consume that window and start fresh.
+        // The kills that formed this Important Event cannot be reused by the
+        // next multikill, so the player's 20-second timer starts from 0 again.
+        if (window.length >= 2) {
+          multiKillCount = window.length;
+          playerKillWindows.set(playerKey, []);
+        } else {
+          playerKillWindows.set(playerKey, window);
+        }
       }
 
       return {
