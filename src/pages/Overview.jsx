@@ -5735,23 +5735,52 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
 
   const decoratedEvents = useMemo(() => {
     let runType = null;
+    let runBattleKey = null;
+    let runDate = null;
     let run = [];
+    let feedTriggeredForRun = false;
     const playerKillWindows = new Map();
 
     return filteredEvents.map((event) => {
-      if (event.type !== runType) {
+      const eventDate = String(event.date || '');
+      const startsNewRun =
+        event.type !== runType ||
+        event.battleKey !== runBattleKey ||
+        eventDate !== runDate;
+
+      if (startsNewRun) {
         runType = event.type;
+        runBattleKey = event.battleKey;
+        runDate = eventDate;
         run = [event];
+        feedTriggeredForRun = false;
       } else {
         run.push(event);
       }
 
-      const runWindow = run.filter((item) => {
-        if (item.battleKey !== event.battleKey) return false;
-        if (String(item.date || '') !== String(event.date || '')) return false;
-        return event.seconds - item.seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS;
-      });
-      run = runWindow;
+      let blueFeed = false;
+      let redFeed = false;
+      let feedGuild = null;
+
+      // A Blue/Red Feed is emitted once per uninterrupted kill/death streak.
+      // It triggers when any 10 consecutive events in that streak occur inside
+      // the configured 20-second feed window, matching the main timeline logic.
+      if (!feedTriggeredForRun && run.length >= 10) {
+        const windowEvents = run.slice(-10);
+        const startEvent = windowEvents[0];
+        const endEvent = windowEvents[windowEvents.length - 1];
+        if (endEvent.seconds - startEvent.seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS) {
+          blueFeed = event.type === 'kill';
+          redFeed = event.type === 'death';
+          const guildCounts = new Map();
+          windowEvents.forEach((item) => {
+            const guild = item.enemyGuild || 'Unknown Guild';
+            guildCounts.set(guild, (guildCounts.get(guild) || 0) + 1);
+          });
+          feedGuild = [...guildCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || event.enemyGuild;
+          feedTriggeredForRun = true;
+        }
+      }
 
       let multiKillCount = 0;
       if (event.type === 'kill') {
@@ -5759,7 +5788,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
         const previous = playerKillWindows.get(playerKey) || [];
         const window = previous.filter(
           (item) =>
-            String(item.date || '') === String(event.date || '') &&
+            String(item.date || '') === eventDate &&
             event.seconds - item.seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS,
         );
         window.push(event);
@@ -5770,8 +5799,9 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
       return {
         ...event,
         multiKillCount,
-        blueFeed: event.type === 'kill' && runWindow.length >= 10,
-        redFeed: event.type === 'death' && runWindow.length >= 10,
+        blueFeed,
+        redFeed,
+        feedGuild,
       };
     });
   }, [filteredEvents]);
@@ -5883,8 +5913,28 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
   }
 
   return (
-    <Popup title="Global Kill/Death Timeline Replay" close={close} maxWidth="max-w-[1500px]">
-      <div className="space-y-4">
+    <div className="fixed inset-0 z-[14000] flex items-center justify-center bg-black/68 p-2 backdrop-blur-md sm:p-4">
+      <div
+        className="relative max-h-[96vh] w-full max-w-[1600px] overflow-hidden rounded-3xl border border-amber-300/45 bg-[rgba(3,5,7,.94)] shadow-[0_24px_80px_rgba(0,0,0,.62),0_0_24px_rgba(246,201,21,.08)]"
+        style={{
+          backgroundImage:
+            'radial-gradient(ellipse at 12% -18%, rgba(246,201,21,.13), transparent 48%), linear-gradient(30deg, rgba(246,201,21,.055) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.055) 87.5%), linear-gradient(150deg, rgba(246,201,21,.045) 12%, transparent 12.5%, transparent 87%, rgba(246,201,21,.045) 87.5%)',
+          backgroundSize: '100% 100%, 42px 72px, 42px 72px',
+        }}
+      >
+        <div className="relative z-10 flex items-center justify-between gap-4 border-b border-amber-300/18 bg-black/22 p-5">
+          <h3 className="text-2xl font-black text-white">Global Kill/Death Timeline Replay</h3>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close Global Kill/Death Timeline Replay"
+            className="relative z-20 grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-300/60 bg-black/70 text-2xl font-black leading-none text-amber-300 shadow-[inset_0_0_14px_rgba(246,201,21,.06),0_0_12px_rgba(246,201,21,.08)] transition hover:border-amber-200 hover:bg-amber-500/15 hover:text-amber-100"
+          >
+            ×
+          </button>
+        </div>
+        <div className={`relative z-10 max-h-[84vh] overflow-auto p-4 ${scrollCls}`}>
+          <div className="space-y-4">
         <div className="rounded-2xl border border-blue-400/20 bg-slate-950/70 p-4">
           <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3"><p className="text-[10px] font-black uppercase text-blue-300">Our Kills</p><b className="text-2xl text-blue-200">{ourKills}</b></div>
@@ -5931,15 +5981,17 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
             </div>
           </div>
 
-          <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-4">
-            <div className="mb-3 flex items-center justify-between"><h4 className="font-black">Important Events</h4><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">2+ kills / 20s · feeds</span></div>
-            {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className="space-y-2">{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-3 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-3"><b className="text-sm">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="text-[10px] text-slate-500">{event.date} · {event.time}</span></div><p className="mt-1 truncate text-xs text-slate-300">{event.redFeed || event.blueFeed ? event.enemyGuild : `${event.ourPlayer} · ${event.enemyGuild}`}</p></div>)}</div>}
-
-            <div className="mt-5 border-t border-slate-800 pt-4">
-              <h4 className="mb-2 font-black">Live Combat Feed</h4>
-              <div className={`max-h-[320px] space-y-1 overflow-auto pr-1 ${scrollCls}`}>
-                {[...visibleEvents].slice(-30).reverse().map((event, index) => <div key={`${event.sourceIndex}-feed-${index}`} className="grid grid-cols-[92px_1fr_auto] gap-2 rounded-lg border border-slate-800/80 bg-slate-950/60 px-3 py-2 text-xs"><span className="text-slate-500">{event.time || '-'} </span><span className="truncate"><b className={event.type === 'kill' ? 'text-blue-300' : 'text-rose-300'}>{event.ourPlayer}</b> {event.type === 'kill' ? 'killed' : 'died to'} <b>{event.enemyPlayer}</b></span><span className="max-w-[160px] truncate font-bold text-slate-400">{event.enemyGuild}</span></div>)}
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-4">
+              <h4 className="mb-3 font-black">Live Combat Feed</h4>
+              <div className={`max-h-[470px] space-y-1 overflow-auto pr-1 ${scrollCls}`}>
+                {[...visibleEvents].slice(-40).reverse().map((event, index) => <div key={`${event.sourceIndex}-feed-${index}`} className="grid grid-cols-[76px_minmax(0,1fr)] gap-2 rounded-lg border border-slate-800/80 bg-slate-950/60 px-3 py-2 text-xs"><span className="text-slate-500">{event.time || '-'} </span><span className="min-w-0"><span className="block truncate"><b className={event.type === 'kill' ? 'text-blue-300' : 'text-rose-300'}>{event.ourPlayer}</b> {event.type === 'kill' ? 'killed' : 'died to'} <b>{event.enemyPlayer}</b></span><span className="block truncate text-[10px] font-bold text-slate-500">{event.enemyGuild}</span></span></div>)}
               </div>
+            </div>
+
+            <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-4">
+              <div className="mb-3 flex items-center justify-between gap-2"><h4 className="font-black">Important Events</h4><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">2+ kills / 20s · feeds</span></div>
+              {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className={`max-h-[470px] space-y-2 overflow-auto pr-1 ${scrollCls}`}>{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-3 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-3"><b className="text-sm">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="text-[10px] text-slate-500">{event.date} · {event.time}</span></div><p className="mt-1 truncate text-xs text-slate-300">{event.redFeed || event.blueFeed ? (event.feedGuild || event.enemyGuild) : `${event.ourPlayer} · ${event.enemyGuild}`}</p></div>)}</div>}
             </div>
           </div>
 
@@ -5953,8 +6005,10 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
             </div>
           </div>
         </div>
+          </div>
+        </div>
       </div>
-    </Popup>
+    </div>
   );
 }
 
