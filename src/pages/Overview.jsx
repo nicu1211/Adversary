@@ -5755,12 +5755,80 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
       scanStart = scanEnd;
     }
 
+    // Build sliding 20-second multikill windows per player. Within each
+    // continuous chain of kills, find the strongest group that fits inside any
+    // 20-second span, emit one Important Event for that group, consume it, then
+    // continue from the kills after it. Kills before the winning window are not
+    // reused. Example: :01, :05, :11, :22, :23, :24 => one 5x event (:05-:24).
+    const multiKillCountsByIndex = new Map();
+    const killsByPlayer = new Map();
+
+    filteredEvents.forEach((event, eventIndex) => {
+      if (event.type !== 'kill') return;
+      const eventDate = String(event.date || '');
+      const playerKey = `${event.battleKey}|${eventDate}|${normalizePlayerName(event.ourPlayer)}`;
+      if (!killsByPlayer.has(playerKey)) killsByPlayer.set(playerKey, []);
+      killsByPlayer.get(playerKey).push({ ...event, index: eventIndex });
+    });
+
+    const emitStrongestSlidingWindows = (kills) => {
+      let cursor = 0;
+
+      while (cursor < kills.length) {
+        // A gap larger than the feed window cleanly ends the current chain.
+        let chainEnd = cursor + 1;
+        while (
+          chainEnd < kills.length &&
+          kills[chainEnd].seconds - kills[chainEnd - 1].seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS
+        ) {
+          chainEnd += 1;
+        }
+
+        let searchStart = cursor;
+        while (searchStart < chainEnd) {
+          let bestStart = -1;
+          let bestEnd = -1;
+          let bestCount = 0;
+          let right = searchStart;
+
+          for (let left = searchStart; left < chainEnd; left += 1) {
+            if (right < left) right = left;
+            while (
+              right + 1 < chainEnd &&
+              kills[right + 1].seconds - kills[left].seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS
+            ) {
+              right += 1;
+            }
+
+            const count = right - left + 1;
+            if (count > bestCount) {
+              bestCount = count;
+              bestStart = left;
+              bestEnd = right;
+            }
+          }
+
+          if (bestCount < 2 || bestStart < 0) break;
+
+          multiKillCountsByIndex.set(kills[bestEnd].index, bestCount);
+
+          // Consume the winning window. Anything before it in this chain is
+          // intentionally discarded so those kills cannot create an overlapping
+          // secondary multikill. Continue only with kills after the group.
+          searchStart = bestEnd + 1;
+        }
+
+        cursor = chainEnd;
+      }
+    };
+
+    killsByPlayer.forEach(emitStrongestSlidingWindows);
+
     let runType = null;
     let runBattleKey = null;
     let runDate = null;
     let run = [];
     let feedTriggeredForRun = false;
-    const playerKillWindows = new Map();
 
     return filteredEvents.map((event, eventIndex) => {
       const eventDate = String(event.date || '');
@@ -5805,27 +5873,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
         }
       }
 
-      let multiKillCount = 0;
-      if (event.type === 'kill') {
-        const playerKey = `${event.battleKey}|${normalizePlayerName(event.ourPlayer)}`;
-        const previous = playerKillWindows.get(playerKey) || [];
-        const window = previous.filter(
-          (item) =>
-            String(item.date || '') === eventDate &&
-            event.seconds - item.seconds <= DISPLAY_KILL_FEED_WINDOW_SECONDS,
-        );
-        window.push(event);
-
-        // Once a multikill is emitted, consume that window and start fresh.
-        // The kills that formed this Important Event cannot be reused by the
-        // next multikill, so the player's 20-second timer starts from 0 again.
-        if (window.length >= 2) {
-          multiKillCount = window.length;
-          playerKillWindows.set(playerKey, []);
-        } else {
-          playerKillWindows.set(playerKey, window);
-        }
-      }
+      const multiKillCount = multiKillCountsByIndex.get(eventIndex) || 0;
 
       return {
         ...event,
