@@ -5515,7 +5515,7 @@ function EnemyGuilds({ guilds, events }) {
   );
 }
 
-const DISPLAY_KILL_FEED_WINDOW_SECONDS = 10;
+const DISPLAY_KILL_FEED_WINDOW_SECONDS = 20;
 
 function buildKillFeedPanelRows(selectedLogs, fallbackEvents) {
   const records = [];
@@ -5817,11 +5817,22 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
 
   const progress = filteredEvents.length ? (cursor / filteredEvents.length) * 100 : 0;
 
-  function toggleSelection(setter, value) {
+  function toggleSelection(setter, value, values) {
     setter((current) => {
+      const allSelected = values.length > 0 && current.size === values.length;
+
+      // "All" is the default view. The first click on an item isolates it,
+      // then additional clicks allow a custom multi-selection.
+      if (allSelected) return new Set([value]);
+
       const next = new Set(current);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
+      if (next.has(value)) {
+        next.delete(value);
+        // Never leave the replay with an accidental empty filter.
+        if (!next.size) return new Set(values);
+      } else {
+        next.add(value);
+      }
       return next;
     });
   }
@@ -5832,21 +5843,19 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
     setPlaying((value) => !value || cursor >= filteredEvents.length);
   }
 
-  function ListFilter({ title, values, selected, setter, side }) {
-    const allSelected = values.length > 0 && selected.size === values.length;
+  function ListFilter({ title, values, selected, setter }) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-black/25 p-3">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{side}</p>
             <h4 className="font-black text-white">{title}</h4>
           </div>
           <button
             type="button"
-            onClick={() => setter(allSelected ? new Set() : new Set(values))}
+            onClick={() => setter(new Set(values))}
             className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-black text-slate-300 hover:border-blue-400/50 hover:text-white"
           >
-            {allSelected ? 'Clear' : 'All'}
+            All
           </button>
         </div>
         <div className={`max-h-[330px] space-y-1 overflow-auto pr-1 ${scrollCls}`}>
@@ -5856,7 +5865,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
               <button
                 key={value}
                 type="button"
-                onClick={() => toggleSelection(setter, value)}
+                onClick={() => toggleSelection(setter, value, values)}
                 className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-bold transition ${
                   active
                     ? 'border-blue-400/35 bg-blue-500/12 text-blue-100'
@@ -5913,7 +5922,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
 
         <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
           <div className="space-y-3">
-            <ListFilter title="Enemy Guilds" side="Left side" values={guilds} selected={selectedGuilds} setter={setSelectedGuilds} />
+            <ListFilter title="Enemy Guilds" values={guilds} selected={selectedGuilds} setter={setSelectedGuilds} />
             <div className="rounded-2xl border border-rose-500/15 bg-rose-500/[0.055] p-3">
               <h4 className="mb-2 text-sm font-black text-rose-200">Guild Stats · Our Perspective</h4>
               <div className={`max-h-[250px] space-y-1 overflow-auto ${scrollCls}`}>
@@ -5923,8 +5932,8 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
           </div>
 
           <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-4">
-            <div className="mb-3 flex items-center justify-between"><h4 className="font-black">Important Events</h4><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">2+ kills / 10s · feeds</span></div>
-            {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className="space-y-2">{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-3 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-3"><b className="text-sm">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="text-[10px] text-slate-500">{event.date} · {event.time}</span></div><p className="mt-1 truncate text-xs text-slate-300">{event.ourPlayer} · {event.enemyGuild}{event.multiKillCount >= 2 ? ` · ${event.multiKillCount} kills inside 10 seconds` : ''}</p></div>)}</div>}
+            <div className="mb-3 flex items-center justify-between"><h4 className="font-black">Important Events</h4><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">2+ kills / 20s · feeds</span></div>
+            {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className="space-y-2">{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-3 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-3"><b className="text-sm">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="text-[10px] text-slate-500">{event.date} · {event.time}</span></div><p className="mt-1 truncate text-xs text-slate-300">{event.redFeed || event.blueFeed ? event.enemyGuild : `${event.ourPlayer} · ${event.enemyGuild}`}</p></div>)}</div>}
 
             <div className="mt-5 border-t border-slate-800 pt-4">
               <h4 className="mb-2 font-black">Live Combat Feed</h4>
@@ -5935,7 +5944,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
           </div>
 
           <div className="space-y-3">
-            <ListFilter title="Players" side="Right side" values={players} selected={selectedPlayers} setter={setSelectedPlayers} />
+            <ListFilter title="Players" values={players} selected={selectedPlayers} setter={setSelectedPlayers} />
             <div className="rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.055] p-3">
               <h4 className="mb-2 text-sm font-black text-cyan-200">Player Stats</h4>
               <div className={`max-h-[250px] space-y-1 overflow-auto ${scrollCls}`}>
