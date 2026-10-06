@@ -5970,7 +5970,7 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
+        <div className="grid gap-3 xl:grid-cols-[250px_minmax(220px,0.95fr)_minmax(220px,0.95fr)_235px_280px]">
           <div className="space-y-3">
             <ListFilter title="Enemy Guilds" values={guilds} selected={selectedGuilds} setter={setSelectedGuilds} />
             <div className="rounded-2xl border border-rose-500/15 bg-rose-500/[0.055] p-3">
@@ -5981,33 +5981,32 @@ function GlobalTimelineReplayPopup({ events = [], close }) {
             </div>
           </div>
 
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-            <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-4">
-              <h4 className="mb-3 font-black">Live Combat Feed</h4>
-              <div className={`max-h-[470px] space-y-1 overflow-auto pr-1 ${scrollCls}`}>
-                {[...visibleEvents].slice(-40).reverse().map((event, index) => <div key={`${event.sourceIndex}-feed-${index}`} className="grid grid-cols-[76px_minmax(0,1fr)] gap-2 rounded-lg border border-slate-800/80 bg-slate-950/60 px-3 py-2 text-xs"><span className="text-slate-500">{event.time || '-'} </span><span className="min-w-0"><span className="block truncate"><b className={event.type === 'kill' ? 'text-blue-300' : 'text-rose-300'}>{event.ourPlayer}</b> {event.type === 'kill' ? 'killed' : 'died to'} <b>{event.enemyPlayer}</b></span><span className="block truncate text-[10px] font-bold text-slate-500">{event.enemyGuild}</span></span></div>)}
-              </div>
-            </div>
-
-            <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-4">
-              <div className="mb-3"><h4 className="font-black">Important Events</h4></div>
-              {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className={`max-h-[470px] space-y-2 overflow-auto pr-1 ${scrollCls}`}>{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-3 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-3"><b className="text-sm">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="text-[10px] text-slate-500">{event.date} · {event.time}</span></div><p className="mt-1 truncate text-xs text-slate-300">{event.redFeed || event.blueFeed ? (event.feedGuild || event.enemyGuild) : `${event.ourPlayer} · ${event.enemyGuild}`}</p></div>)}</div>}
+          <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-3">
+            <h4 className="mb-3 font-black">Live Combat Feed</h4>
+            <div className={`max-h-[470px] space-y-1 overflow-auto pr-1 ${scrollCls}`}>
+              {[...visibleEvents].slice(-40).reverse().map((event, index) => <div key={`${event.sourceIndex}-feed-${index}`} className="grid grid-cols-[64px_minmax(0,1fr)] gap-2 rounded-lg border border-slate-800/80 bg-slate-950/60 px-2.5 py-2 text-[11px]"><span className="text-slate-500">{event.time || '-'} </span><span className="min-w-0"><span className="block truncate"><b className={event.type === 'kill' ? 'text-blue-300' : 'text-rose-300'}>{event.ourPlayer}</b> {event.type === 'kill' ? 'killed' : 'died to'} <b>{event.enemyPlayer}</b></span><span className="block truncate text-[10px] font-bold text-slate-500">{event.enemyGuild}</span></span></div>)}
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-col gap-3">
-            <div className="shrink-0 rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.055] p-3">
-              <h4 className="mb-2 text-sm font-black text-cyan-200">Player Stats</h4>
-              <div className={`max-h-[250px] space-y-1 overflow-y-auto overscroll-contain ${scrollCls}`}>
-                {playerStats.map((player) => <div key={player.name} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 rounded-lg bg-black/25 px-2 py-2 text-[11px]"><b className="truncate">{player.name}</b><span className="text-blue-300">K {player.kills}</span><span className="text-rose-300">D {player.deaths}</span><span className="text-emerald-300">{player.kd.toFixed(2)}</span></div>)}
-              </div>
+          <div className="min-w-0 rounded-2xl border border-slate-800 bg-black/30 p-3">
+            <div className="mb-3"><h4 className="font-black">Important Events</h4></div>
+            {!importantEvents.length ? <p className="py-10 text-center text-sm text-slate-600">Play the timeline to surface multikills, blue feeds and red feeds.</p> : <div className={`max-h-[470px] space-y-2 overflow-auto pr-1 ${scrollCls}`}>{importantEvents.map((event, index) => <div key={`${event.sourceIndex}-important-${index}`} className={`rounded-xl border p-2.5 ${event.redFeed ? 'border-rose-500/30 bg-rose-500/10' : event.blueFeed ? 'border-blue-500/30 bg-blue-500/10' : 'border-orange-500/30 bg-orange-500/10'}`}><div className="flex items-center justify-between gap-2"><b className="text-xs">{event.redFeed ? '🔴 RED FEED' : event.blueFeed ? '🔵 BLUE FEED' : `🔥 ${event.multiKillCount}× MULTIKILL`}</b><span className="shrink-0 text-[9px] text-slate-500">{event.time}</span></div><p className="mt-1 truncate text-[11px] text-slate-300">{event.redFeed || event.blueFeed ? (event.feedGuild || event.enemyGuild) : `${event.ourPlayer} · ${event.enemyGuild}`}</p></div>)}</div>}
+          </div>
+
+          <div className="min-w-0 rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.055] p-3">
+            <h4 className="mb-2 text-sm font-black text-cyan-200">Player Stats</h4>
+            <div className={`max-h-[470px] space-y-1 overflow-y-auto overscroll-contain ${scrollCls}`}>
+              {playerStats.map((player) => <div key={player.name} className="grid grid-cols-[1fr_auto_auto_auto] gap-1.5 rounded-lg bg-black/25 px-2 py-2 text-[10px]"><b className="truncate">{player.name}</b><span className="text-blue-300">K {player.kills}</span><span className="text-rose-300">D {player.deaths}</span><span className="text-emerald-300">{player.kd.toFixed(2)}</span></div>)}
             </div>
+          </div>
+
+          <div className="min-w-0">
             <ListFilter
               title="Selected Players"
               values={players}
               selected={selectedPlayers}
               setter={setSelectedPlayers}
-              listClassName="h-[360px] max-h-[360px]"
+              listClassName="h-[470px] max-h-[470px] overflow-y-auto overscroll-contain"
             />
           </div>
         </div>
