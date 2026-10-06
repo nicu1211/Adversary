@@ -8,6 +8,7 @@ import {
   Flag,
   Flame,
   Gauge,
+  HeartPulse,
   Medal,
   Shield,
   Skull,
@@ -2197,6 +2198,21 @@ function buildSingleGamePlayerHighlights(stats) {
         ],
         0,
       ),
+      allyHealing: readStatMetric(
+        row,
+        [
+          'allyProtection',
+          'ally_protection',
+          'ally protection',
+          'Ally Protection',
+          'AllyProtection',
+          'allyHealing',
+          'ally_healing',
+          'ally healing',
+          'Ally Healing',
+        ],
+        0,
+      ),
       killFeed: readStatMetric(
         row,
         ['killFeed', 'feed'],
@@ -2318,6 +2334,10 @@ function buildSingleGamePlayerHighlights(stats) {
     fortBreaker: bestStatRecord(
       'fortDamage',
       (record) => record.fortDamage > 0,
+    ),
+    allyHealingLeader: bestStatRecord(
+      'allyHealing',
+      (record) => record.allyHealing > 0,
     ),
     longestStreak,
     bestFeed: bestFeedRecord
@@ -2612,11 +2632,10 @@ function getWarGuildBreakdown(log, minimumInteractions = 30) {
   return guilds
     .map((guild) => ({
       name: cleanGuild(guild?.name),
-      // Same interpretation used by Overview:
-      // our kills are the enemy guild's recorded deaths,
-      // our deaths are the enemy guild's recorded kills.
-      kills: num(guild?.deaths),
-      deaths: num(guild?.kills),
+      // Monthly Recap displays the guild matchup from OUR perspective.
+      // The saved guild summary already stores our kills/deaths against them.
+      kills: num(guild?.kills),
+      deaths: num(guild?.deaths),
     }))
     .filter(
       (guild) =>
@@ -2672,9 +2691,10 @@ function buildEnemyRows(
     const warId = log?.id || dateOf(log) || `log-${index}`;
 
     guilds.forEach((guild) => {
-      // Same formula and field direction as Overview.
-      const ourKills = num(guild?.deaths);
-      const ourDeaths = num(guild?.kills);
+      // Monthly Recap shows OUR result against this guild.
+      // The saved guild summary is already oriented to our perspective.
+      const ourKills = num(guild?.kills);
+      const ourDeaths = num(guild?.deaths);
       const totalInteractions = ourKills + ourDeaths;
 
       if (totalInteractions < minimumInteractions) return;
@@ -3031,6 +3051,7 @@ function buildReview(
     bestKd,
     damageLeader,
     fortBreaker,
+    allyHealingLeader,
     longestStreak,
     bestFeed,
   } = buildSingleGamePlayerHighlights(stats);
@@ -3062,20 +3083,8 @@ function buildReview(
 
   const mostFought = highlightEnemies[0] || null;
 
-  // Inverted by request:
-  // Best Matchup uses the lowest K/D result.
-  // Toughest Opponent uses the highest K/D result.
+  // These rankings use OUR K/D against each guild.
   const bestMatchup =
-    [...highlightEnemies]
-      .filter((enemy) => enemy.kills + enemy.deaths > 0)
-      .sort(
-        (a, b) =>
-          a.kd - b.kd ||
-          b.wars - a.wars ||
-          b.deaths - a.deaths,
-      )[0] || null;
-
-  const toughestMatchup =
     [...highlightEnemies]
       .filter((enemy) => enemy.kills + enemy.deaths > 0)
       .sort(
@@ -3083,6 +3092,16 @@ function buildReview(
           b.kd - a.kd ||
           b.wars - a.wars ||
           b.kills - a.kills,
+      )[0] || null;
+
+  const toughestMatchup =
+    [...highlightEnemies]
+      .filter((enemy) => enemy.kills + enemy.deaths > 0)
+      .sort(
+        (a, b) =>
+          a.kd - b.kd ||
+          b.wars - a.wars ||
+          b.deaths - a.deaths,
       )[0] || null;
 
   const highestKillsWar =
@@ -3122,6 +3141,7 @@ function buildReview(
     bestKd,
     damageLeader,
     fortBreaker,
+    allyHealingLeader,
     longestStreak,
     bestFeed,
     enemies,
@@ -4832,6 +4852,7 @@ export default function MonthlyRecap({
     bestKd,
     damageLeader,
     fortBreaker,
+    allyHealingLeader,
     longestStreak,
     bestFeed,
     enemies,
@@ -5173,7 +5194,7 @@ export default function MonthlyRecap({
       </SectionShell>
 
       <SectionShell icon={Users} title="Player Highlights" accent="green" transparent>
-        <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-2 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
           <PlayerHighlight
             icon={Crosshair}
             label="Top Fragger"
@@ -5222,6 +5243,22 @@ export default function MonthlyRecap({
                 : 'Fort Damage'
             }
             accent="green"
+          />
+          <PlayerHighlight
+            icon={HeartPulse}
+            label="Ally Healing"
+            name={allyHealingLeader?.name}
+            value={
+              allyHealingLeader
+                ? compact(allyHealingLeader.allyHealing)
+                : '-'
+            }
+            unit={
+              allyHealingLeader?.date
+                ? `Healing · ${formatDate(allyHealingLeader.date)}`
+                : 'Healing'
+            }
+            accent="cyan"
           />
           <PlayerHighlight
             icon={Medal}
