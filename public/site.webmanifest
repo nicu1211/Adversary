@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Adversary Guild Stats",
+  "short_name": "Adversary",
+  "description": "Adversary guild statistics",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c0b0a",
+  "theme_color": "#0c0b0a",
+  "icons": [
+    {
+      "src": "/adversary-icon-192-20261011.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/adversary-icon-512-20261011.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
