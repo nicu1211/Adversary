@@ -54,32 +54,32 @@ import classOrbWitch from './assets/class-orbs/Witch.webp';
 import classOrbWizard from './assets/class-orbs/Wizard.webp';
 import classOrbWoosa from './assets/class-orbs/Woosa.webp';
 import classOrbWukong from './assets/class-orbs/Wukong.webp';
-import sidebarOrbHoverSound from './assets/class-orbs/orb-hover.mp3';
-import panelHoverSound from './assets/panel-hover.mp3';
-import adversaryStartupClip from './assets/adversary-startup.mp4?url';
+import sidebarOrbHoverSound from './assets/class-orbs/orb-hover-cachefix-20261010.mp3';
+import panelHoverSound from './assets/panel-hover-cachefix-20261010.mp3';
+import adversaryStartupClip from './assets/adversary-startup-cachefix-20261010.mp4?url';
 
-// The user's click sound lives at src/assets/Page-click.mp3. Using import.meta.glob
+// The user's click sound lives at src/assets/Page-click-cachefix-20261010.mp3. Using import.meta.glob
 // keeps this source buildable even when the audio file is not present in a shared
 // patch archive; when the file exists in the project Vite bundles its URL normally.
-const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click.mp3', {
+const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click-cachefix-20261010.mp3', {
   eager: true,
   query: '?url',
   import: 'default',
 });
-const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click.mp3'] || '';
+const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click-cachefix-20261010.mp3'] || '';
 
 // Optional persistent website background loop. Drop the finished loop into
-// src/assets as Loop-video.mp4 (or .webm). The glob keeps the project buildable
+// src/assets as Loop-video-cachefix-20261010.mp4 (or .webm). The glob keeps the project buildable
 // before that file is added.
-const LOOP_VIDEO_MODULES = import.meta.glob('./assets/Loop-video.*', {
+const LOOP_VIDEO_MODULES = import.meta.glob('./assets/Loop-video-cachefix-20261010.*', {
   eager: true,
   query: '?url',
   import: 'default',
 });
 const ADVERSARY_LOOP_VIDEO =
-  LOOP_VIDEO_MODULES['./assets/Loop-video.mp4'] ||
-  LOOP_VIDEO_MODULES['./assets/Loop-video.webm'] ||
-  LOOP_VIDEO_MODULES['./assets/Loop-video.mov'] ||
+  LOOP_VIDEO_MODULES['./assets/Loop-video-cachefix-20261010.mp4'] ||
+  LOOP_VIDEO_MODULES['./assets/Loop-video-cachefix-20261010.webm'] ||
+  LOOP_VIDEO_MODULES['./assets/Loop-video-cachefix-20261010.mov'] ||
   '';
 
 const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
@@ -7254,7 +7254,7 @@ export default function App() {
       return;
     }
 
-    // No Loop-video has been added yet. Restart the intro immediately as a
+    // No Loop-video-cachefix-20261010 has been added yet. Restart the intro immediately as a
     // fallback so the full-page background never falls back to black.
     const video = startupVideoRef.current;
     if (!video) return;
