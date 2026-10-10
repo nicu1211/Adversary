@@ -5790,7 +5790,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs, globalMuted = fal
     const orbAudios = SIDEBAR_CLASS_ORBS.map(() => {
       const audio = new Audio(SIDEBAR_ORB_HOVER_SOUND);
       audio.preload = 'auto';
-      audio.volume = 0.06;
+      audio.volume = 0.08;
       audio.muted = globalMutedRef.current;
       return audio;
     });
@@ -5813,7 +5813,7 @@ function SidebarClassOrbs({ members = [], logs = [], loadLogs, globalMuted = fal
 
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = 0.06;
+      audio.volume = 0.08;
 
       const playback = audio.play();
 
@@ -7032,7 +7032,7 @@ export default function App() {
     try {
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = 0.105;
+      audio.volume = 0.08;
 
       const playback = audio.play();
       if (playback?.catch) playback.catch(() => {});
@@ -7139,7 +7139,7 @@ export default function App() {
           introVideo.currentTime = 0;
           introVideo.muted = globalMuted;
           introVideo.defaultMuted = globalMuted;
-          introVideo.volume = globalMuted ? 0 : 0.25;
+          introVideo.volume = globalMuted ? 0 : 0.20;
         } catch {
           // The autoplay effect below will make another playback attempt.
         }
@@ -7198,7 +7198,7 @@ export default function App() {
     try {
       introVideo.muted = nextMuted;
       introVideo.defaultMuted = nextMuted;
-      introVideo.volume = nextMuted ? 0 : 0.25;
+      introVideo.volume = nextMuted ? 0 : 0.20;
 
       if (!nextMuted && !startupFinished) {
         const playPromise = introVideo.play();
@@ -7273,7 +7273,7 @@ export default function App() {
 
       try {
         video.muted = false;
-        video.volume = 0.25;
+        video.volume = 0.20;
         startupMutedFallbackRef.current = false;
 
         const playPromise = video.play();
@@ -7309,7 +7309,7 @@ export default function App() {
       try {
         video.muted = false;
         video.defaultMuted = false;
-        video.volume = 0.25;
+        video.volume = 0.20;
         await video.play();
         startupMutedFallbackRef.current = false;
       } catch {
@@ -7359,7 +7359,7 @@ export default function App() {
     const audios = Array.from({ length: 3 }, () => {
       const audio = new Audio(panelHoverSound);
       audio.preload = 'auto';
-      audio.volume = 0.105;
+      audio.volume = 0.08;
       audio.muted = globalMutedRef.current;
       return audio;
     });
@@ -7382,7 +7382,7 @@ export default function App() {
             audio.pause();
             audio.currentTime = 0;
             audio.muted = previousMuted;
-            audio.volume = 0.105;
+            audio.volume = 0.08;
           };
 
           if (playback?.then) {
@@ -7444,7 +7444,7 @@ export default function App() {
     const audioPool = Array.from({ length: 4 }, () => {
       const audio = new Audio(PAGE_CLICK_SOUND);
       audio.preload = 'auto';
-      audio.volume = 0.12;
+      audio.volume = 0.10;
       audio.muted = globalMutedRef.current;
       return audio;
     });
