@@ -70,6 +70,20 @@ const ADVERSARY_LOOP_VIDEO = adversaryLoopClip;
 const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
 const GLOBAL_MUTE_STORAGE_KEY = 'adversary:mute-all-sounds';
 const LEGACY_STARTUP_MUTE_STORAGE_KEY = 'adversary:mute-startup-intro';
+const MEDIA_RECOVERY_STORAGE_KEY = 'adversary:media-recovery-2026-10-10-v2';
+
+// One-time recovery from the old intro/mute settings. Never erase them on each reload:
+// after this migration the user's newly selected controls persist normally.
+try {
+  if (window.localStorage.getItem(MEDIA_RECOVERY_STORAGE_KEY) !== 'done') {
+    window.localStorage.removeItem(STARTUP_SKIP_STORAGE_KEY);
+    window.localStorage.removeItem(GLOBAL_MUTE_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_STARTUP_MUTE_STORAGE_KEY);
+    window.localStorage.setItem(MEDIA_RECOVERY_STORAGE_KEY, 'done');
+  }
+} catch {
+  // Private mode / blocked storage: startup still defaults to visible and unmuted.
+}
 
 function readStartupSkipPreference() {
   try {
@@ -7171,6 +7185,54 @@ export default function App() {
     }
   }, [finishStartup, globalMuted, skipStartupIntro, startBackgroundLoop, startupFinished]);
 
+  const restoreMedia = useCallback(() => {
+    try {
+      window.localStorage.removeItem(STARTUP_SKIP_STORAGE_KEY);
+      window.localStorage.removeItem(GLOBAL_MUTE_STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_STARTUP_MUTE_STORAGE_KEY);
+    } catch { /* In-memory reset still works. */ }
+    globalMutedRef.current = false;
+    startupMutedFallbackRef.current = false;
+    setGlobalMuted(false);
+    setSkipStartupIntro(false);
+    setStartupFinished(false);
+    setStartupFading(false);
+    setStartupStarted(false);
+    setBackgroundLoopActive(false);
+    backgroundLoopTransitionRef.current = false;
+
+    if (startupRevealTimerRef.current) {
+      window.clearTimeout(startupRevealTimerRef.current);
+      startupRevealTimerRef.current = null;
+    }
+    if (startupExitTimerRef.current) {
+      window.clearTimeout(startupExitTimerRef.current);
+      startupExitTimerRef.current = null;
+    }
+    const loop = backgroundLoopVideoRef.current;
+    if (loop) {
+      loop.pause();
+      try { loop.currentTime = 0; } catch { /* ignore */ }
+    }
+    [...panelHoverAudioRef.current, ...pageClickAudioRef.current].forEach((audio) => {
+      if (audio) audio.muted = false;
+    });
+    const intro = startupVideoRef.current;
+    if (intro) {
+      intro.pause();
+      try { intro.currentTime = 0; } catch { /* ignore */ }
+      // The button is a user gesture: attempt sound-on playback first.
+      intro.muted = false;
+      intro.defaultMuted = false;
+      intro.volume = 0.35;
+      intro.play().catch(() => {
+        intro.muted = true;
+        startupMutedFallbackRef.current = true;
+        intro.play().catch(error => console.error('[Adversary media] Restore playback failed:', error));
+      });
+    }
+  }, []);
+
   const toggleGlobalMute = useCallback(() => {
     const nextMuted = !globalMutedRef.current;
 
@@ -7309,7 +7371,7 @@ export default function App() {
     let cancelled = false;
 
     const unlockBackgroundAudio = () => {
-      if (cancelled || !startupMutedFallbackRef.current || globalMutedRef.current) return;
+      if (cancelled || globalMutedRef.current) return;
 
       try {
         video.muted = false;
@@ -7333,6 +7395,21 @@ export default function App() {
     };
 
     const tryAutoplay = async () => {
+      // Browser autoplay with sound is commonly rejected. The intro visual is
+      // important, so always start it muted and unlock audio on first gesture.
+      if (!globalMutedRef.current) {
+        try {
+          video.muted = true;
+          video.defaultMuted = true;
+          video.volume = 0;
+          startupMutedFallbackRef.current = true;
+          await video.play();
+          return;
+        } catch (error) {
+          console.warn('[Adversary media] Startup muted autoplay failed:', error);
+          // The user can still resume on their next pointer/keyboard gesture.
+        }
+      }
       if (globalMutedRef.current) {
         try {
           video.muted = true;
@@ -8972,7 +9049,8 @@ export default function App() {
           onPlaying={handleStartupPlaying}
           onTimeUpdate={handleIntroTimeUpdate}
           onEnded={handleBackgroundVideoEnded}
-          onError={() => {
+          onError={(event) => {
+            console.error('[Adversary media] Startup video failed to load:', event.currentTarget.currentSrc);
             if (!startupFinished) finishStartup();
           }}
         />
@@ -8994,6 +9072,16 @@ export default function App() {
         >
           {globalMuted ? <VolumeX size={14} strokeWidth={2.4} /> : <Volume2 size={14} strokeWidth={2.4} />}
           <span>{globalMuted ? 'Muted' : 'Mute'}</span>
+        </button>
+
+        <button
+          type="button"
+          data-no-page-click-sound="true"
+          onClick={restoreMedia}
+          title="Restart the intro and restore website sounds"
+          className="adversary-intro-control rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200"
+        >
+          Restore Media
         </button>
 
         <button
