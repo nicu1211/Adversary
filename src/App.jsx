@@ -7429,19 +7429,6 @@ export default function App() {
     const title = PAGE_TITLES[page] || 'Adversary';
     document.title = `Adversary · ${title}`;
 
-    let icon = document.querySelector(
-      'link[data-adversary-favicon="true"]',
-    );
-
-    if (!icon) {
-      icon = document.createElement('link');
-      icon.rel = 'icon';
-      icon.type = 'image/png';
-      icon.dataset.adversaryFavicon = 'true';
-      document.head.appendChild(icon);
-    }
-
-    icon.href = adversaryEmblem;
   }, [page]);
 
 
