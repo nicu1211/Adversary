@@ -68,6 +68,66 @@ const ADVERSARY_LOOP_VIDEO = adversaryLoopClip;
 const PANEL_HOVER_VOLUME = 0.32;
 const PAGE_CLICK_VOLUME = 0.36;
 
+// Test the actual *deployed* bytes, not just whether a media URL exists.
+// An SPA fallback often serves index.html with HTTP 200 at a missing .mp4
+// or .mp3 path; Chromium reports that as NotSupportedError, not a 404.
+async function inspectDeployedMedia(url, mediaKind) {
+  const result = {
+    asset: mediaKind,
+    url: String(url || ''),
+    http: 'not checked',
+    type: '',
+    signature: '',
+    result: '',
+  };
+  if (!url) { result.result = 'MISSING URL'; return result; }
+  try {
+    const response = await fetch(url, {
+      headers: { Range: 'bytes=0-63' },
+      cache: 'no-store',
+    });
+    result.http = response.status;
+    result.type = response.headers.get('content-type') || '(missing)';
+    result.url = response.url || String(url);
+    let firstBytes = new Uint8Array();
+    if (response.body?.getReader) {
+      const reader = response.body.getReader();
+      try {
+        const chunk = await reader.read();
+        if (chunk.value) firstBytes = chunk.value.slice(0, 64);
+      } finally {
+        await reader.cancel().catch(() => {});
+      }
+    } else {
+      firstBytes = new Uint8Array(await response.arrayBuffer()).slice(0, 64);
+    }
+    const header = Array.from(firstBytes).slice(0, 24)
+      .map((byte) => byte.toString(16).padStart(2, '0')).join(' ');
+    result.signature = header;
+    const ascii = Array.from(firstBytes.slice(0, 32))
+      .map((byte) => byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.')
+      .join('');
+    if (!response.ok) {
+      result.result = `HTTP ${response.status}: asset was not served`;
+    } else if (/<!doctype|<html|<head|<body/i.test(ascii)) {
+      result.result = 'HTML INSTEAD OF MEDIA: fix hosting rewrite / wrong URL';
+    } else if (mediaKind.includes('video')) {
+      const mp4 = firstBytes.length >= 12 &&
+        String.fromCharCode(...firstBytes.slice(4, 8)) === 'ftyp';
+      result.result = mp4 ? 'MP4 header OK' : 'NOT AN MP4 FILE';
+    } else {
+      const isId3 = String.fromCharCode(...firstBytes.slice(0, 3)) === 'ID3';
+      const isFrame = firstBytes.length >= 2 && firstBytes[0] === 255 &&
+        (firstBytes[1] & 0xe0) === 0xe0;
+      result.result = isId3 || isFrame ? 'MP3 header OK' : 'NOT AN MP3 FILE';
+    }
+  } catch (error) {
+    result.result = `FETCH FAILED: ${error?.message || String(error)}`;
+  }
+  return result;
+}
+
+
 const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
 const GLOBAL_MUTE_STORAGE_KEY = 'adversary:mute-all-sounds';
 const LEGACY_STARTUP_MUTE_STORAGE_KEY = 'adversary:mute-startup-intro';
@@ -225,6 +285,12 @@ const ROUTE_SEGMENT_TO_PAGE = Object.freeze(
 
 function routeBasePath() {
   const configuredBase = String(import.meta.env.BASE_URL || '/').trim() || '/';
+  // With base: './', use the actual address of Vite's built JS module.
+  // Built JS lives in /assets/ (or /project/assets/), while in dev this
+  // module lives in /src/. This keeps client routes under the deployment root.
+  if (configuredBase === './' || configuredBase === '.') {
+    try { return new URL('../', import.meta.url).pathname; } catch { return '/'; }
+  }
   const withLeadingSlash = configuredBase.startsWith('/')
     ? configuredBase
     : `/${configuredBase}`;
@@ -7002,6 +7068,13 @@ export default function App() {
   const startupMutedFallbackRef = useRef(false);
   const introEndedRef = useRef(false);
   const hoverSoundLastPlayedRef = useRef(0);
+  const mediaWarningKeysRef = useRef(new Set());
+  const warnMediaOnce = useCallback((label, error) => {
+    const key = `${label}:${error?.name || ''}:${error?.message || error?.code || ''}`;
+    if (mediaWarningKeysRef.current.has(key)) return;
+    mediaWarningKeysRef.current.add(key);
+    console.warn(`[Adversary] ${label}:`, error);
+  }, []);
   const globalMutedRef = useRef(readGlobalMutePreference());
   const [skipStartupIntro, setSkipStartupIntro] = useState(readStartupSkipPreference);
   const [startupFinished, setStartupFinished] = useState(readStartupSkipPreference);
@@ -7033,12 +7106,12 @@ export default function App() {
       const playback = audio.play();
       playback?.catch?.((error) => {
         // A hover before the first user gesture can be blocked by the browser.
-        if (error?.name !== 'NotAllowedError') console.warn('[Adversary] Panel audio:', error);
+        if (error?.name !== 'NotAllowedError') warnMediaOnce('Panel audio', error);
       });
     } catch (error) {
-      console.warn('[Adversary] Panel audio:', error);
+      warnMediaOnce('Panel audio', error);
     }
-  }, []);
+  }, [warnMediaOnce]);
 
   const finishStartup = useCallback(() => {
     if (startupExitTimerRef.current) return;
@@ -7055,6 +7128,9 @@ export default function App() {
 
     const loopVideo = backgroundLoopVideoRef.current;
     if (!loopVideo) return;
+    // Retrying .play() cannot repair a missing or HTML-rewritten source.
+    // Wait for a new page load/deployment instead of emitting 100s of warnings.
+    if (loopVideo.error || loopVideo.networkState === 3) return;
 
     backgroundLoopTransitionRef.current = true;
     loopVideo.muted = true;
@@ -7071,13 +7147,13 @@ export default function App() {
         })
         .catch((error) => {
           backgroundLoopTransitionRef.current = false;
-          console.warn('[Adversary] Background loop could not start:', error);
+          warnMediaOnce('Background loop could not start', error);
         });
     } catch (error) {
       backgroundLoopTransitionRef.current = false;
-      console.warn('[Adversary] Background loop could not start:', error);
+      warnMediaOnce('Background loop could not start', error);
     }
-  }, [finishStartup]);
+  }, [finishStartup, warnMediaOnce]);
 
   const handleSkipStartup = useCallback(() => {
     if (skipStartupIntro) {
@@ -7402,6 +7478,7 @@ export default function App() {
     // DevTools diagnostic: window.adversaryMediaStatus()
     // Useful for distinguishing a 404, a decoder error, and browser autoplay.
     const previous = window.adversaryMediaStatus;
+    const previousAudit = window.adversaryMediaAudit;
     const describeVideo = (video) => video ? {
       url: video.currentSrc || video.src,
       paused: video.paused,
@@ -7425,9 +7502,28 @@ export default function App() {
       panelHoverPool: panelHoverAudioRef.current.length,
       orbHoverSoundUrl: SIDEBAR_ORB_HOVER_SOUND,
     });
+    window.adversaryMediaAudit = async () => {
+      const checks = [
+        [adversaryStartupClip, 'startup video'],
+        [ADVERSARY_LOOP_VIDEO, 'background video'],
+        [PAGE_CLICK_SOUND, 'page click sound'],
+        [panelHoverSound, 'panel hover sound'],
+        [SIDEBAR_ORB_HOVER_SOUND, 'orb hover sound'],
+      ];
+      const results = await Promise.all(
+        checks.map(([url, kind]) => inspectDeployedMedia(url, kind)),
+      );
+      console.table(results);
+      if (results.some((item) => !item.result.endsWith('header OK'))) {
+        console.error('[Adversary] Some URLs do not serve real media. See the table above; fix deployment before changing mute/autoplay settings.');
+      }
+      return results;
+    };
     return () => {
       if (previous) window.adversaryMediaStatus = previous;
       else delete window.adversaryMediaStatus;
+      if (previousAudit) window.adversaryMediaAudit = previousAudit;
+      else delete window.adversaryMediaAudit;
     };
   }, [backgroundLoopActive, skipStartupIntro, startupFinished]);
 
@@ -7489,10 +7585,10 @@ export default function App() {
         audio.currentTime = 0;
         audio.muted = false;
         audio.play().catch((error) => {
-          if (error?.name !== 'NotAllowedError') console.warn('[Adversary] Click audio:', error);
+          if (error?.name !== 'NotAllowedError') warnMediaOnce('Click audio', error);
         });
       } catch (error) {
-        console.warn('[Adversary] Click audio:', error);
+        warnMediaOnce('Click audio', error);
       }
     };
 
@@ -7506,7 +7602,7 @@ export default function App() {
       });
       pageClickAudioRef.current = [];
     };
-  }, []);
+  }, [warnMediaOnce]);
 
   useEffect(() => {
     document.body.dataset.adversaryPage = page;
@@ -8918,7 +9014,7 @@ export default function App() {
             onCanPlay={() => {
               if (skipStartupIntro || introEndedRef.current) startBackgroundLoop();
             }}
-            onError={(event) => console.warn('[Adversary] Loop video failed:', event.currentTarget.error)}
+            onError={(event) => warnMediaOnce('Loop video failed', event.currentTarget.error)}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
               backgroundLoopActive ? 'opacity-100' : 'opacity-0'
             }`}
@@ -8939,7 +9035,7 @@ export default function App() {
           onTimeUpdate={handleIntroTimeUpdate}
           onEnded={handleBackgroundVideoEnded}
           onError={(event) => {
-            console.warn('[Adversary] Startup video failed:', event.currentTarget.error);
+            warnMediaOnce('Startup video failed', event.currentTarget.error);
             introEndedRef.current = true;
             startBackgroundLoop();
             if (!startupFinished) finishStartup();
