@@ -82,6 +82,50 @@ const ADVERSARY_LOOP_VIDEO =
   LOOP_VIDEO_MODULES['./assets/Loop-video.mov'] ||
   '';
 
+// In some deployments the Vite asset URL is rooted at /assets even though the
+// app's built JavaScript (and emitted MP4s) actually live under a subdirectory.
+// Resolve each emitted MP4 beside the JavaScript bundle first, then fall back to
+// the Vite-provided URL and conventional public/source paths. Keep videos in
+// src/assets; nothing needs to be moved for Vite to bundle them.
+function getAdversaryVideoSources(viteUrl, filename) {
+  const candidates = [];
+  const add = (value) => {
+    if (value && !candidates.includes(value)) candidates.push(value);
+  };
+
+  try {
+    const emittedUrl = new URL(viteUrl, window.location.href);
+    const emittedFilename = emittedUrl.pathname.split('/').pop();
+    if (emittedFilename) {
+      // import.meta.url is the actual built JavaScript file URL at runtime.
+      // This avoids incorrect absolute /assets URLs on subpath deployments.
+      add(new URL(emittedFilename + emittedUrl.search, import.meta.url).href);
+    }
+  } catch {
+    // Use the ordinary Vite URL if the generated URL cannot be parsed.
+  }
+
+  add(viteUrl);
+
+  try {
+    const publicRoot = new URL(import.meta.env.BASE_URL || '/', window.location.origin);
+    add(new URL(filename, publicRoot).href);
+    add(new URL(`src/assets/${filename}`, publicRoot).href);
+  } catch {
+    // Keep the bundled URL, even in environments without a normal base URL.
+  }
+
+  return candidates;
+}
+
+const ADVERSARY_LOOP_VIDEO_SOURCES = ADVERSARY_LOOP_VIDEO
+  ? getAdversaryVideoSources(ADVERSARY_LOOP_VIDEO, 'Loop-video.mp4')
+  : [];
+const ADVERSARY_STARTUP_VIDEO_SOURCES = getAdversaryVideoSources(
+  adversaryStartupClip,
+  'adversary-startup.mp4',
+);
+
 const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
 const GLOBAL_MUTE_STORAGE_KEY = 'adversary:mute-all-sounds';
 const LEGACY_STARTUP_MUTE_STORAGE_KEY = 'adversary:mute-startup-intro';
@@ -7024,6 +7068,12 @@ export default function App() {
   const [adminAccess, setAdminAccess] = useState(hasStoredAdminToken);
   const [backgroundLoopReady, setBackgroundLoopReady] = useState(false);
   const [backgroundLoopActive, setBackgroundLoopActive] = useState(false);
+  const [loopVideoSourceIndex, setLoopVideoSourceIndex] = useState(0);
+  const [introVideoSourceIndex, setIntroVideoSourceIndex] = useState(0);
+  const [loopVideoFailed, setLoopVideoFailed] = useState(false);
+  const loopVideoSrc = loopVideoFailed ? '' : (ADVERSARY_LOOP_VIDEO_SOURCES[loopVideoSourceIndex] || '');
+  const introVideoSrc = ADVERSARY_STARTUP_VIDEO_SOURCES[introVideoSourceIndex] || '';
+  const hasBackgroundLoop = Boolean(loopVideoSrc);
   const panelHoverAudioRef = useRef([]);
   const panelHoverAudioIndexRef = useRef(0);
   const pageClickAudioRef = useRef([]);
@@ -7076,7 +7126,7 @@ export default function App() {
   }, [backgroundLoopActive, finishStartup, startupFinished]);
 
   const startBackgroundLoop = useCallback(() => {
-    if (!ADVERSARY_LOOP_VIDEO || backgroundLoopTransitionRef.current || backgroundLoopActive) {
+    if (!hasBackgroundLoop || backgroundLoopTransitionRef.current || backgroundLoopActive) {
       return;
     }
 
@@ -7110,7 +7160,7 @@ export default function App() {
     } catch {
       backgroundLoopTransitionRef.current = false;
     }
-  }, [backgroundLoopActive]);
+  }, [backgroundLoopActive, loopVideoSrc]);
 
   const handleSkipStartup = useCallback(() => {
     if (skipStartupIntro) {
@@ -7228,12 +7278,12 @@ export default function App() {
 
 
   useEffect(() => {
-    if (!skipStartupIntro || !ADVERSARY_LOOP_VIDEO) return;
+    if (!skipStartupIntro || !hasBackgroundLoop) return;
     startBackgroundLoop();
-  }, [skipStartupIntro, startBackgroundLoop]);
+  }, [skipStartupIntro, startBackgroundLoop, loopVideoSrc]);
 
   const handleIntroTimeUpdate = useCallback((event) => {
-    if (!ADVERSARY_LOOP_VIDEO || backgroundLoopActive) return;
+    if (!hasBackgroundLoop || backgroundLoopActive) return;
 
     const video = event.currentTarget;
     const duration = Number(video.duration);
@@ -7248,8 +7298,29 @@ export default function App() {
     }
   }, [backgroundLoopActive, backgroundLoopReady, startBackgroundLoop]);
 
+  const handleLoopVideoError = useCallback(() => {
+    setBackgroundLoopReady(false);
+    backgroundLoopTransitionRef.current = false;
+    setBackgroundLoopActive(false);
+    if (loopVideoSourceIndex + 1 < ADVERSARY_LOOP_VIDEO_SOURCES.length) {
+      setLoopVideoSourceIndex((index) => index + 1);
+    } else {
+      console.warn('[Adversary] Background loop MP4 is not being served as video by the host.');
+      setLoopVideoFailed(true);
+    }
+  }, [loopVideoSourceIndex]);
+
+  const handleIntroVideoError = useCallback(() => {
+    if (introVideoSourceIndex + 1 < ADVERSARY_STARTUP_VIDEO_SOURCES.length) {
+      setIntroVideoSourceIndex((index) => index + 1);
+    } else {
+      console.warn('[Adversary] Intro MP4 is not being served as video by the host.');
+      if (!startupFinished) finishStartup();
+    }
+  }, [finishStartup, introVideoSourceIndex, startupFinished]);
+
   const handleBackgroundVideoEnded = useCallback(() => {
-    if (ADVERSARY_LOOP_VIDEO) {
+    if (hasBackgroundLoop) {
       startBackgroundLoop();
       return;
     }
@@ -7269,7 +7340,7 @@ export default function App() {
   }, [startBackgroundLoop]);
 
   useEffect(() => {
-    if (skipStartupIntro && ADVERSARY_LOOP_VIDEO) return undefined;
+    if (skipStartupIntro && hasBackgroundLoop) return undefined;
 
     const video = startupVideoRef.current;
     if (!video) return undefined;
@@ -7361,7 +7432,7 @@ export default function App() {
         startupExitTimerRef.current = null;
       }
     };
-  }, [finishStartup, skipStartupIntro]);
+  }, [finishStartup, skipStartupIntro, introVideoSrc, hasBackgroundLoop]);
 
   useEffect(() => {
     const audios = Array.from({ length: 3 }, () => {
@@ -8878,10 +8949,10 @@ export default function App() {
       >
         <div className="absolute inset-0 bg-slate-950" />
 
-        {ADVERSARY_LOOP_VIDEO && (
+        {hasBackgroundLoop && (
           <video
             ref={backgroundLoopVideoRef}
-            src={ADVERSARY_LOOP_VIDEO}
+            src={loopVideoSrc}
             playsInline
             preload="auto"
             loop
@@ -8889,7 +8960,11 @@ export default function App() {
             disablePictureInPicture
             aria-hidden="true"
             onLoadedData={() => setBackgroundLoopReady(true)}
-            onCanPlay={() => setBackgroundLoopReady(true)}
+            onCanPlay={() => {
+              setBackgroundLoopReady(true);
+              if (skipStartupIntro) startBackgroundLoop();
+            }}
+            onError={handleLoopVideoError}
             className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
               backgroundLoopActive ? 'opacity-100' : 'opacity-0'
             }`}
@@ -8898,11 +8973,11 @@ export default function App() {
 
         <video
           ref={startupVideoRef}
-          src={adversaryStartupClip}
-          autoPlay={!skipStartupIntro || !ADVERSARY_LOOP_VIDEO}
+          src={introVideoSrc}
+          autoPlay={!skipStartupIntro || !hasBackgroundLoop}
           playsInline
           preload="auto"
-          loop={!ADVERSARY_LOOP_VIDEO}
+          loop={!hasBackgroundLoop}
           muted={globalMuted || skipStartupIntro}
           disablePictureInPicture
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
@@ -8911,9 +8986,7 @@ export default function App() {
           onPlaying={handleStartupPlaying}
           onTimeUpdate={handleIntroTimeUpdate}
           onEnded={handleBackgroundVideoEnded}
-          onError={() => {
-            if (!startupFinished) finishStartup();
-          }}
+          onError={handleIntroVideoError}
         />
 
         {/* Readability layers only; the moving video is now the actual full-site background. */}
