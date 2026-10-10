@@ -57,6 +57,7 @@ import classOrbWukong from './assets/class-orbs/Wukong.webp';
 import sidebarOrbHoverSound from './assets/class-orbs/orb-hover-cachefix-20261010.mp3';
 import panelHoverSound from './assets/panel-hover-cachefix-20261010.mp3';
 import adversaryStartupClip from './assets/adversary-startup-streamfix-20261011.mp4?url';
+import adversaryBackgroundLoopClip from './assets/Loop-video-streamfix-20261011.mp4?url';
 
 // The user's click sound lives at src/assets/Page-click-cachefix-20261010.mp3. Using import.meta.glob
 // keeps this source buildable even when the audio file is not present in a shared
@@ -68,19 +69,10 @@ const PAGE_CLICK_SOUND_MODULES = import.meta.glob('./assets/Page-click-cachefix-
 });
 const PAGE_CLICK_SOUND = PAGE_CLICK_SOUND_MODULES['./assets/Page-click-cachefix-20261010.mp3'] || '';
 
-// Optional persistent website background loop. Drop the finished loop into
-// src/assets as Loop-video-streamfix-20261011.mp4 (or .webm). The glob keeps the project buildable
-// before that file is added.
-const LOOP_VIDEO_MODULES = import.meta.glob('./assets/Loop-video-cachefix-20261010.*', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
-const ADVERSARY_LOOP_VIDEO =
-  LOOP_VIDEO_MODULES['./assets/Loop-video-streamfix-20261011.mp4'] ||
-  LOOP_VIDEO_MODULES['./assets/Loop-video-cachefix-20261010.webm'] ||
-  LOOP_VIDEO_MODULES['./assets/Loop-video-cachefix-20261010.mov'] ||
-  '';
+// Import the actual video directly. This must not use an optional glob:
+// a previous glob looked for cachefix-20261010 while the file was streamfix-20261011,
+// silently disabling the loop and making the startup video repeat.
+const ADVERSARY_LOOP_VIDEO = adversaryBackgroundLoopClip;
 
 const STARTUP_SKIP_STORAGE_KEY = 'adversary:skip-startup-intro';
 const GLOBAL_MUTE_STORAGE_KEY = 'adversary:mute-all-sounds';
